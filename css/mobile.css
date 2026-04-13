@@ -1,0 +1,109 @@
+/* ── Mobile & Tablet responsive styles ── */
+/* Tablet: 768px and below */
+@media (max-width: 768px) {
+
+  /* Hero */
+  .hero { height: 52vh; min-height: 320px; }
+  .hero img { object-position: center 20%; }
+
+  .hero-nav { padding: 12px 16px; }
+  .hero-nav-btns { gap: 8px; }
+  .btn-nav-secondary { padding: 6px 12px; font-size: 13px; }
+  .btn-nav-primary .celtic-btn-wrap { padding: 7px 14px; font-size: 13px; }
+  .celtic-corner { width: 14px; height: 14px; }
+
+  .hero-text { padding: 10px 24px 0 !important; }
+  .eyebrow { font-size: 10px; padding: 3px 12px; }
+  .game-title { font-size: 42px; }
+  .game-subtitle { font-size: 16px; }
+  .hero-tagline { font-size: 14px; }
+  .hero-divider { margin-top: 2px !important; margin-bottom: 4px !important; }
+
+  /* Species section */
+  .species-section { padding: 20px 0 28px; }
+  .species-section-label { font-size: 22px; margin-bottom: 18px; padding: 0 16px; }
+  .label-deco-line { max-width: 60px; }
+
+  .carousel-wrap { height: 300px; }
+  .sp-card.pos-active { width: 180px; }
+  .sp-card.pos-l1, .sp-card.pos-r1 { width: 130px; }
+  .sp-card.pos-l1 { transform: translate(calc(-50% - 175px), -50%) scale(0.85); }
+  .sp-card.pos-r1 { transform: translate(calc(-50% + 175px), -50%) scale(0.85); }
+  .sp-card.pos-l2 { width: 100px; transform: translate(calc(-50% - 305px), -50%) scale(0.68); opacity: 0.2; }
+  .sp-card.pos-r2 { width: 100px; transform: translate(calc(-50% + 305px), -50%) scale(0.68); opacity: 0.2; }
+  .sp-card.pos-active .sp-card-name { font-size: 15px; }
+  .sp-card.pos-active .sp-card-role { font-size: 10px; }
+  .sp-card.pos-active .sp-card-flavor { font-size: 9px; }
+
+  .carousel-arrow.left { left: 4px; }
+  .carousel-arrow.right { right: 4px; }
+  .carousel-arrow { width: 36px; height: 36px; font-size: 15px; }
+
+  .carousel-dots { margin-top: 14px; }
+  .carousel-cta-col { margin-top: 12px; }
+  .btn-carousel-select .celtic-btn-wrap { padding: 10px 20px; font-size: 14px; }
+
+  /* Auth screens */
+  .auth-card { margin: 20px 16px; padding: 28px 24px 32px; }
+  .auth-banner { padding: 16px 20px; }
+  .species-picker { grid-template-columns: repeat(2, 1fr); }
+
+  /* Game screen */
+  .topbar { overflow-x: auto; gap: 0; }
+  .res { padding: 0 10px; font-size: 12px; }
+  .game-body { flex-direction: column; }
+  .sidebar { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.06); max-height: 280px; }
+  .map-area { padding: 12px; }
+  .map-grid { grid-template-columns: repeat(9, 36px); grid-template-rows: repeat(7, 36px); }
+  .tile { width: 36px; height: 36px; font-size: 15px; }
+
+  /* Modal */
+  .modal-card { margin: 0 12px; }
+  .modal-inner { flex-direction: column; }
+  .modal-art-wrap { width: 100%; height: 180px; padding: 16px 16px 0; border-right: none; border-bottom: 1px solid rgba(100,70,30,.12); }
+  .modal-info { padding: 20px 24px 24px; }
+  .modal-species-name { font-size: 24px; }
+  .modal-stats { grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+}
+
+/* Phone: 480px and below */
+@media (max-width: 480px) {
+
+  /* Hero — show just the key info, very compact */
+  .hero { height: 48vh; min-height: 280px; }
+
+  .btn-nav-secondary { display: none; }
+  .hero-nav { padding: 10px 14px; }
+
+  .game-title { font-size: 34px; }
+  .game-subtitle { font-size: 14px; }
+  .eyebrow { font-size: 9px; letter-spacing: .14em; }
+  .hero-tagline { font-size: 13px; display: none; }
+  .hero-divider { display: none; }
+  .hero-text { padding: 8px 16px 0 !important; }
+
+  /* Carousel tighter on phones */
+  .carousel-wrap { height: 260px; }
+  .sp-card.pos-active { width: 155px; }
+  .sp-card.pos-l1 { width: 110px; transform: translate(calc(-50% - 148px), -50%) scale(0.82); }
+  .sp-card.pos-r1 { width: 110px; transform: translate(calc(-50% + 148px), -50%) scale(0.82); }
+  .sp-card.pos-l2, .sp-card.pos-r2 { opacity: 0; pointer-events: none; }
+  .sp-card.pos-active .sp-card-name { font-size: 13px; }
+
+  .species-section-label { font-size: 18px; }
+  .label-deco-line { max-width: 40px; }
+
+  .btn-carousel-select .celtic-btn-wrap { padding: 9px 16px; font-size: 13px; }
+
+  /* Game map shrinks to fit */
+  .map-grid { grid-template-columns: repeat(9, 30px); grid-template-rows: repeat(7, 30px); }
+  .tile { width: 30px; height: 30px; font-size: 13px; }
+
+  /* Species picker 2 cols on phone */
+  .species-picker { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .sp-opt-art { width: 55px; height: 55px; }
+
+  /* Auth */
+  .auth-card { margin: 16px 12px; padding: 24px 18px 28px; }
+  .auth-heading { font-size: 22px; }
+}

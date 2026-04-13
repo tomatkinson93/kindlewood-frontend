@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kindlewood — Rise of the Woodland Realms</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/carousel.css">
+  <link rel="stylesheet" href="/css/hero.css">
+  <link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body>
+
+  <!-- SPECIES MODAL -->
+  <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-inner">
+        <div class="modal-art-wrap">
+          <img class="modal-art" id="modal-art" src="" alt="">
+        </div>
+        <div class="modal-info">
+          <div class="modal-species-name" id="modal-name"></div>
+          <div class="modal-role" id="modal-role"></div>
+          <div class="modal-flavor" id="modal-flavor"></div>
+          <hr class="modal-divider">
+          <div class="modal-stats" id="modal-stats"></div>
+          <div class="modal-lore" id="modal-lore"></div>
+          <button class="btn-primary modal-cta" onclick="closeModal(); showScreen('register')">🌿 Begin as this species →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- SETTLEMENT NAMING MODAL -->
+  <div class="naming-backdrop" id="naming-backdrop">
+    <div class="naming-fullscreen">
+      <img class="naming-bg" src="/assets/starter_camp.png" alt="Your camp">
+      <div class="naming-overlay"></div>
+      <div class="naming-content">
+        <div class="naming-eyebrow">This is where your story begins</div>
+        <div class="naming-title">Name your settlement</div>
+        <div class="naming-sub">Choose wisely — your name will echo through the ages</div>
+        <div class="naming-preview-wrap">
+          <div class="naming-preview" id="naming-preview">...</div>
+        </div>
+        <input class="naming-input" id="naming-input" type="text" maxlength="32" placeholder="e.g. Thornvale, Mosswick, Emberholt...">
+        <div class="naming-error" id="naming-error">Please enter at least 2 characters.</div>
+        <div class="naming-btns">
+          <button class="naming-btn-skip" id="naming-skip">Name it later</button>
+          <button class="naming-btn-confirm" id="naming-confirm">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+              Establish settlement
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WELCOME -->
+  <div class="screen active" id="screen-welcome">
+    <div class="hero">
+      <canvas id="hero-particles"></canvas>
+      <div class="hero-bottom-fade"></div>
+      <img src="/assets/hero.png" alt="Kindlewood village scene" onerror="this.style.display='none'">
+      <div class="hero-overlay"></div>
+      <div class="hero-nav">
+        <div class="hero-nav-btns" style="margin-left:auto;">
+          <button class="btn-nav-secondary" onclick="showScreen('login')">Sign In</button>
+          <button class="btn-nav-primary" onclick="scrollToSpecies()">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/><path d="M2 22 C2 12 12 12 12 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".3"/></svg>
+              Begin Your Journey
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/><path d="M30 22 C30 12 20 12 20 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".3"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="hero-text">
+        <div class="eyebrow">A woodland strategy game</div>
+        <div class="game-title">Kindlewood</div>
+        <div class="game-subtitle">Rise of the Woodland Realms</div>
+        <div class="hero-divider"><span class="divider-gem">✦</span></div>
+        <div class="hero-tagline">Build your settlement. Lead your kin.<br>Forge an empire from the forest floor.</div>
+      </div>
+    </div>
+
+    <div class="species-section">
+      <div class="species-section-label"><span class="label-deco-line"></span><span class="label-inner">✦ &nbsp;Choose Your Starter Species&nbsp; ✦</span><span class="label-deco-line"></span></div>
+      <div class="carousel-wrap">
+        <button class="carousel-arrow left" onclick="carouselPrev()">&#8592;</button>
+        <div class="carousel-track" id="carousel-track">
+          <div class="sp-card" data-sp="mouse">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/mouse.png" alt="Mouse"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Mice</div>
+              <div class="sp-card-role">Economy &amp; Growth</div>
+              <div class="sp-card-flavor">"Prosper through trade and unity"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('mouse')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="badger">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/badger.png" alt="Badger"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Badgers</div>
+              <div class="sp-card-role">Defense &amp; Infantry</div>
+              <div class="sp-card-flavor">"Unyielding guardians of the realm"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('badger')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="fox">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/fox.png" alt="Fox"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Foxes</div>
+              <div class="sp-card-role">Stealth &amp; Raids</div>
+              <div class="sp-card-flavor">"Cunning and swift in the shadows"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('fox')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="otter">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/otter.png" alt="Otter"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Otters</div>
+              <div class="sp-card-role">Trade &amp; Rivers</div>
+              <div class="sp-card-flavor">"Masters of water and commerce"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('otter')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="hare">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/hare.png" alt="Hare"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Hares</div>
+              <div class="sp-card-role">Speed &amp; Response</div>
+              <div class="sp-card-flavor">"Fast to act, faster to strike"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('hare')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="mole">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/mole.png" alt="Mole"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Moles</div>
+              <div class="sp-card-role">Infrastructure</div>
+              <div class="sp-card-flavor">"Builders beneath the earth"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('mole')">More Details ›</div>
+            </div>
+          </div>
+        </div>
+        <button class="carousel-arrow right" onclick="carouselNext()">&#8594;</button>
+      </div>
+      <div class="carousel-dots" id="carousel-dots"></div>
+      <div class="carousel-cta-col">
+        <button class="btn-carousel-select" onclick="selectCurrentSpecies()">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".4"/><path d="M2 22 C2 12 12 12 12 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".25"/></svg>
+              Choose Species
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".4"/><path d="M30 22 C30 12 20 12 20 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".25"/></svg>
+            </span>
+          </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="screen" id="screen-register">
+    <div class="auth-banner">
+      <div class="auth-logo">Kindlewood <span>Woodland Realms</span></div>
+      <div class="back-link" onclick="showScreen('welcome')">← Back</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-heading">Found your settlement</div>
+      <div class="auth-desc">Create your account and choose your species to begin.</div>
+      <div class="msg error" id="reg-error"></div>
+      <div class="msg success" id="reg-success"></div>
+      <div class="field"><label>Ruler name</label><input type="text" id="reg-name" placeholder="e.g. Aldric Thornpaw"></div>
+      <div class="field"><label>Email</label><input type="email" id="reg-email" placeholder="your@email.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="reg-pass" placeholder="At least 8 characters"></div>
+      <hr class="divider-line">
+      <button class="btn-primary" onclick="submitRegister()">🌿 Begin your story →</button>
+      <div class="auth-switch">Already have a realm? <a onclick="showScreen('login')">Sign in here</a></div>
+    </div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="screen" id="screen-login">
+    <div class="auth-banner">
+      <div class="auth-logo">Kindlewood <span>Woodland Realms</span></div>
+      <div class="back-link" onclick="showScreen('welcome')">← Back</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-heading">Return to your realm</div>
+      <div class="auth-desc">Sign in to continue your campaign.</div>
+      <div class="msg error" id="login-error"></div>
+      <div class="msg success" id="login-success"></div>
+      <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="Your password"></div>
+      <div class="forgot"><a href="#">Forgot password?</a></div>
+      <button class="btn-primary" onclick="submitLogin()">🌿 Enter the woodland →</button>
+      <hr class="divider-line">
+      <button class="btn-secondary" onclick="showScreen('register')">Found a new settlement →</button>
+      <div class="auth-switch">New to Kindlewood? <a onclick="showScreen('register')">Create your realm</a></div>
+    </div>
+  </div>
+
+
+
+  <!-- ARRIVAL -->
+  <div class="screen" id="screen-arrival">
+    <div class="arrival-fullscreen">
+      <img class="arrival-bg" id="arrival-bg" src="/assets/zone_forest.png" alt="">
+      <img class="arrival-bg-next" id="arrival-bg-next" src="" alt="">
+      <div class="arrival-overlay"></div>
+
+      <div class="arrival-content">
+
+        <!-- Species side -->
+        <div class="arrival-half arrival-species-half">
+          <div class="arrival-half-label">Your kin</div>
+          <div class="arrival-carousel">
+            <button class="arrival-arrow" onclick="arrivalSpeciesPrev()">←</button>
+            <div class="arrival-card">
+              <img class="arrival-sp-img" id="arrival-sp-img" src="/assets/mouse.png" alt="">
+              <div class="arrival-sp-name" id="arrival-sp-name">Mice</div>
+              <div class="arrival-sp-role" id="arrival-sp-role">Economy & Growth</div>
+              <div class="arrival-sp-flavor" id="arrival-sp-flavor"></div>
+              <div class="arrival-sp-stats" id="arrival-sp-stats"></div>
+              <div class="arrival-sp-lore" id="arrival-sp-lore"></div>
+            </div>
+            <button class="arrival-arrow" onclick="arrivalSpeciesNext()">→</button>
+          </div>
+          <div class="arrival-counter" id="arrival-sp-counter">1 / 6</div>
+          <div class="arrival-diversity-note">✦ You can recruit other species as your realm grows ✦</div>
+        </div>
+
+        <!-- Zone side -->
+        <div class="arrival-half arrival-zone-half">
+          <div class="arrival-half-label">Your homeland</div>
+          <div class="arrival-zone-carousel-row">
+            <button class="arrival-arrow" onclick="arrivalZonePrev()">←</button>
+            <div class="arrival-zone-display">
+              <div class="arrival-zone-emoji" id="arrival-zone-emoji">🌲</div>
+              <div class="arrival-zone-name" id="arrival-zone-name">Ancient Forest</div>
+              <div class="arrival-zone-subtitle" id="arrival-zone-subtitle"></div>
+              <div class="arrival-zone-desc" id="arrival-zone-desc"></div>
+              <div class="arrival-zone-divider"></div>
+              <div class="arrival-zone-bonuses" id="arrival-zone-bonuses"></div>
+              <div class="arrival-zone-bestfor" id="arrival-zone-bestfor"></div>
+              <div class="arrival-zone-divider"></div>
+              <div class="arrival-zone-extra" id="arrival-zone-extra"></div>
+            </div>
+            <button class="arrival-arrow" onclick="arrivalZoneNext()">→</button>
+          </div>
+          <div class="arrival-counter" id="arrival-zone-counter">1 / 5</div>
+          <div class="arrival-diversity-note">✦ You can found more settlements as your realm grows ✦</div>
+        </div>
+
+      </div>
+
+      <!-- Naming + Confirm centred column -->
+      <div class="arrival-bottom-row">
+        <div class="arrival-naming-eyebrow">This is where your story begins</div>
+        <div class="arrival-naming-title">Name your settlement</div>
+        <div class="arrival-naming-sub">Choose wisely — your name will echo through the ages</div>
+        <div class="arrival-naming-preview" id="arrival-settlement-preview">Your Settlement</div>
+        <input class="arrival-naming-input" id="arrival-settlement-name" type="text" maxlength="32" placeholder="e.g. Thornvale, Mosswick, Emberholt...">
+        <button class="arrival-confirm-btn" id="arrival-confirm-btn" onclick="confirmArrival()">
+          <span class="celtic-btn-wrap">
+            <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+            Begin your story
+            <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+          </span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PLACEMENT -->
+  <div class="screen" id="screen-placement">
+    <div class="placement-header">
+      <div class="placement-title">Choose your land</div>
+      <div class="placement-sub">Your settlers have arrived. Where will you build your future?</div>
+    </div>
+    <div class="placement-body">
+      <div class="placement-left">
+        <div class="placement-loading" id="placement-loading">
+          <div class="loading-text">Scouting the area...</div>
+        </div>
+        <div class="placement-map-wrap" id="placement-map-wrap" style="display:none;">
+          <div class="placement-grid" id="placement-grid"></div>
+        </div>
+        <div class="placement-suggestions" id="placement-suggestions" style="display:none;">
+          <div class="sug-label-heading">Suggested locations</div>
+          <div class="suggestion-tiles" id="suggestion-tiles"></div>
+        </div>
+      </div>
+      <div class="placement-right">
+        <div class="placement-panel" id="placement-panel">
+          <div class="placement-hint">Click a tile to preview it</div>
+        </div>
+        <div class="placement-actions">
+          <button class="btn-placement-confirm" id="placement-confirm" disabled onclick="confirmPlacement()">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+              Establish settlement here
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+            </span>
+          </button>
+          <button class="btn-placement-reroll" id="reroll-btn" onclick="rerollSpawn()">Scout another area (1 left)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="screen-game">
+    <div class="topbar">
+      <div class="res" id="res-food"><img class="res-icon-img" src="/assets/foodicon.png" alt="Food"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-timber"><img class="res-icon-img" src="/assets/woodicon.png" alt="Timber"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-stone"><img class="res-icon-img" src="/assets/stoneicon.png" alt="Stone"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-metal"><img class="res-icon-img" src="/assets/metalicon.png" alt="Metal"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-wealth"><img class="res-icon-img" src="/assets/goldicon.png" alt="Wealth"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="topbar-right">
+        <div id="season-badge" class="season-badge-wrap"></div>
+        <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
+        <button class="btn-cheat" onclick="openCheatMenu()" title="Cheat Menu">⚗</button>
+        <!-- Profile dropdown -->
+        <div class="profile-dropdown-wrap" id="profile-dropdown-wrap">
+          <button class="profile-trigger" id="profile-trigger" onclick="toggleProfileMenu()" aria-haspopup="true">
+            <span class="profile-avatar-mini" id="profile-avatar-mini">?</span>
+            <span class="profile-username-label" id="profile-username-label">—</span>
+            <span class="profile-caret">▾</span>
+          </button>
+          <div class="profile-menu" id="profile-menu" role="menu">
+            <button class="profile-menu-item" onclick="openProfile(); closeProfileMenu()">👤 Profile</button>
+            <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🏛️ Your Kingdom</button>
+            <button class="profile-menu-item disabled">👥 Friends <span class="coming-soon">soon</span></button>
+            <button class="profile-menu-item disabled">📜 Achievements <span class="coming-soon">soon</span></button>
+            <div class="profile-menu-divider"></div>
+            <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🌍 Switch Realm</button>
+            <button class="profile-menu-item" onclick="showCommunityTab('settings'); closeProfileMenu()">⚙️ Settings</button>
+            <button class="profile-menu-item" onclick="showCommunityTab('help'); closeProfileMenu()">❓ Help</button>
+            <div class="profile-menu-divider"></div>
+            <button class="profile-menu-item logout-item" onclick="logout()">🚪 Log Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="season-panel" class="season-panel"></div>
+    <div class="community-bar">
+      <button class="comm-btn" onclick="showCommunityTab('quests')">📜 Quests</button>
+      <button class="comm-btn" onclick="showCommunityTab('events')">🧭 Events</button>
+      <button class="comm-btn" onclick="showCommunityTab('rankings')">🏆 Rankings</button>
+      <button class="comm-btn" onclick="showCommunityTab('market')">💰 Market</button>
+      <button class="comm-btn" onclick="showCommunityTab('messages')">📬 Messages</button>
+      <button class="comm-btn" onclick="showCommunityTab('chat')">💬 Chat</button>
+      <button class="comm-btn" onclick="showCommunityTab('realms')">🌍 Realms</button>
+      <button class="comm-btn" onclick="showCommunityTab('alerts')">🔔 Alerts</button>
+      <button class="comm-btn" onclick="showCommunityTab('settings')">⚙️ Settings</button>
+    </div>
+    <!-- Guard art — fixed to screen edges in the parchment surround -->
+    <img class="map-decor map-decor-left"  id="map-decor-left"  src="" alt="" aria-hidden="true">
+    <img class="map-decor map-decor-right" id="map-decor-right" src="" alt="" aria-hidden="true">
+
+    <div class="game-body">
+      <div class="map-area">
+        <div class="map-compass-wrap">
+        <div class="map-compass" title="N">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" width="52" height="52">
+            <circle cx="30" cy="30" r="28" fill="rgba(20,13,5,.7)" stroke="rgba(180,130,60,.4)" stroke-width="1.5"/>
+            <!-- N arrow red -->
+            <polygon points="30,6 34,30 30,26 26,30" fill="#c0392b" opacity=".9"/>
+            <!-- S arrow cream -->
+            <polygon points="30,54 34,30 30,34 26,30" fill="#e8d5a0" opacity=".7"/>
+            <!-- tick marks -->
+            <line x1="30" y1="3" x2="30" y2="8" stroke="rgba(180,130,60,.6)" stroke-width="1.5"/>
+            <line x1="30" y1="52" x2="30" y2="57" stroke="rgba(180,130,60,.4)" stroke-width="1"/>
+            <line x1="3" y1="30" x2="8" y2="30" stroke="rgba(180,130,60,.4)" stroke-width="1"/>
+            <line x1="52" y1="30" x2="57" y2="30" stroke="rgba(180,130,60,.4)" stroke-width="1"/>
+            <!-- N label -->
+            <text x="30" y="19" text-anchor="middle" font-size="7" fill="#e8d5a0" font-family="serif" font-weight="bold">N</text>
+            <!-- centre dot -->
+            <circle cx="30" cy="30" r="3" fill="rgba(180,130,60,.8)"/>
+          </svg>
+        </div>
+        </div>
+        <!-- Fixed map frame — grid clips inside this, buttons sit on edges -->
+        <div class="map-frame" id="map-frame">
+          <!-- Fog texture — first child, behind grid, clipped by frame overflow -->
+          <div class="fog-texture" aria-hidden="true"></div>
+          <div class="map-grid" id="map-grid"></div>
+          <!-- Arrow buttons absolutely positioned on frame edges -->
+          <button class="map-ctrl-btn map-btn-up"    onclick="panCamera(0,-3)">▲</button>
+          <button class="map-ctrl-btn map-btn-down"  onclick="panCamera(0,3)">▼</button>
+          <button class="map-ctrl-btn map-btn-left"  onclick="panCamera(-3,0)">◄</button>
+          <button class="map-ctrl-btn map-btn-right" onclick="panCamera(3,0)">►</button>
+          <!-- Action bar — absolute over map bottom -->
+          <div class="action-bar">
+            <button class="action-bar-btn" id="action-scout" onclick="actionScout()">🧭 Scout</button>
+            <button class="action-bar-btn" id="action-build" onclick="switchTab('buildings')">🏗 Build</button>
+            <button class="action-bar-btn" id="action-citizens" onclick="switchTab('citizens')">🧍 Citizens</button>
+            <button class="action-bar-btn" onclick="centreCamera()">🏘 Centre</button>
+            <div class="zoom-btns">
+              <button class="zoom-btn" id="zoom-in"  onclick="setZoom(-1)" title="Zoom in">+</button>
+              <button class="zoom-btn" id="zoom-out" onclick="setZoom(1)"  title="Zoom out">−</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" id="tab-settlement" onclick="switchTab('settlement')">Settlement</button>
+          <button class="sidebar-tab" id="tab-citizens" onclick="switchTab('citizens')">Citizens</button>
+          <button class="sidebar-tab" id="tab-buildings" onclick="switchTab('buildings')">Build</button>
+          <button class="sidebar-tab" id="tab-tier" onclick="switchTab('tier')">Tier ▲</button>
+        </div>
+
+        <!-- Settlement panel -->
+        <div id="panel-map-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+          <div class="sidebar-header">
+            <div class="sidebar-title" id="panel-title">Loading...</div>
+            <div class="sidebar-sub" id="panel-sub"></div>
+          </div>
+          <div class="sidebar-body" id="panel-body"></div>
+        </div>
+
+        <!-- Citizens panel -->
+        <div id="panel-citizens-view" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+          <div class="citizens-toolbar">
+            <span class="citizens-count" id="citizens-count">10 citizens</span>
+            <button class="btn-view-all" onclick="openAllCitizens()">View all ↗</button>
+          </div>
+          <div class="citizens-split">
+            <div class="citizens-list-col">
+              <div class="citizens-list" id="citizens-list">
+                <div class="citizens-empty">Loading...</div>
+              </div>
+            </div>
+            <div class="citizen-detail-col" id="citizen-detail">
+              <div class="citizen-detail-empty">Select a citizen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/particles.js"></script>
+  <script src="/js/game.js"></script>
+  <script src="/js/carousel.js"></script>
+  <script src="/js/placement.js"></script>
+  <script src="/js/arrival.js"></script>
+  <script src="/js/citizens.js"></script>
+  <script src="/js/buildings.js"></script>
+  <script src="/js/expeditions.js"></script>
+  <script src="/js/seasons.js"></script>
+  <script src="/js/tier.js"></script>
+  <script src="/js/profile.js"></script>
+  <script src="/js/main.js"></script>
+
+  <!-- VIEW ALL CITIZENS MODAL -->
+  <div class="all-citizens-backdrop" id="all-citizens-modal">
+    <div class="all-citizens-modal">
+      <div class="ac-header">
+        <div class="ac-title">Your People</div>
+        <div class="ac-search-wrap">
+          <input class="ac-search" id="ac-search" placeholder="Search name or role..."
+            oninput="renderAllCitizens(null, null, this.value)">
+        </div>
+        <button class="ac-close" onclick="closeAllCitizens()">✕</button>
+      </div>
+      <div class="ac-table-wrap">
+        <table class="ac-table">
+          <thead>
+            <tr>
+              <th><button class="ac-sort-btn" data-sort="name" onclick="acSort('name')">Name ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="age" onclick="acSort('age')">Age ↕</button></th>
+              <th>Role</th>
+              <th><button class="ac-sort-btn" data-sort="strength" onclick="acSort('strength')">STR ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="agility" onclick="acSort('agility')">AGI ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="endurance" onclick="acSort('endurance')">END ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="intelligence" onclick="acSort('intelligence')">INT ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="charisma" onclick="acSort('charisma')">CHA ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="health" onclick="acSort('health')">HP ↕</button></th>
+              <th>Traits</th>
+            </tr>
+          </thead>
+          <tbody id="all-citizens-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHEAT MENU -->
+  <div class="cheat-backdrop" id="cheat-modal">
+    <div class="cheat-card">
+      <div class="cheat-header">
+        <div class="cheat-title">⚗ Cheat Menu</div>
+        <div class="cheat-sub">Developer tools — testing only</div>
+        <button class="cheat-close" onclick="closeCheatMenu()">✕</button>
+      </div>
+      <div class="cheat-body">
+        <div class="cheat-section-label">Add Resources</div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="applyCheat('food', 500)">🌿 +500 Food</button>
+          <button class="cheat-res-btn" onclick="applyCheat('timber', 500)">🌲 +500 Timber</button>
+          <button class="cheat-res-btn" onclick="applyCheat('stone', 500)">⬜ +500 Stone</button>
+          <button class="cheat-res-btn" onclick="applyCheat('metal', 500)">🟡 +500 Metal</button>
+          <button class="cheat-res-btn" onclick="applyCheat('wealth', 500)">🟠 +500 Wealth</button>
+          <button class="cheat-res-btn" onclick="applyCheat('food', 5000)">🌿 +5000 Food</button>
+          <button class="cheat-res-btn" onclick="applyCheat('timber', 5000)">🌲 +5000 Timber</button>
+          <button class="cheat-res-btn" onclick="applyCheat('stone', 5000)">⬜ +5000 Stone</button>
+          <button class="cheat-res-btn" onclick="applyCheat('metal', 5000)">🟡 +5000 Metal</button>
+          <button class="cheat-res-btn" onclick="applyCheat('wealth', 5000)">🟠 +5000 Wealth</button>
+        </div>
+        <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All Resources</button>
+        <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All Resources</button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Fog of War</div>
+        <button class="cheat-res-btn" onclick="cheatRevealAll()">🌍 Reveal entire map</button>
+        <button class="cheat-res-btn" onclick="cheatResetFog()">🌫 Reset fog of war</button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Other</div>
+        <button class="cheat-res-btn" onclick="applyCheatAll(50000).then(()=>{ renderTierPanel && renderTierPanel(); })">▲ +50k all (tier test)</button>
+        <button class="cheat-res-btn" onclick="fetch(API+'/api/game/reset-placement',{method:'POST',credentials:'include',headers:{'Authorization':'Bearer '+localStorage.getItem('kw_token')}}).then(()=>location.reload())">
+          🗺 Reset placement (re-do arrival)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMUNITY PANEL -->
+  <div class="community-backdrop" id="community-modal">
+    <div class="community-card">
+      <div class="community-card-header">
+        <div class="community-card-title" id="community-title">Realm News</div>
+        <button class="community-close" onclick="closeCommunity()">✕</button>
+      </div>
+      <div class="community-card-body" id="community-body">
+        <div class="community-placeholder">Coming soon — this is where realm-wide news, notices and chat will live.</div>
+      </div>
+    </div>
+  </div>
+  <!-- TIER CELEBRATION MODAL -->
+  <div class="tier-celebration-backdrop" id="tier-celebration-modal">
+    <div class="tier-celebration-box">
+      <div class="tier-cel-emoji" id="tier-cel-emoji">🏘</div>
+      <div class="tier-cel-title" id="tier-cel-title"></div>
+      <div class="tier-cel-sub" id="tier-cel-sub"></div>
+      <div class="tier-cel-unlocks" id="tier-cel-unlocks"></div>
+      <button class="tier-cel-close" onclick="closeTierCelebration()">Continue your reign →</button>
+    </div>
+  </div>
+
+
+  <!-- ═══ PROFILE MODAL ═══ -->
+  <div class="profile-modal-backdrop" id="profile-modal" onclick="closeProfileIfOutside(event)">
+    <div class="profile-modal-box">
+      <button class="profile-modal-close" onclick="closeProfile()">✕</button>
+
+      <div class="pm-header">
+        <div class="pm-avatar-wrap" id="pm-avatar-wrap" onclick="triggerAvatarUpload()" title="Click to change avatar">
+          <div class="pm-avatar" id="pm-avatar">?</div>
+          <div class="pm-avatar-overlay">📷</div>
+        </div>
+        <div class="pm-header-info">
+          <div class="pm-username" id="pm-username">—</div>
+          <div class="pm-species" id="pm-species"></div>
+          <div class="pm-joined" id="pm-joined"></div>
+        </div>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Bio</div>
+        <textarea class="pm-bio-input" id="pm-bio" placeholder="Tell the realm who you are…" maxlength="280" rows="3"></textarea>
+        <div class="pm-bio-counter"><span id="pm-bio-count">0</span>/280</div>
+        <button class="pm-save-btn" onclick="saveProfile()">Save bio</button>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Your Settlements</div>
+        <div class="pm-settlements" id="pm-settlements">
+          <div class="pm-settlement-loading">Loading…</div>
+        </div>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Stats</div>
+        <div class="pm-stats-grid" id="pm-stats-grid">
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-citizens">—</span><span class="pm-stat-key">Citizens</span></div>
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-buildings">—</span><span class="pm-stat-key">Buildings</span></div>
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-tier">—</span><span class="pm-stat-key">Tier</span></div>
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-expeditions">—</span><span class="pm-stat-key">Scouts sent</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ VIEW OTHER PLAYER PROFILE ═══ -->
+  <div class="profile-modal-backdrop" id="view-profile-modal" onclick="closeViewProfileIfOutside(event)">
+    <div class="profile-modal-box">
+      <button class="profile-modal-close" onclick="closeViewProfile()">✕</button>
+      <div class="pm-header">
+        <div class="pm-avatar-wrap" style="cursor:default">
+          <div class="pm-avatar" id="vp-avatar">?</div>
+        </div>
+        <div class="pm-header-info">
+          <div class="pm-username" id="vp-username">—</div>
+          <div class="pm-species" id="vp-species"></div>
+        </div>
+      </div>
+      <div class="pm-section">
+        <div class="pm-section-label">Bio</div>
+        <div class="pm-bio-display" id="vp-bio">This ruler keeps their own counsel.</div>
+      </div>
+      <div class="pm-section">
+        <div class="pm-section-label">Settlement</div>
+        <div class="pm-settlements" id="vp-settlements"></div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

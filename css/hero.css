@@ -1,0 +1,132 @@
+/* ── Hero atmosphere ── */
+
+/* Parchment section gets subtle forest texture via SVG noise + tree silhouettes */
+.species-section {
+  position: relative;
+}
+.species-section::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; border-radius: inherit;
+}
+.species-section > * { position: relative; z-index: 1; }
+
+/* Silhouette trees behind the species section */
+.species-section::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120 L0 80 L20 80 L20 40 L30 40 L30 20 L40 20 L40 0 L50 0 L50 20 L60 20 L60 40 L70 40 L70 80 L80 80 L80 60 L90 60 L90 30 L100 30 L100 10 L110 10 L110 30 L120 30 L120 60 L130 60 L130 80 L150 80 L150 50 L160 50 L160 25 L170 25 L170 5 L180 5 L180 25 L190 25 L190 50 L200 50 L200 80 L220 80 L220 55 L230 55 L230 30 L240 30 L240 8 L250 8 L250 30 L260 30 L260 55 L270 55 L270 80 L300 80 L300 60 L310 60 L310 35 L320 35 L320 12 L330 12 L330 35 L340 35 L340 60 L350 60 L350 80 L380 80 L380 50 L390 50 L390 22 L400 22 L400 5 L410 5 L410 22 L420 22 L420 50 L430 50 L430 80 L460 80 L460 58 L470 58 L470 32 L480 32 L480 10 L490 10 L490 32 L500 32 L500 58 L510 58 L510 80 L540 80 L540 62 L550 62 L550 38 L560 38 L560 15 L570 15 L570 38 L580 38 L580 62 L590 62 L590 80 L620 80 L620 55 L630 55 L630 28 L640 28 L640 8 L650 8 L650 28 L660 28 L660 55 L670 55 L670 80 L700 80 L700 60 L710 60 L710 35 L720 35 L720 12 L730 12 L730 35 L740 35 L740 60 L750 60 L750 80 L780 80 L780 50 L790 50 L790 25 L800 25 L800 5 L810 5 L810 25 L820 25 L820 50 L830 50 L830 80 L860 80 L860 58 L870 58 L870 30 L880 30 L880 10 L890 10 L890 30 L900 30 L900 58 L910 58 L910 80 L940 80 L940 55 L950 55 L950 28 L960 28 L960 8 L970 8 L970 28 L980 28 L980 55 L990 55 L990 80 L1020 80 L1020 60 L1030 60 L1030 35 L1040 35 L1040 12 L1050 12 L1050 35 L1060 35 L1060 60 L1070 60 L1070 80 L1100 80 L1100 52 L1110 52 L1110 25 L1120 25 L1120 5 L1130 5 L1130 25 L1140 25 L1140 52 L1150 52 L1150 80 L1200 80 L1200 120 Z' fill='rgba(44,34,24,0.06)'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  pointer-events: none; z-index: 0;
+}
+
+/* Canvas for particles sits inside .hero */
+#hero-particles { position: absolute; inset: 0; width: 100% !important; height: 100% !important;
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 2;
+}
+
+/* Tighten text block vertical spacing */
+.hero-text {
+  gap: 0;
+}
+.game-title { margin-bottom: 2px !important; }
+.game-subtitle { margin-bottom: 4px !important; }
+.hero-divider { margin-top: 4px !important; margin-bottom: 6px !important; }
+.hero-tagline { margin-bottom: 0 !important; }
+
+/* Bottom fade from hero into parchment */
+.hero-bottom-fade {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+  background: linear-gradient(to bottom, transparent, var(--parchment));
+  pointer-events: none; z-index: 3;
+}
+
+/* ── Hero nav bar ── */
+.hero-nav {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 32px;
+  background: linear-gradient(to bottom, rgba(20,16,10,.55) 0%, transparent 100%);
+}
+.hero-nav-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; font-weight: 700; color: var(--leaf);
+  text-shadow: 0 1px 6px rgba(0,0,0,.5);
+  letter-spacing: .02em;
+}
+.hero-nav-btns { display: flex; align-items: center; gap: 10px; }
+
+.btn-nav-secondary {
+  font-family: 'Crimson Pro', serif; font-size: 14px;
+  color: rgba(192,221,151,.85); background: transparent;
+  border: 1px solid rgba(192,221,151,.3); border-radius: 4px;
+  padding: 8px 18px; cursor: pointer; transition: all .18s;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.btn-nav-secondary:hover { background: rgba(192,221,151,.1); border-color: var(--leaf); color: var(--leaf); }
+
+/* Celtic button */
+.btn-nav-primary {
+  font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700;
+  color: #1C1812;
+  background: linear-gradient(135deg, #B8841A 0%, #EF9F27 45%, #F5B942 70%, #C8941A 100%);
+  border: none; border-radius: 5px; padding: 0;
+  cursor: pointer; transition: all .22s;
+  box-shadow: 0 0 14px rgba(239,159,39,.4), 0 2px 8px rgba(0,0,0,.3);
+  position: relative; overflow: hidden;
+}
+.btn-nav-primary::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.2) 0%, transparent 55%);
+  pointer-events: none;
+}
+.btn-nav-primary:hover { transform: scale(1.04); box-shadow: 0 0 22px rgba(239,159,39,.6); filter: brightness(1.07); }
+.btn-nav-primary:active { transform: scale(0.97); }
+
+/* Celtic knot border wrapper inside button */
+.celtic-btn-wrap {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 18px; position: relative;
+}
+.celtic-corner {
+  width: 18px; height: 18px; flex-shrink: 0;
+  color: rgba(60,30,0,.5);
+}
+.celtic-corner.left { transform: scaleX(1); }
+.celtic-corner.right { transform: scaleX(-1) scaleY(1); }
+
+/* Celtic border on the button — etched line top and bottom */
+.btn-nav-primary .celtic-btn-wrap::before,
+.btn-nav-primary .celtic-btn-wrap::after {
+  content: '';
+  position: absolute; left: 14px; right: 14px; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(60,30,0,.25) 30%, rgba(60,30,0,.25) 70%, transparent);
+}
+.btn-nav-primary .celtic-btn-wrap::before { top: 4px; }
+.btn-nav-primary .celtic-btn-wrap::after  { bottom: 4px; }
+
+/* Same celtic style for carousel select */
+.btn-carousel-select {
+  font-family: 'Playfair Display', serif !important;
+  font-size: 15px !important; font-weight: 700 !important;
+  padding: 0 !important;
+}
+.btn-carousel-select .celtic-btn-wrap { padding: 12px 24px; }
+.btn-carousel-select .celtic-corner { color: rgba(60,30,0,.4); width: 20px; height: 20px; }
+.btn-carousel-select .celtic-btn-wrap::before,
+.btn-carousel-select .celtic-btn-wrap::after {
+  content: '';
+  position: absolute; left: 16px; right: 16px; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(60,30,0,.22) 30%, rgba(60,30,0,.22) 70%, transparent);
+}
+.btn-carousel-select .celtic-btn-wrap::before { top: 5px; }
+.btn-carousel-select .celtic-btn-wrap::after  { bottom: 5px; }
+
+/* Hero text sits just below nav */
+.hero-text {
+  padding-top: 10px !important;
+  padding-bottom: 0 !important;
+}
