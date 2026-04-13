@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/data0/kindlewood.quest/public_html/kindlewood.quest/
+    - /bin/cp -r assets $DEPLOYPATH
+    - /bin/cp -r css $DEPLOYPATH
+    - /bin/cp -r js $DEPLOYPATH
+    - /bin/cp index.html $DEPLOYPATH
