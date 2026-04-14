@@ -285,32 +285,60 @@ const TERRAIN_BONUSES_DISPLAY = {
 
 // ── Camera system ──
 // Tile sizes per zoom level — tile count is calculated to fill available space
-const TILE_SIZES = [48, 36, 26]; // zoomed in → out (removed overview level — too slow)
-const BASE_TILE = 36; // always render at this size, zoom via CSS transform
+const TILE_SIZES = [48, 36, 26];
 const GAP = 0;
 let zoomLevel = 1;
 let camera = { x: 20, y: 20 };
 
-function TILE_PX() { return BASE_TILE; } // grid always renders at BASE_TILE; zoom uses transform:scale
+function TILE_PX() { return TILE_SIZES[zoomLevel]; }
 
-// Fixed frame constants — must match .map-frame CSS dimensions
 const MAP_FRAME_W = 1110;
 const MAP_FRAME_H = 610;
 
 function getMapDimensions() {
   const tpx = TILE_PX() + GAP;
-  // Render enough tiles to fill the frame plus one extra row/col each side for clipping
-  const cols = Math.ceil(MAP_FRAME_W / tpx) + 1;
-  const rows = Math.ceil(MAP_FRAME_H / tpx) + 1;
-  return { cols, rows };
+  return {
+    cols: Math.ceil(MAP_FRAME_W / tpx),
+    rows: Math.ceil(MAP_FRAME_H / tpx)
+  };
 }
 
 function VIEW_W() { return getMapDimensions().cols; }
 function VIEW_H() { return getMapDimensions().rows; }
+function applyGridTransform() {
+  const zoom = document.getElementById('map-zoom');
+  const grid = document.getElementById('map-grid');
+  const fog = document.querySelector('.fog-texture');
+  if (!zoom || !grid) return;
 
+  const vw = VIEW_W();
+  const vh = VIEW_H();
+  const tpx = TILE_PX();
+
+  const totalWidth = vw * tpx;
+  const totalHeight = vh * tpx;
+
+  zoom.style.left = '50%';
+  zoom.style.top = '50%';
+  zoom.style.width = totalWidth + 'px';
+  zoom.style.height = totalHeight + 'px';
+  zoom.style.transform = 'translate(-50%, -50%)';
+
+  grid.style.width = totalWidth + 'px';
+  grid.style.height = totalHeight + 'px';
+  grid.style.left = '0';
+  grid.style.top = '0';
+  grid.style.transform = 'none';
+
+  if (fog) {
+    fog.style.width = totalWidth + 'px';
+    fog.style.height = totalHeight + 'px';
+  }
+}
 function setZoom(delta) {
   zoomLevel = Math.max(0, Math.min(TILE_SIZES.length - 1, zoomLevel + delta));
   if (worldMapData) renderWorldMap(worldMapData);
+
   document.getElementById('zoom-in')?.toggleAttribute('disabled', zoomLevel === 0);
   document.getElementById('zoom-out')?.toggleAttribute('disabled', zoomLevel === TILE_SIZES.length - 1);
 }
@@ -365,41 +393,49 @@ document.addEventListener('keyup', e => {
 let _drag = null;
 
 function _initMapDrag() {
-  const grid = document.getElementById('map-grid');
-  if (!grid || grid._dragInit) return;
-  grid._dragInit = true;
+  const zoom = document.getElementById('map-zoom');
+  if (!zoom || zoom._dragInit) return;
+  zoom._dragInit = true;
 
   // Scroll wheel zoom
-  grid.addEventListener('wheel', e => {
+  zoom.addEventListener('wheel', e => {
     e.preventDefault();
     setZoom(e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
 
-  grid.addEventListener('mousedown', e => {
+  zoom.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
-    _drag = { startX: e.clientX, startY: e.clientY, camX: camera.x, camY: camera.y };
-    grid.style.cursor = 'grabbing';
+    _drag = {
+      startX: e.clientX,
+      startY: e.clientY,
+      camX: camera.x,
+      camY: camera.y
+    };
+    zoom.style.cursor = 'grabbing';
     e.preventDefault();
   });
 
   window.addEventListener('mousemove', e => {
     if (!_drag) return;
+
     const TILE_SIZE = TILE_PX() + GAP;
     const dx = Math.round((_drag.startX - e.clientX) / TILE_SIZE);
     const dy = Math.round((_drag.startY - e.clientY) / TILE_SIZE);
+
     camera.x = _drag.camX + dx;
     camera.y = _drag.camY + dy;
+
     if (worldMapData) renderWorldMap(worldMapData);
   });
 
   window.addEventListener('mouseup', () => {
     if (!_drag) return;
     _drag = null;
-    const grid = document.getElementById('map-grid');
-    if (grid) grid.style.cursor = 'grab';
+    const zoom = document.getElementById('map-zoom');
+    if (zoom) zoom.style.cursor = 'grab';
   });
 
-  grid.style.cursor = 'grab';
+  zoom.style.cursor = 'grab';
 }
 
 async function loadWorldMap() {
@@ -442,69 +478,63 @@ function renderWorldMap(data) {
   const tileMap = {};
   data.tiles.forEach(t => { tileMap[`${t.x},${t.y}`] = t; });
 
-  const stride = tpx + GAP;
-  const gridW = vw * stride;
-  const gridH = vh * stride;
   grid.style.gridTemplateColumns = `repeat(${vw}, ${tpx}px)`;
   grid.style.gridTemplateRows = `repeat(${vh}, ${tpx}px)`;
   grid.style.gap = `${GAP}px`;
-  grid.style.width  = gridW + 'px';
-  grid.style.height = gridH + 'px';
-  // Frame stays fixed — apply zoom via CSS scale transform on the grid
+
   const frame = document.getElementById('map-frame');
   if (frame) {
-    frame.style.width  = MAP_FRAME_W + 'px';
+    frame.style.width = MAP_FRAME_W + 'px';
     frame.style.height = MAP_FRAME_H + 'px';
   }
-  // Zoom: scale the grid, not the frame
-  const scale = TILE_SIZES[zoomLevel] / BASE_TILE;
-  grid.style.transformOrigin = 'center center';
-  grid.style.transform = `translate(-50%, -50%) scale(${scale})`;
-  grid.style.left = '50%';
-  grid.style.top  = '50%';
+
+  applyGridTransform();
   grid.innerHTML = '';
 
   for (let row = 0; row < vh; row++) {
     for (let col = 0; col < vw; col++) {
       const x = startX + col;
       const y = startY + row;
-      const div = document.createElement('div');
-      div.className = 'tile';
-      // All tiles get the same pixel size
-      div.style.width  = tpx + 'px';
-      div.style.height = tpx + 'px';
-      div.style.fontSize = Math.round(tpx * 0.44) + 'px';
-
-      // Wrap coordinates — map is round
       const wx = ((x % size) + size) % size;
       const wy = ((y % size) + size) % size;
       const t = tileMap[`${wx},${wy}`];
+
+      const div = document.createElement('div');
+      div.className = 'tile';
+      div.style.width = tpx + 'px';
+      div.style.height = tpx + 'px';
+      div.style.fontSize = Math.round(tpx * 0.44) + 'px';
+
       if (!t || t.terrain === 'fog') {
-        // Pure interaction tile — no texture, overlay handles visuals
         div.classList.add('tile-fog');
         div.dataset.wx = wx;
         div.dataset.wy = wy;
         div.onclick = () => selectFogTile(wx, wy);
         div.title = 'Unexplored — click to send a scout';
-        // Reapply selection if this tile was selected before re-render
+
         if (_selectedFogTile && _selectedFogTile.wx === wx && _selectedFogTile.wy === wy) {
           div.classList.add('selected-fog');
         }
+
         grid.appendChild(div);
         continue;
       }
 
       if (t.settlement?.isOwn) div.classList.add('home');
+
       div.style.background = t.settlement ? '#1a2e4a' : (WORLD_BG[t.terrain] || '#222');
       div.style.position = 'relative';
-      div.style.zIndex = '4';  // above fog overlay (z:2) and fog tiles (z:3)
+      div.style.zIndex = '4';
       div.textContent = t.settlement ? '🏘' : (tpx >= 24 ? (WORLD_EMOJI[t.terrain] || '') : '');
       div.onclick = () => selectWorldTile(t);
-      if (t.settlement) div.title = `${t.settlement.name} (${t.settlement.username})`;
+
+      if (t.settlement) {
+        div.title = `${t.settlement.name} (${t.settlement.username})`;
+      }
+
       grid.appendChild(div);
     }
   }
-
 }
 
 

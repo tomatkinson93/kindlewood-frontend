@@ -388,15 +388,19 @@
         </div>
         </div>
         <!-- Fixed map frame — grid clips inside this, buttons sit on edges -->
+        <!-- Fixed map frame — zoom container clips inside this, buttons sit on edges -->
         <div class="map-frame" id="map-frame">
-          <!-- Fog texture — first child, behind grid, clipped by frame overflow -->
-          <div class="fog-texture" aria-hidden="true"></div>
-          <div class="map-grid" id="map-grid"></div>
+          <div class="map-zoom" id="map-zoom">
+            <div class="fog-texture" aria-hidden="true"></div>
+            <div class="map-grid" id="map-grid"></div>
+          </div>
+
           <!-- Arrow buttons absolutely positioned on frame edges -->
           <button class="map-ctrl-btn map-btn-up"    onclick="panCamera(0,-3)">▲</button>
           <button class="map-ctrl-btn map-btn-down"  onclick="panCamera(0,3)">▼</button>
           <button class="map-ctrl-btn map-btn-left"  onclick="panCamera(-3,0)">◄</button>
           <button class="map-ctrl-btn map-btn-right" onclick="panCamera(3,0)">►</button>
+
           <!-- Action bar — absolute over map bottom -->
           <div class="action-bar">
             <button class="action-bar-btn" id="action-scout" onclick="actionScout()">🧭 Scout</button>

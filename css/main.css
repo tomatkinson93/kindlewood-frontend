@@ -144,8 +144,46 @@ html, body { height: 100%; }
 .btn-secondary:hover { border-color: var(--ink2); background: var(--parchment2); }
 
 /* ── Auth ── */
-#screen-register, #screen-login { overflow-y: auto; height: 100vh; }
+#screen-register,
+#screen-login {
+  overflow-y: auto;
+  height: 100vh;
+  position: relative;
+  animation: bgZoom 30s ease-in-out infinite alternate;
+}
+@keyframes bgZoom {
+  0% {
+    background-size: 100%;
+  }
+  100% {
+    background-size: 108%;
+  }
+}
+#screen-login {
+  background: url('/assets/images/login-art.png') center/cover no-repeat;
+}
 
+#screen-login::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 15, 10, 0.6);
+  z-index: 0;
+}
+#screen-login::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center,
+  rgba(0,0,0,0) 40%,
+  rgba(0,0,0,0.5) 100%);
+  z-index: 0;
+}
+#screen-login .auth-banner,
+#screen-login .auth-card {
+  position: relative;
+  z-index: 1;
+}
 .auth-banner {
   background: var(--bark2); padding: 22px 40px; display: flex;
   align-items: center; border-bottom: 1px solid rgba(192,221,151,.12); flex-shrink: 0;
@@ -158,6 +196,9 @@ html, body { height: 100%; }
 .auth-card {
   background: var(--parchment); border-radius: 10px; padding: 36px 40px 40px;
   width: 100%; max-width: 520px; margin: 36px auto;
+  box-shadow:
+          0 10px 40px rgba(0,0,0,0.5),
+          0 0 60px rgba(255,200,100,0.08);
 }
 .auth-heading { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 .auth-desc { font-size: 14px; color: var(--ink2); opacity: .7; margin-bottom: 26px; }
@@ -220,7 +261,6 @@ html, body { height: 100%; }
 .game-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
 .map-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; gap: 0; padding: 0; user-select: none; overflow: visible; min-width: 0; position: relative; }
-.map-grid { display: grid; gap: 0; }
 .tile { border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; transition: border-color .1s, background .1s; position: relative; z-index: 1; }
 .tile:hover { border-color: #BA7517; }
 .tile.selected { border-color: #854F0B; border-width: 2px; }
@@ -1398,8 +1438,6 @@ html, body { height: 100%; }
   border-color: rgba(200,100,80,.4) !important;
 }
 
-/* Map grid gap */
-.map-grid { gap: 0 !important; flex-shrink: 0; }
 
 /* Keyboard hint */
 .map-hint {
@@ -1424,16 +1462,6 @@ html, body { height: 100%; }
     /* no inset shadow — it was burying the fog */
 }
 
-/* Grid centered in frame — zoom applied via transform:scale */
-.map-frame .map-grid {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  /* JS sets transform: translate(-50%,-50%) scale(n) */
-  transform-origin: center center;
-  box-shadow: none !important;
-  z-index: 3;
-}
 
 /* Arrow buttons — absolutely positioned on each frame edge, centred */
 .map-btn-up, .map-btn-down, .map-btn-left, .map-btn-right {
@@ -1465,8 +1493,6 @@ html, body { height: 100%; }
 .border-icon {
   font-size: 14px; opacity: 0.25; pointer-events: none;
 }
-.map-grid { cursor: grab; }
-.map-grid:active { cursor: grabbing; }
 
 
 
@@ -1617,16 +1643,17 @@ html, body { height: 100%; }
 
 /* ── 2. Map tile variation & hover ── */
 .tile {
-  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease !important;
+  transition: box-shadow .12s ease, border-color .12s ease !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  backface-visibility: hidden;
 }
-.tile:not(.tile-fog):not(.tile-void):not(.home):nth-child(odd) {
-  filter: brightness(0.94);
-}
+
 .tile:not(.tile-fog):not(.tile-void):hover {
-  transform: scale(1.1);
   z-index: 3;
   box-shadow: 0 0 10px rgba(255,210,120,.25);
-  filter: brightness(1.1) !important;
+  filter: none !important;
+  transform: none !important;
 }
 
 /* World vignette */
@@ -1786,13 +1813,62 @@ html, body { height: 100%; }
   align-items: stretch !important;
 }
 
-/* map-grid styling moved to .map-frame */
+.map-frame {
+  position: relative;
+  width: 1110px;
+  height: 610px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,210,120,.08);
+  box-shadow:
+          0 0 0 3px rgba(80,55,20,.4),
+          0 0 0 6px rgba(60,40,12,.2),
+          0 8px 40px rgba(0,0,0,.5);
+  background: rgba(25, 18, 8, 0.7) !important;
+}
 
+.map-grid {
+  display: grid;
+  gap: 0 !important;
+  flex-shrink: 0;
+  cursor: grab;
+  border-radius: 8px;
+  background: radial-gradient(circle at center, rgba(40,30,20,.8), rgba(10,8,6,.95));
+  overflow: visible !important;
+  box-shadow:
+          0 0 0 3px rgba(70,45,15,.55),
+          0 0 0 7px rgba(50,30,8,.28),
+          0 18px 60px rgba(0,0,0,.7),
+          inset 0 0 30px rgba(0,0,0,.5) !important;
+}
+.map-grid:active {
+  cursor: grabbing;
+}
+.map-zoom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  will-change: transform;
+  overflow: hidden;
+}
+
+.map-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
+.fog-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
 /* Map controls float over the map edges */
 .map-controls-top { margin-bottom: -18px; z-index: 20; }
 .map-controls-bottom { margin-top: -18px; z-index: 20; }
 .map-row { gap: 0; flex: 1; min-height: 0; }
-.map-row .map-grid { flex: 1; }
 .map-ctrl-btn {
   background: rgba(20,16,10,.9) !important;
   border: 1px solid rgba(255,210,120,.15) !important;
@@ -1892,17 +1968,6 @@ html, body { height: 100%; }
    VISUAL PASS 3 — World frame + depth
    ═══════════════════════════════════════════ */
 
-/* ── 1. Map world frame ── */
-.map-grid {
-  border-radius: 8px;
-  background: radial-gradient(circle at center, rgba(40,30,20,.8), rgba(10,8,6,.95));
-  box-shadow:
-    inset 0 0 40px rgba(0,0,0,.6),
-    0 20px 60px rgba(0,0,0,.8),
-    0 0 0 1px rgba(255,210,120,.06) !important;
-  overflow: hidden;
-}
-
 /* ── 2. Fog edge blending ── */
 /* removed old fog rule */
 .fog-icon { position: relative; z-index: 2; }
@@ -1940,12 +2005,7 @@ html, body { height: 100%; }
   }
 }
 
-/* ── Fix map-grid overflow clipping home glow ── */
-.map-grid { overflow: visible !important; }
 
-/* ── Fog tiles warmer and more present ── */
-/* removed old fog rule */
-/* removed old fog rule */
 
 /* ═══════════════════════════════════════════
    PARCHMENT BACKGROUND
@@ -1977,8 +2037,6 @@ html, body { height: 100%; }
   background: rgba(22,17,11,.97) !important;
   backdrop-filter: blur(4px);
 }
-
-/* map-grid shadow moved to .map-frame */
 
 /* Vignette burn edges on the parchment */
 #screen-game::before {
@@ -2041,15 +2099,6 @@ html, body { height: 100%; }
   box-shadow: -4px 0 20px rgba(0,0,0,.4) !important;
 }
 
-/* ── Map grid border — feels like it's sitting on parchment ── */
-.map-grid {
-  box-shadow:
-    0 0 0 3px rgba(70,45,15,.5),
-    0 0 0 6px rgba(50,30,8,.25),
-    0 0 0 8px rgba(180,130,60,.08),
-    0 12px 50px rgba(0,0,0,.65),
-    inset 0 0 30px rgba(0,0,0,.5) !important;
-}
 
 /* ── Legend text over parchment ── */
 .map-legend .leg { color: rgba(40,25,8,.7) !important; }
@@ -2066,14 +2115,6 @@ html, body { height: 100%; }
    VISUAL PASS 4 — Lift, compass, community
    ═══════════════════════════════════════════ */
 
-/* ── Map grid — no perspective tilt ── */
-.map-grid {
-  box-shadow:
-    0 0 0 3px rgba(70,45,15,.55),
-    0 0 0 7px rgba(50,30,8,.28),
-    0 18px 60px rgba(0,0,0,.7),
-    inset 0 0 30px rgba(0,0,0,.5) !important;
-}
 
 /* ── Compass rose ── */
 .map-compass-wrap {
@@ -2139,10 +2180,6 @@ body::after {
   pointer-events: none;
   z-index: 9999;
 }
-
-/* ── Fog — warmer, less "missing data" ── */
-/* removed old fog rule */
-/* removed old fog rule */
 
 /* ── Community modal ── */
 .community-backdrop {
@@ -3033,4 +3070,25 @@ body::after {
 @keyframes fogDriftBase {
   0%   { background-position: 0px 0px; }
   100% { background-position: 420px 210px; }
+}
+.map-zoom {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  will-change: auto;
+  overflow: hidden;
+}
+
+.map-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
+.fog-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
 }
