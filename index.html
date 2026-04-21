@@ -80,7 +80,7 @@
           </button>
         </div>
       </div>
-      <div class="hero-text">
+      <div class="hero-text-welcome">
         <div class="eyebrow">A woodland strategy game</div>
         <div class="game-title">Kindlewood</div>
         <div class="game-subtitle">Rise of the Woodland Realms</div>
@@ -186,10 +186,11 @@
 
   <!-- LOGIN -->
   <div class="screen" id="screen-login">
-    <div class="auth-banner">
-      <div class="auth-logo">Kindlewood <span>Woodland Realms</span></div>
-      <div class="back-link" onclick="showScreen('welcome')">← Back</div>
-    </div>
+    <!-- Cycling background art layers -->
+    <div class="login-bg-layer" id="login-bg-a" style="background-image:url('/assets/images/login_art1.png')"></div>
+    <div class="login-bg-layer" id="login-bg-b"></div>
+    <!-- Floating back button — visible over login art -->
+    <button class="login-back-btn" onclick="loginTransitionBack()">← Back</button>
     <div class="auth-card">
       <div class="auth-heading">Return to your realm</div>
       <div class="auth-desc">Sign in to continue your campaign.</div>
@@ -326,6 +327,11 @@
       <div class="topbar-right">
         <div id="season-badge" class="season-badge-wrap"></div>
         <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
+        <!-- Events bell -->
+        <div class="events-bell-wrap">
+          <button class="btn-events-bell" onclick="openEventsPanel()" title="Settlement Events">🔔</button>
+          <span class="events-badge" id="events-badge" style="display:none">0</span>
+        </div>
         <button class="btn-cheat" onclick="openCheatMenu()" title="Cheat Menu">⚗</button>
         <!-- Profile dropdown -->
         <div class="profile-dropdown-wrap" id="profile-dropdown-wrap">
@@ -367,33 +373,11 @@
 
     <div class="game-body">
       <div class="map-area">
-        <div class="map-compass-wrap">
-        <div class="map-compass" title="N">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" width="52" height="52">
-            <circle cx="30" cy="30" r="28" fill="rgba(20,13,5,.7)" stroke="rgba(180,130,60,.4)" stroke-width="1.5"/>
-            <!-- N arrow red -->
-            <polygon points="30,6 34,30 30,26 26,30" fill="#c0392b" opacity=".9"/>
-            <!-- S arrow cream -->
-            <polygon points="30,54 34,30 30,34 26,30" fill="#e8d5a0" opacity=".7"/>
-            <!-- tick marks -->
-            <line x1="30" y1="3" x2="30" y2="8" stroke="rgba(180,130,60,.6)" stroke-width="1.5"/>
-            <line x1="30" y1="52" x2="30" y2="57" stroke="rgba(180,130,60,.4)" stroke-width="1"/>
-            <line x1="3" y1="30" x2="8" y2="30" stroke="rgba(180,130,60,.4)" stroke-width="1"/>
-            <line x1="52" y1="30" x2="57" y2="30" stroke="rgba(180,130,60,.4)" stroke-width="1"/>
-            <!-- N label -->
-            <text x="30" y="19" text-anchor="middle" font-size="7" fill="#e8d5a0" font-family="serif" font-weight="bold">N</text>
-            <!-- centre dot -->
-            <circle cx="30" cy="30" r="3" fill="rgba(180,130,60,.8)"/>
-          </svg>
-        </div>
-        </div>
+
         <!-- Fixed map frame — grid clips inside this, buttons sit on edges -->
         <!-- Fixed map frame — zoom container clips inside this, buttons sit on edges -->
         <div class="map-frame" id="map-frame">
-          <div class="map-zoom" id="map-zoom">
-            <div class="fog-texture" aria-hidden="true"></div>
-            <div class="map-grid" id="map-grid"></div>
-          </div>
+          <canvas id="map-canvas" style="display:block;position:absolute;inset:0;width:100%;height:100%;cursor:grab"></canvas>
 
           <!-- Arrow buttons absolutely positioned on frame edges -->
           <button class="map-ctrl-btn map-btn-up"    onclick="panCamera(0,-3)">▲</button>
@@ -438,21 +422,89 @@
             <span class="citizens-count" id="citizens-count">10 citizens</span>
             <button class="btn-view-all" onclick="openAllCitizens()">View all ↗</button>
           </div>
-          <div class="citizens-split">
-            <div class="citizens-list-col">
-              <div class="citizens-list" id="citizens-list">
-                <div class="citizens-empty">Loading...</div>
-              </div>
-            </div>
-            <div class="citizen-detail-col" id="citizen-detail">
-              <div class="citizen-detail-empty">Select a citizen</div>
+          <div class="citizens-list-full">
+            <div class="citizens-list" id="citizens-list">
+              <div class="citizens-empty">Loading...</div>
             </div>
           </div>
         </div>
       </div>
+      <!-- TAVERN OVERLAY -->
+      <div class="tavern-overlay" id="tavern-overlay" style="display:none">
+      <div class="tavern-bg" id="tavern-bg"></div>
+      <div class="tavern-inner">
+        <div class="tavern-header">
+          <button class="tavern-back-btn" onclick="leaveTavern()">← Leave Tavern</button>
+          <div class="tavern-title">🍺 The Woodland Tavern</div>
+        </div>
+        <div class="tavern-innkeeper-area" id="tavern-innkeeper-area">
+          <div class="tavern-innkeeper-portrait" id="tavern-innkeeper-portrait">🦔</div>
+          <div class="tavern-innkeeper-msg" id="tavern-innkeeper-msg">Nobody is here. Perhaps you should hire an Innkeeper.</div>
+        </div>
+        <div class="tavern-menu" id="tavern-menu">
+          <button class="tavern-menu-btn" onclick="openNoticeboard()">📜 Notice Board</button>
+          <button class="tavern-menu-btn" onclick="openCardGameMenu()">🃏 Play a Card Game</button>
+        </div>
+        <div class="tavern-quest-board" id="tavern-quest-board" style="display:none"></div>
+        <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
+          <div class="tavern-card-menu-title">— Choose Your Game —</div>
+          <button class="tavern-game-btn" onclick="startCardGame('highleaf')">
+            <span class="tgb-icon">🍃</span>
+            <div class="tgb-info">
+              <div class="tgb-name">Highleaf Draw</div>
+              <div class="tgb-desc">Draw cards, get close to 21. Risk &amp; reward.</div>
+              <div class="tgb-reward">💰 Reward: 1–3 gold</div>
+            </div>
+          </button>
+          <button class="tavern-game-btn" onclick="startCardGame('mouse_grain')">
+            <span class="tgb-icon">🌾</span>
+            <div class="tgb-info">
+              <div class="tgb-name">Mouse &amp; Grain</div>
+              <div class="tgb-desc">3 cards each. Highest total wins.</div>
+              <div class="tgb-reward">💰 Reward: 1–2 gold</div>
+            </div>
+          </button>
+          <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
+        </div>
+        <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
+      </div>
     </div>
 
-  </div>
+      <!-- Events panel -->
+      <div class="events-panel" id="events-panel">
+        <div class="events-panel-header">
+          <div class="events-panel-title">📜 Settlement Chronicle</div>
+          <button class="events-panel-close" onclick="closeEventsPanel()">✕</button>
+        </div>
+        <div class="events-feed" id="events-feed">
+          <div class="ef-empty">No events yet.</div>
+        </div>
+      </div>
+
+      <!-- ── Fishing Post Overlay ── -->
+      <div class="fishing-overlay" id="fishing-overlay" style="display:none">
+      <div class="fishing-bg" id="fishing-bg"></div>
+      <div class="fp-ripple r1"></div>
+      <div class="fp-ripple r2"></div>
+      <div class="fp-ripple r3"></div>
+      <div class="fp-bobber-float" id="fp-bobber-float">🪝</div>
+      <div class="fishing-inner">
+        <div class="fishing-header">
+          <button class="fishing-back-btn" onclick="leaveFishingPost()">← Leave</button>
+          <div class="fishing-title">🎣 Riverside Fishing Post</div>
+        </div>
+        <div class="fishing-body">
+          <div class="fishing-main" id="fishing-main-area"></div>
+          <div class="fishing-sidebar">
+            <div class="fp-sidebar-title">📖 Catch Log</div>
+            <div id="fp-catch-log"><div class="fp-cl-empty">No catches yet.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div><!-- /game-body -->
+
+  </div><!-- /screen-game -->
 
   <script src="/js/config.js"></script>
   <script src="/js/particles.js"></script>
@@ -467,8 +519,34 @@
   <script src="/js/tier.js"></script>
   <script src="/js/profile.js"></script>
   <script src="/js/main.js"></script>
+  <script src="/js/tavern.js"></script>
+  <script src="/js/quests.js"></script>
+  <script src="/js/fishing.js"></script>
+  <script src="/js/housing.js"></script>
+  <script src="/js/events.js"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
+  <!-- HOUSING MODAL -->
+  <div class="housing-backdrop" id="housing-modal">
+    <div class="housing-modal">
+      <div class="housing-modal-header">
+        <div class="housing-modal-title">🏡 Settlement Housing</div>
+        <button class="housing-modal-close" onclick="closeHousingModal()">✕</button>
+      </div>
+      <div class="housing-modal-body" id="housing-modal-body">
+        <div class="housing-loading">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CITIZEN PROFILE MODAL -->
+  <div class="citizen-profile-backdrop" id="citizen-profile-modal">
+    <div class="citizen-profile-modal">
+      <button class="citizen-profile-close" onclick="closeCitizenProfile()">✕</button>
+      <div id="citizen-profile-body"></div>
+    </div>
+  </div>
+
   <div class="all-citizens-backdrop" id="all-citizens-modal">
     <div class="all-citizens-modal">
       <div class="ac-header">
@@ -531,11 +609,39 @@
         <button class="cheat-res-btn" onclick="cheatRevealAll()">🌍 Reveal entire map</button>
         <button class="cheat-res-btn" onclick="cheatResetFog()">🌫 Reset fog of war</button>
         <hr class="cheat-divider">
+        <div class="cheat-section-label">Citizens</div>
+        <button class="cheat-res-btn" onclick="cheatAddCitizen()">👤 +1 Citizen</button>
+        <hr class="cheat-divider">
         <div class="cheat-section-label">Other</div>
         <button class="cheat-res-btn" onclick="applyCheatAll(50000).then(()=>{ renderTierPanel && renderTierPanel(); })">▲ +50k all (tier test)</button>
         <button class="cheat-res-btn" onclick="fetch(API+'/api/game/reset-placement',{method:'POST',credentials:'include',headers:{'Authorization':'Bearer '+localStorage.getItem('kw_token')}}).then(()=>location.reload())">
           🗺 Reset placement (re-do arrival)
         </button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Simulate Events</div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('close_bond')">💛 Close Bond</button>
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('bond_formed')">🤝 Bond Formed</button>
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('partnership')">💕 Partnership</button>
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('child_born')">🍼 Child Born</button>
+        </div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Modify Relationship</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-rel-a">
+            <option value="">— Citizen A —</option>
+          </select>
+          <select class="cheat-citizen-sel" id="cheat-rel-b">
+            <option value="">— Citizen B —</option>
+          </select>
+        </div>
+        <div class="cheat-rel-slider-row">
+          <label class="cheat-slider-label">Score: <span id="cheat-rel-score-val">50</span></label>
+          <input type="range" min="0" max="100" value="50" class="cheat-rel-slider" id="cheat-rel-score"
+                 oninput="document.getElementById('cheat-rel-score-val').textContent=this.value">
+        </div>
+        <button class="cheat-all-btn" onclick="cheatSetRelationship()">⚡ Set Relationship</button>
+        <div class="cheat-rel-feedback" id="cheat-rel-feedback"></div>
       </div>
     </div>
   </div>
@@ -629,6 +735,45 @@
         <div class="pm-settlements" id="vp-settlements"></div>
       </div>
     </div>
+  </div>
+
+
+  <!-- TAVERN CELEBRATION MODAL -->
+  <div class="tavern-cel-backdrop" id="tavern-cel-modal" style="display:none">
+    <div class="tavern-cel-box">
+      <div class="tavern-cel-emoji">🍺</div>
+      <div class="tavern-cel-title">The Tavern is Open!</div>
+      <div class="tavern-cel-sub">Your settlement now has a gathering place.<br>Assign a Tavernkeep to welcome guests.</div>
+      <div class="tavern-cel-actions">
+        <button class="tavern-cel-btn primary" onclick="closeTavernCelebration(); openAllCitizens();">👤 Assign a Tavernkeep</button>
+        <button class="tavern-cel-btn secondary" onclick="closeTavernCelebration(); visitTavern();">🍺 Visit the Tavern</button>
+        <button class="tavern-cel-btn ghost" onclick="closeTavernCelebration()">Maybe later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       AMBIENT MUSIC PLAYER
+       Shown on welcome + login screens
+       ══════════════════════════════════ -->
+  <div class="music-player" id="music-player">
+    <audio id="bg-music" loop preload="auto">
+      <source src="/assets/audio/welcome.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Play/Pause -->
+    <button class="mp-btn" id="music-playbtn" onclick="toggleMusic()" title="Play / Pause">
+      <svg id="music-icon-play" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M4 3l9 5-9 5V3z"/></svg>
+      <svg id="music-icon-pause" viewBox="0 0 16 16" fill="currentColor" width="14" height="14" style="display:none"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg>
+    </button>
+
+    <!-- Sound wave visualiser -->
+    <div class="mp-waves" id="mp-waves">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- Volume slider -->
+    <input class="mp-vol" id="music-volume" type="range" min="0" max="1" step="0.05" value="0.4" oninput="setMusicVolume(this.value)" title="Volume">
   </div>
 
 </body>

@@ -87,7 +87,7 @@ async function sendScout(tx, ty) {
     const res = await apiFetch('/api/expeditions/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_x: tx, target_y: ty, citizen_id: citizenId }),
+      body: JSON.stringify({ target_q: tx, target_r: ty, citizen_id: citizenId }),
     });
     const data = await res.json();
 
@@ -107,7 +107,7 @@ async function sendScout(tx, ty) {
         <div class="fog-panel">
           <div class="fog-panel-icon">🗺</div>
           <div class="fog-panel-title">${data.citizenName} is scouting</div>
-          <div class="fog-panel-desc">Heading to (${tx}, ${ty}) through ${data.tiles} tiles of wilderness.</div>
+          <div class="fog-panel-desc">Heading to (${tx}, ${ty}) through ${data.hexes} hexes of wilderness.</div>
           <div class="fog-stats">
             <div class="fog-stat"><span class="fog-stat-key">Returns in</span>
             <span class="fog-stat-val" id="exp-countdown-${data.expedition.id}">${dur}</span></div>

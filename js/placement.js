@@ -112,7 +112,7 @@ function selectPlacementTile(tile) {
   const minX = Math.min(...xs), minY = Math.min(...ys);
   const maxX = Math.max(...xs);
   const cols = maxX - minX + 1;
-  const idx = (tile.y - minY) * cols + (tile.x - minX);
+  const idx = (tile.r - minY) * cols + (tile.q - minX);
   if (grid.children[idx]) grid.children[idx].classList.add('selected-tile');
   updatePlacementPanel(tile);
 }
@@ -135,7 +135,7 @@ function updatePlacementPanel(tile) {
     <div class="ptile-name">${info.icon} ${info.label}</div>
     <div class="ptile-flavor">${info.flavor}</div>
     <div class="ptile-bonuses">${bonusLines}</div>
-    <div class="ptile-coords">(${tile.x}, ${tile.y})</div>
+    <div class="ptile-coords">(${tile.q}, ${tile.r})</div>
   `;
   confirmBtn.disabled = false;
 }
@@ -167,7 +167,7 @@ async function confirmPlacement() {
     const res = await apiFetch('/api/map/place', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ x: selectedTile.x, y: selectedTile.y }),
+      body: JSON.stringify({ q: selectedTile.x, r: selectedTile.y }),
     });
     const data = await res.json();
     if (!res.ok) {

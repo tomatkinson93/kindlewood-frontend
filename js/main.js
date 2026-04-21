@@ -35,6 +35,15 @@ function apiFetch(path, options = {}) {
 function showScreen(id) {
   console.log('showScreen called with:', id);
 
+  // Cinematic transition for welcome → login
+  if (id === 'login') {
+    const welcome = document.getElementById('screen-welcome');
+    if (welcome && welcome.classList.contains('active')) {
+      transitionToLogin();
+      return;
+    }
+  }
+
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
 
   const target = document.getElementById('screen-' + id);
@@ -44,6 +53,8 @@ function showScreen(id) {
   }
 
   target.classList.add('active');
+
+  if (id === 'login') { stopLoginArtCycle(); startLoginArtCycle(); }
 
   console.log(
     'now active:',
@@ -187,11 +198,11 @@ async function loadGame(force = false) {
     }
 
     gameData = await res.json();
-    console.log('gameData loaded, tile_x:', gameData?.settlement?.tile_x);
+    console.log('gameData loaded, tile_q:', gameData?.settlement?.tile_q);
 
     const needsPlacement =
-      gameData?.settlement?.tile_x === null ||
-      gameData?.settlement?.tile_x === undefined;
+      (gameData?.settlement?.tile_q == null && gameData?.settlement?.tile_x == null) ||
+      gameData?.settlement?.needsResettlement === true;
 
     if (needsPlacement) {
       console.log('loadGame -> showing ARRIVAL screen');
@@ -203,6 +214,7 @@ async function loadGame(force = false) {
     console.log('loadGame -> showing GAME screen');
     showScreen('game');
     renderTopbar();
+    preloadTileImages();
     renderMap();
     initGuardArt();
     if (typeof initProfileDisplay === 'function') initProfileDisplay(gameData.username, gameData.species);
@@ -212,6 +224,7 @@ async function loadGame(force = false) {
     loadExpeditions();
     startExpeditionPoll();
     initSeasons(gameData.settlement);
+    if (typeof startEventsPoll === 'function') startEventsPoll();
     _loadGameLock = false;
   } catch (err) {
     console.error('loadGame error:', err);
@@ -258,6 +271,182 @@ function switchTab(tab) {
   }
 }
 
+/* ── Login background art cycler ── */
+const LOGIN_ARTS = [
+  '/assets/images/login_art1.png',
+  '/assets/images/login_art2.png',
+  '/assets/images/login_art3.png',
+  '/assets/images/login_art4.png',
+];
+let _loginArtIndex = 0;
+let _loginArtTimer = null;
+let _loginArtActive = 'a'; // which layer is currently visible
+
+function startLoginArtCycle() {
+  const layerA = document.getElementById('login-bg-a');
+  const layerB = document.getElementById('login-bg-b');
+  if (!layerA || !layerB) return;
+
+  // Show first image immediately
+  layerA.style.backgroundImage = `url('${LOGIN_ARTS[0]}')`;
+  layerA.classList.add('visible');
+  _loginArtIndex = 0;
+  _loginArtActive = 'a';
+
+  // Cycle every 6 seconds
+  _loginArtTimer = setInterval(() => {
+    _loginArtIndex = (_loginArtIndex + 1) % LOGIN_ARTS.length;
+    const nextArt = LOGIN_ARTS[_loginArtIndex];
+
+    if (_loginArtActive === 'a') {
+      layerB.style.backgroundImage = `url('${nextArt}')`;
+      layerB.classList.add('visible');
+      setTimeout(() => { layerA.classList.remove('visible'); }, 1600);
+      _loginArtActive = 'b';
+    } else {
+      layerA.style.backgroundImage = `url('${nextArt}')`;
+      layerA.classList.add('visible');
+      setTimeout(() => { layerB.classList.remove('visible'); }, 1600);
+      _loginArtActive = 'a';
+    }
+  }, 6000);
+}
+
+function stopLoginArtCycle() {
+  if (_loginArtTimer) { clearInterval(_loginArtTimer); _loginArtTimer = null; }
+}
+
+
+/* ── Ambient music player ── */
+(function initMusicPlayer() {
+  const MENU_SCREENS = ['screen-welcome', 'screen-login'];
+
+  function getAudio()  { return document.getElementById('bg-music'); }
+  function getPlayer() { return document.getElementById('music-player'); }
+
+  function updatePlayerVisibility(activeScreenId) {
+    const player = getPlayer();
+    if (!player) return;
+    const show = MENU_SCREENS.includes('screen-' + activeScreenId);
+    player.style.display = show ? 'flex' : 'none';
+  }
+
+  function tryAutoplay() {
+    const audio = getAudio();
+    if (!audio || audio._attempted) return;
+    audio._attempted = true;
+    audio.volume = parseFloat(document.getElementById('music-volume')?.value || 0.4);
+    audio.play().then(() => {
+      setMusicPlaying(true);
+    }).catch(() => {
+      // Autoplay blocked — wait for first user interaction
+      const resume = () => {
+        audio.play().then(() => setMusicPlaying(true)).catch(()=>{});
+        document.removeEventListener('click', resume);
+        document.removeEventListener('keydown', resume);
+      };
+      document.addEventListener('click', resume);
+      document.addEventListener('keydown', resume);
+    });
+  }
+
+  // Patch showScreen to update player visibility
+  const _origShowScreen = window.showScreen;
+  window.showScreen = function(id) {
+    _origShowScreen(id);
+    updatePlayerVisibility(id);
+    if (MENU_SCREENS.includes('screen-' + id)) {
+      tryAutoplay();
+    } else {
+      // Pause when entering game
+      const audio = getAudio();
+      if (audio && !audio.paused) audio.pause();
+      setMusicPlaying(false);
+    }
+  };
+
+  // Init on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const welcomeActive = document.getElementById('screen-welcome')?.classList.contains('active');
+    if (welcomeActive) {
+      updatePlayerVisibility('welcome');
+      tryAutoplay();
+    }
+  });
+})();
+
+function setMusicPlaying(playing) {
+  const player = document.getElementById('music-player');
+  const iconPlay  = document.getElementById('music-icon-play');
+  const iconPause = document.getElementById('music-icon-pause');
+  const waves     = document.getElementById('mp-waves');
+  if (!player) return;
+  if (playing) {
+    player.classList.add('playing');
+    if (iconPlay)  iconPlay.style.display  = 'none';
+    if (iconPause) iconPause.style.display = '';
+    if (waves)     waves.classList.add('active');
+  } else {
+    player.classList.remove('playing');
+    if (iconPlay)  iconPlay.style.display  = '';
+    if (iconPause) iconPause.style.display = 'none';
+    if (waves)     waves.classList.remove('active');
+  }
+}
+
+function toggleMusic() {
+  const audio = document.getElementById('bg-music');
+  if (!audio) return;
+  if (audio.paused) {
+    audio.play().then(() => setMusicPlaying(true)).catch(()=>{});
+  } else {
+    audio.pause();
+    setMusicPlaying(false);
+  }
+}
+
+function setMusicVolume(val) {
+  const audio = document.getElementById('bg-music');
+  if (audio) audio.volume = parseFloat(val);
+}
+
+
+/* ── Welcome → Login cinematic transition ── */
+function transitionToLogin() {
+  const welcome = document.getElementById('screen-welcome');
+  const login = document.getElementById('screen-login');
+  if (!welcome || !login) return;
+
+  document.body.classList.add('login-mode');
+
+  welcome.classList.add('to-login');
+  login.classList.add('active');
+
+  requestAnimationFrame(() => {
+    login.classList.add('login-visible');
+  });
+
+  startLoginArtCycle();
+}
+
+function loginTransitionBack() {
+  const welcome = document.getElementById('screen-welcome');
+  const login = document.getElementById('screen-login');
+  if (!welcome || !login) return;
+
+  stopLoginArtCycle();
+
+  login.classList.remove('login-visible');
+  welcome.classList.remove('to-login');
+  document.body.classList.remove('login-mode');
+
+  setTimeout(() => {
+    login.classList.remove('active');
+  }, 450);
+}
+
+
+
 function renderTopbar() {
   if (!gameData) return;
   updateTopbarDisplay();
@@ -285,15 +474,15 @@ const TERRAIN_BONUSES_DISPLAY = {
 
 // ── Camera system ──
 // Tile sizes per zoom level — tile count is calculated to fill available space
-const TILE_SIZES = [48, 36, 26];
+const TILE_SIZES = [48, 36];  // 26px removed — too small and too slow
 const GAP = 0;
 let zoomLevel = 1;
-let camera = { x: 20, y: 20 };
+let camera = { q: 20, r: 15 };
 
 function TILE_PX() { return TILE_SIZES[zoomLevel]; }
 
-const MAP_FRAME_W = 1110;
-const MAP_FRAME_H = 610;
+const MAP_FRAME_W = 1400;  // fallback — actual size read from DOM
+const MAP_FRAME_H = 800;
 
 function getMapDimensions() {
   const tpx = TILE_PX() + GAP;
@@ -306,34 +495,7 @@ function getMapDimensions() {
 function VIEW_W() { return getMapDimensions().cols; }
 function VIEW_H() { return getMapDimensions().rows; }
 function applyGridTransform() {
-  const zoom = document.getElementById('map-zoom');
-  const grid = document.getElementById('map-grid');
-  const fog = document.querySelector('.fog-texture');
-  if (!zoom || !grid) return;
-
-  const vw = VIEW_W();
-  const vh = VIEW_H();
-  const tpx = TILE_PX();
-
-  const totalWidth = vw * tpx;
-  const totalHeight = vh * tpx;
-
-  zoom.style.left = '50%';
-  zoom.style.top = '50%';
-  zoom.style.width = totalWidth + 'px';
-  zoom.style.height = totalHeight + 'px';
-  zoom.style.transform = 'translate(-50%, -50%)';
-
-  grid.style.width = totalWidth + 'px';
-  grid.style.height = totalHeight + 'px';
-  grid.style.left = '0';
-  grid.style.top = '0';
-  grid.style.transform = 'none';
-
-  if (fog) {
-    fog.style.width = totalWidth + 'px';
-    fog.style.height = totalHeight + 'px';
-  }
+  // Hex renderer handles its own sizing inside renderWorldMap — nothing to do here.
 }
 function setZoom(delta) {
   zoomLevel = Math.max(0, Math.min(TILE_SIZES.length - 1, zoomLevel + delta));
@@ -345,15 +507,15 @@ function setZoom(delta) {
 
 function centreCamera() {
   if (worldMapData?.playerSettlement) {
-    camera.x = worldMapData.playerSettlement.x;
-    camera.y = worldMapData.playerSettlement.y;
+    camera.q = worldMapData.playerSettlement.q;
+    camera.r = worldMapData.playerSettlement.r;
     renderWorldMap(worldMapData);
   }
 }
 
 function panCamera(dx, dy) {
-  camera.x += dx;
-  camera.y += dy;
+  camera.q += dx;
+  camera.r += dy;
   if (worldMapData) renderWorldMap(worldMapData);
 }
 
@@ -392,50 +554,120 @@ document.addEventListener('keyup', e => {
 // ── Drag to pan ──
 let _drag = null;
 
+function _canvasPixelToHex(mouseX, mouseY) {
+  // Convert canvas pixel position to hex axial coords
+  // mouseX/Y are in CSS logical pixels; use clientWidth not canvas.width (physical pixels)
+  const canvas = _getCanvas();
+  if (!canvas) return null;
+  const W = canvas.clientWidth || canvas.width;
+  const H = canvas.clientHeight || canvas.height;
+  const tpx = TILE_PX();
+  const hexW = tpx;
+  const hexH = Math.round(tpx * 1.1547);
+  const hexVert = Math.round(hexH * 0.75);
+  const camPxX = hexW * (camera.q + camera.r / 2);
+  const camPxY = hexVert * camera.r;
+  // Pixel → world pixel → fractional hex
+  const worldX = mouseX - W/2 + camPxX;
+  const worldY = mouseY - H/2 + camPxY;
+  // Pointy-top axial inverse:
+  // r = worldY / hexVert
+  // q = worldX / hexW - r/2
+  const fr = worldY / hexVert;
+  const fq = worldX / hexW - fr / 2;
+  // Round to nearest hex using cube rounding
+  const fs = -fq - fr;
+  let rq = Math.round(fq), rr = Math.round(fr), rs = Math.round(fs);
+  const dq = Math.abs(rq-fq), dr = Math.abs(rr-fr), ds = Math.abs(rs-fs);
+  if (dq > dr && dq > ds) rq = -rr - rs;
+  else if (dr > ds) rr = -rq - rs;
+  const wq = ((rq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
+  const wr = ((rr % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
+  return { wq, wr };
+}
+
 function _initMapDrag() {
-  const zoom = document.getElementById('map-zoom');
-  if (!zoom || zoom._dragInit) return;
-  zoom._dragInit = true;
+  const canvas = _getCanvas();
+  if (!canvas || canvas._dragInit) return;
+  canvas._dragInit = true;
 
   // Scroll wheel zoom
-  zoom.addEventListener('wheel', e => {
+  canvas.addEventListener('wheel', e => {
     e.preventDefault();
     setZoom(e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
 
-  zoom.addEventListener('mousedown', e => {
+  // Click — hit test hex
+  canvas.addEventListener('click', e => {
+    if (_wasDrag) return; // don't fire click after drag
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hex = _canvasPixelToHex(mx, my);
+    if (!hex) return;
+    const tileMap = {};
+    worldMapData?.tiles?.forEach(t => { tileMap[`${t.q},${t.r}`] = t; });
+    const t = tileMap[`${hex.wq},${hex.wr}`];
+    if (!t || t.terrain === 'fog') {
+      selectFogTile(hex.wq, hex.wr);
+    } else {
+      selectWorldTile(t);
+    }
+  });
+
+  // Hover tracking
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const hex = _canvasPixelToHex(mx, my);
+    if (hex) {
+      const prev = _hoveredTile;
+      if (!prev || prev.wq !== hex.wq || prev.wr !== hex.wr) {
+        _hoveredTile = hex;
+        // Only re-render for hover if fog animation isn't already doing it
+        if (!_fogAnimId) renderWorldMap(worldMapData);
+      }
+    }
+  });
+  canvas.addEventListener('mouseleave', () => {
+    _hoveredTile = null;
+  });
+
+  // Drag pan
+  let _wasDrag = false;
+  canvas.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
+    _wasDrag = false;
     _drag = {
       startX: e.clientX,
       startY: e.clientY,
-      camX: camera.x,
-      camY: camera.y
+      camX: camera.q,
+      camY: camera.r
     };
-    zoom.style.cursor = 'grabbing';
+    canvas.style.cursor = 'grabbing';
     e.preventDefault();
   });
 
   window.addEventListener('mousemove', e => {
     if (!_drag) return;
-
-    const TILE_SIZE = TILE_PX() + GAP;
-    const dx = Math.round((_drag.startX - e.clientX) / TILE_SIZE);
-    const dy = Math.round((_drag.startY - e.clientY) / TILE_SIZE);
-
-    camera.x = _drag.camX + dx;
-    camera.y = _drag.camY + dy;
-
+    const tpx = TILE_PX();
+    const hexVert = Math.round(tpx * 1.1547 * 0.75);
+    const dx = Math.round((_drag.startX - e.clientX) / tpx);
+    const dy = Math.round((_drag.startY - e.clientY) / hexVert);
+    if (dx !== 0 || dy !== 0) _wasDrag = true;
+    camera.q = _drag.camX + dx;
+    camera.r = _drag.camY + dy;
     if (worldMapData) renderWorldMap(worldMapData);
   });
 
   window.addEventListener('mouseup', () => {
     if (!_drag) return;
     _drag = null;
-    const zoom = document.getElementById('map-zoom');
-    if (zoom) zoom.style.cursor = 'grab';
+    canvas.style.cursor = 'grab';
   });
 
-  zoom.style.cursor = 'grab';
+  canvas.style.cursor = 'grab';
 }
 
 async function loadWorldMap() {
@@ -445,11 +677,12 @@ async function loadWorldMap() {
     const data = await res.json();
     worldMapData = data;
     if (data.playerSettlement) {
-      camera.x = data.playerSettlement.x;
-      camera.y = data.playerSettlement.y;
+      camera.q = data.playerSettlement.q;
+      camera.r = data.playerSettlement.r;
     }
     renderWorldMap(data);
     _initMapDrag();
+    _startFogAnimation();
   } catch (e) { console.error(e); }
 }
 
@@ -464,81 +697,327 @@ window.addEventListener('resize', () => {
   }, 120);
 });
 
+// ── Hex geometry helpers (pointy-top hexes) ──────────────────────────────────
+function hexToPixel(q, r, size) {
+  // Pointy-top hex: pixel position from axial coords
+  const x = size * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r);
+  const y = size * (3 / 2 * r);
+  return { x, y };
+}
+
+function pixelToHex(px, py, size) {
+  // Inverse of hexToPixel — returns fractional axial coords
+  const q = (Math.sqrt(3) / 3 * px - 1 / 3 * py) / size;
+  const r = (2 / 3 * py) / size;
+  return hexRoundAxial(q, r);
+}
+
+function hexRoundAxial(fq, fr) {
+  const fs = -fq - fr;
+  let rq = Math.round(fq), rr = Math.round(fr), rs = Math.round(fs);
+  const dq = Math.abs(rq - fq), dr = Math.abs(rr - fr), ds = Math.abs(rs - fs);
+  if (dq > dr && dq > ds) rq = -rr - rs;
+  else if (dr > ds) rr = -rq - rs;
+  return { q: rq, r: rr };
+}
+
+// Map size (40×40 in axial space, wrapping)
+const HEX_MAP_W = 40;
+const HEX_MAP_H = 40;
+
+// ══════════════════════════════════════════════
+//  CANVAS MAP RENDERER
+// ══════════════════════════════════════════════
+
+// ── Terrain colours and emoji ──────────────────
+const TERRAIN_COLORS = {
+  plains: '#3D3820', forest: '#2a3d1a', hills: '#4a4035',
+  river: '#1a3d35', ruins: '#3d3530', mountain: '#2a2a2a', marsh: '#2d3d20',
+};
+const TERRAIN_EMOJI_FONT = {
+  plains: '🌿', forest: '🌲', hills: '⛰', river: '🌊',
+  ruins: '🏚', mountain: '🗻', marsh: '🌾',
+};
+
+// ── Tileset images (preloaded at startup) ──────
+const TILE_IMAGES = {};
+const TILE_IMAGE_SRCS = {
+  plains:   '/assets/images/tiles/plains.png',
+  forest:   '/assets/images/tiles/forest.png',
+  hills:    '/assets/images/tiles/hills.png',
+  river:    '/assets/images/tiles/river.png',
+  ruins:    '/assets/images/tiles/ruins.png',
+  mountain: '/assets/images/tiles/mountain.png',
+  marsh:    '/assets/images/tiles/marsh.png',
+};
+let _tileImagesLoaded = false;
+
+function preloadTileImages() {
+  const promises = Object.entries(TILE_IMAGE_SRCS).map(([terrain, src]) =>
+    new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => { TILE_IMAGES[terrain] = img; resolve(); };
+      img.onerror = () => resolve(); // fail gracefully — colour fallback used
+      img.src = src;
+    })
+  );
+  Promise.all(promises).then(() => { _tileImagesLoaded = true; });
+}
+
+// ── Fog texture ────────────────────────────────
+const _fogImg = new Image();
+_fogImg.src = '/assets/fog/fog_base.png';
+let _fogOffset = 0;
+let _fogAnimId = null;
+
+function _startFogAnimation() {
+  if (_fogAnimId) return;
+  let last = 0;
+  function tick(ts) {
+    const dt = last ? (ts - last) : 16;
+    last = ts;
+    _fogOffset = (_fogOffset + dt * 0.009) % 1024;
+    if (worldMapData) _doRenderCanvas();
+    _fogAnimId = requestAnimationFrame(tick);
+  }
+  _fogAnimId = requestAnimationFrame(tick);
+}
+
+// ── Canvas state ───────────────────────────────
+let _canvas = null, _ctx = null;
+let _hoveredTile = null;   // {wq, wr} of hovered hex
+
+function _getCanvas() {
+  if (_canvas) return _canvas;
+  _canvas = document.getElementById('map-canvas');
+  if (_canvas) _ctx = _canvas.getContext('2d', { alpha: false });
+  return _canvas;
+}
+
+// ── Hex path helper ────────────────────────────
+function _hexPath(ctx, cx, cy, hw, hh) {
+  const q1 = hw * 0.5, q2 = hw;
+  const r1 = hh * 0.25, r2 = hh * 0.75, r3 = hh;
+  ctx.beginPath();
+  ctx.moveTo(cx - q1, cy);
+  ctx.lineTo(cx + q1, cy);
+  ctx.lineTo(cx + q2 - q1, cy + r1);    // actually use correct pointy-top coords
+  ctx.lineTo(cx + q2 - q1, cy + r2);
+  ctx.lineTo(cx + q1, cy + r3);
+  ctx.lineTo(cx - q1, cy + r3);
+  ctx.lineTo(cx - q2 + q1, cy + r2);
+  ctx.lineTo(cx - q2 + q1, cy + r1);
+  ctx.closePath();
+}
+
+// Simpler version — pointy-top hex with left=x, top=y, w=hexW, h=hexH
+function _hexPathLT(ctx, x, y, w, h) {
+  ctx.beginPath();
+  ctx.moveTo(x + w/2,  y);
+  ctx.lineTo(x + w,    y + h*0.25);
+  ctx.lineTo(x + w,    y + h*0.75);
+  ctx.lineTo(x + w/2,  y + h);
+  ctx.lineTo(x,        y + h*0.75);
+  ctx.lineTo(x,        y + h*0.25);
+  ctx.closePath();
+}
+
+// ── Main render ────────────────────────────────
+let _renderPending = false;
+
 function renderWorldMap(data) {
-  const grid = document.getElementById('map-grid');
-  if (!grid || !data || !data.tiles) return;
+  worldMapData = data || worldMapData;
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(() => {
+    _renderPending = false;
+    _doRenderCanvas();
+  });
+}
 
-  const size = data.mapSize || 40;
-  const vw = VIEW_W(), vh = VIEW_H(), tpx = TILE_PX();
-  const halfW = Math.floor(vw / 2);
-  const halfH = Math.floor(vh / 2);
-  const startX = camera.x - halfW;
-  const startY = camera.y - halfH;
+function _doRenderCanvas() {
+  const data = worldMapData;
+  if (!data || !data.tiles) return;
 
-  const tileMap = {};
-  data.tiles.forEach(t => { tileMap[`${t.x},${t.y}`] = t; });
-
-  grid.style.gridTemplateColumns = `repeat(${vw}, ${tpx}px)`;
-  grid.style.gridTemplateRows = `repeat(${vh}, ${tpx}px)`;
-  grid.style.gap = `${GAP}px`;
+  const canvas = _getCanvas();
+  if (!canvas) return;
 
   const frame = document.getElementById('map-frame');
-  if (frame) {
-    frame.style.width = MAP_FRAME_W + 'px';
-    frame.style.height = MAP_FRAME_H + 'px';
+  const W = frame ? frame.clientWidth  : (canvas.width  || MAP_FRAME_W);
+  const H = frame ? frame.clientHeight : (canvas.height || MAP_FRAME_H);
+  const dpr = window.devicePixelRatio || 1;
+
+  // Resize canvas backing store to physical pixels (HiDPI fix)
+  // Resizing the canvas resets its transform, so we always reapply scale below
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+  }
+  // Always reset transform and reapply dpr scale at start of each frame
+  // (canvas resize clears the transform; calling scale() repeatedly would compound it)
+  _ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const ctx = _ctx;
+
+  // ── Hex geometry ──────────────────────────────
+  const tpx     = TILE_PX();
+  const hexW    = tpx;
+  const hexH    = Math.round(tpx * 1.1547);
+  const hexVert = Math.round(hexH * 0.75);
+  const showEmoji = tpx >= 36;
+
+  // ── Tile lookup ───────────────────────────────
+  const tileMap = {};
+  data.tiles.forEach(t => { tileMap[`${t.q},${t.r}`] = t; });
+
+  // ── Clear ─────────────────────────────────────
+  ctx.fillStyle = '#0a0806';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Visible range ─────────────────────────────
+  const rowsVisible = Math.ceil(H / hexVert) + 8;
+  const colsVisible = Math.ceil(W / hexW) + rowsVisible + 4;
+  const cx = W / 2, cy = H / 2;
+  const camPxX = hexW * (camera.q + camera.r / 2);
+  const camPxY = hexVert * camera.r;
+  const qStart = camera.q - Math.ceil(colsVisible / 2);
+  const rStart = camera.r - Math.ceil(rowsVisible / 2);
+
+  // ── Collect visible tiles ─────────────────────
+  const visibleTiles = [];
+  for (let dr = 0; dr < rowsVisible; dr++) {
+    for (let dq = 0; dq < colsVisible; dq++) {
+      const aq = qStart + dq, ar = rStart + dr;
+      const wq = ((aq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
+      const wr = ((ar % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
+      const x = cx + hexW * (aq + ar / 2) - camPxX - hexW / 2;
+      const y = cy + hexVert * ar - camPxY - hexH / 2;
+      if (x < -hexW * 2 || x > W + hexW || y < -hexH * 2 || y > H + hexH) continue;
+      visibleTiles.push({ wq, wr, x: Math.round(x), y: Math.round(y), t: tileMap[`${wq},${wr}`] });
+    }
   }
 
-  applyGridTransform();
-  grid.innerHTML = '';
+  // ── Pass 1: terrain fills ─────────────────────
+  for (const { wq, wr, x, y, t } of visibleTiles) {
+    _hexPathLT(ctx, x, y, hexW, hexH);
 
-  for (let row = 0; row < vh; row++) {
-    for (let col = 0; col < vw; col++) {
-      const x = startX + col;
-      const y = startY + row;
-      const wx = ((x % size) + size) % size;
-      const wy = ((y % size) + size) % size;
-      const t = tileMap[`${wx},${wy}`];
+    if (!t || t.terrain === 'fog') {
+      // Dark base only — texture applied in one pass below
+      ctx.fillStyle = '#0d0a06';
+      ctx.fill();
+    } else if (t.settlement) {
+      ctx.fillStyle = t.settlement.isOwn ? '#1a3060' : '#1a2e4a';
+      ctx.fill();
+    } else {
+      // Terrain — use image if loaded, fallback to colour
+      const img = TILE_IMAGES[t.terrain];
+      if (img && _tileImagesLoaded) {
+        ctx.save();
+        _hexPathLT(ctx, x, y, hexW, hexH);
+        ctx.clip();
+        ctx.drawImage(img, x, y, hexW, hexH);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = TERRAIN_COLORS[t.terrain] || '#2a2010';
+        ctx.fill();
+      }
+    }
+  }
 
-      const div = document.createElement('div');
-      div.className = 'tile';
-      div.style.width = tpx + 'px';
-      div.style.height = tpx + 'px';
-      div.style.fontSize = Math.round(tpx * 0.44) + 'px';
+  // ── Pass 1b: fog texture — per fog tile, clipped individually ───────────
+  if (_fogImg.complete && _fogImg.naturalWidth > 0) {
+    const imgSize = _fogImg.naturalWidth;
+    const worldOriginX = cx - camPxX;
+    const worldOriginY = cy - camPxY;
+    // World-anchored start so texture is seamless across all tiles
+    const startX = ((worldOriginX - _fogOffset) % imgSize + imgSize) % imgSize - imgSize;
+    const startY = ((worldOriginY - _fogOffset * 0.5) % imgSize + imgSize) % imgSize - imgSize;
 
-      if (!t || t.terrain === 'fog') {
-        div.classList.add('tile-fog');
-        div.dataset.wx = wx;
-        div.dataset.wy = wy;
-        div.onclick = () => selectFogTile(wx, wy);
-        div.title = 'Unexplored — click to send a scout';
-
-        if (_selectedFogTile && _selectedFogTile.wx === wx && _selectedFogTile.wy === wy) {
-          div.classList.add('selected-fog');
+    ctx.globalAlpha = 0.48;
+    for (const { x, y, t } of visibleTiles) {
+      if (t && t.terrain !== 'fog') continue;
+      ctx.save();
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.clip();
+      // Draw enough copies to cover this hex (usually just 1-4 copies)
+      for (let px = startX; px < x + hexW + imgSize; px += imgSize) {
+        if (px + imgSize < x) continue;
+        for (let py = startY; py < y + hexH + imgSize; py += imgSize) {
+          if (py + imgSize < y) continue;
+          ctx.drawImage(_fogImg, px, py, imgSize, imgSize);
         }
-
-        grid.appendChild(div);
-        continue;
       }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
 
-      if (t.settlement?.isOwn) div.classList.add('home');
+  // ── Pass 2: borders + highlights ─────────────
+  for (const { wq, wr, x, y, t } of visibleTiles) {
+    const isFog = !t || t.terrain === 'fog';
+    const isHome = t?.settlement?.isOwn;
+    const isHovered = _hoveredTile && _hoveredTile.wq === wq && _hoveredTile.wr === wr;
+    const isSelFog = _selectedFogTile && _selectedFogTile.wx === wq && _selectedFogTile.wy === wr;
 
-      div.style.background = t.settlement ? '#1a2e4a' : (WORLD_BG[t.terrain] || '#222');
-      div.style.position = 'relative';
-      div.style.zIndex = '4';
-      div.textContent = t.settlement ? '🏘' : (tpx >= 24 ? (WORLD_EMOJI[t.terrain] || '') : '');
-      div.onclick = () => selectWorldTile(t);
+    if (isHome) {
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.strokeStyle = 'rgba(255,210,120,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (isSelFog) {
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.strokeStyle = 'rgba(220,175,60,0.85)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (isHovered && !isFog) {
+      // Terrain hover — clip so stroke doesn't bleed onto adjacent tiles
+      ctx.save();
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.clip();
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.strokeStyle = 'rgba(255,210,80,0.9)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    } else if (isHovered && isFog) {
+      // Fog hover — clip, then fill + outline
+      ctx.save();
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.clip();
+      ctx.fillStyle = 'rgba(210,160,50,0.18)';
+      ctx.fill();
+      _hexPathLT(ctx, x, y, hexW, hexH);
+      ctx.strokeStyle = 'rgba(220,175,60,0.85)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
 
-      if (t.settlement) {
-        div.title = `${t.settlement.name} (${t.settlement.username})`;
-      }
-
-      grid.appendChild(div);
+  // ── Pass 3: emoji labels ──────────────────────
+  if (showEmoji) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.round(hexH * 0.45)}px serif`;
+    for (const { x, y, t } of visibleTiles) {
+      if (!t || t.terrain === 'fog' || t.settlement) continue;
+      const em = TERRAIN_EMOJI_FONT[t.terrain];
+      if (em) ctx.fillText(em, x + hexW / 2, y + hexH / 2);
+    }
+    // Settlement icon
+    ctx.font = `${Math.round(hexH * 0.45)}px serif`;
+    for (const { x, y, t } of visibleTiles) {
+      if (!t?.settlement) continue;
+      ctx.fillText('🏘', x + hexW / 2, y + hexH / 2);
     }
   }
 }
 
 
 function selectWorldTile(tile) {
+  window._lastSelectedTile = tile;
   const title = document.getElementById('panel-title');
   const sub   = document.getElementById('panel-sub');
   const body  = document.getElementById('panel-body');
@@ -556,6 +1035,14 @@ function selectWorldTile(tile) {
         <hr class="sdivider">
         <button class="action-btn" onclick="switchTab('buildings')">🏗 Construct building</button>
         <button class="action-btn" onclick="switchTab('tier')" style="margin-top:4px">${TIER_EMOJI[s.tier]||'🏕'} Upgrade settlement tier</button>
+        ${(() => {
+          const hasTavern = gameData?.buildings?.some(b => b.type === 'tavern' && b.level > 0);
+          const hasFishingPost = gameData?.buildings?.some(b => b.type === 'fishing_post' && b.level > 0);
+          const hasHousing = gameData?.buildings?.some(b => b.type === 'starter_house' && b.level > 0);
+          return (hasTavern ? '<button class="action-btn tavern-btn" onclick="visitTavern()" style="margin-top:4px">🍺 Visit the Tavern</button>' : '')
+               + (hasFishingPost ? '<button class="action-btn fishing-btn" onclick="visitFishingPost()" style="margin-top:4px">🎣 Visit Fishing Post</button>' : '')
+               + (hasHousing ? '<button class="action-btn housing-btn" onclick="openHousingModal()" style="margin-top:4px">🏡 Manage Housing</button>' : '');
+        })()}
       ` : `
         <hr class="sdivider">
         <button class="btn-view-profile" onclick="viewPlayerProfile('${s.username}','${s.species}','${s.name}','${s.tier}',${tile.x},${tile.y})">👤 View Profile</button>
@@ -563,7 +1050,7 @@ function selectWorldTile(tile) {
     `;
   } else {
     title.textContent = TERRAIN_LABELS[tile.terrain] || tile.terrain;
-    sub.textContent = `(${tile.x}, ${tile.y}) · Unoccupied`;
+    sub.textContent = `(${tile.q}, ${tile.r}) · Unoccupied`;
     body.innerHTML = `
       <div class="info-row"><span class="info-label">Terrain bonus</span><span class="info-val" style="font-size:11px;">${TERRAIN_BONUSES_DISPLAY[tile.terrain] || 'None'}</span></div>
       <hr class="sdivider">

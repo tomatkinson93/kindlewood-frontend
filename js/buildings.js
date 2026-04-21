@@ -1,3 +1,13 @@
+
+const BUILDING_IMG_BASE = '/assets/images/buildings/';
+
+function _buildingIcon(b, size) {
+  if (b.imgFile) {
+    return `<img src="${BUILDING_IMG_BASE}${b.imgFile}" alt="${b.label}" class="building-img-icon" style="width:${size}px;height:${size}px" onerror="this.style.display='none';this.nextSibling&&(this.nextSibling.style.display='')"><span style="display:none" class="building-icon-emoji">${b.icon}</span>`;
+  }
+  return `<span class="building-icon">${b.icon}</span>`;
+}
+
 // ── Buildings system ──
 
 let buildingsData = [];
@@ -21,8 +31,8 @@ function renderBuildingsPanel() {
   const buildTab = document.getElementById('tab-buildings');
   if (!buildTab?.classList.contains('active')) return;
 
-  const built = buildingsData.filter(b => b.currentLevel > 0);
-  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet);
+  const built = buildingsData.filter(b => b.currentLevel > 0 && b.id !== 'housing');
+  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.id !== 'housing');
 
   let html = '';
 
@@ -30,14 +40,21 @@ function renderBuildingsPanel() {
     html += `<div class="slabel">BUILT</div>`;
     html += built.map(b => `
       <div class="building-row">
-        <span class="building-icon">${b.icon}</span>
+        ${_buildingIcon(b, 72)}
         <div class="building-info">
           <span class="building-name">${b.label}</span>
           <span class="building-level">Lv ${b.currentLevel}/${b.maxLevel}</span>
         </div>
-        ${b.currentLevel < b.maxLevel
-          ? `<button class="building-upgrade-btn" onclick="buildBuilding('${b.id}')">↑</button>`
-          : `<span class="building-maxed">MAX</span>`}
+        <div class="building-row-actions">
+          <span class="building-tooltip-wrap">
+            <button class="building-help-btn" tabindex="-1">?</button>
+            <span class="building-tooltip">${b.desc}</span>
+          </span>
+          ${b.currentLevel < b.maxLevel
+            ? `<button class="building-upgrade-btn" onclick="buildBuilding('${b.id}')">↑</button>`
+            : `<span class="building-maxed">MAX</span>`}
+          <button class="building-remove-btn" onclick="confirmRemoveBuilding('${b.id}','${b.label}')" title="Demolish">🗑</button>
+        </div>
       </div>
     `).join('');
     html += `<hr class="sdivider">`;
@@ -51,11 +68,15 @@ function renderBuildingsPanel() {
     return `
       <div class="building-card" onclick="showBuildingDetail('${b.id}')">
         <div class="building-card-top">
-          <span class="building-icon">${b.icon}</span>
+          ${_buildingIcon(b, 72)}
           <div class="building-card-info">
             <div class="building-name">${b.label}</div>
             <div class="building-cost">${costStr}</div>
           </div>
+          <span class="building-tooltip-wrap">
+            <button class="building-help-btn" tabindex="-1" onclick="event.stopPropagation()">?</button>
+            <span class="building-tooltip tooltip-left">${b.desc}</span>
+          </span>
           <button class="btn-build" onclick="event.stopPropagation(); buildBuilding('${b.id}')">Build</button>
         </div>
         <div class="building-desc">${b.desc}</div>
@@ -70,7 +91,7 @@ function renderBuildingsPanel() {
     html += locked.map(b => `
       <div class="building-card locked">
         <div class="building-card-top">
-          <span class="building-icon" style="opacity:.4">${b.icon}</span>
+          <div style="opacity:0.4">${_buildingIcon(b, 72)}</div>
           <div class="building-card-info">
             <div class="building-name" style="opacity:.5">${b.label}</div>
             <div class="building-cost" style="color:rgba(192,221,151,.3)">Requires more buildings</div>
@@ -104,6 +125,28 @@ async function buildBuilding(id) {
     // Refresh data
     await loadBuildings();
     await refreshResources();
+
+    // Update gameData.buildings so Visit Tavern button appears without re-login
+    if (typeof gameData !== 'undefined' && gameData) {
+      const existing = gameData.buildings?.find(b => b.type === id);
+      if (existing) {
+        existing.currentLevel = data.newLevel;
+        existing.level = data.newLevel;
+      } else {
+        if (!gameData.buildings) gameData.buildings = [];
+        gameData.buildings.push({ type: id, level: data.newLevel, currentLevel: data.newLevel });
+      }
+    }
+
+    // Refresh sidebar panel so Visit Tavern button appears immediately
+    if (typeof selectWorldTile === 'function' && window._lastSelectedTile) {
+      selectWorldTile(window._lastSelectedTile);
+    }
+
+    // Special celebration for first Tavern build
+    if (id === 'tavern' && data.newLevel === 1) {
+      showTavernCelebration();
+    }
   } catch(e) { console.error(e); }
 }
 
@@ -144,11 +187,116 @@ function showBuildToast(msg, type='success') {
 }
 
 // ── Cheat menu ──
+async function confirmRemoveBuilding(id, label) {
+  if (!confirm(`Demolish ${label}? This cannot be undone and you will not get resources back.`)) return;
+  await removeBuilding(id);
+}
+
+async function removeBuilding(id) {
+  try {
+    const res = await apiFetch('/api/buildings/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buildingId: id }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showBuildToast(`Building demolished.`, 'success');
+      await loadBuildings();
+      // Refresh gameData buildings
+      if (gameData?.buildings) {
+        const idx = gameData.buildings.findIndex(b => b.type === id);
+        if (idx !== -1) gameData.buildings[idx].currentLevel = 0;
+      }
+    } else {
+      showBuildToast(data.error || 'Failed to demolish.', 'error');
+    }
+  } catch(e) { console.error(e); showBuildToast('Error demolishing building.', 'error'); }
+}
+
+async function cheatAddCitizen() {
+  try {
+    const res = await apiFetch('/api/game/cheat/citizen', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showBuildToast(`Citizen ${data.name} joined! ✓`, 'success');
+      if (typeof loadCitizens === 'function') loadCitizens();
+    } else {
+      showBuildToast(data.error || 'Failed to add citizen.', 'error');
+    }
+  } catch(e) { console.error(e); }
+}
+
 function openCheatMenu() {
   document.getElementById('cheat-modal').classList.add('open');
+  _populateCheatCitizenDropdowns();
 }
 function closeCheatMenu() {
   document.getElementById('cheat-modal').classList.remove('open');
+}
+
+function _populateCheatCitizenDropdowns() {
+  const citizens = (typeof citizensData !== 'undefined' ? citizensData : [])
+    .filter(c => c.life_stage !== 'child');
+  ['cheat-rel-a', 'cheat-rel-b'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = `<option value="">— ${id === 'cheat-rel-a' ? 'Citizen A' : 'Citizen B'} —</option>` +
+      citizens.map(c => `<option value="${c.id}" ${c.id == current ? 'selected' : ''}>${c.name} (${c.gender[0].toUpperCase()})</option>`).join('');
+  });
+}
+
+async function cheatSimulateEvent(eventType) {
+  try {
+    const res = await apiFetch('/api/game/cheat/simulate-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showBuildToast('Event: ' + data.message, 'success');
+      if (typeof loadEvents === 'function') loadEvents();
+      if (typeof loadCitizens === 'function') loadCitizens();
+    } else {
+      showBuildToast(data.error || 'Failed.', 'error');
+    }
+  } catch(e) {
+    showBuildToast('Error simulating event.', 'error');
+  }
+}
+
+async function cheatSetRelationship() {
+  const aId = parseInt(document.getElementById('cheat-rel-a')?.value);
+  const bId = parseInt(document.getElementById('cheat-rel-b')?.value);
+  const score = parseInt(document.getElementById('cheat-rel-score')?.value ?? 50);
+  const feedback = document.getElementById('cheat-rel-feedback');
+
+  if (!aId || !bId) {
+    if (feedback) feedback.textContent = '⚠ Select both citizens.';
+    return;
+  }
+  if (aId === bId) {
+    if (feedback) feedback.textContent = '⚠ Pick two different citizens.';
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/game/cheat/relationship', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ citizen_a_id: aId, citizen_b_id: bId, score }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (feedback) feedback.textContent = `✓ Set to ${score} (${data.state})`;
+      setTimeout(() => { if (feedback) feedback.textContent = ''; }, 3000);
+    } else {
+      if (feedback) feedback.textContent = '⚠ ' + (data.error || 'Failed.');
+    }
+  } catch(e) {
+    if (feedback) feedback.textContent = '⚠ Error.';
+  }
 }
 
 async function applyCheat(resource, amount) {

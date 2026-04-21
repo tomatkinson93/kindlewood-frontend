@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: kindlewood-api
+    runtime: node
+    plan: free
+    nodeVersion: 20.19.0
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
