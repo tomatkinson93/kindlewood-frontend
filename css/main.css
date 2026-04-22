@@ -2006,8 +2006,6 @@ body.login-mode #screen-login .login-back-btn {
 
 /* ── Fog pulse animation ── */
 /* fogPulse removed */
-  50% { opacity: 1; }
-}
 /* removed old fog rule */
 
 /* ── Action bar ── */
@@ -2765,9 +2763,7 @@ body::after {
 }
 
   50%       { transform: translateY(-6px) rotate(0.4deg); }
-}
   50%       { transform: translateY(-6px) rotate(-0.4deg); }
-}
 
 @media (max-width: 1200px) {
   .map-decor-left  { width: clamp(70px, 7vw, 130px); }

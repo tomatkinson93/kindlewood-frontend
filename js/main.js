@@ -474,12 +474,11 @@ const TERRAIN_BONUSES_DISPLAY = {
 
 // ── Camera system ──
 // Tile sizes per zoom level — tile count is calculated to fill available space
-const TILE_SIZES = [48, 36];  // 26px removed — too small and too slow
+const TILE_PX_VAL = 48;  // fixed tile size — no zoom
 const GAP = 0;
-let zoomLevel = 1;
 let camera = { q: 20, r: 15 };
 
-function TILE_PX() { return TILE_SIZES[zoomLevel]; }
+function TILE_PX() { return TILE_PX_VAL; }
 
 const MAP_FRAME_W = 1400;  // fallback — actual size read from DOM
 const MAP_FRAME_H = 800;
@@ -497,13 +496,7 @@ function VIEW_H() { return getMapDimensions().rows; }
 function applyGridTransform() {
   // Hex renderer handles its own sizing inside renderWorldMap — nothing to do here.
 }
-function setZoom(delta) {
-  zoomLevel = Math.max(0, Math.min(TILE_SIZES.length - 1, zoomLevel + delta));
-  if (worldMapData) renderWorldMap(worldMapData);
-
-  document.getElementById('zoom-in')?.toggleAttribute('disabled', zoomLevel === 0);
-  document.getElementById('zoom-out')?.toggleAttribute('disabled', zoomLevel === TILE_SIZES.length - 1);
-}
+function setZoom(delta) { /* zoom removed */ }
 
 function centreCamera() {
   if (worldMapData?.playerSettlement) {
@@ -591,11 +584,7 @@ function _initMapDrag() {
   if (!canvas || canvas._dragInit) return;
   canvas._dragInit = true;
 
-  // Scroll wheel zoom
-  canvas.addEventListener('wheel', e => {
-    e.preventDefault();
-    setZoom(e.deltaY > 0 ? 1 : -1);
-  }, { passive: false });
+  // Zoom removed — scroll wheel disabled
 
   // Click — hit test hex
   canvas.addEventListener('click', e => {
@@ -766,6 +755,11 @@ function preloadTileImages() {
 
 // ── Fog texture ────────────────────────────────
 const _fogImg = new Image();
+_fogImg.onload = () => {
+  console.log('Fog image loaded:', _fogImg.naturalWidth, 'x', _fogImg.naturalHeight);
+  if (worldMapData) _doRenderCanvas();
+};
+_fogImg.onerror = () => console.error('Fog image FAILED to load:', _fogImg.src);
 _fogImg.src = '/assets/fog/fog_base.png';
 let _fogOffset = 0;
 let _fogAnimId = null;
@@ -776,7 +770,7 @@ function _startFogAnimation() {
   function tick(ts) {
     const dt = last ? (ts - last) : 16;
     last = ts;
-    _fogOffset = (_fogOffset + dt * 0.009) % 1024;
+    _fogOffset += dt * 0.009;  // no modulo — smooth infinite drift, no reset
     if (worldMapData) _doRenderCanvas();
     _fogAnimId = requestAnimationFrame(tick);
   }
@@ -843,8 +837,8 @@ function _doRenderCanvas() {
   if (!canvas) return;
 
   const frame = document.getElementById('map-frame');
-  const W = frame ? frame.clientWidth  : (canvas.width  || MAP_FRAME_W);
-  const H = frame ? frame.clientHeight : (canvas.height || MAP_FRAME_H);
+  const W = frame ? (frame.offsetWidth  || frame.clientWidth  || MAP_FRAME_W) : (canvas.clientWidth  || MAP_FRAME_W);
+  const H = frame ? (frame.offsetHeight || frame.clientHeight || MAP_FRAME_H) : (canvas.clientHeight || MAP_FRAME_H);
   const dpr = window.devicePixelRatio || 1;
 
   // Resize canvas backing store to physical pixels (HiDPI fix)
@@ -885,16 +879,30 @@ function _doRenderCanvas() {
   const qStart = camera.q - Math.ceil(colsVisible / 2);
   const rStart = camera.r - Math.ceil(rowsVisible / 2);
 
-  // ── Collect visible tiles ─────────────────────
+  // ── Fog texture — scaled up, drifts via sin/cos, no tiling so no seams ──
+  if (_fogImg.complete && _fogImg.naturalWidth > 0) {
+    const drawSize = Math.max(W, H) * 2.5;
+    const driftX = Math.sin(_fogOffset * 0.0012) * (drawSize - W) * 0.3;
+    const driftY = Math.cos(_fogOffset * 0.0008) * (drawSize - H) * 0.3;
+    ctx.globalAlpha = 0.58;
+    ctx.drawImage(_fogImg, (W - drawSize) / 2 + driftX, (H - drawSize) / 2 + driftY, drawSize, drawSize);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Collect visible tiles (deduplicated — no tile drawn twice) ──────────
   const visibleTiles = [];
+  const _seenTiles = new Set();
   for (let dr = 0; dr < rowsVisible; dr++) {
     for (let dq = 0; dq < colsVisible; dq++) {
       const aq = qStart + dq, ar = rStart + dr;
       const wq = ((aq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
       const wr = ((ar % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
+      const key = `${wq},${wr}`;
+      if (_seenTiles.has(key)) continue;  // skip duplicate — tile already queued
       const x = cx + hexW * (aq + ar / 2) - camPxX - hexW / 2;
       const y = cy + hexVert * ar - camPxY - hexH / 2;
       if (x < -hexW * 2 || x > W + hexW || y < -hexH * 2 || y > H + hexH) continue;
+      _seenTiles.add(key);
       visibleTiles.push({ wq, wr, x: Math.round(x), y: Math.round(y), t: tileMap[`${wq},${wr}`] });
     }
   }
@@ -904,9 +912,7 @@ function _doRenderCanvas() {
     _hexPathLT(ctx, x, y, hexW, hexH);
 
     if (!t || t.terrain === 'fog') {
-      // Dark base only — texture applied in one pass below
-      ctx.fillStyle = '#0d0a06';
-      ctx.fill();
+      // No fill — fog texture drawn before pass 1 shows through
     } else if (t.settlement) {
       ctx.fillStyle = t.settlement.isOwn ? '#1a3060' : '#1a2e4a';
       ctx.fill();
@@ -926,33 +932,8 @@ function _doRenderCanvas() {
     }
   }
 
-  // ── Pass 1b: fog texture — per fog tile, clipped individually ───────────
-  if (_fogImg.complete && _fogImg.naturalWidth > 0) {
-    const imgSize = _fogImg.naturalWidth;
-    const worldOriginX = cx - camPxX;
-    const worldOriginY = cy - camPxY;
-    // World-anchored start so texture is seamless across all tiles
-    const startX = ((worldOriginX - _fogOffset) % imgSize + imgSize) % imgSize - imgSize;
-    const startY = ((worldOriginY - _fogOffset * 0.5) % imgSize + imgSize) % imgSize - imgSize;
 
-    ctx.globalAlpha = 0.48;
-    for (const { x, y, t } of visibleTiles) {
-      if (t && t.terrain !== 'fog') continue;
-      ctx.save();
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.clip();
-      // Draw enough copies to cover this hex (usually just 1-4 copies)
-      for (let px = startX; px < x + hexW + imgSize; px += imgSize) {
-        if (px + imgSize < x) continue;
-        for (let py = startY; py < y + hexH + imgSize; py += imgSize) {
-          if (py + imgSize < y) continue;
-          ctx.drawImage(_fogImg, px, py, imgSize, imgSize);
-        }
-      }
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-  }
+
 
   // ── Pass 2: borders + highlights ─────────────
   for (const { wq, wr, x, y, t } of visibleTiles) {
