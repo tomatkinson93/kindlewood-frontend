@@ -126,6 +126,20 @@ function _cardHtml(card, hidden = false) {
   return `<div class="playing-card ${color}">${card.suit}<br>${card.value}</div>`;
 }
 
+// ── Card game audio ───────────────────────────
+
+function _playCardFlip() {
+  const a = new Audio('/assets/audio/card-flip.wav');
+  a.volume = 0.6;
+  a.play().catch(() => {});
+}
+
+function _playCoins() {
+  const a = new Audio('/assets/audio/coins.mp3');
+  a.volume = 0.7;
+  a.play().catch(() => {});
+}
+
 // ── Award gold ────────────────────────────────
 
 async function _awardGold(amount) {
@@ -134,6 +148,10 @@ async function _awardGold(amount) {
     await apiFetch('/api/game/award-gold', { method: 'POST', body: JSON.stringify({ amount }) });
     if (gameData?.settlement?.resources) gameData.settlement.resources.wealth += amount;
     updateTopbarDisplay?.();
+    _playCoins();
+    if (typeof window.spawnResourceFloater === 'function') {
+      window.spawnResourceFloater('wealth', amount);
+    }
   } catch(e) { console.warn('Gold award failed', e); }
 }
 
@@ -145,6 +163,7 @@ function _startHighleaf() {
   const deck = _buildDeck();
   const hand = [deck.pop(), deck.pop()];
   _currentGame = { type: 'highleaf', deck, hand, over: false };
+  _playCardFlip();
   _renderHighleaf();
 }
 
@@ -180,6 +199,7 @@ function _renderHighleaf(message = '') {
 function highleafHit() {
   const g = _currentGame;
   g.hand.push(g.deck.pop());
+  _playCardFlip();
   const total = _cardTotal(g.hand);
   if (total > 21) {
     g.over = true;
@@ -203,6 +223,7 @@ function highleafStand() {
   const houseHand = [g.deck.pop(), g.deck.pop()];
   while (_cardTotal(houseHand) < 16) houseHand.push(g.deck.pop());
   const houseTotal = _cardTotal(houseHand);
+  _playCardFlip();
 
   let reward = 0, msg = '';
   const houseBust = houseTotal > 21;
@@ -251,6 +272,7 @@ function _startMouseGrain() {
   const playerHand = [deck.pop(), deck.pop(), deck.pop()];
   const houseHand  = [deck.pop(), deck.pop(), deck.pop()];
   _currentGame = { type: 'mouse_grain', playerHand, houseHand, over: false, revealed: false };
+  _playCardFlip();
   _renderMouseGrain();
 }
 
@@ -297,6 +319,7 @@ function mouseGrainReveal(bluffBonus = 0) {
   const g = _currentGame;
   g.revealed = true;
   g.over = true;
+  _playCardFlip();
 
   const playerTotal = g.playerHand.reduce((s,c) => s + _cardValue(c), 0) + bluffBonus;
   const houseTotal  = g.houseHand.reduce((s,c) => s + _cardValue(c), 0);

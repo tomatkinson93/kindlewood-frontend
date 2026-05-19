@@ -119,6 +119,10 @@ function _spawnFloater(resId, delta) {
   el.addEventListener('animationend', () => el.remove(), { once: true });
 }
 
+// Exposed so external modules (e.g. tavern.js) can trigger a floater
+// immediately on a one-off award without waiting for the next resource tick.
+window.spawnResourceFloater = _spawnFloater;
+
 // Inject the @keyframes for the floater once. CSS lives in the page's
 // stylesheet ideally, but inlining keeps this file self-contained — feel
 // free to move .resource-floater + the keyframes into your CSS file.
