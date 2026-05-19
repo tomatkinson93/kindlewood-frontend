@@ -21,6 +21,8 @@ const INNKEEPER_SPECIES_EMOJI = {
 // ── Open / Close ──────────────────────────────
 
 async function visitTavern() {
+  // Close any other full-screen overlays first
+  if (typeof leaveFishingPost === 'function') leaveFishingPost();
   const overlay = document.getElementById('tavern-overlay');
   if (!overlay) return;
   overlay.style.display = 'flex';
@@ -28,8 +30,6 @@ async function visitTavern() {
   // Reset to main menu
   document.getElementById('tavern-card-menu').style.display = 'none';
   document.getElementById('tavern-game-area').style.display = 'none';
-  const qb = document.getElementById('tavern-quest-board');
-  if (qb) qb.style.display = 'none';
   document.getElementById('tavern-menu').style.display = 'flex';
 
   // Ensure citizensData is fresh so tavernkeep renders correctly
@@ -42,6 +42,10 @@ function leaveTavern() {
   if (overlay) overlay.style.display = 'none';
   _currentGame = null;
   if (typeof stopQuestTimers === 'function') stopQuestTimers();
+  // Reset quest mode
+  if (typeof _questMode !== 'undefined') window._questMode = null;
+  const menu = document.getElementById('tavern-menu');
+  if (menu) menu.style.display = 'flex';
 }
 
 // ── Tavernkeep rendering ───────────────────────

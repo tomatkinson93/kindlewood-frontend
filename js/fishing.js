@@ -1,3 +1,22 @@
+
+// ── Fish inventory values ─────────────────────
+const FISH_FOOD_VALUE = {
+  common: 3, uncommon: 8, rare: 18, legendary: 40, junk: 0
+};
+const FISH_SELL_VALUE = {
+  common: 2, uncommon: 8, rare: 22, legendary: 55, junk: 1
+};
+const FISH_SIZE_LABEL = {
+  common: 'Small', uncommon: 'Medium', rare: 'Large', legendary: 'Trophy', junk: 'Junk'
+};
+
+
+function toggleCatchInventory() {
+  const modal = document.getElementById('fp-inventory-modal');
+  if (!modal) return;
+  modal.classList.toggle('open');
+}
+
 // ══════════════════════════════════════════════
 //  FISHING POST — Kindlewood
 // ══════════════════════════════════════════════
@@ -597,6 +616,32 @@ function _catchSuccess() {
   _playSuccessSound();
   var fish = _currentFish;
   _saveCatch(fish.id);
+
+  // ── Add to inventory ──────────────────────────
+  var foodVal  = FISH_FOOD_VALUE[fish.rarity]  || 3;
+  var sellVal  = fish.value || FISH_SELL_VALUE[fish.rarity] || 2;
+  var sizeLabel = FISH_SIZE_LABEL[fish.rarity] || 'Small';
+  var invDescription = sizeLabel + ' fish. Worth ' + sellVal + ' gold. Eating it restores ' + foodVal + ' food.';
+
+  if (typeof awardInventoryItem === 'function') {
+    awardInventoryItem({
+      item_key:    'fish_' + fish.id,
+      name:        fish.name,
+      description: invDescription,
+      icon:        fish.icon,
+      category:    'food',
+      rarity:      fish.rarity === 'junk' ? 'common' : fish.rarity,
+      quantity:    1,
+      source:      'fishing',
+      metadata:    { food_value: foodVal, sell_value: sellVal, flavour: fish.flavour },
+    });
+  }
+
+  // ── Show result ───────────────────────────────
+  var foodBadge = fish.rarity !== 'junk'
+    ? '<div class="fp-result-inv-badge">🌿 +' + foodVal + ' food · 🪙 ' + sellVal + ' gold value</div>'
+    : '';
+
   var area = document.getElementById('fishing-main-area');
   if (!area) return;
   area.innerHTML =
@@ -604,7 +649,8 @@ function _catchSuccess() {
     '<div class="fp-result-splash">✨ Caught! ✨</div>' +
     '<div class="fp-result-fish-icon">' + fish.icon + '</div>' +
     '<div class="fp-result-fish-name" style="color:' + RARITY_COLORS[fish.rarity] + '">' + fish.name + '</div>' +
-    '<div class="fp-result-rarity">' + fish.rarity + '</div>' +
+    '<div class="fp-result-rarity">' + sizeLabel + ' · ' + fish.rarity + '</div>' +
+    foodBadge +
     '<div class="fp-result-flavour"><em>' + fish.flavour + '</em></div>' +
     '<div class="fp-result-actions">' +
     '<button class="fp-cast-btn" onclick="startFishingAgain()">🎣 Cast Again</button>' +

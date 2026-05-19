@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kindlewood — Rise of the Woodland Realms</title>
-  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/main.css?v=1778441000">
   <link rel="stylesheet" href="/css/carousel.css">
   <link rel="stylesheet" href="/css/hero.css">
   <link rel="stylesheet" href="/css/mobile.css">
@@ -317,6 +317,19 @@
   </div>
 
   <!-- GAME -->
+  <!-- Loading screen — shown between login and game ready -->
+  <div id="loading-screen" style="display:none">
+    <div class="ls-content">
+      <img src="/assets/kindlewood-logo.png" class="ls-logo" alt="Kindlewood" onerror="this.style.display='none'">
+      <div class="ls-title">Kindlewood</div>
+      <div class="ls-subtitle">Rise of the Woodland Realms</div>
+      <div class="ls-bar-wrap">
+        <div class="ls-bar" id="ls-bar"></div>
+      </div>
+      <div class="ls-status" id="ls-status">Entering the realm…</div>
+    </div>
+  </div>
+
   <div class="screen" id="screen-game">
     <div class="topbar">
       <div class="res" id="res-food"><img class="res-icon-img" src="/assets/foodicon.png" alt="Food"><span class="res-val">—</span><span class="res-rate"></span></div>
@@ -324,6 +337,7 @@
       <div class="res" id="res-stone"><img class="res-icon-img" src="/assets/stoneicon.png" alt="Stone"><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-metal"><img class="res-icon-img" src="/assets/metalicon.png" alt="Metal"><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-wealth"><img class="res-icon-img" src="/assets/goldicon.png" alt="Wealth"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="topbar-version">v0.5.0</div>
       <div class="topbar-right">
         <div id="season-badge" class="season-badge-wrap"></div>
         <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
@@ -331,6 +345,16 @@
         <div class="events-bell-wrap">
           <button class="btn-events-bell" onclick="openEventsPanel()" title="Settlement Events">🔔</button>
           <span class="events-badge" id="events-badge" style="display:none">0</span>
+          <div class="events-panel" id="events-panel">
+            <div class="events-panel-header">
+              <div class="events-panel-title">📜 Settlement Chronicle</div>
+              <button class="ep-clear-all" onclick="clearAllEvents()">Clear all</button>
+              <button class="events-panel-close" onclick="closeEventsPanel()">✕</button>
+            </div>
+            <div class="events-feed" id="events-feed">
+              <div class="ef-empty">No events yet.</div>
+            </div>
+          </div>
         </div>
         <button class="btn-cheat" onclick="openCheatMenu()" title="Cheat Menu">⚗</button>
         <!-- Profile dropdown -->
@@ -347,7 +371,7 @@
             <button class="profile-menu-item disabled">📜 Achievements <span class="coming-soon">soon</span></button>
             <div class="profile-menu-divider"></div>
             <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🌍 Switch Realm</button>
-            <button class="profile-menu-item" onclick="showCommunityTab('settings'); closeProfileMenu()">⚙️ Settings</button>
+            <button class="profile-menu-item" onclick="openSettingsPopover(); closeProfileMenu()">⚙️ Settings</button>
             <button class="profile-menu-item" onclick="showCommunityTab('help'); closeProfileMenu()">❓ Help</button>
             <div class="profile-menu-divider"></div>
             <button class="profile-menu-item logout-item" onclick="logout()">🚪 Log Out</button>
@@ -357,15 +381,15 @@
     </div>
     <div id="season-panel" class="season-panel"></div>
     <div class="community-bar">
-      <button class="comm-btn" onclick="showCommunityTab('quests')">📜 Quests</button>
+      <button class="comm-btn" id="nav-map" onclick="navGoMap()">🗺 Map</button>
+      <button class="comm-btn" id="nav-quests" onclick="openQuestsModal()">📜 Quests</button>
+      <button class="comm-btn" onclick="openInventoryModal()">🎒 Inventory</button>
+      <button class="comm-btn" id="nav-battles" onclick="openBattlesModal()">⚔ Battles</button>
       <button class="comm-btn" onclick="showCommunityTab('events')">🧭 Events</button>
       <button class="comm-btn" onclick="showCommunityTab('rankings')">🏆 Rankings</button>
       <button class="comm-btn" onclick="showCommunityTab('market')">💰 Market</button>
       <button class="comm-btn" onclick="showCommunityTab('messages')">📬 Messages</button>
       <button class="comm-btn" onclick="showCommunityTab('chat')">💬 Chat</button>
-      <button class="comm-btn" onclick="showCommunityTab('realms')">🌍 Realms</button>
-      <button class="comm-btn" onclick="showCommunityTab('alerts')">🔔 Alerts</button>
-      <button class="comm-btn" onclick="showCommunityTab('settings')">⚙️ Settings</button>
     </div>
     <!-- Guard art — fixed to screen edges in the parchment surround -->
     <img class="map-decor map-decor-left"  id="map-decor-left"  src="" alt="" aria-hidden="true">
@@ -394,6 +418,92 @@
 
           </div>
         </div>
+        
+<div id="diplomacy-modal" class="nb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeDiplomacyModal()">
+  <div class="nb-modal-card">
+    <div class="nb-modal-header">
+      <div>
+        <div class="nb-modal-title" id="dm-title">Diplomacy</div>
+        <div class="nb-modal-sub" id="dm-sub" style="font-size:12px;opacity:.7;margin-top:2px"></div>
+      </div>
+      <button class="nb-modal-close" onclick="closeDiplomacyModal()">✕</button>
+    </div>
+    <div id="dm-body" class="nb-modal-body">
+      <div class="diplo-loading">Loading diplomacy…</div>
+    </div>
+  </div>
+        </div>
+        <!-- Tavern and fishing overlays — inside map-area so sidebar stays visible -->
+        <div class="tavern-overlay" id="tavern-overlay" style="display:none">
+              <div class="tavern-bg" id="tavern-bg"></div>
+              <div class="tavern-inner">
+                <div class="tavern-header">
+                  <button class="tavern-back-btn" onclick="leaveTavern()">← Leave Tavern</button>
+                  <div class="tavern-title">🍺 The Woodland Tavern</div>
+                </div>
+                <div class="tavern-innkeeper-area" id="tavern-innkeeper-area">
+                  <div class="tavern-innkeeper-portrait" id="tavern-innkeeper-portrait">🦔</div>
+                  <div class="tavern-innkeeper-msg" id="tavern-innkeeper-msg">Nobody is here. Perhaps you should hire an Innkeeper.</div>
+                </div>
+                <div class="tavern-menu" id="tavern-menu">
+                  <button class="tavern-menu-btn" onclick="openNoticeboardModal()">📜 Notice Board</button>
+                  <button class="tavern-menu-btn" onclick="openCardGameMenu()">🃏 Play a Card Game</button>
+                </div>
+
+                <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
+                  <div class="tavern-card-menu-title">— Choose Your Game —</div>
+                  <button class="tavern-game-btn" onclick="startCardGame('highleaf')">
+                    <span class="tgb-icon">🍃</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">Highleaf Draw</div>
+                      <div class="tgb-desc">Draw cards, get close to 21. Risk &amp; reward.</div>
+                      <div class="tgb-reward">💰 Reward: 1–3 gold</div>
+                    </div>
+                  </button>
+                  <button class="tavern-game-btn" onclick="startCardGame('mouse_grain')">
+                    <span class="tgb-icon">🌾</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">Mouse &amp; Grain</div>
+                      <div class="tgb-desc">3 cards each. Highest total wins.</div>
+                      <div class="tgb-reward">💰 Reward: 1–2 gold</div>
+                    </div>
+                  </button>
+                  <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
+                </div>
+                <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
+              </div>
+            </div>
+        
+
+        
+              <!-- ── Fishing Post Overlay ── -->
+              <div class="fishing-overlay" id="fishing-overlay" style="display:none">
+              <div class="fishing-bg" id="fishing-bg"></div>
+              <div class="fp-ripple r1"></div>
+              <div class="fp-ripple r2"></div>
+              <div class="fp-ripple r3"></div>
+              <div class="fp-bobber-float" id="fp-bobber-float">🪝</div>
+              <div class="fishing-inner">
+                <div class="fishing-header">
+                  <button class="fishing-back-btn" onclick="leaveFishingPost()">← Leave</button>
+                  <div class="fishing-title">🎣 Riverside Fishing Post</div>
+                  <button class="fp-inventory-btn" onclick="toggleCatchInventory()" title="View catch log">📖 Catch Log</button>
+                </div>
+                <div class="fishing-body">
+                  <div class="fishing-main" id="fishing-main-area"></div>
+                </div>
+              </div>
+              <!-- Catch inventory modal -->
+              <div id="fp-inventory-modal" class="fp-inv-modal">
+                <div class="fp-inv-card">
+                  <div class="fp-inv-header">
+                    <span>📖 Catch Log</span>
+                    <button onclick="toggleCatchInventory()" style="background:none;border:none;color:rgba(192,221,151,.5);font-size:16px;cursor:pointer">✕</button>
+                  </div>
+                  <div id="fp-catch-log"><div class="fp-cl-empty">No catches yet.</div></div>
+                </div>
+              </div>
+            </div>
       </div>
 
       <div class="sidebar" id="sidebar">
@@ -401,7 +511,7 @@
           <button class="sidebar-tab active" id="tab-settlement" onclick="switchTab('settlement')">Settlement</button>
           <button class="sidebar-tab" id="tab-citizens" onclick="switchTab('citizens')">Citizens</button>
           <button class="sidebar-tab" id="tab-buildings" onclick="switchTab('buildings')">Build</button>
-          <button class="sidebar-tab" id="tab-tier" onclick="switchTab('tier')">Tier ▲</button>
+          
         </div>
 
         <!-- Settlement panel -->
@@ -415,10 +525,42 @@
 
         <!-- Citizens panel -->
         <div id="panel-citizens-view" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+          <!-- Toolbar row -->
           <div class="citizens-toolbar">
-            <span class="citizens-count" id="citizens-count">10 citizens</span>
-            <button class="btn-view-all" onclick="openAllCitizens()">View all ↗</button>
+            <span class="citizens-count" id="citizens-count">— citizens</span>
+            <div style="display:flex;gap:4px">
+              <button class="cpanel-view-btn active" id="cpanel-view-full" onclick="cpanelSetView('full',this)" title="Detailed view">☰</button>
+              <button class="cpanel-view-btn" id="cpanel-view-compact" onclick="cpanelSetView('compact',this)" title="Compact view">⋮⋮</button>
+            </div>
+            <button class="btn-view-all" onclick="openAllCitizens()">↗</button>
           </div>
+          <!-- Search -->
+          <div class="cpanel-search-wrap">
+            <input class="cpanel-search" id="cpanel-search" placeholder="Search name…" oninput="cpanelSearch(this.value)">
+          </div>
+          <!-- Quick filters -->
+          <div class="cpanel-chips">
+            <button class="cpanel-chip active" onclick="cpanelFilter('all',this)">All</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('adult',this)">Adults</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('child',this)">🍼</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('unhoused',this)">🚶</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('partnered',this)">💕</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('single',this)">🔓</button>
+          </div>
+          <!-- Sort -->
+          <div class="cpanel-sort-row">
+            <span class="cpanel-sort-label">Sort:</span>
+            <select class="cpanel-sort-sel" id="cpanel-sort" onchange="cpanelSort(this.value)">
+              <option value="name">Name</option>
+              <option value="age">Age</option>
+              <option value="role">Role</option>
+              <option value="happiness">Happiness</option>
+              <option value="health">Health</option>
+              <option value="generation">Generation</option>
+            </select>
+            <button class="cpanel-sort-dir" id="cpanel-sort-dir" onclick="cpanelToggleSortDir()" title="Toggle direction">↑</button>
+          </div>
+          <!-- List -->
           <div class="citizens-list-full">
             <div class="citizens-list" id="citizens-list">
               <div class="citizens-empty">Loading...</div>
@@ -426,101 +568,95 @@
           </div>
         </div>
       </div>
+
+      <!-- PARTY ASSEMBLY MODAL -->
+      <div id="party-assembly-modal" style="display:none">
+        <div id="party-assembly-inner" style="width:100%;max-width:520px;padding:32px 24px 48px;margin:auto"></div>
+      </div>
+
       <!-- TAVERN OVERLAY -->
-      <div class="tavern-overlay" id="tavern-overlay" style="display:none">
-      <div class="tavern-bg" id="tavern-bg"></div>
-      <div class="tavern-inner">
-        <div class="tavern-header">
-          <button class="tavern-back-btn" onclick="leaveTavern()">← Leave Tavern</button>
-          <div class="tavern-title">🍺 The Woodland Tavern</div>
-        </div>
-        <div class="tavern-innkeeper-area" id="tavern-innkeeper-area">
-          <div class="tavern-innkeeper-portrait" id="tavern-innkeeper-portrait">🦔</div>
-          <div class="tavern-innkeeper-msg" id="tavern-innkeeper-msg">Nobody is here. Perhaps you should hire an Innkeeper.</div>
-        </div>
-        <div class="tavern-menu" id="tavern-menu">
-          <button class="tavern-menu-btn" onclick="openNoticeboard()">📜 Notice Board</button>
-          <button class="tavern-menu-btn" onclick="openCardGameMenu()">🃏 Play a Card Game</button>
-        </div>
-        <div class="tavern-quest-board" id="tavern-quest-board" style="display:none"></div>
-        <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
-          <div class="tavern-card-menu-title">— Choose Your Game —</div>
-          <button class="tavern-game-btn" onclick="startCardGame('highleaf')">
-            <span class="tgb-icon">🍃</span>
-            <div class="tgb-info">
-              <div class="tgb-name">Highleaf Draw</div>
-              <div class="tgb-desc">Draw cards, get close to 21. Risk &amp; reward.</div>
-              <div class="tgb-reward">💰 Reward: 1–3 gold</div>
-            </div>
-          </button>
-          <button class="tavern-game-btn" onclick="startCardGame('mouse_grain')">
-            <span class="tgb-icon">🌾</span>
-            <div class="tgb-info">
-              <div class="tgb-name">Mouse &amp; Grain</div>
-              <div class="tgb-desc">3 cards each. Highest total wins.</div>
-              <div class="tgb-reward">💰 Reward: 1–2 gold</div>
-            </div>
-          </button>
-          <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
-        </div>
-        <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
-      </div>
-    </div>
-
-      <!-- Events panel -->
-      <div class="events-panel" id="events-panel">
-        <div class="events-panel-header">
-          <div class="events-panel-title">📜 Settlement Chronicle</div>
-          <button class="events-panel-close" onclick="closeEventsPanel()">✕</button>
-        </div>
-        <div class="events-feed" id="events-feed">
-          <div class="ef-empty">No events yet.</div>
-        </div>
-      </div>
-
-      <!-- ── Fishing Post Overlay ── -->
-      <div class="fishing-overlay" id="fishing-overlay" style="display:none">
-      <div class="fishing-bg" id="fishing-bg"></div>
-      <div class="fp-ripple r1"></div>
-      <div class="fp-ripple r2"></div>
-      <div class="fp-ripple r3"></div>
-      <div class="fp-bobber-float" id="fp-bobber-float">🪝</div>
-      <div class="fishing-inner">
-        <div class="fishing-header">
-          <button class="fishing-back-btn" onclick="leaveFishingPost()">← Leave</button>
-          <div class="fishing-title">🎣 Riverside Fishing Post</div>
-        </div>
-        <div class="fishing-body">
-          <div class="fishing-main" id="fishing-main-area"></div>
-          <div class="fishing-sidebar">
-            <div class="fp-sidebar-title">📖 Catch Log</div>
-            <div id="fp-catch-log"><div class="fp-cl-empty">No catches yet.</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
     </div><!-- /game-body -->
 
   </div><!-- /screen-game -->
 
+  <!-- ══ NOTICEBOARD MODAL — standalone, no tavern dependency ══ -->
+  <div id="noticeboard-modal" class="nb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeNoticeboardModal()">
+    <div class="nb-modal-card">
+      <div class="nb-modal-header">
+        <div class="nb-modal-title" id="nb-modal-title">📜 Notice Board</div>
+        <button class="nb-modal-close" onclick="closeNoticeboardModal()">✕</button>
+      </div>
+      <div id="nb-modal-body" class="nb-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Active Quests Modal -->
+  <div id="quests-modal" class="qm-backdrop" style="display:none" onclick="if(event.target===this)closeQuestsModal()">
+    <div class="qm-card">
+      <div class="qm-header">
+        <div class="qm-title">📜 Active Quests</div>
+        <button class="qm-close" onclick="closeQuestsModal()">✕</button>
+      </div>
+      <div id="qm-body" class="qm-body">Loading…</div>
+      <div class="qm-footer">
+        <button class="qm-tavern-btn" onclick="closeQuestsModal();visitTavern()">🍺 Visit the Tavern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ INVENTORY MODAL ══ -->
+  <div id="inventory-modal" class="inv-backdrop" style="display:none" onclick="if(event.target===this)closeInventoryModal()">
+    <div class="inv-modal-card">
+      <div class="inv-header">
+        <div class="inv-title">🎒 Inventory</div>
+        <div class="inv-tabs" id="inv-tabs">
+          <button class="inv-tab active" data-cat="all" onclick="invSetTab('all',this)">All</button>
+          <button class="inv-tab" data-cat="equipment" onclick="invSetTab('equipment',this)">⚔️ Equipment</button>
+          <button class="inv-tab" data-cat="material" onclick="invSetTab('material',this)">🪵 Materials</button>
+          <button class="inv-tab" data-cat="food" onclick="invSetTab('food',this)">🌿 Food</button>
+          <button class="inv-tab" data-cat="quest_item" onclick="invSetTab('quest_item',this)">✨ Quest Items</button>
+          <button class="inv-tab" data-cat="trophy" onclick="invSetTab('trophy',this)">🏆 Trophies</button>
+        </div>
+        <button class="inv-close" onclick="closeInventoryModal()">✕</button>
+      </div>
+      <div id="inv-body" class="inv-body">
+        <div class="inv-loading">Loading inventory…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification stack -->
+  <div id="toast-stack" class="toast-stack"></div>
+
   <script src="/js/config.js"></script>
   <script src="/js/particles.js"></script>
   <script src="/js/game.js"></script>
+  <script src="/js/resources.js"></script>
   <script src="/js/carousel.js"></script>
   <script src="/js/placement.js"></script>
   <script src="/js/arrival.js"></script>
-  <script src="/js/citizens.js"></script>
-  <script src="/js/buildings.js"></script>
+  <script src="/js/citizens.js?v=1776929386"></script>
+  <script src="/js/buildings.js?v=1778441000"></script>
   <script src="/js/expeditions.js"></script>
   <script src="/js/seasons.js"></script>
   <script src="/js/tier.js"></script>
   <script src="/js/profile.js"></script>
-  <script src="/js/main.js"></script>
+  <script src="/js/pixelart.js?v=1777763000"></script>
+  <script src="/js/audio.js?v=1778441000"></script>
+  <script src="/js/main.js?v=1778441000"></script>
   <script src="/js/tavern.js"></script>
-  <script src="/js/quests.js"></script>
+  <script src="/js/quests.js?v=1778441000"></script>
   <script src="/js/fishing.js"></script>
   <script src="/js/housing.js"></script>
   <script src="/js/events.js"></script>
+  <script src="/js/inventory.js"></script>
+  <script src="/js/diplomacy.js"></script>
+  <script src="/js/item_admin.js"></script>
+  <script src="/js/enemy_admin.js?v=1778441000"></script>
+  <script src="/js/combat-engine.js?v=1778441000"></script>
+  <script src="/js/combat-ui.js?v=1778441000"></script>
+  <script src="/js/battles.js?v=1778441000"></script>
+  <script src="/js/realtime.js?v=1778441000"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->
@@ -547,26 +683,47 @@
   <div class="all-citizens-backdrop" id="all-citizens-modal">
     <div class="all-citizens-modal">
       <div class="ac-header">
-        <div class="ac-title">Your People</div>
+        <div class="ac-title">Your People <span class="ac-count" id="ac-count"></span></div>
         <div class="ac-search-wrap">
-          <input class="ac-search" id="ac-search" placeholder="Search name or role..."
+          <input class="ac-search" id="ac-search" placeholder="Search name or role…"
             oninput="renderAllCitizens(null, null, this.value)">
         </div>
         <button class="ac-close" onclick="closeAllCitizens()">✕</button>
       </div>
+
+      <!-- Filter chips -->
+      <div class="ac-filter-bar">
+        <span class="ac-filter-label">Show:</span>
+        <button class="ac-chip active" data-filter-group="life" onclick="acSetGroupFilter('all',this)">All</button>
+        <button class="ac-chip" data-filter-group="life" onclick="acSetGroupFilter('adult',this)">Adults</button>
+        <button class="ac-chip" data-filter-group="life" onclick="acSetGroupFilter('child',this)">Children</button>
+        <div class="ac-chip-divider"></div>
+        <button class="ac-chip" data-filter-group="house" onclick="acSetGroupFilter('housed',this)">🏡 Housed</button>
+        <button class="ac-chip" data-filter-group="house" onclick="acSetGroupFilter('unhoused',this)">🚶 Unhoused</button>
+        <div class="ac-chip-divider"></div>
+        <button class="ac-chip" data-filter-group="partner" onclick="acSetGroupFilter('partnered',this)">💕 Partnered</button>
+        <button class="ac-chip" data-filter-group="partner" onclick="acSetGroupFilter('single',this)">🔓 Single</button>
+        <div class="ac-chip-divider"></div>
+        <select class="ac-role-filter" id="ac-role-filter" onchange="acSetRoleFilter(this.value)">
+          <option value="">All roles</option>
+        </select>
+      </div>
+
       <div class="ac-table-wrap">
         <table class="ac-table">
           <thead>
             <tr>
               <th><button class="ac-sort-btn" data-sort="name" onclick="acSort('name')">Name ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="age" onclick="acSort('age')">Age ↕</button></th>
-              <th>Role</th>
+              <th><button class="ac-sort-btn" data-sort="generation" onclick="acSort('generation')">Gen ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="role" onclick="acSort('role')">Role ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="happiness" onclick="acSort('happiness')">😊 ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="health" onclick="acSort('health')">HP ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="strength" onclick="acSort('strength')">STR ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="agility" onclick="acSort('agility')">AGI ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="endurance" onclick="acSort('endurance')">END ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="intelligence" onclick="acSort('intelligence')">INT ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="charisma" onclick="acSort('charisma')">CHA ↕</button></th>
-              <th><button class="ac-sort-btn" data-sort="health" onclick="acSort('health')">HP ↕</button></th>
               <th>Traits</th>
             </tr>
           </thead>
@@ -579,41 +736,161 @@
 
   <!-- CHEAT MENU -->
   <div class="cheat-backdrop" id="cheat-modal">
-    <div class="cheat-card">
+    <div class="cheat-card cheat-card--wide">
       <div class="cheat-header">
-        <div class="cheat-title">⚗ Cheat Menu</div>
-        <div class="cheat-sub">Developer tools — testing only</div>
+        <div class="cheat-title">⚗ Dev Tools</div>
+        <div class="cheat-sub">Developer testing only</div>
         <button class="cheat-close" onclick="closeCheatMenu()">✕</button>
       </div>
-      <div class="cheat-body">
+      <!-- Tab bar -->
+      <div class="cheat-tabs">
+        <button class="cheat-tab active" onclick="cheatSwitchTab('ct-resources',this)">💰 Resources</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-citizens',this)">👤 Citizens</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-family',this)">🍼 Family</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-world',this);loadDiplomacyDebugNpcs()">🌍 World</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
+      </div>
+
+      <!-- ── TAB: Resources ── -->
+      <div class="cheat-tab-panel" id="ct-resources">
         <div class="cheat-section-label">Add Resources</div>
         <div class="cheat-resource-grid">
-          <button class="cheat-res-btn" onclick="applyCheat('food', 500)">🌿 +500 Food</button>
-          <button class="cheat-res-btn" onclick="applyCheat('timber', 500)">🌲 +500 Timber</button>
-          <button class="cheat-res-btn" onclick="applyCheat('stone', 500)">⬜ +500 Stone</button>
-          <button class="cheat-res-btn" onclick="applyCheat('metal', 500)">🟡 +500 Metal</button>
-          <button class="cheat-res-btn" onclick="applyCheat('wealth', 500)">🟠 +500 Wealth</button>
-          <button class="cheat-res-btn" onclick="applyCheat('food', 5000)">🌿 +5000 Food</button>
-          <button class="cheat-res-btn" onclick="applyCheat('timber', 5000)">🌲 +5000 Timber</button>
-          <button class="cheat-res-btn" onclick="applyCheat('stone', 5000)">⬜ +5000 Stone</button>
-          <button class="cheat-res-btn" onclick="applyCheat('metal', 5000)">🟡 +5000 Metal</button>
-          <button class="cheat-res-btn" onclick="applyCheat('wealth', 5000)">🟠 +5000 Wealth</button>
+          <button class="cheat-res-btn" onclick="applyCheat('food',500)">🌿 +500 Food</button>
+          <button class="cheat-res-btn" onclick="applyCheat('timber',500)">🌲 +500 Timber</button>
+          <button class="cheat-res-btn" onclick="applyCheat('stone',500)">⬜ +500 Stone</button>
+          <button class="cheat-res-btn" onclick="applyCheat('metal',500)">🟡 +500 Metal</button>
+          <button class="cheat-res-btn" onclick="applyCheat('wealth',500)">🟠 +500 Wealth</button>
         </div>
-        <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All Resources</button>
-        <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All Resources</button>
+        <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All</button>
+        <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All</button>
+        <button class="cheat-all-btn" onclick="applyCheatAll(50000)">▲ +50k All (tier test)</button>
+      </div>
+
+      <!-- ── TAB: Citizens ── -->
+      <div class="cheat-tab-panel" id="ct-citizens" style="display:none">
+        <div class="cheat-section-label">Select Citizen to Edit</div>
+        <select class="cheat-citizen-sel" id="ce-citizen-select" onchange="cheatLoadCitizen(this.value)" style="width:100%;margin-bottom:10px">
+          <option value="">— Choose a citizen —</option>
+        </select>
+        <div id="ce-editor" style="display:none">
+          <div class="ce-grid">
+            <div class="ce-field"><label>Name</label><input id="ce-name" class="ce-input"></div>
+            <div class="ce-field"><label>Gender</label>
+              <select id="ce-gender" class="ce-input">
+                <option value="male">Male</option><option value="female">Female</option>
+              </select>
+            </div>
+            <div class="ce-field"><label>Life Stage</label>
+              <select id="ce-lifestage" class="ce-input">
+                <option value="child">Child</option><option value="adult">Adult</option>
+              </select>
+            </div>
+            <div class="ce-field"><label>Generation</label><input id="ce-generation" type="number" class="ce-input" min="1"></div>
+          </div>
+          <div class="cheat-section-label" style="margin-top:10px">Life</div>
+          <div class="ce-grid ce-grid--4">
+            <div class="ce-field"><label>Age</label><input id="ce-age" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Health</label><input id="ce-health" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Happiness</label><input id="ce-happiness" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Hunger</label><input id="ce-hunger" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Energy</label><input id="ce-energy" type="number" class="ce-input" min="0" max="100"></div>
+          </div>
+          <div class="cheat-section-label" style="margin-top:10px">Stats</div>
+          <div class="ce-grid ce-grid--5">
+            <div class="ce-field"><label>Strength</label><input id="ce-strength" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Agility</label><input id="ce-agility" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Endurance</label><input id="ce-endurance" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Intelligence</label><input id="ce-intelligence" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Charisma</label><input id="ce-charisma" type="number" class="ce-input" min="1" max="20"></div>
+          </div>
+          <div class="cheat-section-label" style="margin-top:10px">Skills</div>
+          <div class="ce-grid ce-grid--4">
+            <div class="ce-field"><label>Farming</label><input id="ce-farming" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Woodcutting</label><input id="ce-woodcutting" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Fishing</label><input id="ce-fishing" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Mining</label><input id="ce-mining" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Crafting</label><input id="ce-crafting" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Scouting</label><input id="ce-scouting" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Combat</label><input id="ce-combat" type="number" class="ce-input" min="0" max="20"></div>
+          </div>
+          <button class="cheat-all-btn" style="margin-top:12px" onclick="cheatSaveCitizen()">💾 Save Changes</button>
+          <div class="cheat-rel-feedback" id="ce-feedback"></div>
+
+          <hr class="cheat-divider">
+          <div class="cheat-section-label">Injuries (Admin)</div>
+          <div class="ce-grid">
+            <div class="ce-field">
+              <label>Severity</label>
+              <select id="ce-injury-sev" class="ce-input">
+                <option value="">— Roll randomly —</option>
+                <option value="scratch">Scratch (heals fast)</option>
+                <option value="wound">Wound (heals slower)</option>
+                <option value="scar">Scar (permanent, no debuff)</option>
+                <option value="crippling">Crippling (permanent debuff)</option>
+                <option value="fatal">Fatal (citizen dies)</option>
+              </select>
+            </div>
+            <div class="ce-field">
+              <label>Body Part</label>
+              <select id="ce-injury-part" class="ce-input">
+                <option value="">— Roll randomly —</option>
+                <option value="head">Head</option>
+                <option value="eye">Eye</option>
+                <option value="ear">Ear</option>
+                <option value="face">Face</option>
+                <option value="torso">Torso</option>
+                <option value="arm">Arm</option>
+                <option value="hand">Hand</option>
+                <option value="leg">Leg</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="cheat-res-btn" style="flex:1" onclick="cheatInflictInjury()">⚔ Inflict Injury</button>
+            <button class="cheat-res-btn" style="flex:1" onclick="cheatHealAllInjuries()">🩹 Heal All Active</button>
+          </div>
+        </div>
         <hr class="cheat-divider">
-        <div class="cheat-section-label">Fog of War</div>
-        <button class="cheat-res-btn" onclick="cheatRevealAll()">🌍 Reveal entire map</button>
-        <button class="cheat-res-btn" onclick="cheatResetFog()">🌫 Reset fog of war</button>
+        <div class="cheat-section-label">Add Citizen</div>
+        <button class="cheat-res-btn" onclick="cheatAddCitizen()">👤 +1 Random Citizen</button>
+      </div>
+
+      <!-- ── TAB: Family ── -->
+      <div class="cheat-tab-panel" id="ct-family" style="display:none">
+        <div class="cheat-section-label">Manage Partnership</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-partner-a"><option value="">— Citizen A —</option></select>
+          <select class="cheat-citizen-sel" id="cheat-partner-b"><option value="">— Citizen B —</option></select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="cheat-all-btn" style="flex:1" onclick="cheatSetPartnership('set')">💕 Form Partnership</button>
+          <button class="cheat-all-btn" style="flex:1;background:rgba(220,80,60,.15);border-color:rgba(220,80,60,.3)" onclick="cheatSetPartnership('remove')">💔 Remove Partnership</button>
+        </div>
+        <div class="cheat-rel-feedback" id="cheat-partner-feedback"></div>
         <hr class="cheat-divider">
-        <div class="cheat-section-label">Citizens</div>
-        <button class="cheat-res-btn" onclick="cheatAddCitizen()">👤 +1 Citizen</button>
+        <div class="cheat-section-label">Trigger Birth</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-birth-a"><option value="">— Parent A —</option></select>
+          <select class="cheat-citizen-sel" id="cheat-birth-b"><option value="">— Parent B —</option></select>
+        </div>
+        <button class="cheat-all-btn" style="margin-top:8px" onclick="cheatTriggerBirth()">🍼 Trigger Birth Now</button>
+        <div class="cheat-rel-feedback" id="cheat-birth-feedback"></div>
         <hr class="cheat-divider">
-        <div class="cheat-section-label">Other</div>
-        <button class="cheat-res-btn" onclick="applyCheatAll(50000).then(()=>{ renderTierPanel && renderTierPanel(); })">▲ +50k all (tier test)</button>
-        <button class="cheat-res-btn" onclick="fetch(API+'/api/game/reset-placement',{method:'POST',credentials:'include',headers:{'Authorization':'Bearer '+localStorage.getItem('kw_token')}}).then(()=>location.reload())">
-          🗺 Reset placement (re-do arrival)
-        </button>
+        <div class="cheat-section-label">Relationship Score</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-rel-a"><option value="">— Citizen A —</option></select>
+          <select class="cheat-citizen-sel" id="cheat-rel-b"><option value="">— Citizen B —</option></select>
+        </div>
+        <div class="cheat-rel-slider-row">
+          <label class="cheat-slider-label">Score: <span id="cheat-rel-score-val">50</span></label>
+          <input type="range" min="0" max="100" value="50" class="cheat-rel-slider" id="cheat-rel-score"
+                 oninput="document.getElementById('cheat-rel-score-val').textContent=this.value">
+        </div>
+        <button class="cheat-all-btn" onclick="cheatSetRelationship()">⚡ Set Relationship Score</button>
+        <div class="cheat-rel-feedback" id="cheat-rel-feedback"></div>
         <hr class="cheat-divider">
         <div class="cheat-section-label">Simulate Events</div>
         <div class="cheat-resource-grid">
@@ -622,24 +899,153 @@
           <button class="cheat-res-btn" onclick="cheatSimulateEvent('partnership')">💕 Partnership</button>
           <button class="cheat-res-btn" onclick="cheatSimulateEvent('child_born')">🍼 Child Born</button>
         </div>
-        <hr class="cheat-divider">
-        <div class="cheat-section-label">Modify Relationship</div>
-        <div class="cheat-rel-row">
-          <select class="cheat-citizen-sel" id="cheat-rel-a">
-            <option value="">— Citizen A —</option>
-          </select>
-          <select class="cheat-citizen-sel" id="cheat-rel-b">
-            <option value="">— Citizen B —</option>
-          </select>
-        </div>
-        <div class="cheat-rel-slider-row">
-          <label class="cheat-slider-label">Score: <span id="cheat-rel-score-val">50</span></label>
-          <input type="range" min="0" max="100" value="50" class="cheat-rel-slider" id="cheat-rel-score"
-                 oninput="document.getElementById('cheat-rel-score-val').textContent=this.value">
-        </div>
-        <button class="cheat-all-btn" onclick="cheatSetRelationship()">⚡ Set Relationship</button>
-        <div class="cheat-rel-feedback" id="cheat-rel-feedback"></div>
       </div>
+
+      <!-- ── TAB: World ── -->
+      <div class="cheat-tab-panel" id="ct-world" style="display:none">
+        <div class="cheat-section-label">Add Inventory Item</div>
+        <div class="ce-grid" style="margin-bottom:6px">
+          <div class="ce-field">
+            <label>Item</label>
+            <select class="ce-input" id="debug-inv-item">
+              <optgroup label="🐟 Fish">
+                <option value="fish_minnow|Minnow|🐟|food|common|2|3">Minnow (Common)</option>
+                <option value="fish_dace|Dace|🐠|food|common|4|5">Dace (Common)</option>
+                <option value="fish_perch|Perch|🐠|food|common|5|6">Perch (Common)</option>
+                <option value="fish_roach|Roach|🐟|food|common|4|5">Roach (Common)</option>
+                <option value="fish_gudgeon|Gudgeon|🐟|food|common|2|3">Gudgeon (Common)</option>
+                <option value="fish_trout|Trout|🐡|food|uncommon|10|8">Trout (Uncommon)</option>
+                <option value="fish_chub|Chub|🐡|food|uncommon|8|7">Chub (Uncommon)</option>
+                <option value="fish_catfish|Catfish|🐊|food|uncommon|14|9">Catfish (Uncommon)</option>
+                <option value="fish_bream|Bream|🐡|food|uncommon|11|8">Bream (Uncommon)</option>
+                <option value="fish_pike|Pike|🦷|food|uncommon|18|10">Pike (Uncommon)</option>
+                <option value="fish_salmon|Salmon|🍣|food|rare|28|18">Salmon (Rare)</option>
+                <option value="fish_eel|River Eel|〰️|food|rare|25|15">River Eel (Rare)</option>
+                <option value="fish_golden_carp|Golden Carp|✨|food|rare|35|20">Golden Carp (Rare)</option>
+                <option value="fish_shadowfin|Shadowfin|🌑|food|legendary|60|40">Shadowfin (Legendary)</option>
+                <option value="fish_moontrout|Moontrout|🌕|food|legendary|100|55">Moontrout (Legendary)</option>
+              </optgroup>
+              <optgroup label="✨ Quest Items">
+                <option value="ancient_heartwood|Ancient Heartwood|🪵|material|rare|0|45">Ancient Heartwood</option>
+                <option value="luminous_scale|Luminous Scale|✨|quest_item|rare|0|40">Luminous Scale</option>
+                <option value="ancient_blueprint|Ancient Blueprint|📜|quest_item|epic|0|80">Ancient Blueprint</option>
+                <option value="blightbane_herb|Blightbane Herb|🌿|material|rare|0|35">Blightbane Herb</option>
+                <option value="hunters_cloak|Hunter's Cloak|🧥|equipment|rare|0|60">Hunter's Cloak</option>
+              </optgroup>
+              <optgroup label="⚔️ Equipment">
+                <option value="iron_sword|Iron Sword|⚔️|equipment|common|0|20">Iron Sword</option>
+                <option value="leather_armour|Leather Armour|🛡️|equipment|common|0|18">Leather Armour</option>
+                <option value="scout_cloak|Scout's Cloak|🧥|equipment|uncommon|0|35">Scout's Cloak</option>
+                <option value="fishers_rod|Fisher's Rod|🎣|equipment|uncommon|0|25">Fisher's Rod</option>
+                <option value="steel_sword|Steel Sword|🗡️|equipment|rare|0|55">Steel Sword</option>
+                <option value="dragonscale_armour|Dragonscale Armour|🐉|equipment|epic|0|120">Dragonscale Armour</option>
+              </optgroup>
+              <optgroup label="🪵 Materials">
+                <option value="timber_bundle|Timber Bundle|🪵|material|common|0|5">Timber Bundle</option>
+                <option value="iron_ore|Iron Ore|⚫|material|common|0|8">Iron Ore</option>
+                <option value="rare_sap|Rare Sap|🫙|material|uncommon|0|20">Rare Sap</option>
+                <option value="gemstone|Gemstone|💎|material|rare|0|50">Gemstone</option>
+              </optgroup>
+              <optgroup label="🏆 Trophies">
+                <option value="beast_horn|Beast Horn|📯|trophy|uncommon|0|30">Beast Horn</option>
+                <option value="ancient_coin|Ancient Coin|🪙|trophy|rare|0|40">Ancient Coin</option>
+                <option value="dragon_tooth|Dragon Tooth|🦷|trophy|epic|0|100">Dragon Tooth</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="ce-field"><label>Qty</label><input class="ce-input" id="debug-inv-qty" type="number" value="1" min="1" max="99"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="debugAddInventoryItem()">➕ Add Item</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="debugAddAllItems()">✦ Add All Items</button>
+        </div>
+        <div class="cheat-rel-feedback" id="debug-inv-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Test Toasts</div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="showToastNotification('Kestrel Wheatfur returned triumphant from &quot;Ruins in the Thicket&quot;. 🎉','quest_success')">⚔️ Quest Success</button>
+          <button class="cheat-res-btn" onclick="showToastNotification('New beginnings — Falk &amp; Birch welcome a daughter. 🍼','child_born')">🍼 Child Born</button>
+          <button class="cheat-res-btn" onclick="showToastNotification('Wren and Soren have become partners. 💕','partnership')">💕 Partnership</button>
+          <button class="cheat-res-btn" onclick="showToastNotification('The party failed their quest: &quot;The Fallen Watchtree&quot;. 😔','quest_fail')">💀 Quest Fail</button>
+        </div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">World Setup</div>
+        <button class="cheat-res-btn" onclick="debugSeedNpcs()">🌍 Seed NPC Settlements</button>
+        <button class="cheat-res-btn" onclick="debugRunMigrations()">🔧 Run DB Migrations</button>
+        <button class="cheat-res-btn" onclick="openMapPreview()">🗺 Preview Map Generation</button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Diplomacy</div>
+        <div class="ce-grid" style="margin-bottom:6px">
+          <div class="ce-field">
+            <label>NPC Settlement</label>
+            <select class="ce-input" id="debug-diplo-npc">
+              <option value="">— loading —</option>
+            </select>
+          </div>
+          <div class="ce-field">
+            <label>Set Trust (0–100)</label>
+            <input class="ce-input" type="number" id="debug-diplo-trust" min="0" max="100" value="50">
+          </div>
+        </div>
+        <button class="cheat-res-btn" onclick="debugSetDiplomacyTrust()">🤝 Set Trust Level</button>
+        <button class="cheat-res-btn" onclick="debugResetDiplomacy()">🔄 Reset All Relations</button>
+        <div class="cheat-rel-feedback" id="debug-diplo-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Fog of War</div>
+        <button class="cheat-res-btn" onclick="cheatRevealAll()">🌍 Reveal entire map</button>
+        <button class="cheat-res-btn" onclick="cheatResetFog()">🌫 Reset fog of war</button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Settlement</div>
+        <button class="cheat-res-btn" onclick="fetch(API+'/api/game/reset-placement',{method:'POST',credentials:'include',headers:{'Authorization':'Bearer '+localStorage.getItem('kw_token')}}).then(()=>location.reload())">
+          🗺 Reset placement (re-do arrival)
+        </button>
+      </div>
+
+      <!-- ── TAB: Items ── -->
+      <div class="cheat-tab-panel" id="ct-items" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="ia_showForm(null)">＋ New Item</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="ia_seedDefaults()">🌱 Seed All Items</button>
+        </div>
+        <div class="cheat-rel-feedback" id="ia-feedback"></div>
+        <div id="ia-form-wrap" style="display:none"></div>
+        <div id="ia-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Quests ── -->
+      <div class="cheat-tab-panel" id="ct-quests" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="qa_showForm(null)">＋ New Quest</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="loadQuestAdmin(true)">🌱 Seed Built-ins</button>
+        </div>
+        <div id="qa-feedback" class="cheat-rel-feedback"></div>
+        <div id="qa-form-wrap" style="display:none"></div>
+        <div id="qa-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Creatures (enemy admin) ── -->
+      <div class="cheat-tab-panel" id="ct-creatures" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="ea_showForm(null)">＋ New Creature</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="loadEnemyAdmin(true)">🌱 Seed Built-ins</button>
+        </div>
+        <div class="cheat-rel-feedback" id="ea-form-feedback"></div>
+        <div id="ea-form-wrap" style="display:none"></div>
+        <div id="ea-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Combat Simulator ── -->
+      <div class="cheat-tab-panel" id="ct-combat" style="display:none">
+        <div class="cheat-section-label">Combat Simulator</div>
+        <div style="font-size:11px;color:rgba(192,221,151,.55);margin-bottom:10px;line-height:1.5">
+          Start a test battle with a randomly-rolled party of 3 from your idle citizens
+          versus a random enemy encounter. Test battles aren't tied to a quest —
+          they don't trigger injuries or quest failure, but rewards and skill bumps
+          still apply.
+        </div>
+        <button class="cheat-all-btn" onclick="startTestBattle()">🗡 Start Test Battle</button>
+      </div>
+
     </div>
   </div>
 
@@ -771,6 +1177,79 @@
 
     <!-- Volume slider -->
     <input class="mp-vol" id="music-volume" type="range" min="0" max="1" step="0.05" value="0.4" oninput="setMusicVolume(this.value)" title="Volume">
+  </div>
+
+
+  <!-- ── Map Generation Preview Modal ── -->
+  <div class="map-preview-backdrop" id="map-preview-modal" onclick="if(event.target===this)closeMapPreview()" style="display:none">
+    <div class="map-preview-card">
+      <div class="map-preview-header">
+        <span>🗺 World Map Tools</span>
+        <button class="map-preview-close" onclick="closeMapPreview()">✕</button>
+      </div>
+
+      <div class="map-preview-worldinfo" id="map-preview-worldinfo">
+        Loading world info…
+      </div>
+
+      <div class="map-preview-controls">
+        <label class="map-preview-seed-label">
+          W <input class="map-preview-seed map-preview-dim" id="map-preview-w" type="number" min="4" max="200" value="40" />
+        </label>
+        <label class="map-preview-seed-label">
+          H <input class="map-preview-seed map-preview-dim" id="map-preview-h" type="number" min="4" max="200" value="40" />
+        </label>
+        <label class="map-preview-seed-label">
+          Seed <input class="map-preview-seed" id="map-preview-seed" type="text" placeholder="auto" />
+        </label>
+        <button class="map-preview-btn" onclick="loadMapPreview()">↻ Preview</button>
+        <button class="map-preview-btn" onclick="loadMapPreview(true)">🎲 Random</button>
+        <span class="map-preview-status" id="map-preview-status">—</span>
+      </div>
+
+      <div class="map-preview-canvas-wrap">
+        <canvas id="map-preview-canvas"></canvas>
+      </div>
+
+      <div class="map-preview-legend" id="map-preview-legend"></div>
+
+      <div class="map-preview-actions">
+        <button class="map-preview-btn map-preview-btn-danger" onclick="applyMapRegenerate()">
+          ⚠ Wipe &amp; Regenerate (apply)
+        </button>
+        <button class="map-preview-btn map-preview-btn-restore" id="map-preview-restore-btn" onclick="restoreArchivedMap()" disabled>
+          ⤺ Restore Archive
+        </button>
+      </div>
+
+      <div class="map-preview-note">
+        <b>Preview</b> shows what a fresh world looks like — does not affect the live world.
+        <b>Wipe &amp; Regenerate</b> archives the current world, then replaces it with the previewed one (settlement placements + fog cleared; NPCs need re-seeding).
+        <b>Restore</b> rolls back to the archived world.
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings popover (audio volume etc.) -->
+  <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettingsPopover(event)">
+    <div class="settings-card" onclick="event.stopPropagation()">
+      <div class="settings-header">
+        <div class="settings-title">⚙️ Settings</div>
+        <button class="settings-close" onclick="closeSettingsPopover()">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-row">
+          <label class="settings-label" for="settings-music-volume">🎵 Music Volume</label>
+          <div class="settings-slider-row">
+            <input type="range" id="settings-music-volume" class="settings-slider"
+                   min="0" max="100" step="1"
+                   oninput="onMusicVolumeSlide(this.value)">
+            <span class="settings-slider-value" id="settings-music-volume-pct">50%</span>
+          </div>
+          <div class="settings-hint">Adjusts battle music volume. Persists across sessions.</div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </body>

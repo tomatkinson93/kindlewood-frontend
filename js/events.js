@@ -1,3 +1,12 @@
+
+async function clearAllEvents() {
+  try {
+    await apiFetch('/api/events/clear-all', { method: 'POST' });
+    _eventsData = [];
+    renderEventsFeed();
+  } catch(e) { console.error(e); }
+}
+
 // ══════════════════════════════════════════════
 //  SETTLEMENT EVENTS FEED — Kindlewood
 // ══════════════════════════════════════════════
@@ -24,9 +33,31 @@ async function loadEvents() {
   } catch(e) { /* silent */ }
 }
 
+let _lastSeenEventId = null;
+
 function renderEventsFeed() {
   const feed = document.getElementById('events-feed');
   if (!feed) return;
+  // Toast new events
+  if (_eventsData.length > 0) {
+    const newest = _eventsData[0];
+    if (_lastSeenEventId !== null && newest.id !== _lastSeenEventId) {
+      // New events arrived — toast each one newer than last seen.
+      //
+      // Skip quest_success/quest_fail: the quests poller (quests.js) already
+      // toasts "$party has returned from $quest!" when it sees status flip
+      // server-side. Without this filter the player gets two toasts back-to-
+      // back for the same quest resolution (one from the quests poller, one
+      // from this bell-feed render path).
+      const lastIdx = _eventsData.findIndex(e => e.id === _lastSeenEventId);
+      const newOnes = lastIdx === -1 ? [newest] : _eventsData.slice(0, lastIdx);
+      const toastable = newOnes.filter(e => e.type !== 'quest_success' && e.type !== 'quest_fail');
+      toastable.slice(0, 3).forEach((e, i) => {
+        setTimeout(() => showToastNotification(e.message, e.type), i * 300);
+      });
+    }
+    _lastSeenEventId = newest.id;
+  }
 
   if (!_eventsData.length) {
     feed.innerHTML = '<div class="ef-empty">No events yet. Your settlement is just getting started.</div>';
@@ -48,11 +79,13 @@ function renderEventsFeed() {
     `;
   }).join('');
 
-  // Update badge
+  // Update badge — only show when panel is closed
   const badge = document.getElementById('events-badge');
+  const panel = document.getElementById('events-panel');
   if (badge) {
+    const panelOpen = panel && panel.classList.contains('open');
     badge.textContent = _eventsData.length;
-    badge.style.display = _eventsData.length ? 'inline-flex' : 'none';
+    badge.style.display = (_eventsData.length && !panelOpen) ? 'inline-flex' : 'none';
   }
 }
 
@@ -69,13 +102,35 @@ async function dismissEvent(id) {
 function openEventsPanel() {
   const panel = document.getElementById('events-panel');
   if (!panel) return;
+  // Toggle — clicking bell again closes it
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    return;
+  }
   panel.classList.add('open');
+  // Clear badge immediately on open
+  const badge = document.getElementById('events-badge');
+  if (badge) badge.style.display = 'none';
   loadEvents();
+  // Click-outside to close — wait for current event to finish bubbling
+  setTimeout(() => {
+    document.addEventListener('mousedown', _eventsPanelClickOutside);
+  }, 200);
+}
+
+function _eventsPanelClickOutside(e) {
+  const panel = document.getElementById('events-panel');
+  const bell  = document.querySelector('.btn-events-bell');
+  if (panel && !panel.contains(e.target) && (!bell || !bell.contains(e.target))) {
+    panel.classList.remove('open');
+    document.removeEventListener('mousedown', _eventsPanelClickOutside);
+  }
 }
 
 function closeEventsPanel() {
   const panel = document.getElementById('events-panel');
   if (panel) panel.classList.remove('open');
+  document.removeEventListener('mousedown', _eventsPanelClickOutside);
 }
 
 // ── Poll for new events every 2 mins ─────────

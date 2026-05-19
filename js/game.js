@@ -27,7 +27,20 @@ function startResourceTick(resources, rates) {
     tickResources.metal  += perSecond.metal;
     tickResources.wealth += perSecond.wealth;
     updateTopbarDisplay();
+    // Fire the floater for any resource whose integer displayed value
+    // just changed. The function is supplied by resources.js; guarded
+    // with typeof so this file still works if resources.js isn't loaded.
+    if (typeof checkResourceFloaters === 'function') {
+      checkResourceFloaters(tickResources);
+    }
   }, 1000);
+
+  // Initialise the floater baseline so the first tick after start doesn't
+  // diff against undefined and spawn a spurious "+N" for an N as large as
+  // the entire current stockpile.
+  if (typeof resetResourceFloaterBaseline === 'function') {
+    resetResourceFloaterBaseline(tickResources);
+  }
 
   // Sync with server every 5 minutes
   syncInterval = setInterval(() => {
@@ -37,6 +50,12 @@ function startResourceTick(resources, rates) {
         if (data && data.settlement) {
           tickResources = { ...data.settlement.resources };
           tickRates = { ...data.settlement.rates };
+          // Reset baseline after the sync — the server may have added a
+          // chunk of resources for offline time, and we don't want a
+          // surprise "+8,432 food" floater to flash over the topbar.
+          if (typeof resetResourceFloaterBaseline === 'function') {
+            resetResourceFloaterBaseline(tickResources);
+          }
         }
       })
       .catch(() => {});

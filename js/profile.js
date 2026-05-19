@@ -1,40 +1,11 @@
-// ── Profile System ──
 
-const TIER_EMOJI_P = { camp:'🏕', village:'🏘', town:'🏙', city:'🏯' };
-
-// ── Profile dropdown ──────────────────────────────────────────────────────
-
-function toggleProfileMenu() {
-  const wrap = document.getElementById('profile-dropdown-wrap');
-  wrap.classList.toggle('open');
+// openProfileForUser — wraps viewPlayerProfile for use from the map sidebar
+async function openProfileForUser(username, species, settlementName, tier, tileX, tileY) {
+  if (!username) { openProfile(); return; }
+  if (gameData && gameData.username === username) { openProfile(); return; }
+  viewPlayerProfile(username, species || '', settlementName || '', tier || 'village', tileX || 0, tileY || 0);
 }
 
-function closeProfileMenu() {
-  document.getElementById('profile-dropdown-wrap')?.classList.remove('open');
-}
-
-// Close on outside click
-document.addEventListener('click', e => {
-  const wrap = document.getElementById('profile-dropdown-wrap');
-  if (wrap && !wrap.contains(e.target)) closeProfileMenu();
-});
-
-// Close on Escape
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeProfileMenu();
-});
-
-// Called from loadGame() to set the username in the trigger button
-function initProfileDisplay(username, species) {
-  const label = document.getElementById('profile-username-label');
-  const mini  = document.getElementById('profile-avatar-mini');
-  if (label) label.textContent = username || '—';
-  if (mini)  mini.textContent  = (username || '?')[0].toUpperCase();
-}
-
-// ── Own Profile modal ─────────────────────────────────────────────────────
-
-let profileData = null; // cached
 
 async function openProfile() {
   const modal = document.getElementById('profile-modal');
@@ -114,7 +85,7 @@ function renderOwnSettlements() {
   const container = document.getElementById('pm-settlements');
   if (!container || !gameData?.settlement) return;
   const s = gameData.settlement;
-  const emoji = TIER_EMOJI_P[s.tier] || '🏕';
+  const emoji = TIER_EMOJI[s.tier] || '🏕';
   container.innerHTML = `
     <div class="pm-settlement-card">
       <span class="pm-settlement-emoji">${emoji}</span>
@@ -171,7 +142,7 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
       document.getElementById('vp-bio').textContent = data.bio || 'This ruler keeps their own counsel.';
       // Update settlement info with server data if available
       if (data.settlement) {
-        const emoji = TIER_EMOJI_P[data.settlement.tier] || '🏕';
+        const emoji = TIER_EMOJI[data.settlement.tier] || '🏕';
         document.getElementById('vp-settlements').innerHTML = `
           <div class="pm-settlement-card">
             <span class="pm-settlement-emoji">${emoji}</span>
@@ -190,7 +161,7 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
   }
 
   // Settlement
-  const emoji = TIER_EMOJI_P[tier] || '🏕';
+  const emoji = TIER_EMOJI[tier] || '🏕';
   document.getElementById('vp-settlements').innerHTML = `
     <div class="pm-settlement-card">
       <span class="pm-settlement-emoji">${emoji}</span>
