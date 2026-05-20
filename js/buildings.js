@@ -1,4 +1,3 @@
-
 const BUILDING_IMG_BASE = '/assets/images/buildings/';
 
 function _buildingIcon(b, size) {
@@ -708,7 +707,7 @@ function qa_showForm(id) {
     + '<div class="qa-section-label" style="margin-top:10px">Item Drops ' + tip('Items that can drop on quest success. Each drop has a % chance. e.g. 25% = roughly 1 in 4 runs.') + ' <button onclick="_qaAddDropRow()" style="margin-left:8px;padding:1px 8px;font-size:10px;background:rgba(192,221,151,.1);border:1px solid rgba(192,221,151,.2);border-radius:4px;color:rgba(192,221,151,.7);cursor:pointer">+ Add Drop</button></div>'
     + '<div id="qa-drop-rows" style="display:flex;flex-direction:column;gap:5px"></div>'
 
-    + '<button class="cheat-all-btn" style="margin-top:12px" onclick="qa_save(' + (!isNew ? JSON.stringify(id) : 'null') + ')">💾 ' + (isNew ? 'Create Quest' : 'Save Changes') + '</button>'
+    + '<button class="cheat-all-btn" style="margin-top:12px" onclick="qa_save(' + (!isNew ? ("'" + id + "'") : 'null') + ')">💾 ' + (isNew ? 'Create Quest' : 'Save Changes') + '</button>'
     + '</div>';
 
   // Toggle fields based on type/source
