@@ -419,6 +419,19 @@ async function _collectFromModal(runId) {
     if (!res.ok) {
       const d = await res.json();
       console.error('Collect failed:', d.error);
+    } else {
+      const data = await res.json();
+      if (data.gold_awarded > 0) {
+        if (gameData?.settlement?.resources) {
+          gameData.settlement.resources.wealth += data.gold_awarded;
+        }
+        if (data.wealth_after != null && typeof tickResources !== 'undefined' && tickResources != null) {
+          tickResources.wealth = data.wealth_after;
+        } else if (typeof tickResources !== 'undefined' && tickResources != null) {
+          tickResources.wealth = (tickResources.wealth || 0) + data.gold_awarded;
+        }
+        if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
+      }
     }
   } catch(e) { console.error(e); }
   // Refresh quest data
@@ -1030,7 +1043,7 @@ function _renderPartyAssembly(q) {
       + '<div class="pa-slot-info"><div class="pa-slot-role">' + req.role_label + '</div>'
       + '<div class="pa-slot-skill">' + (QUEST_SKILL_LABELS[req.skill_key]||req.skill_key) + ' · ' + req.desc + '</div></div>'
       + '</div>'
-      + '<select class="pa-select" id="pa-sel-' + i + '" onchange="_updatePartyChance();_lockDuplicateSlots(' + requires.length + ')">'
+      + '<select class="pa-select" id="pa-sel-' + i + '" onchange="_updatePartyChance();_lockDuplicateSlots(' + requires.length + ')">'  
       + '<option value="">— Choose ' + req.role_label + ' —</option>'
       + opts
       + '</select>'
@@ -1276,8 +1289,13 @@ async function collectQuest(runId) {
       _questFlash(`🪙 Collected ${data.gold_awarded} gold!`);
       if (gameData?.settlement?.resources) {
         gameData.settlement.resources.wealth += data.gold_awarded;
-        updateTopbarDisplay?.();
       }
+      if (data.wealth_after != null && typeof tickResources !== 'undefined' && tickResources != null) {
+        tickResources.wealth = data.wealth_after;
+      } else if (typeof tickResources !== 'undefined' && tickResources != null) {
+        tickResources.wealth = (tickResources.wealth || 0) + data.gold_awarded;
+      }
+      if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
     } else {
       _questFlash('Quest dismissed.');
     }
