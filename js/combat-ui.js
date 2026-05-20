@@ -29,20 +29,20 @@
   const SCENES = {
     forest: {
       label: 'The Old Wood',
-      bg: 'radial-gradient(ellipse at 50% 80%, rgba(60,40,30,.6), rgba(20,12,6,.95)),' +
-          'linear-gradient(180deg, #2c1f14 0%, #1a1410 55%, #0f0c08 100%)',
+      bg: 'radial-gradient(ellipse at 50% 80%, rgba(60,40,30,.6), rgba(20,12,6,.95)),'
+          + 'linear-gradient(180deg, #2c1f14 0%, #1a1410 55%, #0f0c08 100%)',
       accent: '#6c8a55',
     },
     marsh: {
       label: 'The Drowned Marsh',
-      bg: 'radial-gradient(ellipse at 50% 75%, rgba(40,80,70,.55), rgba(8,16,18,.95)),' +
-          'linear-gradient(180deg, #1c2a2c 0%, #0f1c1f 55%, #060c0e 100%)',
+      bg: 'radial-gradient(ellipse at 50% 75%, rgba(40,80,70,.55), rgba(8,16,18,.95)),'
+          + 'linear-gradient(180deg, #1c2a2c 0%, #0f1c1f 55%, #060c0e 100%)',
       accent: '#5ec4b0',
     },
     ruins: {
       label: 'The Cracked Ruins',
-      bg: 'radial-gradient(ellipse at 50% 80%, rgba(70,50,30,.55), rgba(20,14,8,.95)),' +
-          'linear-gradient(180deg, #2b1f12 0%, #1a130a 55%, #0e0a06 100%)',
+      bg: 'radial-gradient(ellipse at 50% 80%, rgba(70,50,30,.55), rgba(20,14,8,.95)),'
+          + 'linear-gradient(180deg, #2b1f12 0%, #1a130a 55%, #0e0a06 100%)',
       accent: '#c9a25e',
     },
   };
@@ -736,6 +736,9 @@
           const data = await res.json();
           if (data.wealth_after != null && gameData?.settlement?.resources) {
             gameData.settlement.resources.wealth = data.wealth_after;
+            if (typeof tickResources !== 'undefined' && tickResources != null) {
+              tickResources.wealth = data.wealth_after;
+            }
             if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
           }
           // Reload citizens so combat-skill bumps appear in their profile.
