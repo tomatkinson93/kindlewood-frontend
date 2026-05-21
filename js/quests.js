@@ -411,28 +411,30 @@ function _soloCarouselGo(idx) {
 
 // Opens a compact assign panel at the bottom of the carousel area
 
+async function _doCollect(runId) {
+  const res = await apiFetch(`/api/quests/collect/${runId}`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) return { ok: false, data };
+  if (data.gold_awarded > 0) {
+    if (gameData?.settlement?.resources) {
+      gameData.settlement.resources.wealth += data.gold_awarded;
+    }
+    if (data.wealth_after != null && typeof tickResources !== 'undefined' && tickResources != null) {
+      tickResources.wealth = data.wealth_after;
+    } else if (typeof tickResources !== 'undefined' && tickResources != null) {
+      tickResources.wealth = (tickResources.wealth || 0) + data.gold_awarded;
+    }
+    if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
+  }
+  return { ok: true, data };
+}
+
 async function _collectFromModal(runId) {
   const btn = document.querySelector('[data-id="' + runId + '"]');
   if (btn) { btn.textContent = '…'; btn.disabled = true; }
   try {
-    const res = await apiFetch('/api/quests/collect/' + runId, { method: 'POST' });
-    if (!res.ok) {
-      const d = await res.json();
-      console.error('Collect failed:', d.error);
-    } else {
-      const data = await res.json();
-      if (data.gold_awarded > 0) {
-        if (gameData?.settlement?.resources) {
-          gameData.settlement.resources.wealth += data.gold_awarded;
-        }
-        if (data.wealth_after != null && typeof tickResources !== 'undefined' && tickResources != null) {
-          tickResources.wealth = data.wealth_after;
-        } else if (typeof tickResources !== 'undefined' && tickResources != null) {
-          tickResources.wealth = (tickResources.wealth || 0) + data.gold_awarded;
-        }
-        if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
-      }
-    }
+    const { ok, data } = await _doCollect(runId);
+    if (!ok) console.error('Collect failed:', data.error);
   } catch(e) { console.error(e); }
   // Refresh quest data
   try {
@@ -1281,25 +1283,13 @@ async function acceptQuest(questId, selectId) {
 
 async function collectQuest(runId) {
   try {
-    const res = await apiFetch(`/api/quests/collect/${runId}`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) { _questFlash(`⚠️ ${data.error}`); return; }
-
+    const { ok, data } = await _doCollect(runId);
+    if (!ok) { _questFlash(`⚠️ ${data.error}`); return; }
     if (data.gold_awarded > 0) {
       _questFlash(`🪙 Collected ${data.gold_awarded} gold!`);
-      if (gameData?.settlement?.resources) {
-        gameData.settlement.resources.wealth += data.gold_awarded;
-      }
-      if (data.wealth_after != null && typeof tickResources !== 'undefined' && tickResources != null) {
-        tickResources.wealth = data.wealth_after;
-      } else if (typeof tickResources !== 'undefined' && tickResources != null) {
-        tickResources.wealth = (tickResources.wealth || 0) + data.gold_awarded;
-      }
-      if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
     } else {
       _questFlash('Quest dismissed.');
     }
-
     const res2 = await apiFetch('/api/quests');
     _questData = await res2.json();
     renderQuestBoard();
