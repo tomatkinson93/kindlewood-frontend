@@ -47,7 +47,7 @@ const JUNK_TABLE = [
   { id:'soggy_hat',   name:'Soggy Hat',    icon:'🎩', flavour:'A fine hat, once. The river has had its way with it.' },
   { id:'tangled_net', name:'Tangled Net',  icon:'🕸',  flavour:'Someone lost this long ago. Easy to see why.' },
   { id:'river_stone', name:'Smooth Stone', icon:'🪨', flavour:'Perfectly round. The river shaped it over centuries.' },
-  { id:'broken_rod',  name:'Broken Rod',   icon:'🎣', flavour:"Another fisher\'s misfortune. Maybe it snapped on a big one." },
+  { id:'broken_rod',  name:'Broken Rod',   icon:'🎣', flavour:"Another fisher's misfortune. Maybe it snapped on a big one." },
   { id:'old_coin',    name:'Old Coin',     icon:'🪙', flavour:'Worn smooth. The face on it is unrecognisable.' },
 ];
 
@@ -474,13 +474,16 @@ function _holdEnd() {
 
 document.addEventListener('keydown', function(e) {
   if (e.code === 'Space') {
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
     e.preventDefault();
     if (_fishState === 'biting') { confirmBite(); }
     else if (_fishState === 'active' && !_holding) { _holding = true; _reelStart(); }
   }
 });
 document.addEventListener('keyup', function(e) {
-  if (e.code === 'Space') { _holding = false; _reelStop(); }
+  if (e.code === 'Space' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+    _holding = false; _reelStop();
+  }
 });
 document.addEventListener('mouseup',  _holdEnd);
 document.addEventListener('touchend', _holdEnd);
