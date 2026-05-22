@@ -71,6 +71,17 @@ function stopResourceTick() {
 
 function updateTopbarDisplay() {
   if (!tickResources || !tickRates) return;
+  // Sync any resource that gameData says is higher than our local tick copy.
+  // This covers one-time awards (quest gold, combat loot, etc.) that update
+  // gameData but don't go through the per-second tick path.
+  if (gameData?.settlement?.resources) {
+    const r = gameData.settlement.resources;
+    if (r.wealth  > tickResources.wealth)  tickResources.wealth  = r.wealth;
+    if (r.food    > tickResources.food)    tickResources.food    = r.food;
+    if (r.timber  > tickResources.timber)  tickResources.timber  = r.timber;
+    if (r.stone   > tickResources.stone)   tickResources.stone   = r.stone;
+    if (r.metal   > tickResources.metal)   tickResources.metal   = r.metal;
+  }
   const set = (id, val, rate) => {
     const el = document.getElementById('res-' + id);
     if (!el) return;
