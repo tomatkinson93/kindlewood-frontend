@@ -2400,8 +2400,15 @@ async function _qmCollect(btn) {
     // Success path: parse the response so we can update the wealth display.
     try {
       const data = await res.json();
-      if (data?.gold_awarded > 0 && gameData?.settlement?.resources) {
-        gameData.settlement.resources.wealth += data.gold_awarded;
+      if (data?.gold_awarded > 0) {
+        if (gameData?.settlement?.resources) {
+          gameData.settlement.resources.wealth += data.gold_awarded;
+        }
+        if (data.wealth_after != null && typeof tickResources !== 'undefined' && tickResources != null) {
+          tickResources.wealth = data.wealth_after;
+        } else if (typeof tickResources !== 'undefined' && tickResources != null) {
+          tickResources.wealth = (tickResources.wealth || 0) + data.gold_awarded;
+        }
         if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
       }
     } catch(e) {}
