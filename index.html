@@ -37,123 +37,1213 @@
   <div class="naming-backdrop" id="naming-backdrop">
     <div class="naming-fullscreen">
       <img class="naming-bg" src="/assets/starter_camp.png" alt="Your camp">
-      <div class="naming-overlay">
-        <div class="naming-card">
-          <div class="naming-title">Name Your Settlement</div>
-          <div class="naming-sub">This will be the heart of your realm. Choose wisely.</div>
-          <input class="naming-input" id="naming-input" type="text" maxlength="30"
-                 placeholder="e.g. Ashgrove, Thornhaven, Mirewatch…"
-                 oninput="onNamingInput()" onkeydown="if(event.key==='Enter')confirmNaming()">
-          <div class="naming-hint" id="naming-hint"></div>
-          <button class="naming-btn" id="naming-confirm" onclick="confirmNaming()" disabled>Found the Settlement →</button>
+      <div class="naming-overlay"></div>
+      <div class="naming-content">
+        <div class="naming-eyebrow">This is where your story begins</div>
+        <div class="naming-title">Name your settlement</div>
+        <div class="naming-sub">Choose wisely — your name will echo through the ages</div>
+        <div class="naming-preview-wrap">
+          <div class="naming-preview" id="naming-preview">...</div>
+        </div>
+        <input class="naming-input" id="naming-input" type="text" maxlength="32" placeholder="e.g. Thornvale, Mosswick, Emberholt...">
+        <div class="naming-error" id="naming-error">Please enter at least 2 characters.</div>
+        <div class="naming-btns">
+          <button class="naming-btn-skip" id="naming-skip">Name it later</button>
+          <button class="naming-btn-confirm" id="naming-confirm">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+              Establish settlement
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+            </span>
+          </button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- WELCOME -->
+  <div class="screen active" id="screen-welcome">
+    <div class="hero">
+      <canvas id="hero-particles"></canvas>
+      <div class="hero-bottom-fade"></div>
+      <img src="/assets/hero.png" alt="Kindlewood village scene" onerror="this.style.display='none'">
+      <div class="hero-overlay"></div>
+      <div class="hero-nav">
+        <div class="hero-nav-btns" style="margin-left:auto;">
+          <button class="btn-nav-secondary" onclick="showScreen('login')">Sign In</button>
+          <button class="btn-nav-primary" onclick="scrollToSpecies()">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/><path d="M2 22 C2 12 12 12 12 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".3"/></svg>
+              Begin Your Journey
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/><path d="M30 22 C30 12 20 12 20 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".3"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="hero-text-welcome">
+        <div class="eyebrow">A woodland strategy game</div>
+        <div class="game-title">Kindlewood</div>
+        <div class="game-subtitle">Rise of the Woodland Realms</div>
+        <div class="hero-divider"><span class="divider-gem">✦</span></div>
+        <div class="hero-tagline">Build your settlement. Lead your kin.<br>Forge an empire from the forest floor.</div>
+      </div>
+    </div>
 
-  <!-- NAV -->
-  <nav class="nav" id="main-nav">
-    <div class="nav-inner">
-      <div class="nav-logo" onclick="showScreen('landing')">
-        <img src="/assets/logo.png" alt="Kindlewood" class="nav-logo-img"> Kindlewood
+    <div class="species-section">
+      <div class="species-section-label"><span class="label-deco-line"></span><span class="label-inner">✦ &nbsp;Choose Your Starter Species&nbsp; ✦</span><span class="label-deco-line"></span></div>
+      <div class="carousel-wrap">
+        <button class="carousel-arrow left" onclick="carouselPrev()">&#8592;</button>
+        <div class="carousel-track" id="carousel-track">
+          <div class="sp-card" data-sp="mouse">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/mouse.png" alt="Mouse"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Mice</div>
+              <div class="sp-card-role">Economy &amp; Growth</div>
+              <div class="sp-card-flavor">"Prosper through trade and unity"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('mouse')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="badger">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/badger.png" alt="Badger"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Badgers</div>
+              <div class="sp-card-role">Defense &amp; Infantry</div>
+              <div class="sp-card-flavor">"Unyielding guardians of the realm"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('badger')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="fox">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/fox.png" alt="Fox"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Foxes</div>
+              <div class="sp-card-role">Stealth &amp; Raids</div>
+              <div class="sp-card-flavor">"Cunning and swift in the shadows"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('fox')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="otter">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/otter.png" alt="Otter"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Otters</div>
+              <div class="sp-card-role">Trade &amp; Rivers</div>
+              <div class="sp-card-flavor">"Masters of water and commerce"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('otter')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="hare">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/hare.png" alt="Hare"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Hares</div>
+              <div class="sp-card-role">Speed &amp; Response</div>
+              <div class="sp-card-flavor">"Fast to act, faster to strike"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('hare')">More Details ›</div>
+            </div>
+          </div>
+          <div class="sp-card" data-sp="mole">
+            <div class="sp-card-art-wrap"><img class="sp-card-art" src="/assets/mole.png" alt="Mole"></div>
+            <div class="sp-card-body">
+              <div class="sp-card-name">Moles</div>
+              <div class="sp-card-role">Infrastructure</div>
+              <div class="sp-card-flavor">"Builders beneath the earth"</div>
+              <div class="sp-card-more" onclick="event.stopPropagation(); openModal('mole')">More Details ›</div>
+            </div>
+          </div>
+        </div>
+        <button class="carousel-arrow right" onclick="carouselNext()">&#8594;</button>
       </div>
-      <div class="nav-links" id="nav-links">
-        <a class="nav-link" onclick="showScreen('landing')">Home</a>
-        <a class="nav-link" onclick="showScreen('lore')">World</a>
-        <a class="nav-link" onclick="showScreen('login')">Sign In</a>
+      <div class="carousel-dots" id="carousel-dots"></div>
+      <div class="carousel-cta-col">
+        <button class="btn-carousel-select" onclick="selectCurrentSpecies()">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".4"/><path d="M2 22 C2 12 12 12 12 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".25"/></svg>
+              Choose Species
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".4"/><path d="M30 22 C30 12 20 12 20 2" stroke="currentColor" stroke-width="1" fill="none" opacity=".25"/></svg>
+            </span>
+          </button>
       </div>
-      <div class="nav-profile" id="nav-profile" style="display:none">
-        <div class="profile-avatar" id="profile-avatar-mini"></div>
-        <span class="nav-username" id="profile-username-label"></span>
-        <div class="nav-dropdown" id="nav-dropdown">
-          <a class="dropdown-item" onclick="showScreen('game')">🗺️ Map</a>
-          <a class="dropdown-item" onclick="showScreen('profile')">👤 Profile</a>
-          <a class="dropdown-item" onclick="showScreen('settings')">⚙️ Settings</a>
-          <a class="dropdown-item" onclick="logoutUser()">🚪 Sign Out</a>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="screen" id="screen-register">
+    <div class="auth-banner">
+      <div class="auth-logo">Kindlewood <span>Woodland Realms</span></div>
+      <div class="back-link" onclick="showScreen('welcome')">← Back</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-heading">Found your settlement</div>
+      <div class="auth-desc">Create your account and choose your species to begin.</div>
+      <div class="msg error" id="reg-error"></div>
+      <div class="msg success" id="reg-success"></div>
+      <div class="field"><label>Ruler name</label><input type="text" id="reg-name" placeholder="e.g. Aldric Thornpaw"></div>
+      <div class="field"><label>Email</label><input type="email" id="reg-email" placeholder="your@email.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="reg-pass" placeholder="At least 8 characters"></div>
+      <hr class="divider-line">
+      <button class="btn-primary" onclick="submitRegister()">🌿 Begin your story →</button>
+      <div class="auth-switch">Already have a realm? <a onclick="showScreen('login')">Sign in here</a></div>
+    </div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="screen" id="screen-login">
+    <!-- Cycling background art layers -->
+    <div class="login-bg-layer" id="login-bg-a" style="background-image:url('/assets/images/login_art1.png')"></div>
+    <div class="login-bg-layer" id="login-bg-b"></div>
+    <!-- Floating back button — visible over login art -->
+    <button class="login-back-btn" onclick="loginTransitionBack()">← Back</button>
+    <div class="auth-card">
+      <div class="auth-heading">Return to your realm</div>
+      <div class="auth-desc">Sign in to continue your campaign.</div>
+      <div class="msg error" id="login-error"></div>
+      <div class="msg success" id="login-success"></div>
+      <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com"></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="Your password"></div>
+      <div class="forgot"><a href="#">Forgot password?</a></div>
+      <button class="btn-primary" onclick="submitLogin()">🌿 Enter the woodland →</button>
+      <hr class="divider-line">
+      <button class="btn-secondary" onclick="showScreen('register')">Found a new settlement →</button>
+      <div class="auth-switch">New to Kindlewood? <a onclick="showScreen('register')">Create your realm</a></div>
+    </div>
+  </div>
+
+
+
+  <!-- ARRIVAL -->
+  <div class="screen" id="screen-arrival">
+    <div class="arrival-fullscreen">
+      <img class="arrival-bg" id="arrival-bg" src="/assets/zone_forest.png" alt="">
+      <img class="arrival-bg-next" id="arrival-bg-next" src="" alt="">
+      <div class="arrival-overlay"></div>
+
+      <div class="arrival-content">
+
+        <!-- Species side -->
+        <div class="arrival-half arrival-species-half">
+          <div class="arrival-half-label">Your kin</div>
+          <div class="arrival-carousel">
+            <button class="arrival-arrow" onclick="arrivalSpeciesPrev()">←</button>
+            <div class="arrival-card">
+              <img class="arrival-sp-img" id="arrival-sp-img" src="/assets/mouse.png" alt="">
+              <div class="arrival-sp-name" id="arrival-sp-name">Mice</div>
+              <div class="arrival-sp-role" id="arrival-sp-role">Economy & Growth</div>
+              <div class="arrival-sp-flavor" id="arrival-sp-flavor"></div>
+              <div class="arrival-sp-stats" id="arrival-sp-stats"></div>
+              <div class="arrival-sp-lore" id="arrival-sp-lore"></div>
+            </div>
+            <button class="arrival-arrow" onclick="arrivalSpeciesNext()">→</button>
+          </div>
+          <div class="arrival-counter" id="arrival-sp-counter">1 / 6</div>
+          <div class="arrival-diversity-note">✦ You can recruit other species as your realm grows ✦</div>
+        </div>
+
+        <!-- Zone side -->
+        <div class="arrival-half arrival-zone-half">
+          <div class="arrival-half-label">Your homeland</div>
+          <div class="arrival-zone-carousel-row">
+            <button class="arrival-arrow" onclick="arrivalZonePrev()">←</button>
+            <div class="arrival-zone-display">
+              <div class="arrival-zone-emoji" id="arrival-zone-emoji">🌲</div>
+              <div class="arrival-zone-name" id="arrival-zone-name">Ancient Forest</div>
+              <div class="arrival-zone-subtitle" id="arrival-zone-subtitle"></div>
+              <div class="arrival-zone-desc" id="arrival-zone-desc"></div>
+              <div class="arrival-zone-divider"></div>
+              <div class="arrival-zone-bonuses" id="arrival-zone-bonuses"></div>
+              <div class="arrival-zone-bestfor" id="arrival-zone-bestfor"></div>
+              <div class="arrival-zone-divider"></div>
+              <div class="arrival-zone-extra" id="arrival-zone-extra"></div>
+            </div>
+            <button class="arrival-arrow" onclick="arrivalZoneNext()">→</button>
+          </div>
+          <div class="arrival-counter" id="arrival-zone-counter">1 / 5</div>
+          <div class="arrival-diversity-note">✦ You can found more settlements as your realm grows ✦</div>
+        </div>
+
+      </div>
+
+      <!-- Naming + Confirm centred column -->
+      <div class="arrival-bottom-row">
+        <div class="arrival-naming-eyebrow">This is where your story begins</div>
+        <div class="arrival-naming-title">Name your settlement</div>
+        <div class="arrival-naming-sub">Choose wisely — your name will echo through the ages</div>
+        <div class="arrival-naming-preview" id="arrival-settlement-preview">Your Settlement</div>
+        <input class="arrival-naming-input" id="arrival-settlement-name" type="text" maxlength="32" placeholder="e.g. Thornvale, Mosswick, Emberholt...">
+        <button class="arrival-confirm-btn" id="arrival-confirm-btn" onclick="confirmArrival()">
+          <span class="celtic-btn-wrap">
+            <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+            Begin your story
+            <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+          </span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PLACEMENT -->
+  <div class="screen" id="screen-placement">
+    <div class="placement-header">
+      <div class="placement-title">Choose your land</div>
+      <div class="placement-sub">Your settlers have arrived. Where will you build your future?</div>
+    </div>
+    <div class="placement-body">
+      <div class="placement-left">
+        <div class="placement-loading" id="placement-loading">
+          <div class="loading-text">Scouting the area...</div>
+        </div>
+        <div class="placement-map-wrap" id="placement-map-wrap" style="display:none;">
+          <div class="placement-grid" id="placement-grid"></div>
+        </div>
+        <div class="placement-suggestions" id="placement-suggestions" style="display:none;">
+          <div class="sug-label-heading">Suggested locations</div>
+          <div class="suggestion-tiles" id="suggestion-tiles"></div>
+        </div>
+      </div>
+      <div class="placement-right">
+        <div class="placement-panel" id="placement-panel">
+          <div class="placement-hint">Click a tile to preview it</div>
+        </div>
+        <div class="placement-actions">
+          <button class="btn-placement-confirm" id="placement-confirm" disabled onclick="confirmPlacement()">
+            <span class="celtic-btn-wrap">
+              <svg class="celtic-corner left" viewBox="0 0 32 32" fill="none"><path d="M2 30 C2 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+              Establish settlement here
+              <svg class="celtic-corner right" viewBox="0 0 32 32" fill="none"><path d="M30 30 C30 16 16 16 16 2" stroke="currentColor" stroke-width="1.5" fill="none" opacity=".5"/></svg>
+            </span>
+          </button>
+          <button class="btn-placement-reroll" id="reroll-btn" onclick="rerollSpawn()">Scout another area (1 left)</button>
         </div>
       </div>
     </div>
-  </nav>
-
-  <!-- SCREENS -->
-  <div id="screen-landing"  class="screen"></div>
-  <div id="screen-lore"     class="screen"></div>
-  <div id="screen-register" class="screen"></div>
-  <div id="screen-login"    class="screen"></div>
-  <div id="screen-game"     class="screen"></div>
-  <div id="screen-profile"  class="screen"></div>
-  <div id="screen-settings" class="screen"></div>
-
-
-  <!-- TOAST -->
-  <div id="toast-container"></div>
-
-  <!-- TILE DETAIL PANEL -->
-  <div class="tile-panel" id="tile-panel">
-    <button class="tile-panel-close" onclick="closeTilePanel()">✕</button>
-    <div class="tile-panel-inner" id="tile-panel-inner"></div>
   </div>
 
-  <!-- ARMY PANEL -->
-  <div class="army-panel" id="army-panel" style="display:none">
-    <div class="army-panel-header">
-      <span id="army-panel-title">Your Forces</span>
-      <button class="army-panel-close" onclick="closeArmyPanel()">✕</button>
-    </div>
-    <div id="army-panel-body"></div>
-  </div>
-
-
-  <!-- ENCOUNTER MODAL -->
-  <div class="encounter-backdrop" id="encounter-backdrop" style="display:none">
-    <div class="encounter-modal">
-      <div class="encounter-title" id="encounter-title"></div>
-      <div class="encounter-body" id="encounter-body"></div>
-      <div class="encounter-actions" id="encounter-actions"></div>
+  <!-- GAME -->
+  <!-- Loading screen — shown between login and game ready -->
+  <div id="loading-screen" style="display:none">
+    <div class="ls-content">
+      <img src="/assets/kindlewood-logo.png" class="ls-logo" alt="Kindlewood" onerror="this.style.display='none'">
+      <div class="ls-title">Kindlewood</div>
+      <div class="ls-subtitle">Rise of the Woodland Realms</div>
+      <div class="ls-bar-wrap">
+        <div class="ls-bar" id="ls-bar"></div>
+      </div>
+      <div class="ls-status" id="ls-status">Entering the realm…</div>
     </div>
   </div>
 
-  <!-- BATTLE MODAL -->
-  <div class="battle-backdrop" id="battle-backdrop" style="display:none">
-    <div class="battle-modal">
-      <div class="battle-title" id="battle-title">⚔️ Battle!</div>
-      <div class="battle-body" id="battle-body"></div>
-      <div class="battle-log" id="battle-log"></div>
-      <button class="battle-close-btn" id="battle-close-btn" style="display:none" onclick="closeBattleModal()">Continue</button>
+  <div class="screen" id="screen-game">
+    <div class="topbar">
+      <div class="res" id="res-food"><img class="res-icon-img" src="/assets/foodicon.png" alt="Food"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-timber"><img class="res-icon-img" src="/assets/woodicon.png" alt="Timber"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-stone"><img class="res-icon-img" src="/assets/stoneicon.png" alt="Stone"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-metal"><img class="res-icon-img" src="/assets/metalicon.png" alt="Metal"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-wealth"><img class="res-icon-img" src="/assets/goldicon.png" alt="Wealth"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="topbar-version">v0.5.0</div>
+      <div class="topbar-right">
+        <div id="season-badge" class="season-badge-wrap"></div>
+        <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
+        <!-- Events bell -->
+        <div class="events-bell-wrap">
+          <button class="btn-events-bell" onclick="openEventsPanel()" title="Settlement Events">🔔</button>
+          <span class="events-badge" id="events-badge" style="display:none">0</span>
+          <div class="events-panel" id="events-panel">
+            <div class="events-panel-header">
+              <div class="events-panel-title">📜 Settlement Chronicle</div>
+              <button class="ep-clear-all" onclick="clearAllEvents()">Clear all</button>
+              <button class="events-panel-close" onclick="closeEventsPanel()">✕</button>
+            </div>
+            <div class="events-feed" id="events-feed">
+              <div class="ef-empty">No events yet.</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-cheat" onclick="openCheatMenu()" title="Cheat Menu">⚗</button>
+        <!-- Profile dropdown -->
+        <div class="profile-dropdown-wrap" id="profile-dropdown-wrap">
+          <button class="profile-trigger" id="profile-trigger" onclick="toggleProfileMenu()" aria-haspopup="true">
+            <span class="profile-avatar-mini" id="profile-avatar-mini">?</span>
+            <span class="profile-username-label" id="profile-username-label">—</span>
+            <span class="profile-caret">▾</span>
+          </button>
+          <div class="profile-menu" id="profile-menu" role="menu">
+            <button class="profile-menu-item" onclick="openProfile(); closeProfileMenu()">👤 Profile</button>
+            <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🏛️ Your Kingdom</button>
+            <button class="profile-menu-item disabled">👥 Friends <span class="coming-soon">soon</span></button>
+            <button class="profile-menu-item disabled">📜 Achievements <span class="coming-soon">soon</span></button>
+            <div class="profile-menu-divider"></div>
+            <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🌍 Switch Realm</button>
+            <button class="profile-menu-item" onclick="openSettingsPopover(); closeProfileMenu()">⚙️ Settings</button>
+            <button class="profile-menu-item" onclick="showCommunityTab('help'); closeProfileMenu()">❓ Help</button>
+            <div class="profile-menu-divider"></div>
+            <button class="profile-menu-item logout-item" onclick="logout()">🚪 Log Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="season-panel" class="season-panel"></div>
+    <div class="community-bar">
+      <button class="comm-btn" id="nav-map" onclick="navGoMap()">🗺 Map</button>
+      <button class="comm-btn" id="nav-quests" onclick="openQuestsModal()">📜 Quests</button>
+      <button class="comm-btn" onclick="openInventoryModal()">🎒 Inventory</button>
+      <button class="comm-btn" id="nav-battles" onclick="openBattlesModal()">⚔ Battles</button>
+      <button class="comm-btn" onclick="showCommunityTab('events')">🧭 Events</button>
+      <button class="comm-btn" onclick="showCommunityTab('rankings')">🏆 Rankings</button>
+      <button class="comm-btn" onclick="showCommunityTab('market')">💰 Market</button>
+      <button class="comm-btn" onclick="showCommunityTab('messages')">📬 Messages</button>
+      <button class="comm-btn" onclick="showCommunityTab('chat')">💬 Chat</button>
+    </div>
+    <!-- Guard art — fixed to screen edges in the parchment surround -->
+    <img class="map-decor map-decor-left"  id="map-decor-left"  src="" alt="" aria-hidden="true">
+    <img class="map-decor map-decor-right" id="map-decor-right" src="" alt="" aria-hidden="true">
+
+    <div class="game-body">
+      <div class="map-area">
+
+        <!-- Fixed map frame — grid clips inside this, buttons sit on edges -->
+        <!-- Fixed map frame — zoom container clips inside this, buttons sit on edges -->
+        <div class="map-frame" id="map-frame">
+          <canvas id="map-canvas" style="display:block;position:absolute;inset:0;width:100%;height:100%;cursor:grab"></canvas>
+
+          <!-- Arrow buttons absolutely positioned on frame edges -->
+          <button class="map-ctrl-btn map-btn-up"    onclick="panCamera(0,-3)">▲</button>
+          <button class="map-ctrl-btn map-btn-down"  onclick="panCamera(0,3)">▼</button>
+          <button class="map-ctrl-btn map-btn-left"  onclick="panCamera(-3,0)">◄</button>
+          <button class="map-ctrl-btn map-btn-right" onclick="panCamera(3,0)">►</button>
+
+          <!-- Action bar — absolute over map bottom -->
+          <div class="action-bar">
+            <button class="action-bar-btn" id="action-scout" onclick="actionScout()">🧭 Scout</button>
+            <button class="action-bar-btn" id="action-build" onclick="switchTab('buildings')">🏗 Build</button>
+            <button class="action-bar-btn" id="action-citizens" onclick="switchTab('citizens')">🧍 Citizens</button>
+            <button class="action-bar-btn" onclick="centreCamera()">🏘 Centre</button>
+
+          </div>
+        </div>
+        
+<div id="diplomacy-modal" class="nb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeDiplomacyModal()">
+  <div class="nb-modal-card">
+    <div class="nb-modal-header">
+      <div>
+        <div class="nb-modal-title" id="dm-title">Diplomacy</div>
+        <div class="nb-modal-sub" id="dm-sub" style="font-size:12px;opacity:.7;margin-top:2px"></div>
+      </div>
+      <button class="nb-modal-close" onclick="closeDiplomacyModal()">✕</button>
+    </div>
+    <div id="dm-body" class="nb-modal-body">
+      <div class="diplo-loading">Loading diplomacy…</div>
+    </div>
+  </div>
+        </div>
+        <!-- Tavern and fishing overlays — inside map-area so sidebar stays visible -->
+        <div class="tavern-overlay" id="tavern-overlay" style="display:none">
+              <div class="tavern-bg" id="tavern-bg"></div>
+              <div class="tavern-inner">
+                <div class="tavern-header">
+                  <button class="tavern-back-btn" onclick="leaveTavern()">← Leave Tavern</button>
+                  <div class="tavern-title">🍺 The Woodland Tavern</div>
+                </div>
+                <div class="tavern-innkeeper-area" id="tavern-innkeeper-area">
+                  <div class="tavern-innkeeper-portrait" id="tavern-innkeeper-portrait">🦔</div>
+                  <div class="tavern-innkeeper-msg" id="tavern-innkeeper-msg">Nobody is here. Perhaps you should hire an Innkeeper.</div>
+                </div>
+                <div class="tavern-menu" id="tavern-menu">
+                  <button class="tavern-menu-btn" onclick="openNoticeboardModal()">📜 Notice Board</button>
+                  <button class="tavern-menu-btn" onclick="openCardGameMenu()">🃏 Play a Card Game</button>
+                </div>
+
+                <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
+                  <div class="tavern-card-menu-title">— Choose Your Game —</div>
+                  <button class="tavern-game-btn" onclick="startCardGame('highleaf')">
+                    <span class="tgb-icon">🍃</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">Highleaf Draw</div>
+                      <div class="tgb-desc">Draw cards, get close to 21. Risk &amp; reward.</div>
+                      <div class="tgb-reward">💰 Reward: 1–3 gold</div>
+                    </div>
+                  </button>
+                  <button class="tavern-game-btn" onclick="startCardGame('mouse_grain')">
+                    <span class="tgb-icon">🌾</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">Mouse &amp; Grain</div>
+                      <div class="tgb-desc">3 cards each. Highest total wins.</div>
+                      <div class="tgb-reward">💰 Reward: 1–2 gold</div>
+                    </div>
+                  </button>
+                  <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
+                </div>
+                <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
+              </div>
+            </div>
+        
+
+        
+              <!-- ── Fishing Post Overlay ── -->
+              <div class="fishing-overlay" id="fishing-overlay" style="display:none">
+              <div class="fishing-bg" id="fishing-bg"></div>
+              <div class="fp-ripple r1"></div>
+              <div class="fp-ripple r2"></div>
+              <div class="fp-ripple r3"></div>
+              <div class="fp-bobber-float" id="fp-bobber-float">🪝</div>
+              <div class="fishing-inner">
+                <div class="fishing-header">
+                  <button class="fishing-back-btn" onclick="leaveFishingPost()">← Leave</button>
+                  <div class="fishing-title">🎣 Riverside Fishing Post</div>
+                  <button class="fp-inventory-btn" onclick="toggleCatchInventory()" title="View catch log">📖 Catch Log</button>
+                </div>
+                <div class="fishing-body">
+                  <div class="fishing-main" id="fishing-main-area"></div>
+                </div>
+              </div>
+              <!-- Catch inventory modal -->
+              <div id="fp-inventory-modal" class="fp-inv-modal">
+                <div class="fp-inv-card">
+                  <div class="fp-inv-header">
+                    <span>📖 Catch Log</span>
+                    <button onclick="toggleCatchInventory()" style="background:none;border:none;color:rgba(192,221,151,.5);font-size:16px;cursor:pointer">✕</button>
+                  </div>
+                  <div id="fp-catch-log"><div class="fp-cl-empty">No catches yet.</div></div>
+                </div>
+              </div>
+            </div>
+      </div>
+
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" id="tab-settlement" onclick="switchTab('settlement')">Settlement</button>
+          <button class="sidebar-tab" id="tab-citizens" onclick="switchTab('citizens')">Citizens</button>
+          <button class="sidebar-tab" id="tab-buildings" onclick="switchTab('buildings')">Build</button>
+          
+        </div>
+
+        <!-- Settlement panel -->
+        <div id="panel-map-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+          <div class="sidebar-header">
+            <div class="sidebar-title" id="panel-title">Loading...</div>
+            <div class="sidebar-sub" id="panel-sub"></div>
+          </div>
+          <div class="sidebar-body" id="panel-body"></div>
+        </div>
+
+        <!-- Citizens panel -->
+        <div id="panel-citizens-view" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+          <!-- Toolbar row -->
+          <div class="citizens-toolbar">
+            <span class="citizens-count" id="citizens-count">— citizens</span>
+            <div style="display:flex;gap:4px">
+              <button class="cpanel-view-btn active" id="cpanel-view-full" onclick="cpanelSetView('full',this)" title="Detailed view">☰</button>
+              <button class="cpanel-view-btn" id="cpanel-view-compact" onclick="cpanelSetView('compact',this)" title="Compact view">⋮⋮</button>
+            </div>
+            <button class="btn-view-all" onclick="openAllCitizens()">↗</button>
+          </div>
+          <!-- Search -->
+          <div class="cpanel-search-wrap">
+            <input class="cpanel-search" id="cpanel-search" placeholder="Search name…" oninput="cpanelSearch(this.value)">
+          </div>
+          <!-- Quick filters -->
+          <div class="cpanel-chips">
+            <button class="cpanel-chip active" onclick="cpanelFilter('all',this)">All</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('adult',this)">Adults</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('child',this)">🍼</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('unhoused',this)">🚶</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('partnered',this)">💕</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('single',this)">🔓</button>
+          </div>
+          <!-- Sort -->
+          <div class="cpanel-sort-row">
+            <span class="cpanel-sort-label">Sort:</span>
+            <select class="cpanel-sort-sel" id="cpanel-sort" onchange="cpanelSort(this.value)">
+              <option value="name">Name</option>
+              <option value="age">Age</option>
+              <option value="role">Role</option>
+              <option value="happiness">Happiness</option>
+              <option value="health">Health</option>
+              <option value="generation">Generation</option>
+            </select>
+            <button class="cpanel-sort-dir" id="cpanel-sort-dir" onclick="cpanelToggleSortDir()" title="Toggle direction">↑</button>
+          </div>
+          <!-- List -->
+          <div class="citizens-list-full">
+            <div class="citizens-list" id="citizens-list">
+              <div class="citizens-empty">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARTY ASSEMBLY MODAL -->
+      <div id="party-assembly-modal" style="display:none">
+        <div id="party-assembly-inner" style="width:100%;max-width:520px;padding:32px 24px 48px;margin:auto"></div>
+      </div>
+
+      <!-- TAVERN OVERLAY -->
+    </div><!-- /game-body -->
+
+  </div><!-- /screen-game -->
+
+  <!-- ══ NOTICEBOARD MODAL — standalone, no tavern dependency ══ -->
+  <div id="noticeboard-modal" class="nb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeNoticeboardModal()">
+    <div class="nb-modal-card">
+      <div class="nb-modal-header">
+        <div class="nb-modal-title" id="nb-modal-title">📜 Notice Board</div>
+        <button class="nb-modal-close" onclick="closeNoticeboardModal()">✕</button>
+      </div>
+      <div id="nb-modal-body" class="nb-modal-body"></div>
     </div>
   </div>
 
-  <!-- AUDIO -->
-  <audio id="bg-music" loop preload="none">
-    <source src="/assets/audio/kindlewood_theme.mp3" type="audio/mpeg">
-  </audio>
-  <audio id="sfx-click"    src="/assets/audio/click.mp3"    preload="auto"></audio>
-  <audio id="sfx-fanfare"  src="/assets/audio/fanfare.mp3"  preload="auto"></audio>
-  <audio id="sfx-battle"   src="/assets/audio/battle.mp3"   preload="auto"></audio>
-  <audio id="sfx-levelup"  src="/assets/audio/levelup.mp3"  preload="auto"></audio>
+  <!-- Active Quests Modal -->
+  <div id="quests-modal" class="qm-backdrop" style="display:none" onclick="if(event.target===this)closeQuestsModal()">
+    <div class="qm-card">
+      <div class="qm-header">
+        <div class="qm-title">📜 Active Quests</div>
+        <button class="qm-close" onclick="closeQuestsModal()">✕</button>
+      </div>
+      <div id="qm-body" class="qm-body">Loading…</div>
+      <div class="qm-footer">
+        <button class="qm-tavern-btn" onclick="closeQuestsModal();visitTavern()">🍺 Visit the Tavern</button>
+      </div>
+    </div>
+  </div>
 
-  <!-- SETTINGS -->
-  <div class="settings-modal" id="settings-modal" style="display:none">
-    <div class="settings-panel">
-      <button class="settings-close" onclick="closeSettings()">✕</button>
-      <div class="settings-title">⚙️ Settings</div>
+  <!-- ══ INVENTORY MODAL ══ -->
+  <div id="inventory-modal" class="inv-backdrop" style="display:none" onclick="if(event.target===this)closeInventoryModal()">
+    <div class="inv-modal-card">
+      <div class="inv-header">
+        <div class="inv-title">🎒 Inventory</div>
+        <div class="inv-tabs" id="inv-tabs">
+          <button class="inv-tab active" data-cat="all" onclick="invSetTab('all',this)">All</button>
+          <button class="inv-tab" data-cat="equipment" onclick="invSetTab('equipment',this)">⚔️ Equipment</button>
+          <button class="inv-tab" data-cat="material" onclick="invSetTab('material',this)">🪵 Materials</button>
+          <button class="inv-tab" data-cat="food" onclick="invSetTab('food',this)">🌿 Food</button>
+          <button class="inv-tab" data-cat="quest_item" onclick="invSetTab('quest_item',this)">✨ Quest Items</button>
+          <button class="inv-tab" data-cat="trophy" onclick="invSetTab('trophy',this)">🏆 Trophies</button>
+        </div>
+        <button class="inv-close" onclick="closeInventoryModal()">✕</button>
+      </div>
+      <div id="inv-body" class="inv-body">
+        <div class="inv-loading">Loading inventory…</div>
+      </div>
+    </div>
+  </div>
 
-      <div class="settings-section">
-        <div class="settings-section-title">Audio</div>
+  <!-- Toast notification stack -->
+  <div id="toast-stack" class="toast-stack"></div>
 
+  <script src="/js/config.js"></script>
+  <script src="/js/particles.js"></script>
+  <script src="/js/game.js"></script>
+  <script src="/js/resources.js"></script>
+  <script src="/js/carousel.js"></script>
+  <script src="/js/placement.js"></script>
+  <script src="/js/arrival.js"></script>
+  <script src="/js/citizens.js?v=1776929386"></script>
+  <script src="/js/buildings.js?v=1778441000"></script>
+  <script src="/js/expeditions.js"></script>
+  <script src="/js/seasons.js"></script>
+  <script src="/js/tier.js"></script>
+  <script src="/js/profile.js"></script>
+  <script src="/js/pixelart.js?v=1777763000"></script>
+  <script src="/js/audio.js?v=1778441000"></script>
+  <script src="/js/main.js?v=1778441000"></script>
+  <script src="/js/tavern.js"></script>
+  <script src="/js/quests.js?v=1778441000"></script>
+  <script src="/js/fishing.js"></script>
+  <script src="/js/housing.js"></script>
+  <script src="/js/events.js"></script>
+  <script src="/js/inventory.js"></script>
+  <script src="/js/diplomacy.js"></script>
+  <script src="/js/item_admin.js"></script>
+  <script src="/js/enemy_admin.js?v=1778441000"></script>
+  <script src="/js/combat-engine.js?v=1778441000"></script>
+  <script src="/js/combat-ui.js?v=1778441000"></script>
+  <script src="/js/battles.js?v=1778441000"></script>
+  <script src="/js/realtime.js?v=1778441000"></script>
+
+  <!-- VIEW ALL CITIZENS MODAL -->
+  <!-- HOUSING MODAL -->
+  <div class="housing-backdrop" id="housing-modal">
+    <div class="housing-modal">
+      <div class="housing-modal-header">
+        <div class="housing-modal-title">🏡 Settlement Housing</div>
+        <button class="housing-modal-close" onclick="closeHousingModal()">✕</button>
+      </div>
+      <div class="housing-modal-body" id="housing-modal-body">
+        <div class="housing-loading">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CITIZEN PROFILE MODAL -->
+  <div class="citizen-profile-backdrop" id="citizen-profile-modal">
+    <div class="citizen-profile-modal">
+      <button class="citizen-profile-close" onclick="closeCitizenProfile()">✕</button>
+      <div id="citizen-profile-body"></div>
+    </div>
+  </div>
+
+  <div class="all-citizens-backdrop" id="all-citizens-modal">
+    <div class="all-citizens-modal">
+      <div class="ac-header">
+        <div class="ac-title">Your People <span class="ac-count" id="ac-count"></span></div>
+        <div class="ac-search-wrap">
+          <input class="ac-search" id="ac-search" placeholder="Search name or role…"
+            oninput="renderAllCitizens(null, null, this.value)">
+        </div>
+        <button class="ac-close" onclick="closeAllCitizens()">✕</button>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="ac-filter-bar">
+        <span class="ac-filter-label">Show:</span>
+        <button class="ac-chip active" data-filter-group="life" onclick="acSetGroupFilter('all',this)">All</button>
+        <button class="ac-chip" data-filter-group="life" onclick="acSetGroupFilter('adult',this)">Adults</button>
+        <button class="ac-chip" data-filter-group="life" onclick="acSetGroupFilter('child',this)">Children</button>
+        <div class="ac-chip-divider"></div>
+        <button class="ac-chip" data-filter-group="house" onclick="acSetGroupFilter('housed',this)">🏡 Housed</button>
+        <button class="ac-chip" data-filter-group="house" onclick="acSetGroupFilter('unhoused',this)">🚶 Unhoused</button>
+        <div class="ac-chip-divider"></div>
+        <button class="ac-chip" data-filter-group="partner" onclick="acSetGroupFilter('partnered',this)">💕 Partnered</button>
+        <button class="ac-chip" data-filter-group="partner" onclick="acSetGroupFilter('single',this)">🔓 Single</button>
+        <div class="ac-chip-divider"></div>
+        <select class="ac-role-filter" id="ac-role-filter" onchange="acSetRoleFilter(this.value)">
+          <option value="">All roles</option>
+        </select>
+      </div>
+
+      <div class="ac-table-wrap">
+        <table class="ac-table">
+          <thead>
+            <tr>
+              <th><button class="ac-sort-btn" data-sort="name" onclick="acSort('name')">Name ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="age" onclick="acSort('age')">Age ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="generation" onclick="acSort('generation')">Gen ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="role" onclick="acSort('role')">Role ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="happiness" onclick="acSort('happiness')">😊 ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="health" onclick="acSort('health')">HP ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="strength" onclick="acSort('strength')">STR ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="agility" onclick="acSort('agility')">AGI ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="endurance" onclick="acSort('endurance')">END ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="intelligence" onclick="acSort('intelligence')">INT ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="charisma" onclick="acSort('charisma')">CHA ↕</button></th>
+              <th>Traits</th>
+            </tr>
+          </thead>
+          <tbody id="all-citizens-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHEAT MENU -->
+  <div class="cheat-backdrop" id="cheat-modal">
+    <div class="cheat-card cheat-card--wide">
+      <div class="cheat-header">
+        <div class="cheat-title">⚗ Dev Tools</div>
+        <div class="cheat-sub">Developer testing only</div>
+        <button class="cheat-close" onclick="closeCheatMenu()">✕</button>
+      </div>
+      <!-- Tab bar -->
+      <div class="cheat-tabs">
+        <button class="cheat-tab active" onclick="cheatSwitchTab('ct-resources',this)">💰 Resources</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-citizens',this)">👤 Citizens</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-family',this)">🍼 Family</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-world',this);loadDiplomacyDebugNpcs()">🌍 World</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
+      </div>
+
+      <!-- ── TAB: Resources ── -->
+      <div class="cheat-tab-panel" id="ct-resources">
+        <div class="cheat-section-label">Add Resources</div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="applyCheat('food',500)">🌿 +500 Food</button>
+          <button class="cheat-res-btn" onclick="applyCheat('timber',500)">🌲 +500 Timber</button>
+          <button class="cheat-res-btn" onclick="applyCheat('stone',500)">⬜ +500 Stone</button>
+          <button class="cheat-res-btn" onclick="applyCheat('metal',500)">🟡 +500 Metal</button>
+          <button class="cheat-res-btn" onclick="applyCheat('wealth',500)">🟠 +500 Wealth</button>
+        </div>
+        <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All</button>
+        <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All</button>
+        <button class="cheat-all-btn" onclick="applyCheatAll(50000)">▲ +50k All (tier test)</button>
+      </div>
+
+      <!-- ── TAB: Citizens ── -->
+      <div class="cheat-tab-panel" id="ct-citizens" style="display:none">
+        <div class="cheat-section-label">Select Citizen to Edit</div>
+        <select class="cheat-citizen-sel" id="ce-citizen-select" onchange="cheatLoadCitizen(this.value)" style="width:100%;margin-bottom:10px">
+          <option value="">— Choose a citizen —</option>
+        </select>
+        <div id="ce-editor" style="display:none">
+          <div class="ce-grid">
+            <div class="ce-field"><label>Name</label><input id="ce-name" class="ce-input"></div>
+            <div class="ce-field"><label>Gender</label>
+              <select id="ce-gender" class="ce-input">
+                <option value="male">Male</option><option value="female">Female</option>
+              </select>
+            </div>
+            <div class="ce-field"><label>Life Stage</label>
+              <select id="ce-lifestage" class="ce-input">
+                <option value="child">Child</option><option value="adult">Adult</option>
+              </select>
+            </div>
+            <div class="ce-field"><label>Generation</label><input id="ce-generation" type="number" class="ce-input" min="1"></div>
+          </div>
+          <div class="cheat-section-label" style="margin-top:10px">Life</div>
+          <div class="ce-grid ce-grid--4">
+            <div class="ce-field"><label>Age</label><input id="ce-age" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Health</label><input id="ce-health" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Happiness</label><input id="ce-happiness" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Hunger</label><input id="ce-hunger" type="number" class="ce-input" min="0" max="100"></div>
+            <div class="ce-field"><label>Energy</label><input id="ce-energy" type="number" class="ce-input" min="0" max="100"></div>
+          </div>
+          <div class="cheat-section-label" style="margin-top:10px">Stats</div>
+          <div class="ce-grid ce-grid--5">
+            <div class="ce-field"><label>Strength</label><input id="ce-strength" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Agility</label><input id="ce-agility" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Endurance</label><input id="ce-endurance" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Intelligence</label><input id="ce-intelligence" type="number" class="ce-input" min="1" max="20"></div>
+            <div class="ce-field"><label>Charisma</label><input id="ce-charisma" type="number" class="ce-input" min="1" max="20"></div>
+          </div>
+          <div class="cheat-section-label" style="margin-top:10px">Skills</div>
+          <div class="ce-grid ce-grid--4">
+            <div class="ce-field"><label>Farming</label><input id="ce-farming" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Woodcutting</label><input id="ce-woodcutting" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Fishing</label><input id="ce-fishing" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Mining</label><input id="ce-mining" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Crafting</label><input id="ce-crafting" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Scouting</label><input id="ce-scouting" type="number" class="ce-input" min="0" max="20"></div>
+            <div class="ce-field"><label>Combat</label><input id="ce-combat" type="number" class="ce-input" min="0" max="20"></div>
+          </div>
+          <button class="cheat-all-btn" style="margin-top:12px" onclick="cheatSaveCitizen()">💾 Save Changes</button>
+          <div class="cheat-rel-feedback" id="ce-feedback"></div>
+
+          <hr class="cheat-divider">
+          <div class="cheat-section-label">Injuries (Admin)</div>
+          <div class="ce-grid">
+            <div class="ce-field">
+              <label>Severity</label>
+              <select id="ce-injury-sev" class="ce-input">
+                <option value="">— Roll randomly —</option>
+                <option value="scratch">Scratch (heals fast)</option>
+                <option value="wound">Wound (heals slower)</option>
+                <option value="scar">Scar (permanent, no debuff)</option>
+                <option value="crippling">Crippling (permanent debuff)</option>
+                <option value="fatal">Fatal (citizen dies)</option>
+              </select>
+            </div>
+            <div class="ce-field">
+              <label>Body Part</label>
+              <select id="ce-injury-part" class="ce-input">
+                <option value="">— Roll randomly —</option>
+                <option value="head">Head</option>
+                <option value="eye">Eye</option>
+                <option value="ear">Ear</option>
+                <option value="face">Face</option>
+                <option value="torso">Torso</option>
+                <option value="arm">Arm</option>
+                <option value="hand">Hand</option>
+                <option value="leg">Leg</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="cheat-res-btn" style="flex:1" onclick="cheatInflictInjury()">⚔ Inflict Injury</button>
+            <button class="cheat-res-btn" style="flex:1" onclick="cheatHealAllInjuries()">🩹 Heal All Active</button>
+          </div>
+        </div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Add Citizen</div>
+        <button class="cheat-res-btn" onclick="cheatAddCitizen()">👤 +1 Random Citizen</button>
+      </div>
+
+      <!-- ── TAB: Family ── -->
+      <div class="cheat-tab-panel" id="ct-family" style="display:none">
+        <div class="cheat-section-label">Manage Partnership</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-partner-a"><option value="">— Citizen A —</option></select>
+          <select class="cheat-citizen-sel" id="cheat-partner-b"><option value="">— Citizen B —</option></select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="cheat-all-btn" style="flex:1" onclick="cheatSetPartnership('set')">💕 Form Partnership</button>
+          <button class="cheat-all-btn" style="flex:1;background:rgba(220,80,60,.15);border-color:rgba(220,80,60,.3)" onclick="cheatSetPartnership('remove')">💔 Remove Partnership</button>
+        </div>
+        <div class="cheat-rel-feedback" id="cheat-partner-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Trigger Birth</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-birth-a"><option value="">— Parent A —</option></select>
+          <select class="cheat-citizen-sel" id="cheat-birth-b"><option value="">— Parent B —</option></select>
+        </div>
+        <button class="cheat-all-btn" style="margin-top:8px" onclick="cheatTriggerBirth()">🍼 Trigger Birth Now</button>
+        <div class="cheat-rel-feedback" id="cheat-birth-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Relationship Score</div>
+        <div class="cheat-rel-row">
+          <select class="cheat-citizen-sel" id="cheat-rel-a"><option value="">— Citizen A —</option></select>
+          <select class="cheat-citizen-sel" id="cheat-rel-b"><option value="">— Citizen B —</option></select>
+        </div>
+        <div class="cheat-rel-slider-row">
+          <label class="cheat-slider-label">Score: <span id="cheat-rel-score-val">50</span></label>
+          <input type="range" min="0" max="100" value="50" class="cheat-rel-slider" id="cheat-rel-score"
+                 oninput="document.getElementById('cheat-rel-score-val').textContent=this.value">
+        </div>
+        <button class="cheat-all-btn" onclick="cheatSetRelationship()">⚡ Set Relationship Score</button>
+        <div class="cheat-rel-feedback" id="cheat-rel-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Simulate Events</div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('close_bond')">💛 Close Bond</button>
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('bond_formed')">🤝 Bond Formed</button>
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('partnership')">💕 Partnership</button>
+          <button class="cheat-res-btn" onclick="cheatSimulateEvent('child_born')">🍼 Child Born</button>
+        </div>
+      </div>
+
+      <!-- ── TAB: World ── -->
+      <div class="cheat-tab-panel" id="ct-world" style="display:none">
+        <div class="cheat-section-label">Add Inventory Item</div>
+        <div class="ce-grid" style="margin-bottom:6px">
+          <div class="ce-field">
+            <label>Item</label>
+            <select class="ce-input" id="debug-inv-item">
+              <optgroup label="🐟 Fish">
+                <option value="fish_minnow|Minnow|🐟|food|common|2|3">Minnow (Common)</option>
+                <option value="fish_dace|Dace|🐠|food|common|4|5">Dace (Common)</option>
+                <option value="fish_perch|Perch|🐠|food|common|5|6">Perch (Common)</option>
+                <option value="fish_roach|Roach|🐟|food|common|4|5">Roach (Common)</option>
+                <option value="fish_gudgeon|Gudgeon|🐟|food|common|2|3">Gudgeon (Common)</option>
+                <option value="fish_trout|Trout|🐡|food|uncommon|10|8">Trout (Uncommon)</option>
+                <option value="fish_chub|Chub|🐡|food|uncommon|8|7">Chub (Uncommon)</option>
+                <option value="fish_catfish|Catfish|🐊|food|uncommon|14|9">Catfish (Uncommon)</option>
+                <option value="fish_bream|Bream|🐡|food|uncommon|11|8">Bream (Uncommon)</option>
+                <option value="fish_pike|Pike|🦷|food|uncommon|18|10">Pike (Uncommon)</option>
+                <option value="fish_salmon|Salmon|🍣|food|rare|28|18">Salmon (Rare)</option>
+                <option value="fish_eel|River Eel|〰️|food|rare|25|15">River Eel (Rare)</option>
+                <option value="fish_golden_carp|Golden Carp|✨|food|rare|35|20">Golden Carp (Rare)</option>
+                <option value="fish_shadowfin|Shadowfin|🌑|food|legendary|60|40">Shadowfin (Legendary)</option>
+                <option value="fish_moontrout|Moontrout|🌕|food|legendary|100|55">Moontrout (Legendary)</option>
+              </optgroup>
+              <optgroup label="✨ Quest Items">
+                <option value="ancient_heartwood|Ancient Heartwood|🪵|material|rare|0|45">Ancient Heartwood</option>
+                <option value="luminous_scale|Luminous Scale|✨|quest_item|rare|0|40">Luminous Scale</option>
+                <option value="ancient_blueprint|Ancient Blueprint|📜|quest_item|epic|0|80">Ancient Blueprint</option>
+                <option value="blightbane_herb|Blightbane Herb|🌿|material|rare|0|35">Blightbane Herb</option>
+                <option value="hunters_cloak|Hunter's Cloak|🧥|equipment|rare|0|60">Hunter's Cloak</option>
+              </optgroup>
+              <optgroup label="⚔️ Equipment">
+                <option value="iron_sword|Iron Sword|⚔️|equipment|common|0|20">Iron Sword</option>
+                <option value="leather_armour|Leather Armour|🛡️|equipment|common|0|18">Leather Armour</option>
+                <option value="scout_cloak|Scout's Cloak|🧥|equipment|uncommon|0|35">Scout's Cloak</option>
+                <option value="fishers_rod|Fisher's Rod|🎣|equipment|uncommon|0|25">Fisher's Rod</option>
+                <option value="steel_sword|Steel Sword|🗡️|equipment|rare|0|55">Steel Sword</option>
+                <option value="dragonscale_armour|Dragonscale Armour|🐉|equipment|epic|0|120">Dragonscale Armour</option>
+              </optgroup>
+              <optgroup label="🪵 Materials">
+                <option value="timber_bundle|Timber Bundle|🪵|material|common|0|5">Timber Bundle</option>
+                <option value="iron_ore|Iron Ore|⚫|material|common|0|8">Iron Ore</option>
+                <option value="rare_sap|Rare Sap|🫙|material|uncommon|0|20">Rare Sap</option>
+                <option value="gemstone|Gemstone|💎|material|rare|0|50">Gemstone</option>
+              </optgroup>
+              <optgroup label="🏆 Trophies">
+                <option value="beast_horn|Beast Horn|📯|trophy|uncommon|0|30">Beast Horn</option>
+                <option value="ancient_coin|Ancient Coin|🪙|trophy|rare|0|40">Ancient Coin</option>
+                <option value="dragon_tooth|Dragon Tooth|🦷|trophy|epic|0|100">Dragon Tooth</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="ce-field"><label>Qty</label><input class="ce-input" id="debug-inv-qty" type="number" value="1" min="1" max="99"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="debugAddInventoryItem()">➕ Add Item</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="debugAddAllItems()">✦ Add All Items</button>
+        </div>
+        <div class="cheat-rel-feedback" id="debug-inv-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Test Toasts</div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="showToastNotification('Kestrel Wheatfur returned triumphant from &quot;Ruins in the Thicket&quot;. 🎉','quest_success')">⚔️ Quest Success</button>
+          <button class="cheat-res-btn" onclick="showToastNotification('New beginnings — Falk &amp; Birch welcome a daughter. 🍼','child_born')">🍼 Child Born</button>
+          <button class="cheat-res-btn" onclick="showToastNotification('Wren and Soren have become partners. 💕','partnership')">💕 Partnership</button>
+          <button class="cheat-res-btn" onclick="showToastNotification('The party failed their quest: &quot;The Fallen Watchtree&quot;. 😔','quest_fail')">💀 Quest Fail</button>
+        </div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">World Setup</div>
+        <button class="cheat-res-btn" onclick="debugSeedNpcs()">🌍 Seed NPC Settlements</button>
+        <button class="cheat-res-btn" onclick="debugRunMigrations()">🔧 Run DB Migrations</button>
+        <button class="cheat-res-btn" onclick="openMapPreview()">🗺 Preview Map Generation</button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Diplomacy</div>
+        <div class="ce-grid" style="margin-bottom:6px">
+          <div class="ce-field">
+            <label>NPC Settlement</label>
+            <select class="ce-input" id="debug-diplo-npc">
+              <option value="">— loading —</option>
+            </select>
+          </div>
+          <div class="ce-field">
+            <label>Set Trust (0–100)</label>
+            <input class="ce-input" type="number" id="debug-diplo-trust" min="0" max="100" value="50">
+          </div>
+        </div>
+        <button class="cheat-res-btn" onclick="debugSetDiplomacyTrust()">🤝 Set Trust Level</button>
+        <button class="cheat-res-btn" onclick="debugResetDiplomacy()">🔄 Reset All Relations</button>
+        <div class="cheat-rel-feedback" id="debug-diplo-feedback"></div>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Fog of War</div>
+        <button class="cheat-res-btn" onclick="cheatRevealAll()">🌍 Reveal entire map</button>
+        <button class="cheat-res-btn" onclick="cheatResetFog()">🌫 Reset fog of war</button>
+        <hr class="cheat-divider">
+        <div class="cheat-section-label">Settlement</div>
+        <button class="cheat-res-btn" onclick="fetch(API+'/api/game/reset-placement',{method:'POST',credentials:'include',headers:{'Authorization':'Bearer '+localStorage.getItem('kw_token')}}).then(()=>location.reload())">
+          🗺 Reset placement (re-do arrival)
+        </button>
+      </div>
+
+      <!-- ── TAB: Items ── -->
+      <div class="cheat-tab-panel" id="ct-items" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="ia_showForm(null)">＋ New Item</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="ia_seedDefaults()">🌱 Seed All Items</button>
+        </div>
+        <div class="cheat-rel-feedback" id="ia-feedback"></div>
+        <div id="ia-form-wrap" style="display:none"></div>
+        <div id="ia-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Quests ── -->
+      <div class="cheat-tab-panel" id="ct-quests" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="qa_showForm(null)">＋ New Quest</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="loadQuestAdmin(true)">🌱 Seed Built-ins</button>
+        </div>
+        <div id="qa-feedback" class="cheat-rel-feedback"></div>
+        <div id="qa-form-wrap" style="display:none"></div>
+        <div id="qa-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Creatures (enemy admin) ── -->
+      <div class="cheat-tab-panel" id="ct-creatures" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="ea_showForm(null)">＋ New Creature</button>
+          <button class="cheat-all-btn" style="flex:1;font-size:10px" onclick="loadEnemyAdmin(true)">🌱 Seed Built-ins</button>
+        </div>
+        <div class="cheat-rel-feedback" id="ea-form-feedback"></div>
+        <div id="ea-form-wrap" style="display:none"></div>
+        <div id="ea-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Combat Simulator ── -->
+      <div class="cheat-tab-panel" id="ct-combat" style="display:none">
+        <div class="cheat-section-label">Combat Simulator</div>
+        <div style="font-size:11px;color:rgba(192,221,151,.55);margin-bottom:10px;line-height:1.5">
+          Start a test battle with a randomly-rolled party of 3 from your idle citizens
+          versus a random enemy encounter. Test battles aren't tied to a quest —
+          they don't trigger injuries or quest failure, but rewards and skill bumps
+          still apply.
+        </div>
+        <button class="cheat-all-btn" onclick="startTestBattle()">🗡 Start Test Battle</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMMUNITY PANEL -->
+  <div class="community-backdrop" id="community-modal">
+    <div class="community-card">
+      <div class="community-card-header">
+        <div class="community-card-title" id="community-title">Realm News</div>
+        <button class="community-close" onclick="closeCommunity()">✕</button>
+      </div>
+      <div class="community-card-body" id="community-body">
+        <div class="community-placeholder">Coming soon — this is where realm-wide news, notices and chat will live.</div>
+      </div>
+    </div>
+  </div>
+  <!-- TIER CELEBRATION MODAL -->
+  <div class="tier-celebration-backdrop" id="tier-celebration-modal">
+    <div class="tier-celebration-box">
+      <div class="tier-cel-emoji" id="tier-cel-emoji">🏘</div>
+      <div class="tier-cel-title" id="tier-cel-title"></div>
+      <div class="tier-cel-sub" id="tier-cel-sub"></div>
+      <div class="tier-cel-unlocks" id="tier-cel-unlocks"></div>
+      <button class="tier-cel-close" onclick="closeTierCelebration()">Continue your reign →</button>
+    </div>
+  </div>
+
+
+  <!-- ═══ PROFILE MODAL ═══ -->
+  <div class="profile-modal-backdrop" id="profile-modal" onclick="closeProfileIfOutside(event)">
+    <div class="profile-modal-box">
+      <button class="profile-modal-close" onclick="closeProfile()">✕</button>
+
+      <div class="pm-header">
+        <div class="pm-avatar-wrap" id="pm-avatar-wrap" onclick="triggerAvatarUpload()" title="Click to change avatar">
+          <div class="pm-avatar" id="pm-avatar">?</div>
+          <div class="pm-avatar-overlay">📷</div>
+        </div>
+        <div class="pm-header-info">
+          <div class="pm-username" id="pm-username">—</div>
+          <div class="pm-species" id="pm-species"></div>
+          <div class="pm-joined" id="pm-joined"></div>
+        </div>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Bio</div>
+        <textarea class="pm-bio-input" id="pm-bio" placeholder="Tell the realm who you are…" maxlength="280" rows="3"></textarea>
+        <div class="pm-bio-counter"><span id="pm-bio-count">0</span>/280</div>
+        <button class="pm-save-btn" onclick="saveProfile()">Save bio</button>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Your Settlements</div>
+        <div class="pm-settlements" id="pm-settlements">
+          <div class="pm-settlement-loading">Loading…</div>
+        </div>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Stats</div>
+        <div class="pm-stats-grid" id="pm-stats-grid">
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-citizens">—</span><span class="pm-stat-key">Citizens</span></div>
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-buildings">—</span><span class="pm-stat-key">Buildings</span></div>
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-tier">—</span><span class="pm-stat-key">Tier</span></div>
+          <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-expeditions">—</span><span class="pm-stat-key">Scouts sent</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ VIEW OTHER PLAYER PROFILE ═══ -->
+  <div class="profile-modal-backdrop" id="view-profile-modal" onclick="closeViewProfileIfOutside(event)">
+    <div class="profile-modal-box">
+      <button class="profile-modal-close" onclick="closeViewProfile()">✕</button>
+      <div class="pm-header">
+        <div class="pm-avatar-wrap" style="cursor:default">
+          <div class="pm-avatar" id="vp-avatar">?</div>
+        </div>
+        <div class="pm-header-info">
+          <div class="pm-username" id="vp-username">—</div>
+          <div class="pm-species" id="vp-species"></div>
+        </div>
+      </div>
+      <div class="pm-section">
+        <div class="pm-section-label">Bio</div>
+        <div class="pm-bio-display" id="vp-bio">This ruler keeps their own counsel.</div>
+      </div>
+      <div class="pm-section">
+        <div class="pm-section-label">Settlement</div>
+        <div class="pm-settlements" id="vp-settlements"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- TAVERN CELEBRATION MODAL -->
+  <div class="tavern-cel-backdrop" id="tavern-cel-modal" style="display:none">
+    <div class="tavern-cel-box">
+      <div class="tavern-cel-emoji">🍺</div>
+      <div class="tavern-cel-title">The Tavern is Open!</div>
+      <div class="tavern-cel-sub">Your settlement now has a gathering place.<br>Assign a Tavernkeep to welcome guests.</div>
+      <div class="tavern-cel-actions">
+        <button class="tavern-cel-btn primary" onclick="closeTavernCelebration(); openAllCitizens();">👤 Assign a Tavernkeep</button>
+        <button class="tavern-cel-btn secondary" onclick="closeTavernCelebration(); visitTavern();">🍺 Visit the Tavern</button>
+        <button class="tavern-cel-btn ghost" onclick="closeTavernCelebration()">Maybe later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       AMBIENT MUSIC PLAYER
+       Shown on welcome + login screens
+       ══════════════════════════════════ -->
+  <div class="music-player" id="music-player">
+    <audio id="bg-music" loop preload="auto">
+      <source src="/assets/audio/welcome.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Play/Pause -->
+    <button class="mp-btn" id="music-playbtn" onclick="toggleMusic()" title="Play / Pause">
+      <svg id="music-icon-play" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M4 3l9 5-9 5V3z"/></svg>
+      <svg id="music-icon-pause" viewBox="0 0 16 16" fill="currentColor" width="14" height="14" style="display:none"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg>
+    </button>
+
+    <!-- Sound wave visualiser -->
+    <div class="mp-waves" id="mp-waves">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- Volume slider -->
+    <input class="mp-vol" id="music-volume" type="range" min="0" max="1" step="0.05" value="0.4" oninput="setMusicVolume(this.value)" title="Volume">
+  </div>
+
+
+  <!-- ── Map Generation Preview Modal ── -->
+  <div class="map-preview-backdrop" id="map-preview-modal" onclick="if(event.target===this)closeMapPreview()" style="display:none">
+    <div class="map-preview-card">
+      <div class="map-preview-header">
+        <span>🗺 World Map Tools</span>
+        <button class="map-preview-close" onclick="closeMapPreview()">✕</button>
+      </div>
+
+      <div class="map-preview-worldinfo" id="map-preview-worldinfo">
+        Loading world info…
+      </div>
+
+      <div class="map-preview-controls">
+        <label class="map-preview-seed-label">
+          W <input class="map-preview-seed map-preview-dim" id="map-preview-w" type="number" min="4" max="200" value="40" />
+        </label>
+        <label class="map-preview-seed-label">
+          H <input class="map-preview-seed map-preview-dim" id="map-preview-h" type="number" min="4" max="200" value="40" />
+        </label>
+        <label class="map-preview-seed-label">
+          Seed <input class="map-preview-seed" id="map-preview-seed" type="text" placeholder="auto" />
+        </label>
+        <button class="map-preview-btn" onclick="loadMapPreview()">↻ Preview</button>
+        <button class="map-preview-btn" onclick="loadMapPreview(true)">🎲 Random</button>
+        <span class="map-preview-status" id="map-preview-status">—</span>
+      </div>
+
+      <div class="map-preview-canvas-wrap">
+        <canvas id="map-preview-canvas"></canvas>
+      </div>
+
+      <div class="map-preview-legend" id="map-preview-legend"></div>
+
+      <div class="map-preview-actions">
+        <button class="map-preview-btn map-preview-btn-danger" onclick="applyMapRegenerate()">
+          ⚠ Wipe &amp; Regenerate (apply)
+        </button>
+        <button class="map-preview-btn map-preview-btn-restore" id="map-preview-restore-btn" onclick="restoreArchivedMap()" disabled>
+          ⤺ Restore Archive
+        </button>
+      </div>
+
+      <div class="map-preview-note">
+        <b>Preview</b> shows what a fresh world looks like — does not affect the live world.
+        <b>Wipe &amp; Regenerate</b> archives the current world, then replaces it with the previewed one (settlement placements + fog cleared; NPCs need re-seeding).
+        <b>Restore</b> rolls back to the archived world.
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings popover (audio volume etc.) -->
+  <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettingsPopover(event)">
+    <div class="settings-card" onclick="event.stopPropagation()">
+      <div class="settings-header">
+        <div class="settings-title">⚙️ Settings</div>
+        <button class="settings-close" onclick="closeSettingsPopover()">✕</button>
+      </div>
+      <div class="settings-body">
         <div class="settings-row">
-          <div class="settings-label">Background Music</div>
-          <label class="settings-toggle">
-            <input type="checkbox" id="settings-music-toggle" onchange="onMusicToggle(this.checked)">
-            <span class="settings-toggle-track"></span>
-          </label>
-        </div>
-        <div class="settings-row">
-          <div class="settings-label">Music Volume</div>
-          <div class="settings-slider-wrap">
-            <input type="range" min="0" max="100" value="50" class="settings-slider" id="settings-music-volume"
-                   oninput="onMusicVolume(this.value)">
+          <label class="settings-label" for="settings-music-volume">🎵 Music Volume</label>
+          <div class="settings-slider-row">
+            <input type="range" id="settings-music-volume" class="settings-slider"
+                   min="0" max="100" step="1"
+                   oninput="onMusicVolumeSlide(this.value)">
             <span class="settings-slider-value" id="settings-music-volume-pct">50%</span>
           </div>
           <div class="settings-hint">Adjusts battle music volume. Persists across sessions.</div>
