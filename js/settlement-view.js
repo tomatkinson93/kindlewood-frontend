@@ -12,18 +12,18 @@
 // x/y: % of scene container. size: 'sm'|'md'|'lg' affects empty marker + building footprint.
 const SV_SLOTS = [
   // Town area (left ~10–55%)
-  { id:'town-tavern',  area:'town',      x:22,  y:69, accepts:['tavern'],        label:'Tavern Site',      size:'lg' },
-  { id:'town-market',  area:'town',      x:36,  y:76, accepts:['market'],        label:'Market Square',    size:'md' },
-  { id:'town-granary', area:'town',      x:10,  y:71, accepts:['granary'],       label:'Granary Site',     size:'md' },
-  { id:'town-house-1', area:'town',      x:44,  y:69, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
-  { id:'town-house-2', area:'town',      x:50,  y:63, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
-  { id:'town-house-3', area:'town',      x:30,  y:78, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
+  { id:'town-tavern',  area:'town',      x:22,  y:62, accepts:['tavern'],        label:'Tavern Site',      size:'lg' },
+  { id:'town-market',  area:'town',      x:36,  y:70, accepts:['market'],        label:'Market Square',    size:'md' },
+  { id:'town-granary', area:'town',      x:10,  y:64, accepts:['granary'],       label:'Granary Site',     size:'md' },
+  { id:'town-house-1', area:'town',      x:44,  y:62, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
+  { id:'town-house-2', area:'town',      x:50,  y:55, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
+  { id:'town-house-3', area:'town',      x:30,  y:72, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
   // Outskirts (right ~58–90%)
-  { id:'out-farm',     area:'outskirts', x:65,  y:75, accepts:['farm'],          label:'Farmland',         size:'lg' },
-  { id:'out-lumber',   area:'outskirts', x:74,  y:67, accepts:['lumber_camp'],   label:'Lumber Site',      size:'md' },
-  { id:'out-fishing',  area:'outskirts', x:83,  y:78, accepts:['fishing_post'],  label:'Fishing Dock',     size:'md' },
-  { id:'out-forager',  area:'outskirts', x:68,  y:72, accepts:['forager_hut'],   label:'Forager Ground',   size:'sm' },
-  { id:'out-scout',    area:'outskirts', x:86,  y:62, accepts:['scout_post'],    label:'Lookout Point',    size:'sm' },
+  { id:'out-farm',     area:'outskirts', x:65,  y:68, accepts:['farm'],          label:'Farmland',         size:'lg' },
+  { id:'out-lumber',   area:'outskirts', x:74,  y:60, accepts:['lumber_camp'],   label:'Lumber Site',      size:'md' },
+  { id:'out-fishing',  area:'outskirts', x:83,  y:72, accepts:['fishing_post'],  label:'Fishing Dock',     size:'md' },
+  { id:'out-forager',  area:'outskirts', x:68,  y:65, accepts:['forager_hut'],   label:'Forager Ground',   size:'sm' },
+  { id:'out-scout',    area:'outskirts', x:86,  y:54, accepts:['scout_post'],    label:'Lookout Point',    size:'sm' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────────────────────────
@@ -407,8 +407,11 @@ async function openSettlementView() {
   }
 
   _bindParallax();
-  const _svCBar = document.querySelector('.community-bar');
-  if (_svCBar) { _svCBar.style.position = 'relative'; _svCBar.style.zIndex = '99991'; }
+  // Offset scene below topbar + community-bar so they stay visible
+  const _svTopbar = document.querySelector('.topbar');
+  const _svCommBar = document.querySelector('.community-bar');
+  const _svTopOffset = (_svTopbar ? _svTopbar.offsetHeight : 0) + (_svCommBar ? _svCommBar.offsetHeight : 0);
+  root.style.top = _svTopOffset + 'px';
   await _svLoad();
 }
 window.openSettlementView = openSettlementView;
@@ -417,8 +420,7 @@ function closeSettlementView() {
   _svOpen = false;
   _closeBuildPanel();
   _unbindParallax();
-  const _svCBar = document.querySelector('.community-bar');
-  if (_svCBar) { _svCBar.style.position = ''; _svCBar.style.zIndex = ''; }
+  document.getElementById('settlement-view').style.top = '';
   const root = document.getElementById('settlement-view');
   root.classList.remove('sv-visible');
   root.addEventListener('transitionend', () => {
