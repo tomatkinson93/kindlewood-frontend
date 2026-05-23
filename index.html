@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kindlewood — Rise of the Woodland Realms</title>
+  <link rel="stylesheet" href="/css/main.css?v=1778441000">
+  <link rel="stylesheet" href="/css/carousel.css">
+  <link rel="stylesheet" href="/css/hero.css">
+  <link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body>
+
+  <!-- SPECIES MODAL -->
+  <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-inner">
+        <div class="modal-art-wrap">
+          <img class="modal-art" id="modal-art" src="" alt="">
+        </div>
+        <div class="modal-info">
+          <div class="modal-species-name" id="modal-name"></div>
+          <div class="modal-role" id="modal-role"></div>
+          <div class="modal-flavor" id="modal-flavor"></div>
+          <hr class="modal-divider">
+          <div class="modal-stats" id="modal-stats"></div>
+          <div class="modal-lore" id="modal-lore"></div>
+          <button class="btn-primary modal-cta" onclick="closeModal(); showScreen('register')">🌿 Begin as this species →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- SETTLEMENT NAMING MODAL -->
+  <div class="naming-backdrop" id="naming-backdrop">
+    <div class="naming-fullscreen">
+      <img class="naming-bg" src="/assets/starter_camp.png" alt="Your camp">
+      <div class="naming-overlay">
+        <div class="naming-card">
+          <div class="naming-title">Name Your Settlement</div>
+          <div class="naming-sub">This will be the heart of your realm. Choose wisely.</div>
+          <input class="naming-input" id="naming-input" type="text" maxlength="30"
+                 placeholder="e.g. Ashgrove, Thornhaven, Mirewatch…"
+                 oninput="onNamingInput()" onkeydown="if(event.key==='Enter')confirmNaming()">
+          <div class="naming-hint" id="naming-hint"></div>
+          <button class="naming-btn" id="naming-confirm" onclick="confirmNaming()" disabled>Found the Settlement →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- NAV -->
+  <nav class="nav" id="main-nav">
+    <div class="nav-inner">
+      <div class="nav-logo" onclick="showScreen('landing')">
+        <img src="/assets/logo.png" alt="Kindlewood" class="nav-logo-img"> Kindlewood
+      </div>
+      <div class="nav-links" id="nav-links">
+        <a class="nav-link" onclick="showScreen('landing')">Home</a>
+        <a class="nav-link" onclick="showScreen('lore')">World</a>
+        <a class="nav-link" onclick="showScreen('login')">Sign In</a>
+      </div>
+      <div class="nav-profile" id="nav-profile" style="display:none">
+        <div class="profile-avatar" id="profile-avatar-mini"></div>
+        <span class="nav-username" id="profile-username-label"></span>
+        <div class="nav-dropdown" id="nav-dropdown">
+          <a class="dropdown-item" onclick="showScreen('game')">🗺️ Map</a>
+          <a class="dropdown-item" onclick="showScreen('profile')">👤 Profile</a>
+          <a class="dropdown-item" onclick="showScreen('settings')">⚙️ Settings</a>
+          <a class="dropdown-item" onclick="logoutUser()">🚪 Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- SCREENS -->
+  <div id="screen-landing"  class="screen"></div>
+  <div id="screen-lore"     class="screen"></div>
+  <div id="screen-register" class="screen"></div>
+  <div id="screen-login"    class="screen"></div>
+  <div id="screen-game"     class="screen"></div>
+  <div id="screen-profile"  class="screen"></div>
+  <div id="screen-settings" class="screen"></div>
+
+
+  <!-- TOAST -->
+  <div id="toast-container"></div>
+
+  <!-- TILE DETAIL PANEL -->
+  <div class="tile-panel" id="tile-panel">
+    <button class="tile-panel-close" onclick="closeTilePanel()">✕</button>
+    <div class="tile-panel-inner" id="tile-panel-inner"></div>
+  </div>
+
+  <!-- ARMY PANEL -->
+  <div class="army-panel" id="army-panel" style="display:none">
+    <div class="army-panel-header">
+      <span id="army-panel-title">Your Forces</span>
+      <button class="army-panel-close" onclick="closeArmyPanel()">✕</button>
+    </div>
+    <div id="army-panel-body"></div>
+  </div>
+
+
+  <!-- ENCOUNTER MODAL -->
+  <div class="encounter-backdrop" id="encounter-backdrop" style="display:none">
+    <div class="encounter-modal">
+      <div class="encounter-title" id="encounter-title"></div>
+      <div class="encounter-body" id="encounter-body"></div>
+      <div class="encounter-actions" id="encounter-actions"></div>
+    </div>
+  </div>
+
+  <!-- BATTLE MODAL -->
+  <div class="battle-backdrop" id="battle-backdrop" style="display:none">
+    <div class="battle-modal">
+      <div class="battle-title" id="battle-title">⚔️ Battle!</div>
+      <div class="battle-body" id="battle-body"></div>
+      <div class="battle-log" id="battle-log"></div>
+      <button class="battle-close-btn" id="battle-close-btn" style="display:none" onclick="closeBattleModal()">Continue</button>
+    </div>
+  </div>
+
+  <!-- AUDIO -->
+  <audio id="bg-music" loop preload="none">
+    <source src="/assets/audio/kindlewood_theme.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="sfx-click"    src="/assets/audio/click.mp3"    preload="auto"></audio>
+  <audio id="sfx-fanfare"  src="/assets/audio/fanfare.mp3"  preload="auto"></audio>
+  <audio id="sfx-battle"   src="/assets/audio/battle.mp3"   preload="auto"></audio>
+  <audio id="sfx-levelup"  src="/assets/audio/levelup.mp3"  preload="auto"></audio>
+
+  <!-- SETTINGS -->
+  <div class="settings-modal" id="settings-modal" style="display:none">
+    <div class="settings-panel">
+      <button class="settings-close" onclick="closeSettings()">✕</button>
+      <div class="settings-title">⚙️ Settings</div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Audio</div>
+
+        <div class="settings-row">
+          <div class="settings-label">Background Music</div>
+          <label class="settings-toggle">
+            <input type="checkbox" id="settings-music-toggle" onchange="onMusicToggle(this.checked)">
+            <span class="settings-toggle-track"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Music Volume</div>
+          <div class="settings-slider-wrap">
+            <input type="range" min="0" max="100" value="50" class="settings-slider" id="settings-music-volume"
+                   oninput="onMusicVolume(this.value)">
+            <span class="settings-slider-value" id="settings-music-volume-pct">50%</span>
+          </div>
+          <div class="settings-hint">Adjusts battle music volume. Persists across sessions.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <script src="js/settlement-view.js"></script>
+</body>
+</html>
