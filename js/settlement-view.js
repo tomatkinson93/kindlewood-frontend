@@ -12,18 +12,18 @@
 // x/y: % of scene container. size: 'sm'|'md'|'lg' affects empty marker + building footprint.
 const SV_SLOTS = [
   // Town area (left ~10–55%)
-  { id:'town-tavern',  area:'town',      x:22,  y:62, accepts:['tavern'],        label:'Tavern Site',      size:'lg' },
-  { id:'town-market',  area:'town',      x:36,  y:72, accepts:['market'],        label:'Market Square',    size:'md' },
-  { id:'town-granary', area:'town',      x:10,  y:66, accepts:['granary'],       label:'Granary Site',     size:'md' },
-  { id:'town-house-1', area:'town',      x:44,  y:62, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
-  { id:'town-house-2', area:'town',      x:50,  y:56, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
-  { id:'town-house-3', area:'town',      x:30,  y:76, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
+  { id:'town-tavern',  area:'town',      x:22,  y:69, accepts:['tavern'],        label:'Tavern Site',      size:'lg' },
+  { id:'town-market',  area:'town',      x:36,  y:76, accepts:['market'],        label:'Market Square',    size:'md' },
+  { id:'town-granary', area:'town',      x:10,  y:71, accepts:['granary'],       label:'Granary Site',     size:'md' },
+  { id:'town-house-1', area:'town',      x:44,  y:69, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
+  { id:'town-house-2', area:'town',      x:50,  y:63, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
+  { id:'town-house-3', area:'town',      x:30,  y:78, accepts:['starter_house'], label:'Housing Plot',     size:'sm' },
   // Outskirts (right ~58–90%)
-  { id:'out-farm',     area:'outskirts', x:65,  y:72, accepts:['farm'],          label:'Farmland',         size:'lg' },
-  { id:'out-lumber',   area:'outskirts', x:74,  y:60, accepts:['lumber_camp'],   label:'Lumber Site',      size:'md' },
-  { id:'out-fishing',  area:'outskirts', x:83,  y:76, accepts:['fishing_post'],  label:'Fishing Dock',     size:'md' },
-  { id:'out-forager',  area:'outskirts', x:68,  y:65, accepts:['forager_hut'],   label:'Forager Ground',   size:'sm' },
-  { id:'out-scout',    area:'outskirts', x:86,  y:56, accepts:['scout_post'],    label:'Lookout Point',    size:'sm' },
+  { id:'out-farm',     area:'outskirts', x:65,  y:75, accepts:['farm'],          label:'Farmland',         size:'lg' },
+  { id:'out-lumber',   area:'outskirts', x:74,  y:67, accepts:['lumber_camp'],   label:'Lumber Site',      size:'md' },
+  { id:'out-fishing',  area:'outskirts', x:83,  y:78, accepts:['fishing_post'],  label:'Fishing Dock',     size:'md' },
+  { id:'out-forager',  area:'outskirts', x:68,  y:72, accepts:['forager_hut'],   label:'Forager Ground',   size:'sm' },
+  { id:'out-scout',    area:'outskirts', x:86,  y:62, accepts:['scout_post'],    label:'Lookout Point',    size:'sm' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────────────────────────
@@ -381,8 +381,8 @@ function _bgSvg() {
 
 function _midSvg() {
   return `<svg class="sv-mid-svg" viewBox="0 0 1000 480" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M-60,480 Q90,310 290,335 Q445,356 555,388 L555,480Z" fill="#6a9852" opacity="0.72"/>
-    <path d="M495,480 Q615,350 755,370 Q875,386 1060,370 L1060,480Z" fill="#78a860" opacity="0.68"/>
+    <path d="M-60,480 Q90,245 290,268 Q445,284 555,308 L555,480Z" fill="#6a9852" opacity="0.78"/>
+    <path d="M495,480 Q615,258 755,278 Q875,292 1060,278 L1060,480Z" fill="#78a860" opacity="0.74"/>
     <path d="M180,480 Q265,428 328,408 Q415,388 500,396 Q585,404 644,416 Q708,430 770,480"
           stroke="rgba(195,170,110,0.38)" stroke-width="20" fill="none" stroke-linecap="round"/>
     <path d="M830,480 Q848,440 862,410 Q878,378 908,362 Q938,348 968,338 Q990,328 1060,318"
@@ -407,8 +407,8 @@ async function openSettlementView() {
   }
 
   _bindParallax();
-  const _svNav = document.getElementById('main-nav');
-  if (_svNav) _svNav.style.zIndex = '900';
+  const _svCBar = document.querySelector('.community-bar');
+  if (_svCBar) { _svCBar.style.position = 'relative'; _svCBar.style.zIndex = '99991'; }
   await _svLoad();
 }
 window.openSettlementView = openSettlementView;
@@ -417,8 +417,8 @@ function closeSettlementView() {
   _svOpen = false;
   _closeBuildPanel();
   _unbindParallax();
-  const _svNav = document.getElementById('main-nav');
-  if (_svNav) _svNav.style.zIndex = '';
+  const _svCBar = document.querySelector('.community-bar');
+  if (_svCBar) { _svCBar.style.position = ''; _svCBar.style.zIndex = ''; }
   const root = document.getElementById('settlement-view');
   root.classList.remove('sv-visible');
   root.addEventListener('transitionend', () => {
