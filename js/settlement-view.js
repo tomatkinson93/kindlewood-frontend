@@ -234,9 +234,8 @@ function _buildEnvLayers(biomeId) {
     div.dataset.px = def.px;
     div.dataset.py = def.py;
     div.style.zIndex = def.z;
-    if (lid === 'sky') {
-      // Sky layer: opaque gradient background so it's never transparent
-      div.style.background = 'linear-gradient(to bottom, #1a2840 0%, #2c4878 28%, #4878ac 52%, #86acc8 74%, #b4ccb8 90%, #c8c4a0 100%)';
+    if (lid === 'mtn-near') {
+      div.style.filter = 'brightness(0.82) contrast(1.2)';
     }
     if (!def.image) continue;
     var img = document.createElement('img');
