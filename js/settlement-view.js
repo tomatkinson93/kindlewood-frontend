@@ -40,9 +40,9 @@ const SV_SLOTS = [
 
 // ── Building visual config ────────────────────────────────────────────────────
 const SV_VISUALS = {
-  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/buildings/town/tavern.png'  },
-  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/buildings/town/market.png'  },
-  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/buildings/town/granary.png' },
+  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/images/buildings/town/tavern.png'  },
+  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/images/buildings/town/market.png'  },
+  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/images/buildings/town/granary.png' },
   starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.' },
   farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.' },
   lumber_camp:   { emoji:'\u{1FA93}', bodyColor:'#6b4020', roofColor:'#4a2c10', flavor:'Axes ring through the morning pines.' },
