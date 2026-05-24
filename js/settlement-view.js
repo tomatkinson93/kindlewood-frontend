@@ -8,14 +8,15 @@ const SV_BIOME = 'mountain';
 // ── Layer registry ────────────────────────────────────────────────────────────
 // z: stacking order within .sv-scene  (building slots occupy z 40–55)
 // px/py: parallax pixel travel at cursor extreme (sky=least, foliage=most)
+// image: optional asset path — loads over SVG fallback when available
 const SV_LAYER_DEFS = {
-  'sky':         { z:  0, px:  2, py:  1, render: _svgSky        },
-  'mtn-distant': { z: 10, px:  4, py:  2, render: _svgMtnDistant },
-  'mtn-near':    { z: 20, px:  7, py:  4, render: _svgMtnNear    },
-  'hills':       { z: 30, px: 10, py:  6, render: _svgHills      },
-  'forest-mid':  { z: 35, px: 12, py:  7, render: _svgForestMid  },
-  'rocks-fg':    { z: 60, px: 16, py:  9, render: _svgRocksFg    },
-  'foliage-fg':  { z: 65, px: 20, py: 12, render: _svgFoliageFg  },
+  'sky':         { z:  0, px:  2, py:  1, render: _svgSky,        image: '/assets/images/biomes/mountain/sky.jpg'        },
+  'mtn-distant': { z: 10, px:  4, py:  2, render: _svgMtnDistant                                                         },
+  'mtn-near':    { z: 20, px:  7, py:  4, render: _svgMtnNear,    image: '/assets/images/biomes/mountain/mountains.jpg'  },
+  'hills':       { z: 30, px: 10, py:  6, render: _svgHills,      image: '/assets/images/biomes/mountain/midground.jpg'  },
+  'forest-mid':  { z: 35, px: 12, py:  7, render: _svgForestMid                                                          },
+  'rocks-fg':    { z: 60, px: 16, py:  9, render: _svgRocksFg                                                            },
+  'foliage-fg':  { z: 65, px: 20, py: 12, render: _svgFoliageFg,  image: '/assets/images/biomes/mountain/foreground.jpg' },
 };
 
 // ── Biome definitions ─────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ function _injectSvStyles() {
   position: absolute; inset: -4%;
   width: 108%; height: 108%;
   will-change: transform;
+  pointer-events: none;
 }
 .sv-env-layer {
   position: absolute; inset: -4%;
@@ -111,10 +113,20 @@ function _injectSvStyles() {
 }
 .sv-env-layer svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 
+/* Layer image overlay — fades over SVG fallback on load */
+.sv-layer-img {
+  position: absolute; inset: 0; z-index: 1;
+  width: 100%; height: 100%; object-fit: cover; object-position: center;
+  opacity: 0; transition: opacity 0.6s ease;
+}
+.sv-layer-img.sv-img-loaded { opacity: 1; }
+.sv-layer-img.sv-img-loaded ~ svg { opacity: 0; transition: opacity 0.6s ease; }
+
 .sv-fg-layer { transition: opacity 0.45s ease; }
 .sv-area-hidden { opacity: 0 !important; pointer-events: none !important; }
 
-.sv-slot { position: absolute; transform: translate(-50%,-50%); cursor: pointer; z-index: 2; }
+/* Slots re-enable pointer events within the passthrough fg layer */
+.sv-slot { position: absolute; transform: translate(-50%,-50%); cursor: pointer; z-index: 2; pointer-events: auto; }
 .sv-slot-empty { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .sv-slot-ring {
   border-radius: 50%; border: 2px dashed rgba(220,190,120,0.32);
@@ -354,7 +366,12 @@ function _buildEnvLayers(biomeId) {
     div.dataset.px = def.px;
     div.dataset.py = def.py;
     div.style.zIndex = def.z;
-    div.innerHTML  = def.render();
+    var imgHtml = def.image
+      ? '<img class="sv-layer-img" src="' + def.image + '" alt=""'
+        + ' onload="this.classList.add(\'sv-img-loaded\')"'
+        + ' onerror="this.style.display=\'none\'">'
+      : '';
+    div.innerHTML = imgHtml + def.render();
     if (def.z < 40) {
       scene.insertBefore(div, fgTown);
     } else {
