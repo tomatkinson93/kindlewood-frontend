@@ -25,17 +25,17 @@ const SV_BIOMES = {
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
 const SV_SLOTS = [
-  { id:'town-granary',  area:'town',      x:8,   y:64, accepts:['granary'],       label:'Granary Site',   size:'md' },
-  { id:'town-tavern',   area:'town',      x:24,  y:62, accepts:['tavern'],        label:'Tavern Site',    size:'lg' },
-  { id:'town-house-3',  area:'town',      x:37,  y:72, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
-  { id:'town-market',   area:'town',      x:47,  y:70, accepts:['market'],        label:'Market Square',  size:'md' },
-  { id:'town-house-1',  area:'town',      x:61,  y:62, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
-  { id:'town-house-2',  area:'town',      x:74,  y:55, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
-  { id:'out-forager',   area:'outskirts', x:16,  y:65, accepts:['forager_hut'],   label:'Forager Ground', size:'sm' },
-  { id:'out-farm',      area:'outskirts', x:31,  y:68, accepts:['farm'],          label:'Farmland',       size:'lg' },
-  { id:'out-lumber',    area:'outskirts', x:53,  y:60, accepts:['lumber_camp'],   label:'Lumber Site',    size:'md' },
-  { id:'out-fishing',   area:'outskirts', x:77,  y:72, accepts:['fishing_post'],  label:'Fishing Dock',   size:'md' },
-  { id:'out-scout',     area:'outskirts', x:87,  y:54, accepts:['scout_post'],    label:'Lookout Point',  size:'sm' },
+  { id:'town-granary',  area:'town',      x:8,   y:74, accepts:['granary'],       label:'Granary Site',   size:'md' },
+  { id:'town-tavern',   area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Tavern Site',    size:'lg' },
+  { id:'town-house-3',  area:'town',      x:37,  y:80, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
+  { id:'town-market',   area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Square',  size:'md' },
+  { id:'town-house-1',  area:'town',      x:61,  y:72, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
+  { id:'town-house-2',  area:'town',      x:74,  y:65, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
+  { id:'out-forager',   area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forager Ground', size:'sm' },
+  { id:'out-farm',      area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Farmland',       size:'lg' },
+  { id:'out-lumber',    area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'Lumber Site',    size:'md' },
+  { id:'out-fishing',   area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Fishing Dock',   size:'md' },
+  { id:'out-scout',     area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'Lookout Point',  size:'sm' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ function _injectSvStyles() {
 .sv-building-struct { position: relative; border-radius: 4px 4px 0 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1); }
 .sv-building-roof { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border-style: solid; border-left-color: transparent !important; border-right-color: transparent !important; border-top-color: transparent !important; }
 .sv-building-emoji { font-size: 22px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
-.sv-building-img { display: block; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.65)); pointer-events: none; }
+.sv-building-img { display: block; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.65)); pointer-events: none; mix-blend-mode: multiply; }
 .sv-building-shadow { width: 75%; height: 7px; border-radius: 50%; background: rgba(0,0,0,0.18); margin-top: 2px; filter: blur(3px); }
 .sv-building-name { font-size: 9.5px; font-weight: 700; color: #e8d090; text-shadow: 0 1px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8); white-space: nowrap; margin-top: 5px; letter-spacing: 0.05em; text-align: center; }
 .sv-building-lv { font-size: 8.5px; color: rgba(220,190,120,0.72); background: rgba(0,0,0,0.52); border-radius: 8px; padding: 1px 5px; margin-top: 2px; letter-spacing: 0.06em; }
