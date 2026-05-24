@@ -7,25 +7,20 @@ const SV_BIOME = 'mountain';
 
 // ── Layer registry ────────────────────────────────────────────────────────────
 // z: stacking order within .sv-scene.
-//   z 0–59  : environment background layers
-//   z 70    : building fg slots (always on top so they're always visible/clickable)
-//   z 60–65 : foreground env layers — must use PNG with transparency so the centre
-//             of the scene (where buildings sit) is transparent.
+//   z 0–65 : environment layers (background → foreground)
+//   z 70   : building fg slots — always above all env layers
 // px/py: parallax pixel travel at cursor extreme (sky=least, foliage=most)
-// image: optional PNG asset — loads over SVG fallback; null = SVG only
+// Foreground PNG must be transparent in the settlement centre so buildings show.
 const SV_LAYER_DEFS = {
-  'sky':         { z:  0, px:  2, py:  1, render: _svgSky,        image: '/assets/images/biomes/mountain/sky.png'        },
-  'mtn-distant': { z: 10, px:  4, py:  2, render: _svgMtnDistant                                                         },
-  'mtn-near':    { z: 20, px:  7, py:  4, render: _svgMtnNear,    image: '/assets/images/biomes/mountain/mountains.png'  },
-  'hills':       { z: 30, px: 10, py:  6, render: _svgHills,      image: '/assets/images/biomes/mountain/midground.png'  },
-  'forest-mid':  { z: 35, px: 12, py:  7, render: _svgForestMid                                                          },
-  'rocks-fg':    { z: 60, px: 16, py:  9, render: _svgRocksFg                                                            },
-  'foliage-fg':  { z: 65, px: 20, py: 12, render: _svgFoliageFg,  image: '/assets/images/biomes/mountain/foreground.png' },
+  'sky':        { z:  0, px:  2, py:  1, image: '/assets/images/biomes/mountain/sky.png'        },
+  'mtn-near':   { z: 20, px:  7, py:  4, image: '/assets/images/biomes/mountain/mountains.png'  },
+  'hills':      { z: 30, px: 10, py:  6, image: '/assets/images/biomes/mountain/midground.png'  },
+  'foliage-fg': { z: 65, px: 20, py: 12, image: '/assets/images/biomes/mountain/foreground.png' },
 };
 
 // ── Biome definitions ─────────────────────────────────────────────────────────
 const SV_BIOMES = {
-  mountain: ['sky', 'mtn-distant', 'mtn-near', 'hills', 'forest-mid', 'rocks-fg', 'foliage-fg'],
+  mountain: ['sky', 'mtn-near', 'hills', 'foliage-fg'],
 };
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
@@ -102,7 +97,11 @@ function _injectSvStyles() {
 .sv-area-tab:hover { background: rgba(60,38,18,0.78); border-color: rgba(220,180,100,0.52); color: #d4b878; }
 .sv-area-tab.active { background: rgba(120,78,28,0.52); border-color: rgba(230,185,90,0.75); color: #f0d070; font-weight: 700; }
 
-.sv-scene { position: absolute; inset: 0; overflow: hidden; user-select: none; cursor: default; }
+.sv-scene {
+  position: absolute; inset: 0; overflow: hidden; user-select: none; cursor: default;
+  /* Permanent sky gradient — visible behind all layers, including when sky.png is absent */
+  background: linear-gradient(to bottom, #1a2840 0%, #2c4878 28%, #4878ac 52%, #86acc8 74%, #b4ccb8 90%, #c8c4a0 100%);
+}
 
 .sv-layer {
   position: absolute; inset: -4%;
@@ -115,16 +114,16 @@ function _injectSvStyles() {
   width: 108%; height: 108%;
   will-change: transform; pointer-events: none;
 }
-.sv-env-layer svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-/* Layer image overlay — fades over SVG fallback on load */
+/* Layer images — pointer-events:none is essential: HTML children of a
+   pointer-events:none parent still receive events unless they opt out too */
 .sv-layer-img {
-  position: absolute; inset: 0; z-index: 1;
+  position: absolute; inset: 0;
   width: 100%; height: 100%; object-fit: cover; object-position: center;
   opacity: 0; transition: opacity 0.6s ease;
+  pointer-events: none;
 }
 .sv-layer-img.sv-img-loaded { opacity: 1; }
-.sv-layer-img.sv-img-loaded ~ svg { opacity: 0; transition: opacity 0.6s ease; }
 
 .sv-fg-layer { transition: opacity 0.45s ease; }
 .sv-area-hidden { opacity: 0 !important; pointer-events: none !important; }
@@ -210,146 +209,9 @@ function _injectSvStyles() {
   document.head.appendChild(s);
 }
 
-// ── SVG layer art — mountain biome ────────────────────────────────────────────
-// All use viewBox="0 0 1000 600", preserveAspectRatio="xMidYMid slice".
-// Horizon sits at ~y=400. Mountain peaks: y=145–280. Ground: y=400+.
-
-function _svgSky() {
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'
-    + '<defs>'
-    + '<linearGradient id="sv-sky-g" x1="0" y1="0" x2="0" y2="1">'
-    + '<stop offset="0%"   stop-color="#1a2840"/>'
-    + '<stop offset="26%"  stop-color="#2c4878"/>'
-    + '<stop offset="50%"  stop-color="#4878ac"/>'
-    + '<stop offset="72%"  stop-color="#86acc8"/>'
-    + '<stop offset="88%"  stop-color="#b4ccb8"/>'
-    + '<stop offset="100%" stop-color="#c8c4a0"/>'
-    + '</linearGradient>'
-    + '<radialGradient id="sv-sun-g" cx="0.76" cy="1.08" r="0.58">'
-    + '<stop offset="0%"   stop-color="#f0d870" stop-opacity="0.20"/>'
-    + '<stop offset="100%" stop-color="#f0d870" stop-opacity="0"/>'
-    + '</radialGradient>'
-    + '</defs>'
-    + '<rect width="1000" height="600" fill="url(#sv-sky-g)"/>'
-    + '<rect width="1000" height="600" fill="url(#sv-sun-g)"/>'
-    // clouds — pairs of overlapping ellipses for soft puff shapes
-    + '<ellipse cx="155" cy="128" rx="130" ry="24" fill="rgba(255,255,255,0.07)"/>'
-    + '<ellipse cx="205" cy="116" rx="82"  ry="17" fill="rgba(255,255,255,0.09)"/>'
-    + '<ellipse cx="575" cy="103" rx="148" ry="27" fill="rgba(255,255,255,0.06)"/>'
-    + '<ellipse cx="628" cy="90"  rx="94"  ry="19" fill="rgba(255,255,255,0.08)"/>'
-    + '<ellipse cx="862" cy="152" rx="108" ry="21" fill="rgba(255,255,255,0.05)"/>'
-    + '<ellipse cx="908" cy="140" rx="68"  ry="15" fill="rgba(255,255,255,0.07)"/>'
-    // faint stars
-    + '<circle cx="82"  cy="46"  r="1"   fill="rgba(255,255,255,0.35)"/>'
-    + '<circle cx="268" cy="28"  r="1"   fill="rgba(255,255,255,0.28)"/>'
-    + '<circle cx="424" cy="54"  r="1.2" fill="rgba(255,255,255,0.32)"/>'
-    + '<circle cx="682" cy="22"  r="1"   fill="rgba(255,255,255,0.30)"/>'
-    + '<circle cx="815" cy="50"  r="1"   fill="rgba(255,255,255,0.25)"/>'
-    + '<circle cx="952" cy="35"  r="0.9" fill="rgba(255,255,255,0.30)"/>'
-    + '</svg>';
-}
-
-function _svgMtnDistant() {
-  // Very pale, hazy masses suggesting great distance
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'
-    + '<polygon points="-30,600 80,292 168,336 268,248 362,314 445,600" fill="rgba(172,200,224,0.42)"/>'
-    + '<polygon points="310,600 452,215 542,270 638,192 724,256 815,600" fill="rgba(162,190,216,0.46)"/>'
-    + '<polygon points="682,600 792,260 874,304 958,228 1042,288 1060,600" fill="rgba(168,196,220,0.40)"/>'
-    // atmospheric haze band where mountains meet ground
-    + '<rect x="-50" y="388" width="1100" height="52" fill="rgba(188,210,228,0.10)"/>'
-    + '</svg>';
-}
-
-function _svgMtnNear() {
-  // Defined grey-blue peaks with snow caps on the tallest
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'
-    // left peak
-    + '<polygon points="-20,420 68,308 122,182 188,296 292,405 280,420" fill="#728aaa"/>'
-    + '<polygon points="-20,420 68,308 88,345 58,395 -20,420"           fill="#6880a2"/>'
-    // center peak — tallest, gets a snow cap
-    + '<polygon points="308,420 398,300 452,232 490,148 528,232 580,308 652,420" fill="#7a96b8"/>'
-    + '<polygon points="454,224 490,148 526,222" fill="#deeaf5" opacity="0.88"/>'
-    // right peak
-    + '<polygon points="658,420 748,320 816,198 878,298 960,388 1022,420" fill="#7290b0"/>'
-    + '<polygon points="878,298 938,322 1022,382 1022,420 958,415"        fill="#6880a8"/>'
-    // shared base merging into ground
-    + '<polygon points="-20,420 1022,420 1022,600 -20,600" fill="#56704e" opacity="0.50"/>'
-    + '</svg>';
-}
-
-function _svgHills() {
-  // Three overlapping hill masses, smooth bezier, earthy greens
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'
-    + '<path d="M-100,600 C0,315 185,294 382,328 C562,358 682,344 852,356 C952,362 1060,392 1060,600Z" fill="#4a6830" opacity="0.88"/>'
-    + '<path d="M-100,600 C52,352 168,338 342,366 C524,390 682,374 842,382 C942,386 1060,418 1060,600Z" fill="#567838" opacity="0.92"/>'
-    + '<path d="M-100,600 Q250,410 500,416 Q752,422 1060,414 L1060,600Z" fill="#60804a" opacity="0.96"/>'
-    // subtle lighter ground trim at the surface edge
-    + '<path d="M-100,428 Q300,414 600,418 Q850,422 1060,416 Q1060,430 850,432 Q600,434 300,430 Q0,428 -100,442Z" fill="#709050" opacity="0.55"/>'
-    + '</svg>';
-}
-
-function _svgForestMid() {
-  // Stylized pine silhouettes growing along the hill ridge
-  var rows = '';
-  var count = 32;
-  for (var i = 0; i < count; i++) {
-    var x  = -10 + i * 34 + Math.sin(i * 0.82) * 9;
-    var h  = 58 + Math.sin(i * 0.63 + 1.4) * 22;
-    var w  = 22 + Math.sin(i * 1.05) * 5;
-    var by = 372 + Math.sin(i * 0.45) * 8;
-    var fills = ['#243618', '#2e4420', '#384e28', '#2a401c'];
-    var fill  = fills[i % 4];
-    var op    = (0.88 + (i % 3) * 0.04).toFixed(2);
-    rows += '<polygon points="'
-      + x + ',' + by + ' '
-      + (x - w/2) + ',' + (by - h*0.52) + ' '
-      + (x - w/3) + ',' + (by - h*0.52) + ' '
-      + (x - w/4) + ',' + (by - h) + ' '
-      + (x + w/4) + ',' + (by - h) + ' '
-      + (x + w/3) + ',' + (by - h*0.52) + ' '
-      + (x + w/2) + ',' + (by - h*0.52)
-      + '" fill="' + fill + '" opacity="' + op + '"/>';
-  }
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">' + rows + '</svg>';
-}
-
-function _svgRocksFg() {
-  // Boulder clusters anchored to the ground, bottom ~20% of scene
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'
-    // ground cover strip
-    + '<path d="M-50,488 Q250,474 500,480 Q752,484 1060,476 L1060,600 L-50,600Z" fill="#527040" opacity="0.72"/>'
-    // boulders
-    + '<polygon points="85,548 48,526 62,503 96,498 130,512 140,540 115,560" fill="#8a7a68"/>'
-    + '<polygon points="85,548 48,526 62,503 80,496 85,548"                  fill="#786a58"/>'
-    + '<polygon points="328,554 295,530 310,506 344,501 376,518 380,547 355,562" fill="#988070"/>'
-    + '<polygon points="695,540 663,514 678,490 714,486 750,502 754,532 728,550" fill="#8a7868"/>'
-    + '<polygon points="750,502 754,532 728,550 720,532 742,510"               fill="#7a6858"/>'
-    + '<polygon points="940,550 906,524 922,498 960,493 990,510 992,542 968,560" fill="#928272"/>'
-    // small scattered rocks
-    + '<ellipse cx="198" cy="558" rx="22" ry="12" fill="#7a6a58" opacity="0.80"/>'
-    + '<ellipse cx="462" cy="562" rx="16" ry="9"  fill="#888070" opacity="0.75"/>'
-    + '<ellipse cx="582" cy="556" rx="20" ry="11" fill="#7a6858" opacity="0.78"/>'
-    + '<ellipse cx="832" cy="562" rx="18" ry="10" fill="#8a7860" opacity="0.72"/>'
-    + '</svg>';
-}
-
-function _svgFoliageFg() {
-  // Dark pine silhouettes framing both bottom corners
-  return '<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'
-    // left cluster — two overlapping pine shapes
-    + '<polygon points="0,600 -10,490 22,468 46,512 52,480 72,454 90,478 82,512 108,488 120,522 102,548 60,572 0,600" fill="#182e12" opacity="0.92"/>'
-    + '<polygon points="0,600 32,548 56,522 44,492 68,470 80,502 68,538 82,562 42,592 0,600" fill="#1e3818" opacity="0.86"/>'
-    // left grass tufts
-    + '<path d="M112,582 C120,556 128,546 133,556 C136,540 144,530 150,543 C154,526 162,520 167,536" stroke="#283e1c" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.75"/>'
-    // right cluster — mirror
-    + '<polygon points="1000,600 1010,490 978,468 954,512 948,480 928,454 910,478 918,512 892,488 880,522 898,548 940,572 1000,600" fill="#182e12" opacity="0.92"/>'
-    + '<polygon points="1000,600 968,548 944,522 956,492 932,470 920,502 932,538 918,562 958,592 1000,600" fill="#1e3818" opacity="0.86"/>'
-    // right grass tufts
-    + '<path d="M888,582 C880,556 872,546 867,556 C864,540 856,530 850,543 C846,526 838,520 833,536" stroke="#283e1c" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.75"/>'
-    // center bottom ground line
-    + '<path d="M152,596 C200,582 300,579 400,582 C500,585 600,583 700,580 C800,578 872,582 898,592" stroke="#2a4018" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.55"/>'
-    + '</svg>';
-}
+// ── DOM bootstrap ─────────────────────────────────────────────────────────────
+// (SVG fallbacks removed — env layers are image-only; the .sv-scene CSS gradient
+//  is the permanent sky fallback when sky.png is absent.)
 
 // ── DOM bootstrap ─────────────────────────────────────────────────────────────
 function _buildEnvLayers(biomeId) {
@@ -370,12 +232,14 @@ function _buildEnvLayers(biomeId) {
     div.dataset.px = def.px;
     div.dataset.py = def.py;
     div.style.zIndex = def.z;
-    var imgHtml = def.image
-      ? '<img class="sv-layer-img" src="' + def.image + '" alt=""'
-        + ' onload="this.classList.add(\'sv-img-loaded\')"'
-        + ' onerror="this.style.display=\'none\'">'
-      : '';
-    div.innerHTML = imgHtml + def.render();
+    if (!def.image) continue;
+    var img = document.createElement('img');
+    img.className = 'sv-layer-img';
+    img.alt = '';
+    img.onload  = function() { this.classList.add('sv-img-loaded'); };
+    img.onerror = function() { var p = this.parentElement; if (p) p.remove(); };
+    img.src = def.image;
+    div.appendChild(img);
     if (def.z < 70) {
       scene.insertBefore(div, fgTown);
     } else {
