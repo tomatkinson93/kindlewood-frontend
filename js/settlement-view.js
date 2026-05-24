@@ -6,17 +6,21 @@
 const SV_BIOME = 'mountain';
 
 // ── Layer registry ────────────────────────────────────────────────────────────
-// z: stacking order within .sv-scene  (building slots occupy z 40–55)
+// z: stacking order within .sv-scene.
+//   z 0–59  : environment background layers
+//   z 70    : building fg slots (always on top so they're always visible/clickable)
+//   z 60–65 : foreground env layers — must use PNG with transparency so the centre
+//             of the scene (where buildings sit) is transparent.
 // px/py: parallax pixel travel at cursor extreme (sky=least, foliage=most)
-// image: optional asset path — loads over SVG fallback when available
+// image: optional PNG asset — loads over SVG fallback; null = SVG only
 const SV_LAYER_DEFS = {
-  'sky':         { z:  0, px:  2, py:  1, render: _svgSky,        image: '/assets/images/biomes/mountain/sky.jpg'        },
+  'sky':         { z:  0, px:  2, py:  1, render: _svgSky,        image: '/assets/images/biomes/mountain/sky.png'        },
   'mtn-distant': { z: 10, px:  4, py:  2, render: _svgMtnDistant                                                         },
-  'mtn-near':    { z: 20, px:  7, py:  4, render: _svgMtnNear,    image: '/assets/images/biomes/mountain/mountains.jpg'  },
-  'hills':       { z: 30, px: 10, py:  6, render: _svgHills,      image: '/assets/images/biomes/mountain/midground.jpg'  },
+  'mtn-near':    { z: 20, px:  7, py:  4, render: _svgMtnNear,    image: '/assets/images/biomes/mountain/mountains.png'  },
+  'hills':       { z: 30, px: 10, py:  6, render: _svgHills,      image: '/assets/images/biomes/mountain/midground.png'  },
   'forest-mid':  { z: 35, px: 12, py:  7, render: _svgForestMid                                                          },
   'rocks-fg':    { z: 60, px: 16, py:  9, render: _svgRocksFg                                                            },
-  'foliage-fg':  { z: 65, px: 20, py: 12, render: _svgFoliageFg,  image: '/assets/images/biomes/mountain/foreground.jpg' },
+  'foliage-fg':  { z: 65, px: 20, py: 12, render: _svgFoliageFg,  image: '/assets/images/biomes/mountain/foreground.png' },
 };
 
 // ── Biome definitions ─────────────────────────────────────────────────────────
@@ -372,7 +376,7 @@ function _buildEnvLayers(biomeId) {
         + ' onerror="this.style.display=\'none\'">'
       : '';
     div.innerHTML = imgHtml + def.render();
-    if (def.z < 40) {
+    if (def.z < 70) {
       scene.insertBefore(div, fgTown);
     } else {
       scene.appendChild(div);
@@ -401,9 +405,9 @@ function _ensureSvDOM() {
 
   root.innerHTML =
     '<div class="sv-scene" id="sv-scene">'
-    + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town" style="z-index:40">'
+    + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town" style="z-index:70">'
     + townSlots.map(slotHTML).join('') + '</div>'
-    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts" style="z-index:40">'
+    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts" style="z-index:70">'
     + outSlots.map(slotHTML).join('') + '</div>'
     + '</div>'
     + '<div class="sv-header">'
@@ -654,7 +658,7 @@ function _tickParallax() {
     el.style.transform = 'translate(' + (_svCurX * px) + 'px,' + (_svCurY * py) + 'px)';
   });
 
-  // Building fg layers — between forest-mid (12/7) and rocks-fg (16/9)
+  // Building fg layers — above all env layers (z:70); parallax between foliage-fg and rocks-fg
   var tFg = document.getElementById('sv-layer-fg-town');
   var oFg = document.getElementById('sv-layer-fg-outskirts');
   if (tFg) tFg.style.transform = 'translate(' + (_svCurX * 14) + 'px,' + (_svCurY * 8) + 'px)';
