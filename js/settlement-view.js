@@ -99,6 +99,7 @@ function _injectSvStyles() {
 
 .sv-scene {
   position: absolute; inset: 0; overflow: hidden; user-select: none; cursor: default;
+  z-index: 0;
   /* Permanent sky gradient — visible behind all layers, including when sky.png is absent */
   background: linear-gradient(to bottom, #1a2840 0%, #2c4878 28%, #4878ac 52%, #86acc8 74%, #b4ccb8 90%, #c8c4a0 100%);
 }
