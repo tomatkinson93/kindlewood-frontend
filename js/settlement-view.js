@@ -20,7 +20,9 @@ const SV_LAYER_DEFS = {
 
 // ── Biome definitions ─────────────────────────────────────────────────────────
 const SV_BIOMES = {
-  mountain: ['sky', 'mtn-near', 'hills', 'foliage-fg'],
+  // 'sky' layer omitted — the .sv-scene CSS gradient IS the sky.
+  // mountains.png transparent areas composite directly over that gradient.
+  mountain: ['mtn-near', 'hills', 'foliage-fg'],
 };
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ let _svActiveArea   = 'town';
 let _svTargetX = 0, _svTargetY = 0;
 let _svCurX    = 0, _svCurY    = 0;
 let _svRafId   = null;
+let _svCommBarHandler = null;
 let _svStylesInjected = false;
 let _svDOMBuilt       = false;
 
@@ -311,6 +314,15 @@ async function openSettlementView() {
 
   _svSwitchArea(_svActiveArea, true);
   _bindParallax();
+
+  var commBar = document.querySelector('.community-bar');
+  if (commBar && !_svCommBarHandler) {
+    _svCommBarHandler = function(e) {
+      if (e.target.closest('.comm-btn')) closeSettlementView();
+    };
+    commBar.addEventListener('click', _svCommBarHandler);
+  }
+
   await _svLoad();
 }
 window.openSettlementView = openSettlementView;
@@ -319,6 +331,13 @@ function closeSettlementView() {
   _svOpen = false;
   _closeBuildPanel();
   _unbindParallax();
+
+  var commBar = document.querySelector('.community-bar');
+  if (commBar && _svCommBarHandler) {
+    commBar.removeEventListener('click', _svCommBarHandler);
+    _svCommBarHandler = null;
+  }
+
   var root = document.getElementById('settlement-view');
   root.classList.remove('sv-visible');
   root.addEventListener('transitionend', function() {
