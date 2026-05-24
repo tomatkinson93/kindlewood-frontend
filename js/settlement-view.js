@@ -40,9 +40,9 @@ const SV_SLOTS = [
 
 // ── Building visual config ────────────────────────────────────────────────────
 const SV_VISUALS = {
-  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.' },
-  market:        { emoji:'⚖️', bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.' },
-  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.' },
+  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/buildings/town/tavern.png'  },
+  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/buildings/town/market.png'  },
+  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/buildings/town/granary.png' },
   starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.' },
   farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.' },
   lumber_camp:   { emoji:'\u{1FA93}', bodyColor:'#6b4020', roofColor:'#4a2c10', flavor:'Axes ring through the morning pines.' },
@@ -162,6 +162,7 @@ function _injectSvStyles() {
 .sv-building-struct { position: relative; border-radius: 4px 4px 0 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1); }
 .sv-building-roof { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border-style: solid; border-left-color: transparent !important; border-right-color: transparent !important; border-top-color: transparent !important; }
 .sv-building-emoji { font-size: 22px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
+.sv-building-img { display: block; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.65)); pointer-events: none; }
 .sv-building-shadow { width: 75%; height: 7px; border-radius: 50%; background: rgba(0,0,0,0.18); margin-top: 2px; filter: blur(3px); }
 .sv-building-name { font-size: 9.5px; font-weight: 700; color: #e8d090; text-shadow: 0 1px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8); white-space: nowrap; margin-top: 5px; letter-spacing: 0.05em; text-align: center; }
 .sv-building-lv { font-size: 8.5px; color: rgba(220,190,120,0.72); background: rgba(0,0,0,0.52); border-radius: 8px; padding: 1px 5px; margin-top: 2px; letter-spacing: 0.06em; }
@@ -430,18 +431,27 @@ function _buildEmptyEl(slot, available, locked) {
 
 function _buildOccupiedEl(slot, building) {
   var vis  = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
-  var szMap = { lg:{w:64,h:52,rw:72}, md:{w:52,h:44,rw:58}, sm:{w:40,h:36,rw:46} };
-  var sz   = szMap[slot.size] || szMap.md;
-  var rh   = Math.round(sz.h * 0.44);
   var div  = document.createElement('div');
   div.className = 'sv-building';
-  div.innerHTML = '<div class="sv-building-struct" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background:' + vis.bodyColor + '">'
-    + '<div class="sv-building-roof" style="border-width:0 ' + (sz.rw/2) + 'px ' + rh + 'px ' + (sz.rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
-    + '<span class="sv-building-emoji">' + vis.emoji + '</span>'
-    + '</div>'
-    + '<div class="sv-building-shadow"></div>'
-    + '<div class="sv-building-name">' + building.label + '</div>'
-    + (building.currentLevel > 1 ? '<div class="sv-building-lv">Lv ' + building.currentLevel + '</div>' : '');
+  var lvTag = building.currentLevel > 1 ? '<div class="sv-building-lv">Lv ' + building.currentLevel + '</div>' : '';
+  if (vis.image) {
+    var imgW = { lg: 120, md: 96, sm: 76 }[slot.size] || 96;
+    div.innerHTML = '<img src="' + vis.image + '" class="sv-building-img" style="width:' + imgW + 'px" alt="">'
+      + '<div class="sv-building-shadow"></div>'
+      + '<div class="sv-building-name">' + building.label + '</div>'
+      + lvTag;
+  } else {
+    var szMap = { lg:{w:64,h:52,rw:72}, md:{w:52,h:44,rw:58}, sm:{w:40,h:36,rw:46} };
+    var sz   = szMap[slot.size] || szMap.md;
+    var rh   = Math.round(sz.h * 0.44);
+    div.innerHTML = '<div class="sv-building-struct" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background:' + vis.bodyColor + '">'
+      + '<div class="sv-building-roof" style="border-width:0 ' + (sz.rw/2) + 'px ' + rh + 'px ' + (sz.rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
+      + '<span class="sv-building-emoji">' + vis.emoji + '</span>'
+      + '</div>'
+      + '<div class="sv-building-shadow"></div>'
+      + '<div class="sv-building-name">' + building.label + '</div>'
+      + lvTag;
+  }
   return div;
 }
 
