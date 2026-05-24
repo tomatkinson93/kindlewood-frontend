@@ -234,11 +234,15 @@ function _buildEnvLayers(biomeId) {
     div.dataset.px = def.px;
     div.dataset.py = def.py;
     div.style.zIndex = def.z;
-    // Sky layer gets an opaque gradient background so its GPU compositor texture
-    // is never transparent — upper layers' transparent pixels composite against
-    // this gradient rather than an undefined background.
     if (lid === 'sky') {
+      // Sky layer: opaque gradient background so it's never transparent
       div.style.background = 'linear-gradient(to bottom, #1a2840 0%, #2c4878 28%, #4878ac 52%, #86acc8 74%, #b4ccb8 90%, #c8c4a0 100%)';
+    } else {
+      // Non-sky layers: multiply blend so white/light backgrounds in the source
+      // image become transparent (white × underlying = underlying colour).
+      // Regenerating with a true transparent PNG would be cleaner, but this
+      // works for AI-generated art that ships with a baked-in white background.
+      div.style.mixBlendMode = 'multiply';
     }
     if (!def.image) continue;
     var img = document.createElement('img');
