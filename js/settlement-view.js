@@ -20,9 +20,7 @@ const SV_LAYER_DEFS = {
 
 // ── Biome definitions ─────────────────────────────────────────────────────────
 const SV_BIOMES = {
-  // 'sky' layer omitted — the .sv-scene CSS gradient IS the sky.
-  // mountains.png transparent areas composite directly over that gradient.
-  mountain: ['mtn-near', 'hills', 'foliage-fg'],
+  mountain: ['sky', 'mtn-near', 'hills', 'foliage-fg'],
 };
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
@@ -236,6 +234,12 @@ function _buildEnvLayers(biomeId) {
     div.dataset.px = def.px;
     div.dataset.py = def.py;
     div.style.zIndex = def.z;
+    // Sky layer gets an opaque gradient background so its GPU compositor texture
+    // is never transparent — upper layers' transparent pixels composite against
+    // this gradient rather than an undefined background.
+    if (lid === 'sky') {
+      div.style.background = 'linear-gradient(to bottom, #1a2840 0%, #2c4878 28%, #4878ac 52%, #86acc8 74%, #b4ccb8 90%, #c8c4a0 100%)';
+    }
     if (!def.image) continue;
     var img = document.createElement('img');
     img.className = 'sv-layer-img';
