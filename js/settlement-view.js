@@ -165,6 +165,7 @@ function _injectSvStyles() {
 .sv-building-img { display: block; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.65)); pointer-events: none; mix-blend-mode: multiply; }
 .sv-building-shadow { width: 75%; height: 7px; border-radius: 50%; background: rgba(0,0,0,0.18); margin-top: 2px; filter: blur(3px); }
 .sv-building-name { font-size: 9.5px; font-weight: 700; color: #e8d090; text-shadow: 0 1px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8); white-space: nowrap; margin-top: 5px; letter-spacing: 0.05em; text-align: center; }
+.sv-building-name-img { margin-top: -6px; }
 .sv-building-lv { font-size: 8.5px; color: rgba(220,190,120,0.72); background: rgba(0,0,0,0.52); border-radius: 8px; padding: 1px 5px; margin-top: 2px; letter-spacing: 0.06em; }
 
 .sv-build-panel {
@@ -435,10 +436,9 @@ function _buildOccupiedEl(slot, building) {
   div.className = 'sv-building';
   var lvTag = building.currentLevel > 1 ? '<div class="sv-building-lv">Lv ' + building.currentLevel + '</div>' : '';
   if (vis.image) {
-    var imgW = { lg: 120, md: 96, sm: 76 }[slot.size] || 96;
+    var imgW = { lg: 140, md: 110, sm: 88 }[slot.size] || 110;
     div.innerHTML = '<img src="' + vis.image + '" class="sv-building-img" style="width:' + imgW + 'px" alt="">'
-      + '<div class="sv-building-shadow"></div>'
-      + '<div class="sv-building-name">' + building.label + '</div>'
+      + '<div class="sv-building-name sv-building-name-img">' + building.label + '</div>'
       + lvTag;
   } else {
     var szMap = { lg:{w:64,h:52,rw:72}, md:{w:52,h:44,rw:58}, sm:{w:40,h:36,rw:46} };
