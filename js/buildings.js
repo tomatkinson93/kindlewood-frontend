@@ -118,9 +118,6 @@ async function buildBuilding(id) {
     const def = buildingsData.find(b => b.id === id);
     showBuildToast(`${def?.icon || '🏗'} ${def?.label || id} built! (Lv ${data.newLevel})`, 'success');
 
-    // Play sound
-    if (typeof pageTurnAudio !== 'undefined') { pageTurnAudio.currentTime = 0; pageTurnAudio.play().catch(()=>{}); }
-
     // Refresh data
     await loadBuildings();
     await refreshResources();

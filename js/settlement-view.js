@@ -57,6 +57,22 @@ const SV_VISUALS = {
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye." },
 };
 
+// ── Slot assignments (persisted to localStorage) ──────────────────────────────
+const _SV_ASSIGN_KEY = 'sv_slot_assignments';
+function _svGetAssignments() {
+  try { return JSON.parse(localStorage.getItem(_SV_ASSIGN_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _svSetAssignment(slotId, buildingId) {
+  var a = _svGetAssignments();
+  a[slotId] = buildingId;
+  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a));
+}
+function _svClearAssignment(buildingId) {
+  var a = _svGetAssignments();
+  Object.keys(a).forEach(function(k) { if (a[k] === buildingId) delete a[k]; });
+  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a));
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let _svOpen         = false;
 let _svBuildings    = [];
@@ -422,9 +438,12 @@ function _renderScene() {
 }
 
 function _occupantFor(slot) {
-  for (var i = 0; i < slot.accepts.length; i++) {
-    var b = _svBuildings.find(function(b) { return b.id === slot.accepts[i] && b.currentLevel > 0; });
+  var assignments = _svGetAssignments();
+  var bid = assignments[slot.id];
+  if (bid) {
+    var b = _svBuildings.find(function(b) { return b.id === bid && b.currentLevel > 0; });
     if (b) return b;
+    _svClearAssignment(bid); // stale — building was demolished elsewhere
   }
   return null;
 }
@@ -493,7 +512,8 @@ function _openBuildPanel(slot, occupant) {
       + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
   } else {
     var areaIds = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
-    var opts = areaIds.map(function(id) {
+    var taken = Object.values(_svGetAssignments()); // already placed in other slots
+    var opts = areaIds.filter(function(id) { return !taken.includes(id); }).map(function(id) {
       var b   = _svBuildings.find(function(b) { return b.id === id; });
       if (!b) return '';
       var vis = SV_VISUALS[id] || { emoji:'🏛' };
@@ -539,9 +559,16 @@ function _svPlaySound(src) {
 
 async function _svBuild(buildingId) {
   if (typeof buildBuilding !== 'function') return;
+  var slotId = _svSelectedSlot ? _svSelectedSlot.id : null;
+  var bData  = _svBuildings.find(function(b) { return b.id === buildingId; });
+  var cost   = bData ? bData.cost : null;
   _closeBuildPanel();
   await buildBuilding(buildingId);
   _svPlaySound('/assets/audio/construct.wav');
+  if (slotId) _svSetAssignment(slotId, buildingId);
+  if (cost && typeof _spawnFloater === 'function') {
+    Object.entries(cost).forEach(function(e) { if (e[1]) _spawnFloater(e[0], -e[1]); });
+  }
   await _svLoad();
 }
 window._svBuild = _svBuild;
@@ -556,11 +583,16 @@ async function _svDemolish(buildingId) {
       body: JSON.stringify({ buildingId: buildingId }),
     });
     if (!res.ok) {
-      var data = await res.json();
-      alert(data.error || 'Demolition failed.');
+      var d = await res.json();
+      alert(d.error || 'Demolition failed.');
       return;
     }
-    if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
+    var d = await res.json();
+    _svClearAssignment(buildingId);
+    if (typeof refreshResources === 'function') await refreshResources();
+    if (d.refund && typeof _spawnFloater === 'function') {
+      Object.entries(d.refund).forEach(function(e) { if (e[1]) _spawnFloater(e[0], e[1]); });
+    }
     await _svLoad();
   } catch(e) {
     alert('Demolition failed.');
