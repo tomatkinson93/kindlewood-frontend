@@ -32,16 +32,16 @@ const SV_AREA_BUILDINGS = {
 // ── Slot definitions ──────────────────────────────────────────────────────────
 const SV_SLOTS = [
   { id:'town-granary',  area:'town',      x:8,   y:74, accepts:['granary'],       label:'Granary Site',   size:'md' },
-  { id:'town-tavern',   area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Tavern Site',    size:'lg' },
-  { id:'town-house-3',  area:'town',      x:37,  y:80, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
+  { id:'town-tavern',   area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Tavern Site',    size:'md' },
+  { id:'town-house-3',  area:'town',      x:37,  y:80, accepts:['starter_house'], label:'Housing Plot',   size:'md' },
   { id:'town-market',   area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Square',  size:'md' },
-  { id:'town-house-1',  area:'town',      x:61,  y:72, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
-  { id:'town-house-2',  area:'town',      x:74,  y:65, accepts:['starter_house'], label:'Housing Plot',   size:'sm' },
-  { id:'out-forager',   area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forager Ground', size:'sm' },
-  { id:'out-farm',      area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Farmland',       size:'lg' },
+  { id:'town-house-1',  area:'town',      x:61,  y:72, accepts:['starter_house'], label:'Housing Plot',   size:'md' },
+  { id:'town-house-2',  area:'town',      x:74,  y:65, accepts:['starter_house'], label:'Housing Plot',   size:'md' },
+  { id:'out-forager',   area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forager Ground', size:'md' },
+  { id:'out-farm',      area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Farmland',       size:'md' },
   { id:'out-lumber',    area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'Lumber Site',    size:'md' },
   { id:'out-fishing',   area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Fishing Dock',   size:'md' },
-  { id:'out-scout',     area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'Lookout Point',  size:'sm' },
+  { id:'out-scout',     area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'Lookout Point',  size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -71,6 +71,24 @@ function _svClearAssignment(buildingId) {
   var a = _svGetAssignments();
   Object.keys(a).forEach(function(k) { if (a[k] === buildingId) delete a[k]; });
   localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a));
+}
+
+// ── Slot sizes (persisted to localStorage) ────────────────────────────────────
+const _SV_SIZE_KEY     = 'sv_slot_sizes';
+const _SV_SIZE_DEFAULT = 72;
+const _SV_SIZE_MIN     = 44;
+const _SV_SIZE_MAX     = 130;
+function _svGetSizes() {
+  try { return JSON.parse(localStorage.getItem(_SV_SIZE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _svSaveSize(slotId, size) {
+  var s = _svGetSizes();
+  s[slotId] = Math.round(Math.max(_SV_SIZE_MIN, Math.min(_SV_SIZE_MAX, size)));
+  localStorage.setItem(_SV_SIZE_KEY, JSON.stringify(s));
+}
+function _svGetSlotSize(slotId) {
+  var s = _svGetSizes();
+  return s[slotId] || _SV_SIZE_DEFAULT;
 }
 
 // ── Slot positions (persisted to localStorage) ────────────────────────────────
@@ -114,6 +132,10 @@ let _svDragMoveHandler      = null;
 let _svDragEndHandler       = null;
 let _svDragTouchMoveHandler = null;
 let _svDragTouchEndHandler  = null;
+let _svResizeSlot        = null;
+let _svResizeStartY      = 0;
+let _svResizeOrigSize    = _SV_SIZE_DEFAULT;
+let _svCurrentResizeSize = _SV_SIZE_DEFAULT;
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 function _injectSvStyles() {
@@ -283,6 +305,20 @@ function _injectSvStyles() {
 .sv-slot.sv-dragging .sv-slot-empty { filter: drop-shadow(0 8px 28px rgba(100,180,255,0.55)) brightness(1.18); }
 .sv-slot.sv-drag-bad .sv-building,
 .sv-slot.sv-drag-bad .sv-slot-empty { filter: drop-shadow(0 8px 24px rgba(255,80,60,0.7)) brightness(0.95); }
+.sv-slot-resize {
+  position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
+  margin-top: 5px; width: 32px; height: 10px;
+  background: rgba(100,160,255,0.28); border: 1px solid rgba(100,160,255,0.5);
+  border-radius: 5px; cursor: ns-resize;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: auto; transition: background 0.2s;
+}
+.sv-slot-resize:hover { background: rgba(100,160,255,0.5); }
+.sv-slot-resize span { font-size: 7px; color: rgba(160,200,255,0.9); line-height: 1; pointer-events: none; }
+.sv-slot.sv-resizing { z-index: 998 !important; }
+.sv-slot.sv-resizing .sv-building,
+.sv-slot.sv-resizing .sv-slot-empty { filter: drop-shadow(0 4px 16px rgba(100,160,255,0.45)); }
   `;
   document.head.appendChild(s);
 }
@@ -488,6 +524,12 @@ function _renderScene() {
       el.appendChild(_buildEmptyEl(slot, anyAvail, allLocked));
       if (!_svEditMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
     }
+    if (_svEditMode) {
+      var rh = document.createElement('div');
+      rh.className = 'sv-slot-resize';
+      rh.innerHTML = '<span>⇕</span>';
+      el.appendChild(rh);
+    }
   }
   _applySlotPositions();
 }
@@ -504,30 +546,34 @@ function _occupantFor(slot) {
 }
 
 function _buildEmptyEl(slot, available, locked) {
+  var size = _svGetSlotSize(slot.id);
   var div = document.createElement('div');
-  div.className = 'sv-slot-empty size-' + slot.size + (locked ? ' locked' : '');
+  div.className = 'sv-slot-empty' + (locked ? ' locked' : '');
   if (!available && !locked) div.style.cursor = 'default';
-  div.innerHTML = '<div class="sv-slot-ring"><span class="sv-slot-plus">' + (locked ? '🔒' : '+') + '</span></div>'
+  var plusSz = Math.round(size * 0.33);
+  div.innerHTML = '<div class="sv-slot-ring" style="width:' + size + 'px;height:' + size + 'px">'
+    + '<span class="sv-slot-plus" style="font-size:' + plusSz + 'px">' + (locked ? '🔒' : '+') + '</span>'
+    + '</div>'
     + '<div class="sv-slot-hint">' + (locked ? '🔒 Locked' : 'Build here') + '</div>';
   return div;
 }
 
 function _buildOccupiedEl(slot, building) {
+  var size = _svGetSlotSize(slot.id);
   var vis  = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
   var div  = document.createElement('div');
   div.className = 'sv-building';
   var lvTag = building.currentLevel > 1 ? '<div class="sv-building-lv">Lv ' + building.currentLevel + '</div>' : '';
   if (vis.image) {
-    var imgW = { lg: 140, md: 110, sm: 88 }[slot.size] || 110;
+    var imgW = Math.round(size * 1.53);
     div.innerHTML = '<img src="' + vis.image + '" class="sv-building-img" style="width:' + imgW + 'px" alt="">'
       + '<div class="sv-building-name sv-building-name-img">' + building.label + '</div>'
       + lvTag;
   } else {
-    var szMap = { lg:{w:64,h:52,rw:72}, md:{w:52,h:44,rw:58}, sm:{w:40,h:36,rw:46} };
-    var sz   = szMap[slot.size] || szMap.md;
-    var rh   = Math.round(sz.h * 0.44);
-    div.innerHTML = '<div class="sv-building-struct" style="width:' + sz.w + 'px;height:' + sz.h + 'px;background:' + vis.bodyColor + '">'
-      + '<div class="sv-building-roof" style="border-width:0 ' + (sz.rw/2) + 'px ' + rh + 'px ' + (sz.rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
+    var bw = Math.round(size * 0.72), bh = Math.round(size * 0.61), rw = Math.round(size * 0.80);
+    var rh = Math.round(bh * 0.44);
+    div.innerHTML = '<div class="sv-building-struct" style="width:' + bw + 'px;height:' + bh + 'px;background:' + vis.bodyColor + '">'
+      + '<div class="sv-building-roof" style="border-width:0 ' + (rw/2) + 'px ' + rh + 'px ' + (rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
       + '<span class="sv-building-emoji">' + vis.emoji + '</span>'
       + '</div>'
       + '<div class="sv-building-shadow"></div>'
@@ -738,9 +784,10 @@ function _svToggleEditMode() {
 window._svToggleEditMode = _svToggleEditMode;
 
 function _svResetLayout() {
-  if (!window.confirm('Reset all slot positions to default?')) return;
+  if (!window.confirm('Reset all slot positions and sizes to default?')) return;
   localStorage.removeItem(_SV_POS_KEY);
-  _applySlotPositions();
+  localStorage.removeItem(_SV_SIZE_KEY);
+  _renderScene(); // re-render with defaults (also calls _applySlotPositions internally)
 }
 window._svResetLayout = _svResetLayout;
 
@@ -765,8 +812,17 @@ function _svDetachDragHandlers() {
 
 function _svOnSlotMouseDown(e) {
   if (!_svEditMode) return;
-  e.preventDefault();
   var slotId = this.dataset.slot;
+  if (e.target.closest('.sv-slot-resize')) {
+    e.preventDefault(); e.stopPropagation();
+    _svBeginResize(slotId, e.clientY);
+    _svDragMoveHandler = function(ev) { _svOnResizeMove(ev.clientY); };
+    _svDragEndHandler  = function(ev) { _svOnResizeEnd(); };
+    document.addEventListener('mousemove', _svDragMoveHandler);
+    document.addEventListener('mouseup',   _svDragEndHandler);
+    return;
+  }
+  e.preventDefault();
   _svBeginDrag(slotId, e.clientX, e.clientY);
   _svDragMoveHandler = function(ev) { _svOnDragMove(ev.clientX, ev.clientY); };
   _svDragEndHandler  = function(ev) { _svOnDragEnd(ev.clientX, ev.clientY); };
@@ -776,9 +832,18 @@ function _svOnSlotMouseDown(e) {
 
 function _svOnSlotTouchStart(e) {
   if (!_svEditMode) return;
-  e.preventDefault();
   var touch  = e.touches[0];
   var slotId = this.dataset.slot;
+  if (e.target.closest('.sv-slot-resize')) {
+    e.preventDefault(); e.stopPropagation();
+    _svBeginResize(slotId, touch.clientY);
+    _svDragTouchMoveHandler = function(ev) { ev.preventDefault(); _svOnResizeMove(ev.touches[0].clientY); };
+    _svDragTouchEndHandler  = function() { _svOnResizeEnd(); };
+    document.addEventListener('touchmove', _svDragTouchMoveHandler, { passive: false });
+    document.addEventListener('touchend',  _svDragTouchEndHandler);
+    return;
+  }
+  e.preventDefault();
   _svBeginDrag(slotId, touch.clientX, touch.clientY);
   _svDragTouchMoveHandler = function(ev) {
     ev.preventDefault();
@@ -873,4 +938,53 @@ function _svHasOverlap(dragSlotId, x, y) {
     if (dist < 8) return true;
   }
   return false;
+}
+
+// ── Slot resizing ─────────────────────────────────────────────────────────────
+function _svBeginResize(slotId, clientY) {
+  _svResizeSlot     = slotId;
+  _svResizeStartY   = clientY;
+  _svResizeOrigSize = _svGetSlotSize(slotId);
+  _svCurrentResizeSize = _svResizeOrigSize;
+  var el = document.getElementById('sv-slot-' + slotId);
+  if (el) el.classList.add('sv-resizing');
+}
+
+function _svOnResizeMove(clientY) {
+  if (!_svResizeSlot) return;
+  // drag up (negative delta) = bigger; drag down = smaller
+  var delta   = _svResizeStartY - clientY;
+  var newSize = Math.max(_SV_SIZE_MIN, Math.min(_SV_SIZE_MAX, _svResizeOrigSize + delta * 0.6));
+  _svCurrentResizeSize = newSize;
+  _svApplySizeToSlot(_svResizeSlot, newSize);
+}
+
+function _svOnResizeEnd() {
+  if (!_svResizeSlot) return;
+  var finalSize = Math.round(_svCurrentResizeSize);
+  _svSaveSize(_svResizeSlot, finalSize);
+  var el = document.getElementById('sv-slot-' + _svResizeSlot);
+  if (el) el.classList.remove('sv-resizing');
+  _svResizeSlot        = null;
+  _svCurrentResizeSize = _SV_SIZE_DEFAULT;
+  _renderScene();
+}
+
+function _svApplySizeToSlot(slotId, size) {
+  var el = document.getElementById('sv-slot-' + slotId);
+  if (!el) return;
+  var ring = el.querySelector('.sv-slot-ring');
+  if (ring) {
+    ring.style.width  = size + 'px';
+    ring.style.height = size + 'px';
+    var plus = ring.querySelector('.sv-slot-plus');
+    if (plus) plus.style.fontSize = Math.round(size * 0.33) + 'px';
+  }
+  var img = el.querySelector('.sv-building-img');
+  if (img) img.style.width = Math.round(size * 1.53) + 'px';
+  var struct = el.querySelector('.sv-building-struct');
+  if (struct) {
+    struct.style.width  = Math.round(size * 0.72) + 'px';
+    struct.style.height = Math.round(size * 0.61) + 'px';
+  }
 }
