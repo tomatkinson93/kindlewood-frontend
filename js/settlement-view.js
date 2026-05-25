@@ -411,15 +411,20 @@ function _ensureSvDOM() {
 }
 
 // ── Open / close ──────────────────────────────────────────────────────────────
+function _svRecalcTop() {
+  var root    = document.getElementById('settlement-view');
+  var topbar  = document.querySelector('.topbar');
+  var commBar = document.querySelector('.community-bar');
+  if (root) root.style.top = ((topbar ? topbar.offsetHeight : 0) + (commBar ? commBar.offsetHeight : 0)) + 'px';
+}
+
 async function openSettlementView() {
   _ensureSvDOM();
   _svOpen = true;
   _svSelectedSlot = null;
 
-  var root    = document.getElementById('settlement-view');
-  var topbar  = document.querySelector('.topbar');
-  var commBar = document.querySelector('.community-bar');
-  root.style.top = ((topbar ? topbar.offsetHeight : 0) + (commBar ? commBar.offsetHeight : 0)) + 'px';
+  var root = document.getElementById('settlement-view');
+  _svRecalcTop();
   root.style.display = 'flex';
   root.offsetHeight;
   root.classList.add('sv-visible');
@@ -485,6 +490,7 @@ window._svSwitchArea = _svSwitchArea;
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 async function _svLoad() {
+  _svRecalcTop(); // re-anchor in case topbar/commbar height changed
   try {
     var res = await apiFetch('/api/buildings');
     if (!res.ok) return;
