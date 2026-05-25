@@ -31,17 +31,17 @@ const SV_AREA_BUILDINGS = {
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
 const SV_SLOTS = [
-  { id:'town-granary',  area:'town',      x:8,   y:74, accepts:['granary'],       label:'Granary Site',   size:'md' },
-  { id:'town-tavern',   area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Tavern Site',    size:'md' },
-  { id:'town-house-3',  area:'town',      x:37,  y:80, accepts:['starter_house'], label:'Housing Plot',   size:'md' },
-  { id:'town-market',   area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Square',  size:'md' },
-  { id:'town-house-1',  area:'town',      x:61,  y:72, accepts:['starter_house'], label:'Housing Plot',   size:'md' },
-  { id:'town-house-2',  area:'town',      x:74,  y:65, accepts:['starter_house'], label:'Housing Plot',   size:'md' },
-  { id:'out-forager',   area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forager Ground', size:'md' },
-  { id:'out-farm',      area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Farmland',       size:'md' },
-  { id:'out-lumber',    area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'Lumber Site',    size:'md' },
-  { id:'out-fishing',   area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Fishing Dock',   size:'md' },
-  { id:'out-scout',     area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'Lookout Point',  size:'md' },
+  { id:'town-granary',  area:'town',      x:8,   y:74, accepts:['granary'],       label:'West Quarter',   size:'md' },
+  { id:'town-tavern',   area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Town Centre',    size:'md' },
+  { id:'town-house-3',  area:'town',      x:37,  y:80, accepts:['starter_house'], label:'South Lane',     size:'md' },
+  { id:'town-market',   area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Row',     size:'md' },
+  { id:'town-house-1',  area:'town',      x:61,  y:72, accepts:['starter_house'], label:'East Quarter',   size:'md' },
+  { id:'town-house-2',  area:'town',      x:74,  y:65, accepts:['starter_house'], label:'Hilltop',        size:'md' },
+  { id:'out-forager',   area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',    size:'md' },
+  { id:'out-farm',      area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',    size:'md' },
+  { id:'out-lumber',    area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands',  size:'md' },
+  { id:'out-fishing',   area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Riverside',      size:'md' },
+  { id:'out-scout',     area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'High Ground',    size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -513,11 +513,14 @@ function _renderScene() {
       el.appendChild(_buildOccupiedEl(slot, occupant));
       if (!_svEditMode) (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
     } else {
-      var anyAvail = slot.accepts.some(function(id) {
+      var areaBuildings = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
+      var taken = Object.values(_svGetAssignments());
+      var unbuildable = areaBuildings.filter(function(id) { return !taken.includes(id); });
+      var anyAvail = unbuildable.some(function(id) {
         var b = _svBuildings.find(function(b) { return b.id === id; });
         return b && b.currentLevel === 0 && b.requiresMet;
       });
-      var allLocked = slot.accepts.every(function(id) {
+      var allLocked = unbuildable.length === 0 || unbuildable.every(function(id) {
         var b = _svBuildings.find(function(b) { return b.id === id; });
         return !b || !b.requiresMet;
       });
