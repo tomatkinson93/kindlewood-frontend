@@ -73,6 +73,27 @@ function _svClearAssignment(buildingId) {
   localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a));
 }
 
+// ── Slot positions (persisted to localStorage) ────────────────────────────────
+const _SV_POS_KEY = 'sv_slot_positions';
+function _svGetPositions() {
+  try { return JSON.parse(localStorage.getItem(_SV_POS_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _svSavePos(slotId, x, y) {
+  var p = _svGetPositions();
+  p[slotId] = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+  localStorage.setItem(_SV_POS_KEY, JSON.stringify(p));
+}
+function _applySlotPositions() {
+  var p = _svGetPositions();
+  SV_SLOTS.forEach(function(sl) {
+    if (_svDragSlot === sl.id) return; // don't override in-progress drag
+    var el = document.getElementById('sv-slot-' + sl.id);
+    if (!el) return;
+    el.style.left = (p[sl.id] ? p[sl.id].x : sl.x) + '%';
+    el.style.top  = (p[sl.id] ? p[sl.id].y : sl.y) + '%';
+  });
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let _svOpen         = false;
 let _svBuildings    = [];
@@ -84,6 +105,15 @@ let _svRafId   = null;
 let _svCommBarHandler = null;
 let _svStylesInjected = false;
 let _svDOMBuilt       = false;
+let _svEditMode       = false;
+let _svDragSlot       = null;
+let _svDragValid      = true;
+let _svDragOrigPos    = null;
+let _svDragOffset     = { x: 0, y: 0 };
+let _svDragMoveHandler      = null;
+let _svDragEndHandler       = null;
+let _svDragTouchMoveHandler = null;
+let _svDragTouchEndHandler  = null;
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 function _injectSvStyles() {
@@ -233,6 +263,26 @@ function _injectSvStyles() {
 .sv-occ-lv    { font-size: 12px; color: rgba(200,180,120,0.65); margin-top: 3px; }
 .sv-occ-desc  { font-size: 12px; color: rgba(200,180,140,0.72); line-height: 1.5; margin-bottom: 14px; }
 .sv-occ-flavor{ font-size: 11px; color: rgba(180,160,120,0.55); font-style: italic; text-align: center; margin-top: 12px; line-height: 1.4; }
+
+.sv-edit-btn {
+  background: rgba(40,60,100,0.52); border: 1px solid rgba(100,150,220,0.35);
+  color: rgba(140,180,240,0.75); padding: 5px 14px; border-radius: 20px;
+  font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.22s;
+}
+.sv-edit-btn:hover { background: rgba(60,90,150,0.62); border-color: rgba(140,190,255,0.55); color: #a8ceff; }
+.sv-edit-btn.sv-edit-active { background: rgba(60,110,200,0.38); border-color: rgba(160,200,255,0.7); color: #c0d8ff; font-weight: 700; }
+.sv-edit-reset-btn {
+  font-size: 11px; background: rgba(80,30,20,0.38); border: 1px solid rgba(200,80,60,0.35);
+  color: rgba(220,110,90,0.82); padding: 4px 11px; border-radius: 16px;
+  cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+.sv-edit-reset-btn:hover { background: rgba(120,40,30,0.48); color: #e87060; }
+.sv-scene.sv-editing .sv-slot { cursor: grab; }
+.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 999 !important; transition: none !important; }
+.sv-slot.sv-dragging .sv-building,
+.sv-slot.sv-dragging .sv-slot-empty { filter: drop-shadow(0 8px 28px rgba(100,180,255,0.55)) brightness(1.18); }
+.sv-slot.sv-drag-bad .sv-building,
+.sv-slot.sv-drag-bad .sv-slot-empty { filter: drop-shadow(0 8px 24px rgba(255,80,60,0.7)) brightness(0.95); }
   `;
   document.head.appendChild(s);
 }
@@ -307,13 +357,17 @@ function _ensureSvDOM() {
     + '</div>'
     + '<div class="sv-header">'
     + '<span class="sv-header-title" id="sv-title">Settlement</span>'
-    + '<div class="sv-area-tabs">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
     + '<button class="sv-area-tab active" data-area="town" onclick="_svSwitchArea(\'town\')">&#127960; Town</button>'
     + '<button class="sv-area-tab" data-area="outskirts" onclick="_svSwitchArea(\'outskirts\')">&#127807; Outskirts</button>'
+    + '<span style="width:1px;height:18px;background:rgba(180,140,80,0.22);display:inline-block;margin:0 2px"></span>'
+    + '<button class="sv-edit-btn" id="sv-edit-btn" onclick="_svToggleEditMode()">&#9998; Edit</button>'
+    + '<button class="sv-edit-reset-btn" id="sv-edit-reset-btn" style="display:none" onclick="_svResetLayout()">&#8635; Reset</button>'
     + '</div></div>'
     + '<div class="sv-build-panel" id="sv-build-panel"></div>';
 
   _buildEnvLayers(SV_BIOME);
+  _applySlotPositions();
 
   document.getElementById('sv-scene').addEventListener('click', function(e) {
     if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel')) _closeBuildPanel();
@@ -421,7 +475,7 @@ function _renderScene() {
     var occupant = _occupantFor(slot);
     if (occupant) {
       el.appendChild(_buildOccupiedEl(slot, occupant));
-      (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
+      if (!_svEditMode) (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
     } else {
       var anyAvail = slot.accepts.some(function(id) {
         var b = _svBuildings.find(function(b) { return b.id === id; });
@@ -432,9 +486,10 @@ function _renderScene() {
         return !b || !b.requiresMet;
       });
       el.appendChild(_buildEmptyEl(slot, anyAvail, allLocked));
-      if (anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
+      if (!_svEditMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
     }
   }
+  _applySlotPositions();
 }
 
 function _occupantFor(slot) {
@@ -649,4 +704,173 @@ function _unbindParallax() {
   if (sc) sc.removeEventListener('mousemove', _onParallaxMove);
   if (_svRafId) { cancelAnimationFrame(_svRafId); _svRafId = null; }
   _svCurX = _svCurY = _svTargetX = _svTargetY = 0;
+}
+
+// ── Edit mode ─────────────────────────────────────────────────────────────────
+function _svToggleEditMode() {
+  _svEditMode = !_svEditMode;
+  var scene    = document.getElementById('sv-scene');
+  var btn      = document.getElementById('sv-edit-btn');
+  var resetBtn = document.getElementById('sv-edit-reset-btn');
+
+  if (_svEditMode) {
+    _closeBuildPanel();
+    _unbindParallax();
+    // Zero out parallax transforms so slots sit at their real positions
+    document.querySelectorAll('#sv-scene .sv-env-layer').forEach(function(el) { el.style.transform = ''; });
+    var tFg = document.getElementById('sv-layer-fg-town');
+    var oFg = document.getElementById('sv-layer-fg-outskirts');
+    if (tFg) tFg.style.transform = '';
+    if (oFg) oFg.style.transform = '';
+    scene.classList.add('sv-editing');
+    if (btn) { btn.textContent = '✓ Done'; btn.classList.add('sv-edit-active'); }
+    if (resetBtn) resetBtn.style.display = '';
+    _svAttachDragHandlers();
+  } else {
+    scene.classList.remove('sv-editing');
+    if (btn) { btn.textContent = '❖ Edit'; btn.classList.remove('sv-edit-active'); }
+    if (resetBtn) resetBtn.style.display = 'none';
+    _svDetachDragHandlers();
+    _bindParallax();
+  }
+  _renderScene();
+}
+window._svToggleEditMode = _svToggleEditMode;
+
+function _svResetLayout() {
+  if (!window.confirm('Reset all slot positions to default?')) return;
+  localStorage.removeItem(_SV_POS_KEY);
+  _applySlotPositions();
+}
+window._svResetLayout = _svResetLayout;
+
+function _svAttachDragHandlers() {
+  SV_SLOTS.forEach(function(sl) {
+    var el = document.getElementById('sv-slot-' + sl.id);
+    if (!el) return;
+    el.addEventListener('mousedown',  _svOnSlotMouseDown);
+    el.addEventListener('touchstart', _svOnSlotTouchStart, { passive: false });
+  });
+}
+
+function _svDetachDragHandlers() {
+  SV_SLOTS.forEach(function(sl) {
+    var el = document.getElementById('sv-slot-' + sl.id);
+    if (!el) return;
+    el.removeEventListener('mousedown',  _svOnSlotMouseDown);
+    el.removeEventListener('touchstart', _svOnSlotTouchStart);
+  });
+  _svEndDrag();
+}
+
+function _svOnSlotMouseDown(e) {
+  if (!_svEditMode) return;
+  e.preventDefault();
+  var slotId = this.dataset.slot;
+  _svBeginDrag(slotId, e.clientX, e.clientY);
+  _svDragMoveHandler = function(ev) { _svOnDragMove(ev.clientX, ev.clientY); };
+  _svDragEndHandler  = function(ev) { _svOnDragEnd(ev.clientX, ev.clientY); };
+  document.addEventListener('mousemove', _svDragMoveHandler);
+  document.addEventListener('mouseup',   _svDragEndHandler);
+}
+
+function _svOnSlotTouchStart(e) {
+  if (!_svEditMode) return;
+  e.preventDefault();
+  var touch  = e.touches[0];
+  var slotId = this.dataset.slot;
+  _svBeginDrag(slotId, touch.clientX, touch.clientY);
+  _svDragTouchMoveHandler = function(ev) {
+    ev.preventDefault();
+    var t = ev.touches[0];
+    _svOnDragMove(t.clientX, t.clientY);
+  };
+  _svDragTouchEndHandler = function(ev) {
+    var t = ev.changedTouches[0];
+    _svOnDragEnd(t.clientX, t.clientY);
+  };
+  document.addEventListener('touchmove', _svDragTouchMoveHandler, { passive: false });
+  document.addEventListener('touchend',  _svDragTouchEndHandler);
+}
+
+function _svBeginDrag(slotId, clientX, clientY) {
+  _svDragSlot  = slotId;
+  _svDragValid = true;
+  var p  = _svGetPositions();
+  var sl = SV_SLOTS.find(function(s) { return s.id === slotId; });
+  _svDragOrigPos = {
+    x: p[slotId] ? p[slotId].x : (sl ? sl.x : 50),
+    y: p[slotId] ? p[slotId].y : (sl ? sl.y : 50),
+  };
+  var pt = _svMouseToSlotPct(clientX, clientY);
+  _svDragOffset = { x: pt.x - _svDragOrigPos.x, y: pt.y - _svDragOrigPos.y };
+  var el = document.getElementById('sv-slot-' + slotId);
+  if (el) el.classList.add('sv-dragging');
+}
+
+function _svOnDragMove(clientX, clientY) {
+  if (!_svDragSlot) return;
+  var pt = _svMouseToSlotPct(clientX, clientY);
+  var x  = Math.max(3, Math.min(95, pt.x - _svDragOffset.x));
+  var y  = Math.max(10, Math.min(93, pt.y - _svDragOffset.y));
+  _svDragValid = !_svHasOverlap(_svDragSlot, x, y);
+  var el = document.getElementById('sv-slot-' + _svDragSlot);
+  if (el) {
+    el.style.left = x + '%';
+    el.style.top  = y + '%';
+    el.classList.toggle('sv-drag-bad', !_svDragValid);
+  }
+}
+
+function _svOnDragEnd(clientX, clientY) {
+  if (!_svDragSlot) return;
+  var slotId = _svDragSlot;
+  var el = document.getElementById('sv-slot-' + slotId);
+  if (_svDragValid && el) {
+    var x = parseFloat(el.style.left);
+    var y = parseFloat(el.style.top);
+    _svSavePos(slotId, x, y);
+  } else if (el && _svDragOrigPos) {
+    el.style.left = _svDragOrigPos.x + '%';
+    el.style.top  = _svDragOrigPos.y + '%';
+  }
+  _svEndDrag();
+}
+
+function _svEndDrag() {
+  if (_svDragSlot) {
+    var el = document.getElementById('sv-slot-' + _svDragSlot);
+    if (el) { el.classList.remove('sv-dragging'); el.classList.remove('sv-drag-bad'); }
+  }
+  _svDragSlot = null; _svDragValid = true; _svDragOrigPos = null; _svDragOffset = { x: 0, y: 0 };
+  if (_svDragMoveHandler)      { document.removeEventListener('mousemove', _svDragMoveHandler);      _svDragMoveHandler = null; }
+  if (_svDragEndHandler)       { document.removeEventListener('mouseup',   _svDragEndHandler);        _svDragEndHandler = null; }
+  if (_svDragTouchMoveHandler) { document.removeEventListener('touchmove', _svDragTouchMoveHandler); _svDragTouchMoveHandler = null; }
+  if (_svDragTouchEndHandler)  { document.removeEventListener('touchend',  _svDragTouchEndHandler);  _svDragTouchEndHandler = null; }
+}
+
+function _svMouseToSlotPct(clientX, clientY) {
+  var scene = document.getElementById('sv-scene');
+  if (!scene) return { x: 50, y: 50 };
+  var r = scene.getBoundingClientRect();
+  return {
+    x: ((clientX - r.left) / r.width  * 100 + 4) / 1.08,
+    y: ((clientY - r.top)  / r.height * 100 + 4) / 1.08,
+  };
+}
+
+function _svHasOverlap(dragSlotId, x, y) {
+  var dragSl   = SV_SLOTS.find(function(s) { return s.id === dragSlotId; });
+  var dragArea = dragSl ? dragSl.area : null;
+  var p = _svGetPositions();
+  for (var i = 0; i < SV_SLOTS.length; i++) {
+    var sl = SV_SLOTS[i];
+    if (sl.id === dragSlotId) continue;
+    if (dragArea && sl.area !== dragArea) continue;
+    var sx   = p[sl.id] ? p[sl.id].x : sl.x;
+    var sy   = p[sl.id] ? p[sl.id].y : sl.y;
+    var dist = Math.sqrt(Math.pow(x - sx, 2) + Math.pow(y - sy, 2));
+    if (dist < 8) return true;
+  }
+  return false;
 }
