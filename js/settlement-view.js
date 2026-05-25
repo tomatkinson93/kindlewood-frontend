@@ -23,6 +23,12 @@ const SV_BIOMES = {
   mountain: ['sky', 'mtn-near', 'hills', 'foliage-fg'],
 };
 
+// ── Area building groups (used so any slot accepts any area building) ─────────
+const SV_AREA_BUILDINGS = {
+  town:      ['tavern', 'market', 'granary', 'starter_house'],
+  outskirts: ['forager_hut', 'farm', 'lumber_camp', 'fishing_post', 'scout_post'],
+};
+
 // ── Slot definitions ──────────────────────────────────────────────────────────
 const SV_SLOTS = [
   { id:'town-granary',  area:'town',      x:8,   y:74, accepts:['granary'],       label:'Granary Site',   size:'md' },
@@ -43,7 +49,7 @@ const SV_VISUALS = {
   tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/images/buildings/town/tavern.png'  },
   market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/images/buildings/town/market.png'  },
   granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/images/buildings/town/granary.png' },
-  starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.' },
+  starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.',    image:'/assets/images/buildings/town/housing1.png' },
   farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.' },
   lumber_camp:   { emoji:'\u{1FA93}', bodyColor:'#6b4020', roofColor:'#4a2c10', flavor:'Axes ring through the morning pines.' },
   fishing_post:  { emoji:'\u{1F3A3}', bodyColor:'#3a6080', roofColor:'#284860', flavor:'A patient dock above the quiet water.' },
@@ -134,27 +140,27 @@ function _injectSvStyles() {
 .sv-slot { position: absolute; transform: translate(-50%,-50%); cursor: pointer; z-index: 2; pointer-events: auto; }
 .sv-slot-empty { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .sv-slot-ring {
-  border-radius: 50%; border: 2px dashed rgba(220,190,120,0.32);
-  background: rgba(220,190,120,0.04);
+  border-radius: 50%; border: 3px dashed rgba(240,210,120,0.85);
+  background: rgba(240,200,100,0.18);
+  box-shadow: 0 0 14px rgba(255,200,70,0.35), inset 0 0 8px rgba(255,200,70,0.1);
   display: flex; align-items: center; justify-content: center;
   transition: border-color 0.28s, background 0.28s, box-shadow 0.28s;
-  animation: sv-pulse 3.2s ease-in-out infinite;
+  animation: sv-pulse 2.6s ease-in-out infinite;
 }
-.sv-slot-plus { color: rgba(220,190,120,0.38); font-size: 18px; line-height: 1; font-weight: 300; transition: color 0.28s, transform 0.28s; }
-.sv-slot-hint { font-size: 9.5px; color: rgba(220,190,120,0); white-space: nowrap; letter-spacing: 0.06em; text-shadow: 0 1px 4px rgba(0,0,0,0.9); transition: color 0.25s; font-weight: 600; text-align: center; }
-.sv-slot-empty:hover .sv-slot-ring { border-color: rgba(255,210,100,0.82); background: rgba(255,210,100,0.11); box-shadow: 0 0 20px rgba(255,200,70,0.3), inset 0 0 10px rgba(255,200,70,0.08); animation: none; }
-.sv-slot-empty:hover .sv-slot-plus { color: rgba(255,215,110,0.95); transform: scale(1.18); }
-.sv-slot-empty:hover .sv-slot-hint { color: rgba(220,195,130,0.85); }
-.sv-slot-empty.locked { opacity: 0.3; cursor: default; }
-.sv-slot-empty.locked:hover .sv-slot-ring { border-color: rgba(220,190,120,0.32); background: rgba(220,190,120,0.04); box-shadow: none; animation: sv-pulse 3.2s ease-in-out infinite; }
-.sv-slot-empty.locked:hover .sv-slot-plus { color: rgba(220,190,120,0.38); transform: none; }
-.sv-slot-empty.locked:hover .sv-slot-hint { color: rgba(220,190,120,0); }
-.sv-slot-empty.size-lg .sv-slot-ring { width: 70px; height: 70px; }
-.sv-slot-empty.size-md .sv-slot-ring { width: 54px; height: 54px; }
-.sv-slot-empty.size-sm .sv-slot-ring { width: 42px; height: 42px; }
+.sv-slot-plus { color: rgba(255,220,100,0.92); font-size: 24px; line-height: 1; font-weight: 400; text-shadow: 0 0 8px rgba(255,180,0,0.6); transition: color 0.28s, transform 0.28s; }
+.sv-slot-hint { font-size: 10px; color: rgba(240,210,120,0.9); white-space: nowrap; letter-spacing: 0.06em; text-shadow: 0 1px 6px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.9); transition: color 0.25s; font-weight: 700; text-align: center; margin-top: 4px; }
+.sv-slot-empty:hover .sv-slot-ring { border-color: rgba(255,220,80,1); background: rgba(255,210,80,0.28); box-shadow: 0 0 32px rgba(255,200,60,0.6), inset 0 0 16px rgba(255,200,60,0.18); animation: none; }
+.sv-slot-empty:hover .sv-slot-plus { color: #fff7a0; transform: scale(1.2); text-shadow: 0 0 12px rgba(255,220,0,0.9); }
+.sv-slot-empty:hover .sv-slot-hint { color: #fff0a0; }
+.sv-slot-empty.locked { opacity: 0.4; cursor: default; }
+.sv-slot-empty.locked:hover .sv-slot-ring { border-color: rgba(240,210,120,0.85); background: rgba(240,200,100,0.18); box-shadow: 0 0 14px rgba(255,200,70,0.35), inset 0 0 8px rgba(255,200,70,0.1); animation: sv-pulse 2.6s ease-in-out infinite; }
+.sv-slot-empty.locked:hover .sv-slot-plus { color: rgba(255,220,100,0.92); transform: none; }
+.sv-slot-empty.size-lg .sv-slot-ring { width: 90px; height: 90px; }
+.sv-slot-empty.size-md .sv-slot-ring { width: 72px; height: 72px; }
+.sv-slot-empty.size-sm .sv-slot-ring { width: 58px; height: 58px; }
 @keyframes sv-pulse {
-  0%,100% { border-color: rgba(220,190,120,0.22); box-shadow: none; }
-  50%      { border-color: rgba(220,190,120,0.48); box-shadow: 0 0 10px rgba(220,190,120,0.13); }
+  0%,100% { border-color: rgba(240,210,120,0.7);  box-shadow: 0 0 10px rgba(255,200,70,0.25), inset 0 0 6px rgba(255,200,70,0.08); }
+  50%      { border-color: rgba(255,225,100,0.98); box-shadow: 0 0 24px rgba(255,200,70,0.55), inset 0 0 12px rgba(255,200,70,0.18); }
 }
 
 .sv-building { display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.22s ease, filter 0.22s ease; }
@@ -202,6 +208,8 @@ function _injectSvStyles() {
 .sv-bp-upgrade-btn { padding: 7px 15px; border-radius: 6px; background: rgba(60,140,100,0.22); border: 1px solid rgba(80,180,120,0.38); color: #80d0a0; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.2s; font-family: inherit; }
 .sv-bp-upgrade-btn:hover { background: rgba(80,160,120,0.32); }
 .sv-bp-upgrade-btn:disabled { opacity: 0.35; cursor: default; }
+.sv-bp-demolish-btn { margin-top: 14px; width: 100%; padding: 8px; background: rgba(160,40,30,0.15); border: 1px solid rgba(200,60,50,0.35); border-radius: 8px; color: rgba(220,100,80,0.8); font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.2s; letter-spacing: 0.04em; }
+.sv-bp-demolish-btn:hover { background: rgba(180,50,40,0.28); border-color: rgba(220,80,60,0.6); color: #e86050; }
 .sv-bp-lv-badge { background: rgba(80,180,80,0.18); border: 1px solid rgba(80,180,80,0.35); color: #80c880; border-radius: 12px; padding: 4px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .sv-occ-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .sv-occ-emoji { font-size: 34px; flex-shrink: 0; }
@@ -426,7 +434,7 @@ function _buildEmptyEl(slot, available, locked) {
   div.className = 'sv-slot-empty size-' + slot.size + (locked ? ' locked' : '');
   if (!available && !locked) div.style.cursor = 'default';
   div.innerHTML = '<div class="sv-slot-ring"><span class="sv-slot-plus">' + (locked ? '🔒' : '+') + '</span></div>'
-    + '<div class="sv-slot-hint">' + slot.label + '</div>';
+    + '<div class="sv-slot-hint">' + (locked ? '🔒 Locked' : 'Build here') + '</div>';
   return div;
 }
 
@@ -470,6 +478,10 @@ function _openBuildPanel(slot, occupant) {
     var costStr = occupant.cost
       ? Object.entries(occupant.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ')
       : '';
+    var refundStr = occupant.cost
+      ? Object.entries(occupant.cost).filter(function(e){ return e[1] > 0; })
+          .map(function(e) { return _resIcon(e[0]) + ' ' + Math.floor(e[1] * 0.5); }).join('  ')
+      : '';
     html += '<div class="sv-occ-head"><span class="sv-occ-emoji">' + vis.emoji + '</span>'
       + '<div><div class="sv-occ-name">' + occupant.label + '</div>'
       + '<div class="sv-occ-lv">Level ' + occupant.currentLevel + ' / ' + occupant.maxLevel + '</div></div>'
@@ -477,9 +489,11 @@ function _openBuildPanel(slot, occupant) {
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">★ MAX</span>'
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div><div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
-      + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>';
+      + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
+      + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
   } else {
-    var opts = slot.accepts.map(function(id) {
+    var areaIds = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
+    var opts = areaIds.map(function(id) {
       var b   = _svBuildings.find(function(b) { return b.id === id; });
       if (!b) return '';
       var vis = SV_VISUALS[id] || { emoji:'🏛' };
@@ -517,13 +531,42 @@ function _closeBuildPanel() {
 }
 window._closeBuildPanel = _closeBuildPanel;
 
+function _svPlaySound(src) {
+  var a = new Audio(src);
+  a.volume = 0.65;
+  a.play().catch(function() {});
+}
+
 async function _svBuild(buildingId) {
   if (typeof buildBuilding !== 'function') return;
   _closeBuildPanel();
   await buildBuilding(buildingId);
+  _svPlaySound('/assets/audio/construct.wav');
   await _svLoad();
 }
 window._svBuild = _svBuild;
+
+async function _svDemolish(buildingId) {
+  if (!window.confirm('Demolish this building? You will receive 50% of resources back.')) return;
+  _closeBuildPanel();
+  try {
+    var res = await apiFetch('/api/buildings/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buildingId: buildingId }),
+    });
+    if (!res.ok) {
+      var data = await res.json();
+      alert(data.error || 'Demolition failed.');
+      return;
+    }
+    if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
+    await _svLoad();
+  } catch(e) {
+    alert('Demolition failed.');
+  }
+}
+window._svDemolish = _svDemolish;
 
 function _resIcon(res) {
   return { food:'🌿', timber:'🌲', stone:'🪨', metal:'⚙️', wealth:'🪙' }[res] || res;
