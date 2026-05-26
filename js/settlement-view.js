@@ -216,7 +216,7 @@ function _injectSvStyles() {
   animation: sv-pulse 2.6s ease-in-out infinite;
 }
 .sv-slot-plus { color: rgba(255,220,100,0.92); font-size: 24px; line-height: 1; font-weight: 400; text-shadow: 0 0 8px rgba(255,180,0,0.6); transition: color 0.28s, transform 0.28s; }
-.sv-slot-hint { font-size: 10px; color: rgba(240,210,120,0.9); white-space: nowrap; letter-spacing: 0.06em; text-shadow: 0 1px 6px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.9); transition: color 0.25s; font-weight: 700; text-align: center; margin-top: 4px; }
+.sv-slot-hint { font-size: 11px; color: #ffe99a; background: rgba(0,0,0,0.5); padding: 2px 7px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.04em; transition: color 0.25s, background 0.25s; font-weight: 700; text-align: center; margin-top: 5px; }
 .sv-slot-empty:hover .sv-slot-ring { border-color: rgba(255,220,80,1); background: rgba(255,210,80,0.28); box-shadow: 0 0 32px rgba(255,200,60,0.6), inset 0 0 16px rgba(255,200,60,0.18); animation: none; }
 .sv-slot-empty:hover .sv-slot-plus { color: #fff7a0; transform: scale(1.2); text-shadow: 0 0 12px rgba(255,220,0,0.9); }
 .sv-slot-empty:hover .sv-slot-hint { color: #fff0a0; }
@@ -238,9 +238,9 @@ function _injectSvStyles() {
 .sv-building-emoji { font-size: 22px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
 .sv-building-img { display: block; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.65)); pointer-events: none; mix-blend-mode: multiply; }
 .sv-building-shadow { width: 75%; height: 7px; border-radius: 50%; background: rgba(0,0,0,0.18); margin-top: 2px; filter: blur(3px); }
-.sv-building-name { font-size: 9.5px; font-weight: 700; color: #e8d090; text-shadow: 0 1px 5px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8); white-space: nowrap; margin-top: 5px; letter-spacing: 0.05em; text-align: center; }
-.sv-building-name-img { margin-top: -6px; }
-.sv-building-lv { font-size: 8.5px; color: rgba(220,190,120,0.72); background: rgba(0,0,0,0.52); border-radius: 8px; padding: 1px 5px; margin-top: 2px; letter-spacing: 0.06em; }
+.sv-building-name { font-size: 12px; font-weight: 700; color: #ffe99a; background: rgba(0,0,0,0.55); padding: 2px 8px; border-radius: 5px; white-space: nowrap; margin-top: 5px; letter-spacing: 0.04em; text-align: center; }
+.sv-building-name-img { margin-top: -4px; }
+.sv-building-lv { font-size: 10px; color: rgba(220,190,120,0.85); background: rgba(0,0,0,0.52); border-radius: 8px; padding: 1px 6px; margin-top: 3px; letter-spacing: 0.06em; }
 
 .sv-build-panel {
   position: absolute; bottom: 0; left: 50%;
@@ -609,7 +609,10 @@ function _openBuildPanel(slot, occupant) {
       : '';
     var refundStr = occupant.cost
       ? Object.entries(occupant.cost).filter(function(e){ return e[1] > 0; })
-          .map(function(e) { return _resIcon(e[0]) + ' ' + Math.floor(e[1] * 0.5); }).join('  ')
+          .map(function(e) {
+            var baseCost = Math.round(e[1] / (occupant.currentLevel + 1));
+            return _resIcon(e[0]) + ' ' + Math.floor(baseCost * 0.5);
+          }).join('  ')
       : '';
     html += '<div class="sv-occ-head"><span class="sv-occ-emoji">' + vis.emoji + '</span>'
       + '<div><div class="sv-occ-name">' + occupant.label + '</div>'
@@ -676,6 +679,10 @@ async function _svBuild(buildingId) {
   await buildBuilding(buildingId);
   _svPlaySound('/assets/audio/construct.wav');
   if (slotId) _svSetAssignment(slotId, buildingId);
+  // Explicitly refresh topbar — buildBuilding's internal refreshResources call
+  // can be pre-empted by loadBuildings re-rendering the panel, so we re-run it
+  // here to guarantee the numbers reflect the deducted cost.
+  if (typeof refreshResources === 'function') await refreshResources();
   if (cost && typeof _spawnFloater === 'function') {
     Object.entries(cost).forEach(function(e) { if (e[1]) _spawnFloater(e[0], -e[1]); });
   }
