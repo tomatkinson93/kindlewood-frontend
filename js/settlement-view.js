@@ -25,36 +25,35 @@ const SV_BIOMES = {
 
 // ── Area building groups (used so any slot accepts any area building) ─────────
 const SV_AREA_BUILDINGS = {
-  town:      ['tavern', 'market', 'granary', 'starter_house'],
+  town:      ['tavern', 'market', 'granary'],
   outskirts: ['forager_hut', 'farm', 'lumber_camp', 'fishing_post', 'scout_post'],
 };
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
 const SV_SLOTS = [
-  { id:'town-granary',  area:'town',      x:8,   y:74, accepts:['granary'],       label:'West Quarter',   size:'md' },
-  { id:'town-tavern',   area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Town Centre',    size:'md' },
-  { id:'town-house-3',  area:'town',      x:37,  y:80, accepts:['starter_house'], label:'South Lane',     size:'md' },
-  { id:'town-market',   area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Row',     size:'md' },
-  { id:'town-house-1',  area:'town',      x:61,  y:72, accepts:['starter_house'], label:'East Quarter',   size:'md' },
-  { id:'town-house-2',  area:'town',      x:74,  y:65, accepts:['starter_house'], label:'Hilltop',        size:'md' },
-  { id:'out-forager',   area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',    size:'md' },
-  { id:'out-farm',      area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',    size:'md' },
-  { id:'out-lumber',    area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands',  size:'md' },
-  { id:'out-fishing',   area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Riverside',      size:'md' },
-  { id:'out-scout',     area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'High Ground',    size:'md' },
+  { id:'town-granary',       area:'town',      x:8,   y:74, accepts:['granary'],      label:'West Quarter',  size:'md' },
+  { id:'town-tavern',        area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Town Centre',   size:'md' },
+  { id:'town-market',        area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Row',    size:'md' },
+  { id:'town-neighbourhood', area:'town',      x:67,  y:73, type:'neighbourhood',      label:'Neighbourhood', size:'md' },
+  { id:'out-forager',        area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',   size:'md' },
+  { id:'out-farm',           area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',   size:'md' },
+  { id:'out-lumber',         area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
+  { id:'out-fishing',        area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Riverside',     size:'md' },
+  { id:'out-scout',          area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'High Ground',   size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
 const SV_VISUALS = {
-  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/images/buildings/town/tavern.png'  },
-  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/images/buildings/town/market.png'  },
-  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/images/buildings/town/granary.png' },
-  starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.',    image:'/assets/images/buildings/town/housing1.png' },
-  farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.' },
+  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/images/buildings/tavern.png'  },
+  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/images/buildings/market.png'  },
+  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/images/buildings/granary.png' },
+  starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.' },
+  neighbourhood: { emoji:'🏘️',        bodyColor:'#7a5c40', roofColor:'#5a3820', flavor:'Manage homes, residents, and family life.', image:'/assets/images/buildings/neighbourhood.png' },
+  farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.',          image:'/assets/images/buildings/farm.png'    },
   lumber_camp:   { emoji:'\u{1FA93}', bodyColor:'#6b4020', roofColor:'#4a2c10', flavor:'Axes ring through the morning pines.' },
   fishing_post:  { emoji:'\u{1F3A3}', bodyColor:'#3a6080', roofColor:'#284860', flavor:'A patient dock above the quiet water.' },
   forager_hut:   { emoji:'\u{1F344}', bodyColor:'#607850', roofColor:'#485a38', flavor:'Into the woodland, lantern in hand.' },
-  scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye." },
+  scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
 
 // ── Slot assignments (persisted to localStorage) ──────────────────────────────
@@ -319,6 +318,101 @@ function _injectSvStyles() {
 .sv-slot.sv-resizing { z-index: 998 !important; }
 .sv-slot.sv-resizing .sv-building,
 .sv-slot.sv-resizing .sv-slot-empty { filter: drop-shadow(0 4px 16px rgba(100,160,255,0.45)); }
+
+/* Neighbourhood slot — always rendered as a building, never empty-ring */
+.sv-neighbourhood-building .sv-building-struct { border: 2px solid rgba(255,200,100,0.25); }
+.sv-neighbourhood-building:hover { transform: translateY(-5px) scale(1.06); filter: brightness(1.1); }
+
+/* Housing modal — slides up from bottom like the build panel */
+.sv-housing-modal {
+  position: absolute; bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(110%);
+  width: min(560px, 98vw);
+  max-height: 72vh;
+  background: linear-gradient(160deg, #2a1e14 0%, #1e1510 100%);
+  border: 1px solid rgba(180,140,80,0.45); border-bottom: none;
+  border-radius: 14px 14px 0 0; z-index: 20;
+  transition: transform 0.38s cubic-bezier(0.34,1.48,0.64,1);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sv-housing-modal.open { transform: translateX(-50%) translateY(0); }
+.sv-hm-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px 12px; border-bottom: 1px solid rgba(180,140,80,0.15);
+  flex-shrink: 0;
+}
+.sv-hm-title { font-size: 16px; font-weight: 700; color: #e8d090; }
+.sv-hm-tooltip { font-size: 11px; color: rgba(200,180,130,0.5); font-style: italic; margin-top: 2px; }
+.sv-hm-summary {
+  font-size: 11px; color: rgba(200,175,130,0.6);
+  padding: 8px 20px 2px; flex-shrink: 0;
+}
+.sv-hm-body { overflow-y: auto; flex: 1; padding: 6px 20px 10px; }
+.sv-hm-footer { padding: 10px 20px 18px; flex-shrink: 0; border-top: 1px solid rgba(180,140,80,0.1); }
+.sv-hm-section-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: rgba(200,180,120,0.4); margin: 8px 0 5px; font-weight: 700;
+}
+.sv-hm-empty {
+  color: rgba(200,180,120,0.4); font-size: 13px; text-align: center;
+  padding: 24px 0; line-height: 1.7;
+}
+.sv-hm-house {
+  background: rgba(255,220,150,0.04); border: 1px solid rgba(180,140,80,0.16);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.sv-hm-house-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sv-hm-house-name { font-size: 13px; font-weight: 700; color: #e0c878; flex: 1; }
+.sv-hm-house-cap { font-size: 11px; color: rgba(200,175,120,0.5); white-space: nowrap; }
+.sv-hm-demolish-btn {
+  background: rgba(160,40,30,0.12); border: 1px solid rgba(200,60,50,0.28);
+  border-radius: 5px; color: rgba(210,90,70,0.7); font-size: 10px;
+  cursor: pointer; padding: 2px 8px; font-family: inherit; transition: all 0.2s;
+}
+.sv-hm-demolish-btn:hover { background: rgba(180,50,40,0.25); color: #e86050; border-color: rgba(220,80,60,0.5); }
+.sv-hm-resident {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 4px; font-size: 12px; color: rgba(220,200,160,0.85);
+  border-bottom: 1px solid rgba(180,140,80,0.07);
+}
+.sv-hm-resident:last-of-type { border-bottom: none; }
+.sv-hm-resident-name { flex: 1; }
+.sv-hm-resident-role { font-size: 10px; color: rgba(180,155,110,0.5); text-transform: capitalize; }
+.sv-hm-unassign-btn {
+  background: none; border: 1px solid rgba(180,140,80,0.2); border-radius: 4px;
+  color: rgba(200,170,110,0.4); font-size: 10px; cursor: pointer;
+  padding: 1px 6px; font-family: inherit; transition: all 0.2s;
+}
+.sv-hm-unassign-btn:hover { border-color: rgba(200,80,60,0.45); color: rgba(220,100,80,0.8); }
+.sv-hm-assign-row { display: flex; gap: 6px; margin-top: 8px; }
+.sv-hm-assign-sel {
+  flex: 1; background: rgba(0,0,0,0.35); border: 1px solid rgba(180,140,80,0.22);
+  border-radius: 5px; color: rgba(200,180,140,0.8); padding: 4px 8px;
+  font-size: 11px; font-family: inherit;
+}
+.sv-hm-assign-btn {
+  background: rgba(80,130,55,0.18); border: 1px solid rgba(100,160,70,0.32);
+  border-radius: 5px; color: rgba(130,195,90,0.85); font-size: 11px;
+  cursor: pointer; padding: 4px 12px; font-family: inherit; white-space: nowrap; transition: all 0.2s;
+}
+.sv-hm-assign-btn:hover { background: rgba(100,150,65,0.28); color: #90d068; }
+.sv-hm-slot-empty {
+  font-size: 11px; color: rgba(200,175,120,0.32); padding: 4px 4px;
+  font-style: italic;
+}
+.sv-hm-unhoused-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.sv-hm-unhoused-chip {
+  background: rgba(255,210,90,0.05); border: 1px solid rgba(200,175,100,0.15);
+  border-radius: 10px; padding: 2px 10px; font-size: 11px; color: rgba(210,185,125,0.6);
+}
+.sv-hm-build-btn {
+  width: 100%; padding: 10px; background: rgba(120,80,28,0.2);
+  border: 1px solid rgba(200,148,58,0.4); border-radius: 8px;
+  color: #f0d070; font-size: 13px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: all 0.2s; letter-spacing: 0.04em;
+}
+.sv-hm-build-btn:hover { background: rgba(150,100,38,0.3); border-color: rgba(240,188,88,0.6); }
   `;
   document.head.appendChild(s);
 }
@@ -400,13 +494,17 @@ function _ensureSvDOM() {
     + '<button class="sv-edit-btn" id="sv-edit-btn" onclick="_svToggleEditMode()">&#9998; Edit</button>'
     + '<button class="sv-edit-reset-btn" id="sv-edit-reset-btn" style="display:none" onclick="_svResetLayout()">&#8635; Reset</button>'
     + '</div></div>'
-    + '<div class="sv-build-panel" id="sv-build-panel"></div>';
+    + '<div class="sv-build-panel" id="sv-build-panel"></div>'
+    + '<div class="sv-housing-modal" id="sv-housing-modal"></div>';
 
   _buildEnvLayers(SV_BIOME);
   _applySlotPositions();
 
   document.getElementById('sv-scene').addEventListener('click', function(e) {
-    if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel')) _closeBuildPanel();
+    if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel') && !e.target.closest('.sv-housing-modal')) {
+      _closeBuildPanel();
+      _closeHousingModal();
+    }
   });
 }
 
@@ -452,6 +550,7 @@ window.openSettlementView = openSettlementView;
 function closeSettlementView() {
   _svOpen = false;
   _closeBuildPanel();
+  _closeHousingModal();
   _unbindParallax();
 
   var commBar = document.querySelector('.community-bar');
@@ -514,25 +613,34 @@ function _renderScene() {
     if (!el) continue;
     el.innerHTML = '';
     el.onclick   = null;
-    var occupant = _occupantFor(slot);
-    if (occupant) {
-      el.appendChild(_buildOccupiedEl(slot, occupant));
-      if (!_svEditMode) (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
+
+    if (slot.type === 'neighbourhood') {
+      var housingB   = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
+      var houseCount = housingB ? housingB.currentLevel : 0;
+      el.appendChild(_buildNeighbourhoodEl(slot, houseCount));
+      if (!_svEditMode) el.onclick = function() { _openHousingModal(); };
     } else {
-      var areaBuildings = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
-      var taken = Object.values(_svGetAssignments());
-      var unbuildable = areaBuildings.filter(function(id) { return !taken.includes(id); });
-      var anyAvail = unbuildable.some(function(id) {
-        var b = _svBuildings.find(function(b) { return b.id === id; });
-        return b && b.currentLevel === 0 && b.requiresMet;
-      });
-      var allLocked = unbuildable.length === 0 || unbuildable.every(function(id) {
-        var b = _svBuildings.find(function(b) { return b.id === id; });
-        return !b || !b.requiresMet;
-      });
-      el.appendChild(_buildEmptyEl(slot, anyAvail, allLocked));
-      if (!_svEditMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
+      var occupant = _occupantFor(slot);
+      if (occupant) {
+        el.appendChild(_buildOccupiedEl(slot, occupant));
+        if (!_svEditMode) (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
+      } else {
+        var areaBuildings = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
+        var taken = Object.values(_svGetAssignments());
+        var unbuildable = areaBuildings.filter(function(id) { return !taken.includes(id); });
+        var anyAvail = unbuildable.some(function(id) {
+          var b = _svBuildings.find(function(b) { return b.id === id; });
+          return b && b.currentLevel === 0 && b.requiresMet;
+        });
+        var allLocked = unbuildable.length === 0 || unbuildable.every(function(id) {
+          var b = _svBuildings.find(function(b) { return b.id === id; });
+          return !b || !b.requiresMet;
+        });
+        el.appendChild(_buildEmptyEl(slot, anyAvail, allLocked));
+        if (!_svEditMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
+      }
     }
+
     if (_svEditMode) {
       var rh = document.createElement('div');
       rh.className = 'sv-slot-resize';
@@ -592,8 +700,259 @@ function _buildOccupiedEl(slot, building) {
   return div;
 }
 
+function _buildNeighbourhoodEl(slot, houseCount) {
+  var size = _svGetSlotSize(slot.id);
+  var vis  = SV_VISUALS.neighbourhood || { emoji:'🏘️', bodyColor:'#7a5c40', roofColor:'#5a3820' };
+  var div  = document.createElement('div');
+  div.className = 'sv-building sv-neighbourhood-building';
+  var subLabel = houseCount > 0
+    ? houseCount + ' home' + (houseCount !== 1 ? 's' : '')
+    : 'No homes yet';
+
+  if (vis.image) {
+    var imgW = Math.round(size * 1.53);
+    div.innerHTML = '<img src="' + vis.image + '" class="sv-building-img" style="width:' + imgW + 'px" alt=""'
+      + ' onerror="this.style.display=\'none\'">'
+      + '<div class="sv-building-name sv-building-name-img">Neighbourhood</div>'
+      + '<div class="sv-building-lv">' + subLabel + '</div>';
+  } else {
+    var bw = Math.round(size * 0.80), bh = Math.round(size * 0.65), rw = Math.round(size * 0.90);
+    var rh = Math.round(bh * 0.44);
+    div.innerHTML = '<div class="sv-building-struct sv-neighbourhood-struct" style="width:' + bw + 'px;height:' + bh + 'px;background:' + vis.bodyColor + '">'
+      + '<div class="sv-building-roof" style="border-width:0 ' + (rw/2) + 'px ' + rh + 'px ' + (rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
+      + '<span class="sv-building-emoji" style="font-size:24px">🏘️</span>'
+      + '</div>'
+      + '<div class="sv-building-shadow"></div>'
+      + '<div class="sv-building-name">Neighbourhood</div>'
+      + '<div class="sv-building-lv">' + subLabel + '</div>';
+  }
+  return div;
+}
+
+// ── Housing modal ─────────────────────────────────────────────────────────────
+function _svEsc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function _openHousingModal() {
+  _closeBuildPanel();
+  var modal = document.getElementById('sv-housing-modal');
+  if (!modal) return;
+  modal.innerHTML = '<div class="sv-hm-header"><span class="sv-hm-title">🏘️ Neighbourhood</span>'
+    + '<button class="sv-bp-close" onclick="_closeHousingModal()">\xD7</button></div>'
+    + '<div class="sv-hm-body"><div class="sv-hm-empty">Loading…</div></div>';
+  modal.classList.add('open');
+
+  try {
+    var res = await apiFetch('/api/housing');
+    if (!res.ok) { _renderHousingModal(null); return; }
+    var data = await res.json();
+    _renderHousingModal(data);
+  } catch(e) {
+    _renderHousingModal(null);
+  }
+}
+window._openHousingModal = _openHousingModal;
+
+function _closeHousingModal() {
+  var modal = document.getElementById('sv-housing-modal');
+  if (modal) modal.classList.remove('open');
+}
+window._closeHousingModal = _closeHousingModal;
+
+function _renderHousingModal(data) {
+  var modal = document.getElementById('sv-housing-modal');
+  if (!modal) return;
+
+  if (!data) {
+    modal.innerHTML = '<div class="sv-hm-header"><span class="sv-hm-title">🏘️ Neighbourhood</span>'
+      + '<button class="sv-bp-close" onclick="_closeHousingModal()">\xD7</button></div>'
+      + '<div class="sv-hm-body"><div class="sv-hm-empty">Failed to load housing data.</div></div>';
+    return;
+  }
+
+  var houses   = data.houses   || [];
+  var unhoused = data.unhoused || [];
+  var housingB = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
+  var totalResidents = houses.reduce(function(sum, h) { return sum + h.residents.length; }, 0);
+  var totalCapacity  = houses.reduce(function(sum, h) { return sum + h.capacity;         }, 0);
+
+  var costStr = '';
+  if (housingB && housingB.cost) {
+    costStr = Object.entries(housingB.cost)
+      .filter(function(e) { return e[1] > 0; })
+      .map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; })
+      .join('  ');
+  }
+
+  var html = '<div class="sv-hm-header">'
+    + '<span class="sv-hm-title">🏘️ Neighbourhood</span>'
+    + '<button class="sv-bp-close" onclick="_closeHousingModal()">\xD7</button>'
+    + '</div>';
+
+  if (houses.length > 0) {
+    html += '<div class="sv-hm-summary">'
+      + houses.length + ' home' + (houses.length !== 1 ? 's' : '')
+      + ' &nbsp;·&nbsp; ' + totalResidents + ' of ' + totalCapacity + ' spaces filled'
+      + '</div>';
+  } else {
+    html += '<div class="sv-hm-summary" style="font-style:italic">Manage homes, residents, and family life.</div>';
+  }
+
+  html += '<div class="sv-hm-body">';
+
+  if (houses.length === 0) {
+    html += '<div class="sv-hm-empty">No homes built yet.<br>'
+      + '<span style="font-size:11px;opacity:0.6">Build housing to shelter and house your citizens.</span></div>';
+  } else {
+    html += '<div class="sv-hm-section-label">Homes</div>';
+    for (var i = 0; i < houses.length; i++) {
+      var house = houses[i];
+      html += '<div class="sv-hm-house">'
+        + '<div class="sv-hm-house-header">'
+        + '<span class="sv-hm-house-name">🏡 ' + _svEsc(house.name) + '</span>'
+        + '<span class="sv-hm-house-cap">' + house.residents.length + ' / ' + house.capacity + '</span>'
+        + '<button class="sv-hm-demolish-btn" onclick="_svDemolishHouse()">🔨 Demolish</button>'
+        + '</div>';
+
+      for (var j = 0; j < house.residents.length; j++) {
+        var r = house.residents[j];
+        html += '<div class="sv-hm-resident">'
+          + '<span class="sv-hm-resident-name">' + _svEsc(r.name) + '</span>'
+          + '<span class="sv-hm-resident-role">' + r.role + '</span>'
+          + '<button class="sv-hm-unassign-btn" onclick="_svUnassignFromHouse(' + r.id + ')">Move out</button>'
+          + '</div>';
+      }
+
+      var emptySlots = house.capacity - house.residents.length;
+      if (emptySlots > 0) {
+        if (unhoused.length > 0) {
+          html += '<div class="sv-hm-assign-row">'
+            + '<select class="sv-hm-assign-sel" id="sv-hm-assign-' + house.id + '">'
+            + '<option value="">— Assign a citizen —</option>'
+            + unhoused.map(function(c) {
+                return '<option value="' + c.id + '">' + _svEsc(c.name) + ' (' + c.role + ')</option>';
+              }).join('')
+            + '</select>'
+            + '<button class="sv-hm-assign-btn" onclick="_svAssignToHouse(' + house.id + ')">Move in</button>'
+            + '</div>';
+        } else {
+          html += '<div class="sv-hm-slot-empty">'
+            + emptySlots + ' space' + (emptySlots !== 1 ? 's' : '') + ' available — no unhoused citizens.'
+            + '</div>';
+        }
+      }
+
+      html += '</div>'; // .sv-hm-house
+    }
+  }
+
+  // Show unhoused list when there are no houses to show assign dropdowns in
+  if (unhoused.length > 0 && houses.length === 0) {
+    html += '<div class="sv-hm-section-label">Unhoused citizens (' + unhoused.length + ')</div>'
+      + '<div class="sv-hm-unhoused-list">'
+      + unhoused.map(function(c) {
+          return '<span class="sv-hm-unhoused-chip">' + _svEsc(c.name) + '</span>';
+        }).join('')
+      + '</div>';
+  }
+
+  html += '</div>'; // .sv-hm-body
+
+  html += '<div class="sv-hm-footer">'
+    + '<button class="sv-hm-build-btn" onclick="_svBuildHousing()">🏗 Build Housing'
+    + (costStr ? ' &nbsp;—&nbsp; ' + costStr : '')
+    + '</button></div>';
+
+  modal.innerHTML = html;
+}
+window._renderHousingModal = _renderHousingModal;
+
+async function _svBuildHousing() {
+  if (typeof buildBuilding !== 'function') return;
+  var housingB = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
+  var cost = housingB ? housingB.cost : null;
+  await buildBuilding('starter_house');
+  _svPlaySound('/assets/audio/construct.wav');
+  if (typeof refreshResources === 'function') await refreshResources();
+  if (cost && typeof _spawnFloater === 'function') {
+    Object.entries(cost).forEach(function(e) { if (e[1]) _spawnFloater(e[0], -e[1]); });
+  }
+  await _svLoad();
+  _openHousingModal();
+}
+window._svBuildHousing = _svBuildHousing;
+
+async function _svDemolishHouse() {
+  if (!window.confirm('Demolish a Willow Hut? The most recently built home will be removed and its residents will be unhoused. You will receive 50% of build resources back.')) return;
+  try {
+    var res = await apiFetch('/api/buildings/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buildingId: 'starter_house' }),
+    });
+    if (!res.ok) {
+      var d = await res.json();
+      alert(d.error || 'Demolition failed.');
+      return;
+    }
+    var d = await res.json();
+    if (typeof refreshResources === 'function') await refreshResources();
+    if (d.refund && typeof _spawnFloater === 'function') {
+      Object.entries(d.refund).forEach(function(e) { if (e[1]) _spawnFloater(e[0], e[1]); });
+    }
+    await _svLoad();
+    _openHousingModal();
+  } catch(e) {
+    alert('Demolition failed.');
+  }
+}
+window._svDemolishHouse = _svDemolishHouse;
+
+async function _svAssignToHouse(houseId) {
+  var sel = document.getElementById('sv-hm-assign-' + houseId);
+  if (!sel || !sel.value) return;
+  var citizenId = parseInt(sel.value);
+  try {
+    var res = await apiFetch('/api/housing/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ citizen_id: citizenId, house_id: houseId }),
+    });
+    if (!res.ok) {
+      var d = await res.json();
+      alert(d.error || 'Could not assign citizen.');
+      return;
+    }
+    _openHousingModal();
+  } catch(e) {
+    alert('Assignment failed.');
+  }
+}
+window._svAssignToHouse = _svAssignToHouse;
+
+async function _svUnassignFromHouse(citizenId) {
+  try {
+    var res = await apiFetch('/api/housing/unassign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ citizen_id: citizenId }),
+    });
+    if (!res.ok) {
+      var d = await res.json();
+      alert(d.error || 'Could not move citizen out.');
+      return;
+    }
+    _openHousingModal();
+  } catch(e) {
+    alert('Failed to move citizen out.');
+  }
+}
+window._svUnassignFromHouse = _svUnassignFromHouse;
+
 // ── Build panel ───────────────────────────────────────────────────────────────
 function _openBuildPanel(slot, occupant) {
+  _closeHousingModal();
   _svSelectedSlot = slot;
   var panel   = document.getElementById('sv-build-panel');
   var areaTag = slot.area === 'town' ? 'Town' : 'Outskirts';
@@ -663,6 +1022,8 @@ function _closeBuildPanel() {
   _svSelectedSlot = null;
 }
 window._closeBuildPanel = _closeBuildPanel;
+
+// _closeHousingModal is defined earlier (before build panel) — referenced here for clarity
 
 function _svPlaySound(src) {
   var a = new Audio(src);

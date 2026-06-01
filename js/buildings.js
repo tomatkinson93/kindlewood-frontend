@@ -30,8 +30,8 @@ function renderBuildingsPanel() {
   const buildTab = document.getElementById('tab-buildings');
   if (!buildTab?.classList.contains('active')) return;
 
-  const built = buildingsData.filter(b => b.currentLevel > 0 && b.id !== 'housing');
-  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.id !== 'housing');
+  const built = buildingsData.filter(b => b.currentLevel > 0 && b.id !== 'housing' && b.id !== 'starter_house');
+  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.id !== 'housing' && b.id !== 'starter_house');
 
   let html = '';
 
@@ -83,8 +83,8 @@ function renderBuildingsPanel() {
     `;
   }).join('');
 
-  // Show locked buildings
-  const locked = buildingsData.filter(b => b.currentLevel === 0 && !b.requiresMet);
+  // Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
+  const locked = buildingsData.filter(b => b.currentLevel === 0 && !b.requiresMet && b.id !== 'housing' && b.id !== 'starter_house');
   if (locked.length) {
     html += `<div class="slabel" style="margin-top:8px;">LOCKED</div>`;
     html += locked.map(b => `
