@@ -1,3 +1,72 @@
+// Destination: js/profile.js
+// Changes in this version:
+//  • renderHonors() stub for the achievement honors strip + trophy cabinet
+//    (shows zeros/empty pedestals until the achievements API ships —
+//    flip PROFILE_HONORS_LIVE to true when /api/achievements/summary exists)
+//  • BUGFIX: viewPlayerProfile no longer clobbers server settlement data —
+//    the fallback (sidebar params) renders first, server data overwrites it
+//  • escHtml() applied to all user-supplied strings injected via innerHTML
+//    (settlement names and usernames are player input)
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── Achievement honors (strip + trophy cabinet) ──────────────────────────
+// Flip to true once the achievement system's summary endpoint exists.
+// Expected shape: { points, completion, trophies, title,
+//                   cabinet: [{ icon, name }] }  (cabinet max 3)
+const PROFILE_HONORS_LIVE = false;
+
+async function renderHonors(prefix, username) {
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+
+  // Placeholder state — zeros, empty pedestals (already in the HTML)
+  set(`${prefix}-honor-points`, '0');
+  set(`${prefix}-honor-completion`, '0%');
+  set(`${prefix}-honor-trophies`, '0');
+
+  if (!PROFILE_HONORS_LIVE || !username) return;
+
+  try {
+    const res = await apiFetch(`/api/achievements/summary/${encodeURIComponent(username)}`);
+    if (!res.ok) return;
+    const d = await res.json();
+
+    set(`${prefix}-honor-points`, d.points ?? 0);
+    set(`${prefix}-honor-completion`, `${d.completion ?? 0}%`);
+    set(`${prefix}-honor-trophies`, d.trophies ?? 0);
+
+    // Title under the username
+    const titleEl = document.getElementById(`${prefix}-title`);
+    if (titleEl && d.title) {
+      titleEl.textContent = `✦ ${d.title}`;
+      titleEl.hidden = false;
+    }
+
+    // Trophy cabinet — fill up to 3 pedestals
+    const cab = document.getElementById(`${prefix}-cabinet`);
+    if (cab && Array.isArray(d.cabinet) && d.cabinet.length) {
+      const slots = [...d.cabinet.slice(0, 3)];
+      while (slots.length < 3) slots.push(null);
+      cab.innerHTML = slots.map(t => t
+        ? `<div class="pm-cabinet-slot filled" title="${escHtml(t.name)}">${escHtml(t.icon || '🏆')}</div>`
+        : `<div class="pm-cabinet-slot empty">✦</div>`
+      ).join('');
+      const hint = cab.parentElement?.querySelector('.pm-cabinet-hint');
+      if (hint) hint.remove();
+    }
+  } catch (e) { /* honors are decorative — fail silently */ }
+}
+
+// ── Open own profile ──────────────────────────────────────────────────────
 
 // openProfileForUser — wraps viewPlayerProfile for use from the map sidebar
 async function openProfileForUser(username, species, settlementName, tier, tileX, tileY) {
@@ -5,7 +74,6 @@ async function openProfileForUser(username, species, settlementName, tier, tileX
   if (gameData && gameData.username === username) { openProfile(); return; }
   viewPlayerProfile(username, species || '', settlementName || '', tier || 'village', tileX || 0, tileY || 0);
 }
-
 
 async function openProfile() {
   const modal = document.getElementById('profile-modal');
@@ -20,6 +88,9 @@ async function openProfile() {
     document.getElementById('pm-species').textContent  = species;
     document.getElementById('pm-avatar').textContent   = username[0]?.toUpperCase() || '?';
     document.getElementById('pm-joined').textContent   = 'Realm citizen';
+
+    // Honors strip (placeholder until achievements ship)
+    renderHonors('pm', username);
 
     // Load bio from server
     try {
@@ -81,20 +152,28 @@ async function saveProfile() {
   }
 }
 
+function renderSettlementCard(name, meta, tier) {
+  const emoji = TIER_EMOJI[tier] || '🏕';
+  return `
+    <div class="pm-settlement-card">
+      <span class="pm-settlement-emoji">${emoji}</span>
+      <div class="pm-settlement-info">
+        <div class="pm-settlement-name">${escHtml(name)}</div>
+        <div class="pm-settlement-meta">${escHtml(meta)}</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderOwnSettlements() {
   const container = document.getElementById('pm-settlements');
   if (!container || !gameData?.settlement) return;
   const s = gameData.settlement;
-  const emoji = TIER_EMOJI[s.tier] || '🏕';
-  container.innerHTML = `
-    <div class="pm-settlement-card">
-      <span class="pm-settlement-emoji">${emoji}</span>
-      <div class="pm-settlement-info">
-        <div class="pm-settlement-name">${s.name}</div>
-        <div class="pm-settlement-meta">${s.tier} · ${gameData.species} · tile (${s.tile_x}, ${s.tile_y})</div>
-      </div>
-    </div>
-  `;
+  container.innerHTML = renderSettlementCard(
+    s.name,
+    `${s.tier} · ${gameData.species} · tile (${s.tile_x}, ${s.tile_y})`,
+    s.tier
+  );
 }
 
 async function loadProfileStats() {
@@ -132,6 +211,19 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
   document.getElementById('vp-username').textContent = username;
   document.getElementById('vp-species').textContent  = species || '';
   document.getElementById('vp-avatar').textContent   = (username || '?')[0].toUpperCase();
+  const vpTitle = document.getElementById('vp-title');
+  if (vpTitle) { vpTitle.hidden = true; vpTitle.textContent = ''; }
+
+  // Fallback settlement card from sidebar params — rendered FIRST so
+  // server data (fresher, includes live population) can overwrite it
+  document.getElementById('vp-settlements').innerHTML = renderSettlementCard(
+    settlementName || `${username}'s Settlement`,
+    `${tier} · ${species} · tile (${tileX}, ${tileY})`,
+    tier
+  );
+
+  // Honors strip
+  renderHonors('vp', username);
 
   // Fetch bio and profile from server
   document.getElementById('vp-bio').textContent = 'Loading…';
@@ -140,18 +232,13 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
     if (res.ok) {
       const data = await res.json();
       document.getElementById('vp-bio').textContent = data.bio || 'This ruler keeps their own counsel.';
-      // Update settlement info with server data if available
+      // Server settlement data overrides the sidebar fallback
       if (data.settlement) {
-        const emoji = TIER_EMOJI[data.settlement.tier] || '🏕';
-        document.getElementById('vp-settlements').innerHTML = `
-          <div class="pm-settlement-card">
-            <span class="pm-settlement-emoji">${emoji}</span>
-            <div class="pm-settlement-info">
-              <div class="pm-settlement-name">${data.settlement.name}</div>
-              <div class="pm-settlement-meta">${data.settlement.tier} · ${data.species} · ${data.settlement.population} citizens</div>
-            </div>
-          </div>
-        `;
+        document.getElementById('vp-settlements').innerHTML = renderSettlementCard(
+          data.settlement.name,
+          `${data.settlement.tier} · ${data.species} · ${data.settlement.population} citizens`,
+          data.settlement.tier
+        );
       }
     } else {
       document.getElementById('vp-bio').textContent = 'This ruler keeps their own counsel.';
@@ -159,18 +246,6 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
   } catch(e) {
     document.getElementById('vp-bio').textContent = 'This ruler keeps their own counsel.';
   }
-
-  // Settlement
-  const emoji = TIER_EMOJI[tier] || '🏕';
-  document.getElementById('vp-settlements').innerHTML = `
-    <div class="pm-settlement-card">
-      <span class="pm-settlement-emoji">${emoji}</span>
-      <div class="pm-settlement-info">
-        <div class="pm-settlement-name">${settlementName || username + "'s Settlement"}</div>
-        <div class="pm-settlement-meta">${tier} · ${species} · tile (${tileX}, ${tileY})</div>
-      </div>
-    </div>
-  `;
 
   modal.classList.add('open');
 }

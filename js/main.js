@@ -298,7 +298,15 @@ async function loadGame(force = false) {
   } catch (err) {
     console.error('loadGame error:', err);
     _loadGameLock = false;
-    showScreen('login');
+    // Only bounce to login if we never actually got the player's data.
+    // A throw in a late, non-critical step (audio preload, a badge fetch,
+    // profile widget) must NOT eject a player with a valid session.
+    if (!gameData || !gameData.settlement) {
+      showScreen('login');
+    } else {
+      console.warn('loadGame: late non-critical step failed; staying in game.');
+      try { hideLoadingScreen(); } catch (e) {}
+    }
   }
 }
 
@@ -545,7 +553,7 @@ const TERRAIN_BONUSES_DISPLAY = {
 // Tile sizes per zoom level — tile count is calculated to fill available space
 const TILE_PX_VAL = 48;  // fixed tile size — no zoom
 const GAP = 0;
-let camera = { q: 20, r: 15 };
+// camera — MOVED to kwmap-core.js (shared global, same name & object).
 
 function TILE_PX() { return TILE_PX_VAL; }
 
@@ -568,167 +576,29 @@ function applyGridTransform() {
 function setZoom(delta) { /* zoom removed */ }
 
 function centreCamera() {
-  if (worldMapData?.playerSettlement) {
-    camera.q = worldMapData.playerSettlement.q;
-    camera.r = worldMapData.playerSettlement.r;
-    renderWorldMap(worldMapData);
-  }
+  KWMap.controller.centreOnPlayer();
 }
 
 function panCamera(dx, dy) {
-  camera.q += dx;
-  camera.r += dy;
-  if (worldMapData) renderWorldMap(worldMapData);
+  KWMap.controller.pan(dx, dy);
 }
 
-// Keyboard panning
-const _keysHeld = {};
-let _panInterval = null;
-
-document.addEventListener('keydown', e => {
-  const mapKeys = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','A','d','D','w','W','s','S'];
-  if (!document.getElementById('screen-game')?.classList.contains('active')) return;
-  if (['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
-  if (!mapKeys.includes(e.key)) return;
-  e.preventDefault();
-  _keysHeld[e.key] = true;
-  if (!_panInterval) {
-    _panInterval = setInterval(() => {
-      let dx = 0, dy = 0;
-      if (_keysHeld['ArrowLeft']  || _keysHeld['a'] || _keysHeld['A']) dx -= 1;
-      if (_keysHeld['ArrowRight'] || _keysHeld['d'] || _keysHeld['D']) dx += 1;
-      if (_keysHeld['ArrowUp']    || _keysHeld['w'] || _keysHeld['W']) dy -= 1;
-      if (_keysHeld['ArrowDown']  || _keysHeld['s'] || _keysHeld['S']) dy += 1;
-      if (dx || dy) panCamera(dx, dy);
-    }, 100);
-  }
-});
-
-document.addEventListener('keyup', e => {
-  delete _keysHeld[e.key];
-  if (Object.keys(_keysHeld).length === 0 && _panInterval) {
-    clearInterval(_panInterval);
-    _panInterval = null;
-  }
-});
+// Keyboard panning — MOVED to kwmap-core.js (controller.initInput).
 
 
 // ── Drag to pan ──
-let _drag = null;
+// _drag — MOVED into controller.initInput's closure (kwmap-core.js).
 
+// _canvasPixelToHex — MOVED to kwmap-topdown.js (TopDownRenderer.screenToHex);
+// this delegate keeps every existing caller working and never branches on view.
 function _canvasPixelToHex(mouseX, mouseY) {
-  // Convert canvas pixel position to hex axial coords
-  // mouseX/Y are in CSS logical pixels; use clientWidth not canvas.width (physical pixels)
-  const canvas = _getCanvas();
-  if (!canvas) return null;
-  const W = canvas.clientWidth || canvas.width;
-  const H = canvas.clientHeight || canvas.height;
-  const tpx = TILE_PX();
-  const hexW = tpx;
-  const hexH = Math.round(tpx * 1.1547);
-  const hexVert = Math.round(hexH * 0.75);
-  const camPxX = hexW * (camera.q + camera.r / 2);
-  const camPxY = hexVert * camera.r;
-  // Pixel → world pixel → fractional hex
-  const worldX = mouseX - W/2 + camPxX;
-  const worldY = mouseY - H/2 + camPxY;
-  // Pointy-top axial inverse:
-  // r = worldY / hexVert
-  // q = worldX / hexW - r/2
-  const fr = worldY / hexVert;
-  const fq = worldX / hexW - fr / 2;
-  // Round to nearest hex using cube rounding
-  const fs = -fq - fr;
-  let rq = Math.round(fq), rr = Math.round(fr), rs = Math.round(fs);
-  const dq = Math.abs(rq-fq), dr = Math.abs(rr-fr), ds = Math.abs(rs-fs);
-  if (dq > dr && dq > ds) rq = -rr - rs;
-  else if (dr > ds) rr = -rq - rs;
-  const wq = ((rq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
-  const wr = ((rr % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
-  return { wq, wr };
+  return KWMap.controller.screenToHex(mouseX, mouseY);
 }
 
+// _initMapDrag — MOVED to kwmap-core.js (controller.initInput): click,
+// hover, drag-pan, keyboard-pan, gating, and persisted view restore.
 function _initMapDrag() {
-  const canvas = _getCanvas();
-  if (!canvas || canvas._dragInit) return;
-  canvas._dragInit = true;
-
-  // Zoom removed — scroll wheel disabled
-
-  // Click — hit test hex
-  canvas.addEventListener('click', e => {
-    if (_wasDrag) return; // don't fire click after drag
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const hex = _canvasPixelToHex(mx, my);
-    if (!hex) return;
-    const tileMap = {};
-    worldMapData?.tiles?.forEach(t => { tileMap[`${t.q},${t.r}`] = t; });
-    const t = tileMap[`${hex.wq},${hex.wr}`];
-    if (!t || t.terrain === 'fog') {
-      _selectedTile = { wq: hex.wq, wr: hex.wr };
-      selectFogTile(hex.wq, hex.wr);
-    } else {
-      _selectedTile = { wq: hex.wq, wr: hex.wr };
-      selectWorldTile(t);
-    }
-    if (!_fogAnimId) renderWorldMap(worldMapData);
-  });
-
-  // Hover tracking
-  canvas.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const hex = _canvasPixelToHex(mx, my);
-    if (hex) {
-      const prev = _hoveredTile;
-      if (!prev || prev.wq !== hex.wq || prev.wr !== hex.wr) {
-        _hoveredTile = hex;
-        // Only re-render for hover if fog animation isn't already doing it
-        if (!_fogAnimId) renderWorldMap(worldMapData);
-      }
-    }
-  });
-  canvas.addEventListener('mouseleave', () => {
-    _hoveredTile = null;
-  });
-
-  // Drag pan
-  let _wasDrag = false;
-  canvas.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    _wasDrag = false;
-    _drag = {
-      startX: e.clientX,
-      startY: e.clientY,
-      camX: camera.q,
-      camY: camera.r
-    };
-    canvas.style.cursor = 'grabbing';
-    e.preventDefault();
-  });
-
-  window.addEventListener('mousemove', e => {
-    if (!_drag) return;
-    const tpx = TILE_PX();
-    const hexVert = Math.round(tpx * 1.1547 * 0.75);
-    const dx = Math.round((_drag.startX - e.clientX) / tpx);
-    const dy = Math.round((_drag.startY - e.clientY) / hexVert);
-    if (dx !== 0 || dy !== 0) _wasDrag = true;
-    camera.q = _drag.camX + dx;
-    camera.r = _drag.camY + dy;
-    if (worldMapData) renderWorldMap(worldMapData);
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (!_drag) return;
-    _drag = null;
-    canvas.style.cursor = 'grab';
-  });
-
-  canvas.style.cursor = 'grab';
+  KWMap.controller.initInput();
 }
 
 async function loadWorldMap() {
@@ -996,866 +866,48 @@ _fogImg.onload = () => {
   if (worldMapData) _doRenderCanvas();
 };
 _fogImg.onerror = () => console.error('Fog image FAILED to load:', _fogImg.src);
-_fogImg.src = '/assets/fog/fog_base.png';
-let _fogOffset = 0;
-let _fogAnimId = null;
-
+// Painted cloud fog (visual direction §10.5) — pixelart.js loads before
+// main.js, so the generator is available here. Falls back to the PNG when
+// the flag is off or the function is missing.
+if (typeof generatePaintedCloudFog === 'function'
+    && (typeof USE_PAINTED_FOG === 'undefined' || USE_PAINTED_FOG)) {
+  _fogImg._painted = true;
+  _fogImg.src = generatePaintedCloudFog().toDataURL();
+} else {
+  _fogImg.src = '/assets/fog/fog_base.png';
+}
+// _fogOffset/_fogAnimId + _startFogAnimation — MOVED to kwmap-core.js: the
+// controller's render loop advances fog drift and is visibility-gated
+// (hidden map no longer burns CPU — sanctioned Phase-1 change).
 function _startFogAnimation() {
-  if (_fogAnimId) return;
-  let last = 0;
-  function tick(ts) {
-    const dt = last ? (ts - last) : 16;
-    last = ts;
-    _fogOffset += dt * 0.018;  // no modulo — smooth infinite drift, no reset
-    if (worldMapData) _doRenderCanvas();
-    _fogAnimId = requestAnimationFrame(tick);
-  }
-  _fogAnimId = requestAnimationFrame(tick);
+  KWMap.controller.startLoop();
 }
 
 // ── Canvas state ───────────────────────────────
-let _canvas = null, _ctx = null;
+// _canvas/_ctx — MOVED to kwmap-core.js.
 let _hoveredTile  = null;  // {wq, wr} of hovered hex
 let _selectedTile = null;  // {wq, wr} of clicked hex
 
-function _getCanvas() {
-  if (_canvas) return _canvas;
-  _canvas = document.getElementById('map-canvas');
-  if (_canvas) _ctx = _canvas.getContext('2d', { alpha: false });
-  return _canvas;
-}
+// _getCanvas — MOVED to kwmap-core.js (controller owns the canvas).
 
 // ── Hex path helper ────────────────────────────
-function _hexPath(ctx, cx, cy, hw, hh) {
-  const q1 = hw * 0.5, q2 = hw;
-  const r1 = hh * 0.25, r2 = hh * 0.75, r3 = hh;
-  ctx.beginPath();
-  ctx.moveTo(cx - q1, cy);
-  ctx.lineTo(cx + q1, cy);
-  ctx.lineTo(cx + q2 - q1, cy + r1);    // actually use correct pointy-top coords
-  ctx.lineTo(cx + q2 - q1, cy + r2);
-  ctx.lineTo(cx + q1, cy + r3);
-  ctx.lineTo(cx - q1, cy + r3);
-  ctx.lineTo(cx - q2 + q1, cy + r2);
-  ctx.lineTo(cx - q2 + q1, cy + r1);
-  ctx.closePath();
-}
-
-// Simpler version — pointy-top hex with left=x, top=y, w=hexW, h=hexH
-function _hexPathLT(ctx, x, y, w, h) {
-  ctx.beginPath();
-  ctx.moveTo(x + w/2,  y);
-  ctx.lineTo(x + w,    y + h*0.25);
-  ctx.lineTo(x + w,    y + h*0.75);
-  ctx.lineTo(x + w/2,  y + h);
-  ctx.lineTo(x,        y + h*0.75);
-  ctx.lineTo(x,        y + h*0.25);
-  ctx.closePath();
-}
-
+// _hexPath / _hexPathLT — MOVED to kwmap-core.js (shared by the renderer
+// and the uifx stroke pass). Same global names, defined there.
 // ── Main render ────────────────────────────────
-let _renderPending = false;
-
+// renderWorldMap — Phase 1: the rAF coalescing (_renderPending) now lives in
+// the controller's loop; this delegate just updates the data reference and
+// asks for a frame.
 function renderWorldMap(data) {
   worldMapData = data || worldMapData;
-  if (_renderPending) return;
-  _renderPending = true;
-  requestAnimationFrame(() => {
-    _renderPending = false;
-    _doRenderCanvas();
-  });
+  KWMap.controller.requestRender();
 }
 
+// _doRenderCanvas — MOVED to kwmap-topdown.js (TopDownRenderer.render) +
+// kwmap-core.js (HiDPI preamble in controller._prepFrame). Phase 1.
+// Kept as a delegate: outposts handlers and others call it for an
+// immediate redraw after state changes.
 function _doRenderCanvas() {
-  const data = worldMapData;
-  if (!data || !data.tiles) return;
-
-  const canvas = _getCanvas();
-  if (!canvas) return;
-
-  const frame = document.getElementById('map-frame');
-  const W = frame ? (frame.offsetWidth  || frame.clientWidth  || MAP_FRAME_W) : (canvas.clientWidth  || MAP_FRAME_W);
-  const H = frame ? (frame.offsetHeight || frame.clientHeight || MAP_FRAME_H) : (canvas.clientHeight || MAP_FRAME_H);
-  const dpr = window.devicePixelRatio || 1;
-
-  // Resize canvas backing store to physical pixels (HiDPI fix)
-  // Resizing the canvas resets its transform, so we always reapply scale below
-  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
-    canvas.width  = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
-    canvas.style.width  = W + 'px';
-    canvas.style.height = H + 'px';
-  }
-  // Always reset transform and reapply dpr scale at start of each frame
-  // (canvas resize clears the transform; calling scale() repeatedly would compound it)
-  _ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  const ctx = _ctx;
-
-  // ── Hex geometry ──────────────────────────────
-  const tpx     = TILE_PX();
-  const hexW    = tpx;
-  const hexH    = Math.round(tpx * 1.1547);
-  const hexVert = Math.round(hexH * 0.75);
-  const showEmoji = tpx >= 36;
-
-  // ── Tile lookup ───────────────────────────────
-  const tileMap = {};
-  data.tiles.forEach(t => { tileMap[`${t.q},${t.r}`] = t; });
-
-  // ── Clear ─────────────────────────────────────
-  // Match the unified tile border color so any sub-pixel gap between hex
-  // shapes blends invisibly. Using a near-black clear here would produce
-  // visible dark seams as the tile edges fade to transparent.
-  ctx.fillStyle = '#3a2e22';
-  ctx.fillRect(0, 0, W, H);
-
-  // ── Visible range ─────────────────────────────
-  const rowsVisible = Math.ceil(H / hexVert) + 8;
-  const colsVisible = Math.ceil(W / hexW) + rowsVisible + 4;
-  const cx = W / 2, cy = H / 2;
-  const camPxX = hexW * (camera.q + camera.r / 2);
-  const camPxY = hexVert * camera.r;
-  const qStart = camera.q - Math.ceil(colsVisible / 2);
-  const rStart = camera.r - Math.ceil(rowsVisible / 2);
-
-  // ── Fog texture — scaled up, drifts via sin/cos, no tiling so no seams ──
-  if (_fogImg.complete && _fogImg.naturalWidth > 0) {
-    const driftRange = Math.max(W, H) * 0.08;  // drift by up to 8% of canvas
-    // drawSize must be canvas + 2× driftRange so edges never go out of frame
-    const drawSize = Math.max(W, H) + driftRange * 2;
-    const driftX = Math.sin(_fogOffset * 0.0012) * driftRange;
-    const driftY = Math.cos(_fogOffset * 0.0008) * driftRange;
-    ctx.globalAlpha = 0.58;
-    ctx.drawImage(_fogImg, (W - drawSize) / 2 + driftX, (H - drawSize) / 2 + driftY, drawSize, drawSize);
-    ctx.globalAlpha = 1;
-  }
-
-  // ── Collect visible tiles (deduplicated — no tile drawn twice) ──────────
-  const visibleTiles = [];
-  const _seenTiles = new Set();
-  for (let dr = 0; dr < rowsVisible; dr++) {
-    for (let dq = 0; dq < colsVisible; dq++) {
-      const aq = qStart + dq, ar = rStart + dr;
-      const wq = ((aq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
-      const wr = ((ar % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
-      const key = `${wq},${wr}`;
-      if (_seenTiles.has(key)) continue;  // skip duplicate — tile already queued
-      const x = cx + hexW * (aq + ar / 2) - camPxX - hexW / 2;
-      const y = cy + hexVert * ar - camPxY - hexH / 2;
-      if (x < -hexW * 2 || x > W + hexW || y < -hexH * 2 || y > H + hexH) continue;
-      _seenTiles.add(key);
-      visibleTiles.push({ wq, wr, x: Math.round(x), y: Math.round(y), t: tileMap[`${wq},${wr}`] });
-    }
-  }
-
-  // ── Pass 1: terrain fills ─────────────────────
-  for (const { wq, wr, x, y, t } of visibleTiles) {
-    _hexPathLT(ctx, x, y, hexW, hexH);
-
-    if (!t || t.terrain === 'fog') {
-      // No fill — fog texture draws through
-    } else if (t.settlement) {
-      ctx.fillStyle = t.settlement.isOwn ? '#1a3060' : '#1a2e4a';
-      ctx.fill();
-    } else {
-      // Pick the tile image. Real PNGs (TILE_IMAGES[terrain]) win when loaded;
-      // otherwise fall back to a procedural variant chosen on coarse coords so
-      // that small clusters of adjacent tiles share the same look — gives
-      // patchy variation rather than per-tile noise.
-      let img = TILE_IMAGES[t.terrain];
-      if ((!img || img._isVariantSet) && typeof getTileVariant === 'function') {
-        img = getTileVariant(t.terrain, wq, wr);
-      }
-      const isUsableImage = img && !img._isVariantSet
-        && (img.naturalWidth || img.width);
-      if (isUsableImage && _tileImagesLoaded) {
-        ctx.save();
-        _hexPathLT(ctx, x, y, hexW, hexH);
-        ctx.clip();
-        // Draw tile at full hex size with a 1px overdraw on every side. The
-        // hex clip keeps content in the shape; the overdraw eliminates any
-        // sub-pixel gap where adjacent tiles meet, so seams disappear.
-        // (No more scale/offset jitter — that was producing the choppy look.)
-        ctx.drawImage(img, x - 1, y - 1, hexW + 2, hexH + 2);
-        ctx.restore();
-      } else {
-        ctx.fillStyle = TERRAIN_COLORS[t.terrain] || '#2a2010';
-        ctx.fill();
-        _drawTerrainDetail(ctx, x, y, hexW, hexH, t.terrain, wq, wr);
-      }
-    }
-  }
-
-
-  // ── Pass 1.5: river water (painterly natural treatment) ────────────────
-  // Goal: rivers read as terrain features carved into the landscape, not as
-  // overlay strokes. Approach is layered "soft to hard":
-  //
-  //   L1 wet-earth aura   — wide, very low-alpha dark ring; ground "soaked"
-  //   L2 soft outer water — wider faded water layer that bleeds into the aura
-  //   L3 water body       — main water colour at full width
-  //   L4 inner highlight  — soft sheen
-  //   L5 shore details    — terrain-aware: reeds (marsh/plains), rocks
-  //                         (hills/mountain), grass tufts (plains), surface
-  //                         ripples scattered along the river
-  //   L6 endpoint pools   — only for 0/1-conn river tiles
-  //
-  // Lakes use the same layer structure but drawn as overlapping-circle blobs
-  // per tile rather than hex-shaped fills, so shorelines are organic curves
-  // instead of straight hex edges.
-  //
-  // Curves are tangent-continuous cubic Beziers with extra wobble injected
-  // mid-tile (pre-tile-center) for irregular bank silhouettes, and width
-  // grows downstream via a BFS-from-headwaters rank cached on worldMapData.
-  //
-  // Position math uses each tile's visibleTiles entry + screen-space hex
-  // direction offsets so wrapping at map edges renders correctly.
-  const HEX_NEIGHBORS = [
-    [+1, 0], [-1, 0], [0, +1], [0, -1], [+1, -1], [-1, +1],
-  ];
-  const HEX_DIR_PX = HEX_NEIGHBORS.map(([dq, dr]) => ({
-    dx: hexW * (dq + dr / 2),
-    dy: hexVert * dr,
-  }));
-  const tileAt = (q, r) => tileMap[`${q},${r}`];
-  const isRiverTile = (q, r) => {
-    const t = tileAt(q, r);
-    return t && t.terrain === 'river';
-  };
-  const hashF = (...args) => {
-    let h = 0;
-    for (const a of args) h = ((h * 31) ^ (a | 0)) >>> 0;
-    h = ((h ^ (h >>> 16)) * 0x45d9f3b) >>> 0;
-    return ((h ^ (h >>> 16)) >>> 0) / 0xFFFFFFFF;
-  };
-  const wrapQ = (q) => ((q % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
-  const wrapR = (r) => ((r % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
-  const countRiverNeighbours = (q, r) => {
-    let n = 0;
-    for (const [dq, dr] of HEX_NEIGHBORS) {
-      if (isRiverTile(wrapQ(q + dq), wrapR(r + dr))) n++;
-    }
-    return n;
-  };
-  const isLakeTile = (q, r) => {
-    const c = countRiverNeighbours(q, r);
-    if (c >= 4) return true;
-    if (c >= 3) {
-      for (const [dq, dr] of HEX_NEIGHBORS) {
-        const nq = wrapQ(q + dq), nr = wrapR(r + dr);
-        if (isRiverTile(nq, nr) && countRiverNeighbours(nq, nr) >= 4) return true;
-      }
-    }
-    return false;
-  };
-
-  // BFS rank from headwaters — cached on worldMapData (invalidated when the
-  // dev tile-editor changes a tile, see _applyDevTileTerrain).
-  if (!data._riverFlow) {
-    const rank = {};
-    const queue = [];
-    for (const t of data.tiles) {
-      if (t.terrain !== 'river') continue;
-      if (countRiverNeighbours(t.q, t.r) === 1 && !isLakeTile(t.q, t.r)) {
-        rank[`${t.q},${t.r}`] = 0;
-        queue.push({ q: t.q, r: t.r, d: 0 });
-      }
-    }
-    while (queue.length) {
-      const cur = queue.shift();
-      for (const [dq, dr] of HEX_NEIGHBORS) {
-        const nq = wrapQ(cur.q + dq), nr = wrapR(cur.r + dr);
-        if (!isRiverTile(nq, nr)) continue;
-        const k = `${nq},${nr}`;
-        if (rank[k] !== undefined) continue;
-        rank[k] = cur.d + 1;
-        queue.push({ q: nq, r: nr, d: cur.d + 1 });
-      }
-    }
-    let maxRank = 1;
-    for (const k in rank) if (rank[k] > maxRank) maxRank = rank[k];
-    data._riverFlow = { rank, maxRank };
-  }
-  const flowRank = data._riverFlow.rank;
-  const flowMax = data._riverFlow.maxRank;
-
-  const terrainWidthFactor = (terrain) => {
-    if (terrain === 'mountain') return 0.55;
-    if (terrain === 'hills') return 0.75;
-    if (terrain === 'marsh') return 1.20;
-    if (terrain === 'plains') return 1.05;
-    return 1.0;
-  };
-
-  // ── Painterly palette ────────────────────────────────────────────────
-  // Soft, layered. Lower alphas on outer layers so they bleed into the
-  // ground rather than sitting on top.
-  const COL_WET_EARTH    = 'rgba(35, 26, 18, 0.18)';   // ground soaked aura
-  const COL_WET_EARTH_RIM= 'rgba(50, 38, 26, 0.40)';   // closer-to-water rim
-  const COL_WATER_OUTER  = 'rgba(70, 88, 102, 0.45)';  // soft fade water layer
-  const COL_WATER_BODY   = 'rgba(58, 78, 96, 0.92)';   // main water colour (rivers)
-  // Lake body uses a fully opaque variant — overlapping circles in the lake
-  // blob would otherwise expose their structure through alpha compounding,
-  // creating a visible "bauble" pattern across the lake surface.
-  const COL_WATER_BODY_OPAQUE = 'rgb(58, 78, 96)';
-  const COL_WATER_DEEP   = 'rgba(40, 56, 70, 0.55)';   // shadow inside body
-  const COL_WATER_LIGHT  = 'rgba(140, 162, 178, 0.40)';// soft highlight
-  const COL_WATER_GLINT  = 'rgba(210, 222, 228, 0.55)';// rare bright glint
-  const COL_REED         = 'rgba(78, 96, 50, 0.85)';
-  const COL_REED_DARK    = 'rgba(50, 64, 30, 0.85)';
-  const COL_GRASS        = 'rgba(110, 130, 60, 0.75)';
-  const COL_ROCK_DARK    = 'rgba(56, 50, 44, 0.85)';
-  const COL_ROCK_LIGHT   = 'rgba(120, 110, 100, 0.70)';
-
-  // Width base — slightly larger than before so downstream rivers feel
-  // properly broad. Scaled per terrain + downstream.
-  const baseW = Math.max(7, hexW * 0.40);
-
-  // ── Build river render data ──────────────────────────────────────────
-  const riverRenders = [];
-  for (const { wq, wr, x, y, t } of visibleTiles) {
-    if (!t || t.terrain !== 'river') continue;
-    const meX = x + hexW / 2;
-    const meY = y + hexH / 2;
-    const rk = flowRank[`${wq},${wr}`] ?? 0;
-    const downstreamFactor = 0.55 + (rk / flowMax) * 0.65; // slightly wider range than before
-    const width = baseW * downstreamFactor * terrainWidthFactor(t.terrain);
-    const lake = isLakeTile(wq, wr);
-    const conns = [];
-    for (let i = 0; i < HEX_NEIGHBORS.length; i++) {
-      const [dq, dr] = HEX_NEIGHBORS[i];
-      const nq = wrapQ(wq + dq), nr = wrapR(wr + dr);
-      if (!isRiverTile(nq, nr)) continue;
-      const nX = meX + HEX_DIR_PX[i].dx;
-      const nY = meY + HEX_DIR_PX[i].dy;
-      let mx = (meX + nX) / 2;
-      let my = (meY + nY) / 2;
-      // Symmetric edge-midpoint wobble
-      let ka = wq, kb = wr, kc = nq, kd = nr;
-      if (ka > kc || (ka === kc && kb > kd)) {
-        [ka, kc] = [kc, ka]; [kb, kd] = [kd, kb];
-      }
-      const wobble = (hashF(ka, kb, kc, kd) - 0.5) * hexW * 0.10;
-      const ex = nX - meX, ey = nY - meY;
-      const elen = Math.sqrt(ex * ex + ey * ey) || 1;
-      mx += (-ey / elen) * wobble;
-      my += (ex / elen) * wobble;
-      conns.push({
-        nq, nr, dirIdx: i,
-        edge: { x: mx, y: my },
-        tangent: { x: ex / elen, y: ey / elen },
-        // Neighbour terrain — used for shore detail decisions.
-        nTerrain: tileAt(nq, nr)?.terrain || 'plains',
-      });
-    }
-    riverRenders.push({
-      wq, wr,
-      x: meX, y: meY,
-      hexX: x, hexY: y,
-      width, conns, lake,
-      terrain: t.terrain,
-    });
-  }
-
-  // ── Lake blob construction ───────────────────────────────────────────
-  // For each lake tile, compute a list of circles whose union is the lake's
-  // contribution to the water body. A big core circle at tile centre, plus
-  // smaller bridge circles toward each lake neighbour (so adjacent lake
-  // tiles' circles overlap and form one continuous organic blob).
-  // Also collect lake tiles for shore/aura layers.
-  const lakeRenders = riverRenders.filter(r => r.lake);
-  const isLakeNeighbour = (rt, dirIdx) => {
-    const [dq, dr] = HEX_NEIGHBORS[dirIdx];
-    const nq = wrapQ(rt.wq + dq), nr = wrapR(rt.wr + dr);
-    return isLakeTile(nq, nr);
-  };
-  const lakeBlobCircles = (rt) => {
-    const circles = [];
-    // Core: irregular per-tile size — slightly oversized so adjacent
-    // bridge circles always overlap with cores nicely.
-    const coreR = hexW * (0.58 + hashF(rt.wq, rt.wr, 21) * 0.08);
-    circles.push({ x: rt.x, y: rt.y, r: coreR });
-    // Bridges toward lake neighbours — wider radius for smooth interior.
-    for (let i = 0; i < HEX_NEIGHBORS.length; i++) {
-      if (!isLakeNeighbour(rt, i)) continue;
-      const dx = HEX_DIR_PX[i].dx, dy = HEX_DIR_PX[i].dy;
-      // Bridge centre is partway from tile centre toward neighbour centre
-      const bx = rt.x + dx * 0.5;
-      const by = rt.y + dy * 0.5;
-      const br = hexW * (0.42 + hashF(rt.wq, rt.wr, 22 + i) * 0.06);
-      circles.push({ x: bx, y: by, r: br });
-    }
-    return circles;
-  };
-
-  // ── Helper: stroke the curve through this tile (rivers only) ─────────
-  // Cubic Bezier with tangents matched at edge midpoints. For 2-connection
-  // tiles the curve passes through the tile centre as control. For
-  // endpoints, ends in the tile centre. For junctions, half-curves out from
-  // the centre to each edge.
-  const cpDist = hexW * 0.35;
-  const strokeRiverPath = (rt) => {
-    if (rt.lake) return;
-    const { x, y, conns } = rt;
-    if (conns.length === 2) {
-      const a = conns[0], b = conns[1];
-      const cax = a.edge.x - a.tangent.x * cpDist;
-      const cay = a.edge.y - a.tangent.y * cpDist;
-      const cbx = b.edge.x - b.tangent.x * cpDist;
-      const cby = b.edge.y - b.tangent.y * cpDist;
-      ctx.beginPath();
-      ctx.moveTo(a.edge.x, a.edge.y);
-      ctx.bezierCurveTo(cax, cay, cbx, cby, b.edge.x, b.edge.y);
-      ctx.stroke();
-    } else if (conns.length === 1) {
-      const c = conns[0];
-      const cax = c.edge.x - c.tangent.x * cpDist;
-      const cay = c.edge.y - c.tangent.y * cpDist;
-      ctx.beginPath();
-      ctx.moveTo(c.edge.x, c.edge.y);
-      ctx.bezierCurveTo(cax, cay, x, y, x, y);
-      ctx.stroke();
-    } else if (conns.length >= 3) {
-      for (const c of conns) {
-        const cax = (x + c.edge.x) / 2;
-        const cay = (y + c.edge.y) / 2;
-        const cbx = c.edge.x - c.tangent.x * cpDist;
-        const cby = c.edge.y - c.tangent.y * cpDist;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.bezierCurveTo(cax, cay, cbx, cby, c.edge.x, c.edge.y);
-        ctx.stroke();
-      }
-    }
-  };
-  // Helper: fill all circles of a lake blob with current fillStyle. We
-  // expand the radius by an offset so layer 1 (aura) draws bigger than
-  // layer 3 (body) etc.
-  const fillLakeBlob = (rt, expand) => {
-    const circles = lakeBlobCircles(rt);
-    for (const c of circles) {
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r + expand, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  };
-
-  // ──────────────────────────────────────────────────────────────────────
-  //  L1: WET EARTH AURA — outermost soft darkening of ground around water
-  // ──────────────────────────────────────────────────────────────────────
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.globalCompositeOperation = 'source-over';
-  // Outer aura — very low alpha, wide
-  ctx.strokeStyle = COL_WET_EARTH;
-  for (const rt of riverRenders) {
-    ctx.lineWidth = rt.width + 14;
-    strokeRiverPath(rt);
-  }
-  ctx.fillStyle = COL_WET_EARTH;
-  for (const rt of lakeRenders) fillLakeBlob(rt, 8);
-  // Inner aura rim — slightly stronger, narrower
-  ctx.strokeStyle = COL_WET_EARTH_RIM;
-  for (const rt of riverRenders) {
-    ctx.lineWidth = rt.width + 6;
-    strokeRiverPath(rt);
-  }
-  ctx.fillStyle = COL_WET_EARTH_RIM;
-  for (const rt of lakeRenders) fillLakeBlob(rt, 3);
-  ctx.restore();
-
-  // ──────────────────────────────────────────────────────────────────────
-  //  L2: SOFT OUTER WATER — feathered fade between aura and body
-  // ──────────────────────────────────────────────────────────────────────
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = COL_WATER_OUTER;
-  for (const rt of riverRenders) {
-    ctx.lineWidth = rt.width + 3;
-    strokeRiverPath(rt);
-  }
-  ctx.fillStyle = COL_WATER_OUTER;
-  for (const rt of lakeRenders) fillLakeBlob(rt, 1.5);
-  ctx.restore();
-
-  // ──────────────────────────────────────────────────────────────────────
-  //  L3: WATER BODY — main water colour
-  // ──────────────────────────────────────────────────────────────────────
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = COL_WATER_BODY;
-  for (const rt of riverRenders) {
-    ctx.lineWidth = rt.width;
-    strokeRiverPath(rt);
-  }
-  ctx.fillStyle = COL_WATER_BODY_OPAQUE;
-  for (const rt of lakeRenders) fillLakeBlob(rt, 0);
-  ctx.restore();
-
-  // ──────────────────────────────────────────────────────────────────────
-  //  L4: HIGHLIGHT — soft sheen on the upper-left of each segment / lake
-  // ──────────────────────────────────────────────────────────────────────
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = COL_WATER_LIGHT;
-  for (const rt of riverRenders) {
-    if (rt.lake) continue;
-    ctx.lineWidth = rt.width * 0.42;
-    strokeRiverPath(rt);
-  }
-  ctx.restore();
-  // Lake surface — calm flat water with very subtle ripple lines.
-  //
-  // Earlier versions drew a per-tile radial highlight which created a "ball"
-  // / "bauble" look at every tile centre because the gradient is brightest
-  // near the centre of each circle. For a still lake we want one continuous
-  // flat surface, so we omit the centre-bright highlight entirely and instead
-  // suggest stillness with a few faint, short ripple curves scattered across
-  // the lake body. Hashes are seeded by tile position so ripples are
-  // deterministic (no flicker on pan) but they vary per tile so adjacent
-  // tiles don't show identical ripple patterns.
-  ctx.save();
-  ctx.strokeStyle = 'rgba(225, 232, 238, 0.18)';
-  ctx.lineWidth = 0.7;
-  ctx.lineCap = 'round';
-  for (const rt of lakeRenders) {
-    // 1-2 ripples per tile, placed in the inner area (well away from the
-    // shoreline so they don't conflict with bank details). Each ripple is a
-    // short shallow arc — subtle horizontal-ish wave, very low contrast.
-    const numRipples = (hashF(rt.wq, rt.wr, 41) < 0.55) ? 2 : 1;
-    for (let i = 0; i < numRipples; i++) {
-      const ox = (hashF(rt.wq, rt.wr, 42 + i) - 0.5) * hexW * 0.55;
-      const oy = (hashF(rt.wq, rt.wr, 44 + i) - 0.5) * hexH * 0.45;
-      const cx_ = rt.x + ox;
-      const cy_ = rt.y + oy;
-      const len = hexW * (0.20 + hashF(rt.wq, rt.wr, 46 + i) * 0.12);
-      // Angle is mostly horizontal with slight tilt — water reads "still"
-      // when ripples are level rather than diagonal.
-      const tilt = (hashF(rt.wq, rt.wr, 48 + i) - 0.5) * 0.4;
-      const dx = Math.cos(tilt) * len / 2;
-      const dy = Math.sin(tilt) * len / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx_ - dx, cy_ - dy);
-      ctx.quadraticCurveTo(cx_, cy_ - 0.6, cx_ + dx, cy_ + dy);
-      ctx.stroke();
-    }
-  }
-  ctx.restore();
-
-  // ──────────────────────────────────────────────────────────────────────
-  //  L5: SHORE DETAILS — terrain-aware reeds / rocks / grass / ripples
-  // ──────────────────────────────────────────────────────────────────────
-  // For each river tile, walk its connections and place 1-2 small detail
-  // marks per connection on the river side of the shared edge. The mark
-  // type depends on the neighbour's terrain: marsh → reeds; plains → grass
-  // tufts and reeds; hills/mountain → rocks; otherwise → none. Inside the
-  // body of each river tile we also scatter 1-2 surface ripples.
-  const drawReedAt = (px, py, seed) => {
-    // Reeds: 2-3 vertical strokes, slightly varying height.
-    const n = 2 + (seed * 3 | 0) % 2;
-    for (let i = 0; i < n; i++) {
-      const h = 3 + ((seed * (i + 1.7)) % 1) * 4;
-      const ox = (i - (n - 1) / 2) * 1.5;
-      ctx.fillStyle = i === 0 ? COL_REED_DARK : COL_REED;
-      ctx.fillRect(px + ox, py - h, 1, h);
-    }
-  };
-  const drawGrassAt = (px, py, seed) => {
-    // Grass: 4-5 short angled strokes
-    ctx.fillStyle = COL_GRASS;
-    const n = 3 + (seed * 4 | 0) % 3;
-    for (let i = 0; i < n; i++) {
-      const ox = (i - n / 2) * 1.3;
-      const lean = (((seed * (i + 1)) % 1) - 0.5) * 1.5;
-      ctx.fillRect(px + ox, py - 2.5, 0.9, 2.5);
-      ctx.fillRect(px + ox + lean, py - 2.0, 0.9, 2.0);
-    }
-  };
-  const drawRockAt = (px, py, seed) => {
-    // Rock: small dark dab + smaller light dab
-    ctx.beginPath();
-    ctx.fillStyle = COL_ROCK_DARK;
-    ctx.arc(px, py, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.fillStyle = COL_ROCK_LIGHT;
-    ctx.arc(px - 0.5, py - 0.5, 1.0, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  const drawRippleAt = (px, py, len) => {
-    ctx.strokeStyle = 'rgba(170, 190, 205, 0.55)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(px - len / 2, py);
-    ctx.quadraticCurveTo(px, py - 0.7, px + len / 2, py);
-    ctx.stroke();
-  };
-
-  for (const rt of riverRenders) {
-    // Ripples on body — 1-2 per tile, scattered along curve. Skip lakes
-    // (lakes get fewer/different details to read as still water).
-    if (!rt.lake) {
-      const numRipples = (hashF(rt.wq, rt.wr, 31) < 0.55) ? 2 : 1;
-      for (let i = 0; i < numRipples; i++) {
-        // Sample a position along the river path. For 2-conn tiles,
-        // interpolate along the bezier; otherwise sit near the centre.
-        let px, py;
-        const t1 = 0.30 + i * 0.40 + (hashF(rt.wq, rt.wr, 32 + i) - 0.5) * 0.15;
-        if (rt.conns.length === 2) {
-          // Approximate Bezier(t) using simple lerp through centre
-          const a = rt.conns[0].edge, b = rt.conns[1].edge;
-          if (t1 < 0.5) {
-            const u = t1 * 2;
-            px = a.x + (rt.x - a.x) * u;
-            py = a.y + (rt.y - a.y) * u;
-          } else {
-            const u = (t1 - 0.5) * 2;
-            px = rt.x + (b.x - rt.x) * u;
-            py = rt.y + (b.y - rt.y) * u;
-          }
-        } else {
-          px = rt.x + (hashF(rt.wq, rt.wr, 33 + i) - 0.5) * rt.width;
-          py = rt.y + (hashF(rt.wq, rt.wr, 34 + i) - 0.5) * rt.width * 0.6;
-        }
-        drawRippleAt(px, py, rt.width * 0.45);
-      }
-    }
-
-    // Shore details from each neighbour
-    for (const c of rt.conns) {
-      // Skip details where the neighbour is also a river/lake — that's
-      // water-to-water, not shoreline.
-      if (c.nTerrain === 'river') continue;
-      // Detail position: slight inward offset from edge midpoint, on the
-      // far side of the river (i.e. on the non-river side, just beside
-      // the water). Use the perpendicular of the tangent to land on the
-      // bank.
-      const seed = hashF(rt.wq, rt.wr, c.dirIdx + 7);
-      const numMarks = 1 + ((seed * 2) | 0);
-      for (let i = 0; i < numMarks; i++) {
-        // Position along the edge perpendicular axis, with random offset
-        // along the river (so marks don't all stack on the midpoint).
-        const along = (hashF(rt.wq, rt.wr, c.dirIdx * 13 + i + 3) - 0.5) * rt.width * 1.4;
-        // Tangent runs along flow; perpendicular runs across the river
-        const tx = c.tangent.x, ty = c.tangent.y;
-        const px_ = -ty, py_ = tx; // perpendicular
-        // Place mark just outside the water edge, on the bank facing the
-        // neighbour terrain. Distance = water half-width + small margin.
-        const offDist = rt.width * 0.50 + 1.5;
-        const mx = c.edge.x + px_ * offDist + tx * along;
-        const my = c.edge.y + py_ * offDist + ty * along;
-        // Pick detail by neighbour terrain
-        const mseed = hashF(rt.wq, rt.wr, c.dirIdx * 17 + i + 11);
-        if (c.nTerrain === 'marsh') {
-          drawReedAt(mx, my, mseed);
-        } else if (c.nTerrain === 'plains') {
-          if (mseed < 0.5) drawReedAt(mx, my, mseed);
-          else drawGrassAt(mx, my, mseed);
-        } else if (c.nTerrain === 'hills' || c.nTerrain === 'mountain') {
-          drawRockAt(mx, my, mseed);
-        } else if (c.nTerrain === 'forest') {
-          // Forest banks: occasional grass + occasional rock
-          if (mseed < 0.65) drawGrassAt(mx, my, mseed);
-          else drawRockAt(mx, my, mseed);
-        }
-      }
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────────────────
-  //  L6: ENDPOINT POOLS — rivers ending in springs / 1-tile ponds
-  // ──────────────────────────────────────────────────────────────────────
-  for (const rt of riverRenders) {
-    if (rt.lake) continue;
-    const isEndpoint = rt.conns.length <= 1;
-    const isJunction = rt.conns.length >= 3;
-    if (!isEndpoint && !isJunction) continue;
-    const r = isEndpoint
-      ? (rt.conns.length === 0 ? rt.width * 0.65 : rt.width * 0.55)
-      : rt.width * 0.32;
-    // Wet earth around the pool
-    ctx.beginPath();
-    ctx.fillStyle = COL_WET_EARTH_RIM;
-    ctx.arc(rt.x, rt.y, r + 4, 0, Math.PI * 2);
-    ctx.fill();
-    // Outer water fade
-    ctx.beginPath();
-    ctx.fillStyle = COL_WATER_OUTER;
-    ctx.arc(rt.x, rt.y, r + 1.5, 0, Math.PI * 2);
-    ctx.fill();
-    // Body
-    ctx.beginPath();
-    ctx.fillStyle = COL_WATER_BODY;
-    ctx.arc(rt.x, rt.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    // Highlight
-    ctx.beginPath();
-    ctx.fillStyle = COL_WATER_LIGHT;
-    ctx.arc(rt.x - r * 0.25, rt.y - r * 0.25, r * 0.55, 0, Math.PI * 2);
-    ctx.fill();
-    if (isEndpoint) {
-      ctx.beginPath();
-      ctx.fillStyle = COL_WATER_GLINT;
-      ctx.arc(rt.x - r * 0.35, rt.y - r * 0.35, r * 0.20, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-
-  // ── Pass 2: borders + highlights ─────────────
-  for (const { wq, wr, x, y, t } of visibleTiles) {
-    const isFog = !t || t.terrain === 'fog';
-    const isHome = t?.settlement?.isOwn;
-    const isHovered  = _hoveredTile && _hoveredTile.wq === wq && _hoveredTile.wr === wr;
-    const isSelected = _selectedTile && _selectedTile.wq === wq && _selectedTile.wr === wr;
-    const isSelFog = _selectedFogTile && _selectedFogTile.wx === wq && _selectedFogTile.wy === wr;
-
-    if (isSelected && !isHome) {
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.strokeStyle = 'rgba(255,220,80,0.95)';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      // Inner glow fill
-      ctx.fillStyle = 'rgba(255,220,80,0.08)';
-      ctx.fill();
-    }
-    if (isHome) {
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.strokeStyle = 'rgba(255,210,120,0.9)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    } else if (isSelFog) {
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.strokeStyle = 'rgba(220,175,60,0.85)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    } else if (isHovered && !isFog) {
-      // Terrain hover — clip so stroke doesn't bleed onto adjacent tiles
-      ctx.save();
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.clip();
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.strokeStyle = 'rgba(255,210,80,0.9)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.restore();
-    } else if (isHovered && isFog) {
-      // Fog hover — clip, then fill + outline
-      ctx.save();
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.clip();
-      ctx.fillStyle = 'rgba(210,160,50,0.18)';
-      ctx.fill();
-      _hexPathLT(ctx, x, y, hexW, hexH);
-      ctx.strokeStyle = 'rgba(220,175,60,0.85)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  // ── Pass 3: settlement rendering ──────────────────────────────────────
-  for (const { wq, wr, x, y, t } of visibleTiles) {
-    if (!t?.settlement) continue;
-    const s = t.settlement;
-    const cx = x + hexW / 2, cy = y + hexH / 2;
-    const r2 = Math.min(hexW, hexH) * 0.46;
-
-    ctx.save();
-    _hexPathLT(ctx, x, y, hexW, hexH);
-    ctx.clip();
-
-    // Normalise type — handle undefined/null gracefully
-    const sType = s.settlement_type || (s.is_kingdom ? 'kingdom' : s.disposition === 'hostile' ? 'hostile' : 'npc');
-
-    if (sType === 'kingdom' || s.is_kingdom) {
-      // ── Great Kingdom — rich gold fill ──
-      ctx.fillStyle = s.is_kingdom_annex ? 'rgba(120,90,10,0.68)' : 'rgba(140,100,5,0.78)';
-      ctx.fill();
-      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r2 * 0.8);
-      grd.addColorStop(0, 'rgba(255,220,80,0.45)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grd;
-      ctx.fill();
-      // Border
-      ctx.strokeStyle = s.is_kingdom_annex ? 'rgba(220,185,60,0.70)' : 'rgba(255,215,50,0.98)';
-      ctx.lineWidth = s.is_kingdom_annex ? 1.8 : 2.8;
-      ctx.stroke();
-      // Crown icon on main tile only
-      if (!s.is_kingdom_annex && showEmoji) {
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${Math.round(hexH * 0.42)}px serif`;
-        ctx.fillText('👑', cx, cy);
-      }
-
-    } else if (sType === 'hostile') {
-      // ── Hostile (Withered) — solid dark crimson fill ──
-      ctx.fillStyle = 'rgba(100,8,8,0.78)';
-      ctx.fill();
-      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r2 * 0.7);
-      grd.addColorStop(0, 'rgba(220,40,20,0.35)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grd;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(240,50,30,0.95)';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      if (showEmoji) {
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${Math.round(hexH * 0.42)}px serif`;
-        ctx.fillText('💀', cx, cy);
-      }
-
-    } else if (sType === 'npc') {
-      // ── Friendly/Neutral NPC — solid teal fill over terrain ──
-      const isNeutral = s.disposition === 'neutral';
-      // Solid base fill
-      ctx.fillStyle = isNeutral ? 'rgba(40,100,90,0.72)' : 'rgba(20,110,80,0.72)';
-      ctx.fill();
-      // Lighter centre glow
-      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, r2 * 0.7);
-      grd.addColorStop(0, isNeutral ? 'rgba(130,210,180,0.35)' : 'rgba(80,220,160,0.40)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grd;
-      ctx.fill();
-      // Border
-      ctx.strokeStyle = isNeutral ? 'rgba(120,200,160,0.9)' : 'rgba(60,220,150,0.95)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      if (showEmoji) {
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${Math.round(hexH * 0.38)}px serif`;
-        ctx.fillText('🏡', cx, cy);
-      }
-
-    } else {
-      // ── Player settlement — amber/gold ──
-      const grd = ctx.createRadialGradient(cx, cy, r2 * 0.1, cx, cy, r2);
-      grd.addColorStop(0, s.isOwn ? 'rgba(255,200,80,0.32)' : 'rgba(200,160,60,0.22)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grd;
-      ctx.fill();
-      ctx.strokeStyle = s.isOwn ? 'rgba(255,210,120,0.95)' : 'rgba(200,160,60,0.65)';
-      ctx.lineWidth = s.isOwn ? 2.5 : 1.8;
-      ctx.stroke();
-      if (showEmoji) {
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${Math.round(hexH * 0.42)}px serif`;
-        ctx.fillText(s.isOwn ? '🏘' : '🏘', cx, cy);
-      }
-    }
-
-    ctx.restore();
-  }
+  KWMap.controller.requestRender();
 }
 
 
@@ -1959,6 +1011,239 @@ async function _applyDevTileTerrain() {
 }
 
 
+// ══════════════════════════════════════════════════════════════════════════
+//  OUTPOSTS (010) — tile side-panel + handlers
+//  Server truth lives at GET /api/game/outposts (yields, costs, cap, range —
+//  cached in _outpostStatus so the panel never hardcodes numbers). Buttons
+//  use data-* + addEventListener; no inline onclick.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Display glyphs only (map stamps + panel flair). Numbers come from the server.
+const OUTPOST_ICONS = {
+  plains: '🌾', forest: '🪓', hills: '⛏️', mountain: '⚒️',
+  river: '🎣', marsh: '🌿', ruins: '🏺',
+};
+const RES_GLYPHS = { food: '🍎', timber: '🪵', stone: '🪨', metal: '⚙️', wealth: '🪙' };
+
+let _outpostStatus = null;      // last GET /api/game/outposts payload
+let _outpostStatusLoading = false;
+
+async function _refreshOutpostStatus(rerenderTile) {
+  if (_outpostStatusLoading) return;
+  _outpostStatusLoading = true;
+  try {
+    const res = await apiFetch('/api/game/outposts');
+    if (res.ok) {
+      _outpostStatus = await res.json();
+      // Re-render the panel for the tile that triggered the load, if still selected
+      if (rerenderTile && _selectedTile
+          && _selectedTile.wq === rerenderTile.q && _selectedTile.wr === rerenderTile.r) {
+        selectWorldTile(rerenderTile);
+      }
+    }
+  } catch (e) { /* panel shows loading state; next select retries */ }
+  finally { _outpostStatusLoading = false; }
+}
+
+// Wrap-aware axial distance on the client (mirrors mapgen.hexDistanceWrapped)
+function _hexDistWrappedClient(q1, r1, q2, r2) {
+  const dist = (a, b, c, d) => {
+    const dq = a - c, dr = b - d;
+    return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
+  };
+  let min = Infinity;
+  for (let dq = -1; dq <= 1; dq++) for (let dr = -1; dr <= 1; dr++) {
+    const d = dist(q1, r1, q2 + dq * HEX_MAP_W, r2 + dr * HEX_MAP_H);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+function _liveResources() {
+  // Prefer the ticking copy (game.js), fall back to the last /settlement load.
+  if (typeof tickResources !== 'undefined' && tickResources) return tickResources;
+  return gameData?.settlement?.resources || {};
+}
+
+function _yieldChips(yields) {
+  return Object.entries(yields || {})
+    .map(([res, v]) => `<span class="op-chip op-chip-plus">${RES_GLYPHS[res] || ''} +${v}/hr</span>`)
+    .join('');
+}
+
+function _costChips(cost, have) {
+  return Object.entries(cost || {})
+    .filter(([, v]) => v > 0)
+    .map(([res, v]) => {
+      const short = (have[res] ?? 0) < v;
+      return `<span class="op-chip ${short ? 'op-chip-short' : ''}">${RES_GLYPHS[res] || ''} ${v}</span>`;
+    }).join('');
+}
+
+function _outpostSectionHtml(tile) {
+  // My outpost here — production block + dismantle
+  if (tile.outpost?.mine) {
+    const st = _outpostStatus;
+    const cfg = st?.config?.[tile.outpost.terrain];
+    const yields = cfg?.yields || {};
+    return `
+      <div class="op-section">
+        <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'}</div>
+        <div class="op-chips">${_yieldChips(yields)}<span class="op-chip op-chip-minus">🍎 −${st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
+        <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
+        <div class="op-reason" data-op-reason style="display:none"></div>
+      </div>`;
+  }
+
+  // Someone else's outpost / claim — informational only
+  if (tile.outpost) {
+    return `<div class="op-section"><div class="op-note">⛺ ${tile.outpost.owner}'s outpost stands here.</div></div>`;
+  }
+  if (tile.claim_owner) {
+    return `<div class="op-section"><div class="op-note">This tile is claimed by ${tile.claim_owner}.</div></div>`;
+  }
+
+  // Buildable? Needs status + a placed settlement.
+  const home = gameData?.settlement;
+  if (!home || home.tile_q == null) return '';
+
+  const st = _outpostStatus;
+  if (!st) {
+    // Kick the fetch and show a quiet placeholder; the fetch re-renders.
+    _refreshOutpostStatus(tile);
+    return `<div class="op-section"><div class="op-note">Surveying the land…</div></div>`;
+  }
+
+  const cfg = st.config?.[tile.terrain];
+  if (!cfg) return ''; // unknown terrain (shouldn't happen)
+
+  const d = _hexDistWrappedClient(home.tile_q, home.tile_r, tile.q, tile.r);
+  const have = _liveResources();
+  const affordable = Object.entries(st.cost || {}).every(([res, v]) => (have[res] ?? 0) >= v);
+
+  let disabled = '';
+  let reason = '';
+  if (d > st.range) {
+    disabled = 'disabled';
+    reason = `Too far from your settlement (needs ≤ ${st.range}, this is ${d}).`;
+  } else if (st.used >= st.cap) {
+    disabled = 'disabled';
+    reason = `Your ${st.tier} can support ${st.cap} outpost${st.cap === 1 ? '' : 's'}. Grow your settlement tier to found more.`;
+  } else if (!affordable) {
+    disabled = 'disabled';
+    reason = 'Not enough resources.';
+  }
+
+  return `
+    <div class="op-section">
+      <div class="op-title">${OUTPOST_ICONS[tile.terrain] || '⛺'} ${cfg.name}</div>
+      <div class="op-chips">${_yieldChips(cfg.yields)}<span class="op-chip op-chip-minus">🍎 −${st.upkeep_food_per_hr}/hr upkeep</span></div>
+      <div class="op-cost-label">Cost</div>
+      <div class="op-chips">${_costChips(st.cost, have)}</div>
+      <button class="action-btn op-build" data-op-build="1" data-q="${tile.q}" data-r="${tile.r}" ${disabled}>Found ${cfg.name}</button>
+      <div class="op-cap-note">${st.used}/${st.cap} outposts · range ${st.range}</div>
+      <div class="op-reason" data-op-reason ${reason ? '' : 'style="display:none"'}>${reason}</div>
+    </div>`;
+}
+
+function _wireOutpostSection(body, tile) {
+  const buildBtn = body.querySelector('[data-op-build]');
+  if (buildBtn) {
+    buildBtn.addEventListener('click', () => _foundOutpostHere(buildBtn, tile));
+  }
+  const disBtn = body.querySelector('[data-op-dismantle]');
+  if (disBtn) {
+    disBtn.addEventListener('click', () => _dismantleOutpost(disBtn, tile));
+  }
+}
+
+// Apply a build/dismantle response to local state. Crucial spend-sync note:
+// updateTopbarDisplay only syncs tickResources UPWARD from gameData (the
+// one-time-award path), so a spend would never propagate — restart the tick
+// from the server's fresh resources + rates instead, which also resets the
+// floater baseline so no spurious "−120" flashes.
+function _applyOutpostResponse(data) {
+  if (data.resources && gameData?.settlement) {
+    gameData.settlement.resources = { ...data.resources };
+  }
+  if (data.rates && gameData?.settlement) {
+    gameData.settlement.rates = { ...data.rates };
+  }
+  if (data.resources && data.rates && typeof startResourceTick === 'function') {
+    startResourceTick(data.resources, data.rates);
+  }
+  if (typeof invalidateResourceBreakdown === 'function') invalidateResourceBreakdown();
+  if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
+}
+
+function _opShowReason(btn, msg) {
+  const box = btn.closest('.op-section')?.querySelector('[data-op-reason]');
+  if (box) { box.textContent = msg; box.style.display = 'block'; }
+}
+
+async function _foundOutpostHere(btn, tile) {
+  btn.disabled = true;
+  try {
+    const res = await apiFetch('/api/game/outposts/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: tile.q, r: tile.r }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      btn.disabled = false;
+      _opShowReason(btn, data.error || 'Failed to found outpost.');
+      return;
+    }
+
+    _applyOutpostResponse(data);
+    if (_outpostStatus) { _outpostStatus.used = data.used; }
+
+    // Patch the cached world tile so the map + panel update without a refetch
+    if (worldMapData?.tiles) {
+      const t = worldMapData.tiles.find(x => x.q === tile.q && x.r === tile.r);
+      if (t) {
+        t.outpost = { id: data.outpost.id, terrain: data.outpost.terrain, level: data.outpost.level, mine: true, owner: gameData?.settlement?.name || '' };
+        t.claimed_by_me = true;
+        t.claim_owner = null;
+        tile.outpost = t.outpost;
+        tile.claimed_by_me = true;
+      }
+    }
+    if (typeof _doRenderCanvas === 'function') _doRenderCanvas();
+    selectWorldTile(tile); // re-render panel into the "your outpost" state
+  } catch (e) {
+    btn.disabled = false;
+    _opShowReason(btn, 'Connection hiccup — try again.');
+  }
+}
+
+async function _dismantleOutpost(btn, tile) {
+  if (!confirm('Dismantle this outpost? Its materials are not recovered.')) return;
+  btn.disabled = true;
+  try {
+    const id = btn.dataset.opDismantle;
+    const res = await apiFetch(`/api/game/outposts/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      btn.disabled = false;
+      _opShowReason(btn, data.error || 'Failed to dismantle.');
+      return;
+    }
+    _applyOutpostResponse(data);
+    if (_outpostStatus) { _outpostStatus.used = data.used; }
+    if (worldMapData?.tiles) {
+      const t = worldMapData.tiles.find(x => x.q === tile.q && x.r === tile.r);
+      if (t) { t.outpost = null; t.claimed_by_me = false; tile.outpost = null; tile.claimed_by_me = false; }
+    }
+    if (typeof _doRenderCanvas === 'function') _doRenderCanvas();
+    selectWorldTile(tile);
+  } catch (e) {
+    btn.disabled = false;
+    _opShowReason(btn, 'Connection hiccup — try again.');
+  }
+}
+
 function selectWorldTile(tile) {
   _selectWorldTileImpl(tile);
   // Append dev terrain editor to whatever the impl just rendered. Lives
@@ -2027,12 +1312,18 @@ function _selectWorldTileImpl(tile) {
       }
     }
     title.textContent = label;
-    sub.textContent = `(${tile.q}, ${tile.r}) · Unoccupied`;
+    sub.textContent = `(${tile.q}, ${tile.r}) · ${
+      tile.outpost?.mine ? 'Your outpost'
+      : tile.outpost ? `${tile.outpost.owner}'s outpost`
+      : tile.claimed_by_me ? 'Your claim'
+      : tile.claim_owner ? `Claimed by ${tile.claim_owner}`
+      : 'Unoccupied'}`;
     body.innerHTML = `
       <div class="info-row"><span class="info-label">Terrain bonus</span><span class="info-val" style="font-size:11px;">${TERRAIN_BONUSES_DISPLAY[tile.terrain] || 'None'}</span></div>
       <hr class="sdivider">
-      <button class="action-btn" onclick="alert('Colonisation coming soon!')">Found outpost here</button>
+      ${_outpostSectionHtml(tile)}
     `;
+    _wireOutpostSection(body, tile);
     return;
   }
 
@@ -2064,19 +1355,28 @@ function _selectWorldTileImpl(tile) {
 
   if (s.isOwn) {
     const citizens = typeof citizensData !== 'undefined' ? citizensData : [];
-    const adults   = citizens.filter(c => c.life_stage !== 'child');
+    const adults   = citizens.filter(c => c.life_stage !== 'child' && c.life_stage !== 'elder');
     const children = citizens.filter(c => c.life_stage === 'child');
+    const elders   = citizens.filter(c => c.life_stage === 'elder');
     // Count diplomatic envoys from _diploRelations cache (populated by diplomacy.js)
     const diploEnvoys = (typeof _diploEnvoyIds !== 'undefined' ? _diploEnvoyIds : new Set());
     const onMission = adults.filter(c => c.expedition || c.active_quest || diploEnvoys.has(c.id)).length;
     const idle      = adults.filter(c => !c.expedition && !c.active_quest && !diploEnvoys.has(c.id) && (!c.role || c.role === 'idle')).length;
 
-    // Species breakdown pills
-    const speciesCounts = {};
-    citizens.forEach(c => { const sp = c.species || s.species || 'unknown'; speciesCounts[sp] = (speciesCounts[sp]||0)+1; });
-    const speciesHtml = Object.entries(speciesCounts)
-      .map(([sp,n]) => '<span class="sett-species-pip">' + sp.charAt(0).toUpperCase()+sp.slice(1) + ' <b>' + n + '</b></span>')
-      .join('') || '<span class="sett-species-pip">' + (s.species||'Unknown') + '</span>';
+    // Attention pills — citizen states that may need the player's eye.
+    // Render only when count > 0: absence is good news, zeros are noise.
+    // unhoused/sick light up automatically once the server includes
+    // housed / conditions on citizens.
+    const unhoused = citizens.filter(c => c.housed === false).length;
+    const sick     = citizens.filter(c => (c.conditions && c.conditions.length) || c.injured).length;
+    const _pill = (label, n, cls) => n > 0
+      ? '<button class="sett-pill ' + (cls||'') + '" onclick="switchTab(\'citizens\')" title="View citizens">' + label + ' <b>' + n + '</b></button>'
+      : '';
+    const pillsHtml = _pill('Idle', idle, idle > 3 ? 'sett-pill--warn' : '')
+      + _pill('Adventuring', onMission, '')
+      + _pill('Unhoused', unhoused, 'sett-pill--alert')
+      + _pill('Sick', sick, 'sett-pill--alert');
+    const pillsRow = pillsHtml ? '<div class="sett-pills">' + pillsHtml + '</div>' : '';
 
     // Happiness
     const avgHappiness = adults.length
@@ -2095,7 +1395,6 @@ function _selectWorldTileImpl(tile) {
     const tagHtml = '<div class="sett-tags">'
       + '<span class="sett-tag">' + (s.tier||'village').charAt(0).toUpperCase()+(s.tier||'village').slice(1) + '</span>'
       + '<span class="sett-tag">' + (s.species||'Mice').charAt(0).toUpperCase()+(s.species||'Mice').slice(1) + '</span>'
-      + (onMission > 0 ? '<span class="sett-tag sett-tag-active">' + onMission + ' Away</span>' : '')
       + '</div>';
 
     body.innerHTML = _settlementTierCard(s.tier, s.name, true)
@@ -2110,26 +1409,26 @@ function _selectWorldTileImpl(tile) {
       + '<div class="sett-status-list">'
       + '<div class="sett-status-row sett-status-clickable" onclick="switchTab(\'citizens\');setTimeout(()=>sortCitizensByHappiness(),200)" title="Click to view citizens by happiness">' + '<span class="sett-status-icon">😊</span><span class="sett-status-label">Happiness <span style=\"font-size:9px;opacity:.4\">▶</span></span>' + '<span class="sett-status-val" style="color:' + happyColor + '">' + avgHappiness + '% · ' + happyLabel + '</span></div>'
       + '<div class="sett-status-row"><span class="sett-status-icon">🍖</span><span class="sett-status-label">Food Supply</span><span class="sett-status-val" style="color:' + foodColor + '">' + foodLabel + '</span></div>'
-      + '<div class="sett-status-row"><span class="sett-status-icon">⚒</span><span class="sett-status-label">Idle Citizens</span><span class="sett-status-val" style="color:' + (idle > 3 ? '#e8c76a' : 'rgba(192,221,151,.6)') + '">' + idle + '</span></div>'
       + '</div>'
 
       // Population section
       + '<div class="sett-divider"></div>'
       + '<div class="sett-section-label">Population</div>'
       + '<div class="sett-stat-row">'
-      + '<div class="sett-stat"><div class="sett-stat-val">' + adults.length + '</div><div class="sett-stat-key">Adults</div></div>'
       + '<div class="sett-stat"><div class="sett-stat-val">' + children.length + '</div><div class="sett-stat-key">Children</div></div>'
-      + '<div class="sett-stat" title="Citizens on quests, expeditions or diplomatic missions">'  + '<div class="sett-stat-val">' + onMission + '</div><div class="sett-stat-key">Adventuring</div></div>'
+      + '<div class="sett-stat"><div class="sett-stat-val">' + adults.length + '</div><div class="sett-stat-key">Adults</div></div>'
+      + '<div class="sett-stat"><div class="sett-stat-val">' + elders.length + '</div><div class="sett-stat-key">Elderly</div></div>'
       + '</div>'
-      + '<div class="sett-species-row">' + speciesHtml + '</div>'
+      + pillsRow
 
       // Actions — with hierarchy
       + '<div class="sett-divider"></div>'
-      + '<button class="sett-action-primary" onclick="openSettlementView()">🏗 Construct Building</button>'
-      + '<div class="sett-actions-secondary">'
-      + '<button class="sett-action-secondary" onclick="openTierUpgradeModal()">' + (TIER_EMOJI[s.tier]||'🏕') + ' Upgrade</button>'
-      + '<button class="sett-action-secondary" onclick="visitTavern()">🍺 Tavern</button>'
-      + '<button class="sett-action-secondary" onclick="visitFishingPost()">🎣 Fishing</button>'
+      + '<div class="sett-actions-grid">'
+      + '<button class="sett-action" onclick="openSettlementView()">🏗 Manage Settlement</button>'
+      + '<button class="sett-action" onclick="openAllCitizens()">👥 Manage Citizens</button>'
+      + '<button class="sett-action" onclick="openTierUpgradeModal()">' + (TIER_EMOJI[s.tier]||'🏕') + ' Upgrade</button>'
+      + '<button class="sett-action" onclick="visitTavern()">🍺 Tavern</button>'
+      + '<button class="sett-action" onclick="visitFishingPost()">🎣 Fishing</button>'
       + '</div>'
       + '</div>';
 
@@ -2308,11 +1607,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     const res = await apiFetch('/api/auth/me');
     if (res.ok) {
+      try {
+        const me = await res.json();
+        window._authUser = { userId: me.userId, username: me.username, species: me.species };
+      } catch (e) {}
       await loadGame();
     } else if (res.status === 401) {
       localStorage.removeItem('kw_token');
     }
   } catch (e) {
+    // Network error — keep the token, don't log the user out on a blip.
     console.error('DOMContentLoaded auth check failed:', e);
   }
 });
@@ -2667,4 +1971,35 @@ function _populateProfileTrigger() {
   const label = document.getElementById('profile-username-label');
   if (mini)  mini.textContent  = (gameData.username || '?')[0].toUpperCase();
   if (label) label.textContent = gameData.username || '—';
+}
+
+// ── Tavernkeep sprite ──
+// Show the assigned keeper's species art behind the tavern dock.
+// Call setTavernKeeperSprite(keeper.species) when rendering the
+// tavern (and setTavernKeeperSprite(null) when nobody is assigned).
+// Art lives at /assets/images/tavernkeep_<species>.png; if a species
+// has no art yet, the onerror handler hides the slot gracefully.
+// Species fields in game data are display names and often PLURAL
+// ('Hares', 'Mice') — normalize to the singular lowercase keys that
+// asset filenames and emoji maps use.
+function normalizeSpecies(name) {
+  let s = String(name || '').toLowerCase().replace(/[^a-z]/g, '');
+  const irregular = { mice: 'mouse', foxes: 'fox' };
+  if (irregular[s]) return irregular[s];
+  if (s.endsWith('s')) s = s.slice(0, -1);
+  return s;
+}
+
+function setTavernKeeperSprite(species) {
+  const el = document.getElementById('tavern-keeper-sprite');
+  if (!el) return;
+  if (!species) {
+    el.style.display = 'none';
+    el.removeAttribute('src');
+    return;
+  }
+  const safe = normalizeSpecies(species);
+  el.onerror = () => { el.style.display = 'none'; };
+  el.src = '/assets/images/tavernkeep_' + safe + '.png';
+  el.style.display = 'block';
 }

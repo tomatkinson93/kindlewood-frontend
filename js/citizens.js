@@ -153,6 +153,15 @@ function renderCitizensList() {
     const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : (isChild ? 'Child' : (c.role.charAt(0).toUpperCase() + c.role.slice(1)));
     const houseIcon  = c.house_id ? '🏡' : '<span style="opacity:.35">🚶</span>';
     const partnerIcon = c.partner_id ? ' <span style="font-size:9px;color:#e090a0">💕</span>' : '';
+    // Famine ladder badge — hunger_state comes from the server
+    // (routes/citizens.js); fall back to raw hunger thresholds if absent.
+    const _hv = c.life?.hunger ?? 0;
+    const hungerState = c.hunger_state || (_hv >= 90 ? 'starving' : _hv >= 70 ? 'hungry' : 'fed');
+    const hungerBadge = hungerState === 'starving'
+      ? ' <span class="crf-hunger-badge crf-starving" title="Starving — health draining">🥣</span>'
+      : hungerState === 'hungry'
+      ? ' <span class="crf-hunger-badge" title="Hungry">🥣</span>'
+      : '';
 
     const isAway = isScouting || isOnQuest || isOnDiplo;
     const awayLabel = isOnQuest ? '⚔️ On Quest' : isOnDiplo ? '📨 Diplomat' : '🗺 Scouting';
@@ -168,7 +177,7 @@ function renderCitizensList() {
       // Compact row — single line, minimal bars
       return '<div class="crf-compact" id="citizen-row-' + c.id + '" onclick="openCitizenProfile(' + c.id + ')">'
         + '<span class="crf-compact-gender" style="color:' + genderColor + '">' + genderSym + '</span>'
-        + '<span class="crf-compact-name">' + c.name + partnerIcon + '</span>'
+        + '<span class="crf-compact-name">' + c.name + partnerIcon + hungerBadge + '</span>'
         + '<span class="crf-compact-role">' + roleIcon + '</span>'
         + '<div class="crf-compact-bars">'
         + '<div class="crf-mini-bar" style="width:' + health + '%;background:' + healthColor + '" title="Health ' + health + '%"></div>'
@@ -185,7 +194,7 @@ function renderCitizensList() {
       + '<span class="crf-gender" style="color:' + genderColor + '">' + genderSym + '</span>'
       + '</div>'
       + '<div class="crf-info">'
-      + '<div class="crf-name">' + c.name + partnerIcon + '</div>'
+      + '<div class="crf-name">' + c.name + partnerIcon + hungerBadge + '</div>'
       + '<div class="crf-meta">' + roleIcon + ' ' + roleLabel + ' · ' + (c.life?.age ?? '?') + 'y</div>'
       + '</div>'
       + '<div class="crf-bars">'

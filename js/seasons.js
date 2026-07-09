@@ -164,8 +164,38 @@ function renderSeasonPanel() {
         <span>📅 Year ${currentSeason.dayNumber}</span>
         <span class="sp-day-note">1 real day = 1 in-game year</span>
       </div>
+
+      <div class="sp-settings">
+        <div class="sp-settings-label">✦ Atmosphere</div>
+        <label class="sp-toggle">
+          <input type="checkbox" data-atmo-setting="atmosphere">
+          <span>Seasonal colour grading</span>
+        </label>
+        <label class="sp-toggle">
+          <input type="checkbox" data-atmo-setting="particles">
+          <span>Seasonal particles</span>
+        </label>
+      </div>
     </div>
   `;
+
+  // Wire the atmosphere toggles (data-* + listeners; panel HTML is
+  // regenerated on every render, so re-wire each time). Guarded — the
+  // SeasonAtmosphere module may not be loaded on older deploys.
+  if (window.SeasonAtmosphere) {
+    const st = window.SeasonAtmosphere.settings;
+    panel.querySelectorAll('[data-atmo-setting]').forEach(input => {
+      const key = input.dataset.atmoSetting;
+      input.checked = !!st[key];
+      input.addEventListener('change', () => {
+        if (key === 'atmosphere') window.SeasonAtmosphere.setAtmosphere(input.checked);
+        else window.SeasonAtmosphere.setParticles(input.checked);
+      });
+    });
+  } else {
+    const block = panel.querySelector('.sp-settings');
+    if (block) block.style.display = 'none';
+  }
 }
 
 function formatSeasonTime(ms) {

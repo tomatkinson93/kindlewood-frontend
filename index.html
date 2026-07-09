@@ -4,10 +4,39 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kindlewood — Rise of the Woodland Realms</title>
-  <link rel="stylesheet" href="/css/main.css?v=1778441000">
+  <link rel="stylesheet" href="/css/main.css?v=1778500000">
+  <link rel="stylesheet" href="/css/card-hand-ui.css?v=1778502800">
+  <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
+  <link rel="stylesheet" href="/css/deck-feedback.css?v=1778500800">
+  <link rel="stylesheet" href="/css/hud-storybook.css?v=43">
   <link rel="stylesheet" href="/css/carousel.css">
   <link rel="stylesheet" href="/css/hero.css">
   <link rel="stylesheet" href="/css/mobile.css">
+  <script>
+    // Capture the settlement species from any API response that includes it, so
+    // combat can render the correct character sprites (e.g. hares). Passive
+    // wrapper around fetch — stores the latest species seen in window.KW_SPECIES.
+    (function () {
+      if (window.__kwSpeciesHook) return;
+      window.__kwSpeciesHook = true;
+      var origFetch = window.fetch;
+      window.fetch = function () {
+        return origFetch.apply(this, arguments).then(function (res) {
+          try {
+            var ct = res.headers && res.headers.get && res.headers.get('content-type');
+            if (ct && ct.indexOf('application/json') !== -1) {
+              res.clone().json().then(function (data) {
+                if (data && typeof data.species === 'string' && data.species) {
+                  window.KW_SPECIES = data.species;
+                }
+              }).catch(function () {});
+            }
+          } catch (e) {}
+          return res;
+        });
+      };
+    })();
+  </script>
 </head>
 <body>
 
@@ -332,11 +361,11 @@
 
   <div class="screen" id="screen-game">
     <div class="topbar">
-      <div class="res" id="res-food"><img class="res-icon-img" src="/assets/foodicon.png" alt="Food"><span class="res-val">—</span><span class="res-rate"></span></div>
-      <div class="res" id="res-timber"><img class="res-icon-img" src="/assets/woodicon.png" alt="Timber"><span class="res-val">—</span><span class="res-rate"></span></div>
-      <div class="res" id="res-stone"><img class="res-icon-img" src="/assets/stoneicon.png" alt="Stone"><span class="res-val">—</span><span class="res-rate"></span></div>
-      <div class="res" id="res-metal"><img class="res-icon-img" src="/assets/metalicon.png" alt="Metal"><span class="res-val">—</span><span class="res-rate"></span></div>
-      <div class="res" id="res-wealth"><img class="res-icon-img" src="/assets/goldicon.png" alt="Wealth"><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-food"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-food"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-timber"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-timber"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-stone"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-stone"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-metal"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-metal"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
+      <div class="res" id="res-wealth"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-wealth"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="topbar-version">v0.5.0</div>
       <div class="topbar-right">
         <div id="season-badge" class="season-badge-wrap"></div>
@@ -381,15 +410,18 @@
     </div>
     <div id="season-panel" class="season-panel"></div>
     <div class="community-bar">
-      <button class="comm-btn" id="nav-map" onclick="navGoMap()">🗺 Map</button>
-      <button class="comm-btn" id="nav-quests" onclick="openQuestsModal()">📜 Quests</button>
-      <button class="comm-btn" onclick="openInventoryModal()">🎒 Inventory</button>
-      <button class="comm-btn" id="nav-battles" onclick="openBattlesModal()">⚔ Battles</button>
-      <button class="comm-btn" onclick="showCommunityTab('events')">🧭 Events</button>
-      <button class="comm-btn" onclick="showCommunityTab('rankings')">🏆 Rankings</button>
-      <button class="comm-btn" onclick="showCommunityTab('market')">💰 Market</button>
-      <button class="comm-btn" onclick="showCommunityTab('messages')">📬 Messages</button>
-      <button class="comm-btn" onclick="showCommunityTab('chat')">💬 Chat</button>
+      <button class="comm-btn" id="nav-map" onclick="navGoMap()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-map"/></svg><span>Map</span></button>
+      <button class="comm-btn" id="nav-quests" onclick="openQuestsModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-quests"/></svg><span>Quests</span></button>
+      <button class="comm-btn" onclick="openInventoryModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-inventory"/></svg><span>Inventory</span></button>
+      <button class="comm-btn" id="nav-battles" onclick="openBattlesModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-battles"/></svg><span>Battles</span></button>
+      <button class="comm-btn" id="nav-decks" onclick="openDeckBuilder()">🃏 <span>Decks</span></button>
+      <button class="comm-btn" onclick="showCommunityTab('events')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-events"/></svg><span>Events</span></button>
+      <button class="comm-btn" onclick="openLeaderboard()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-rankings"/></svg><span>Rankings</span></button>
+      <button class="comm-btn" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
+      <button class="comm-btn" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
+      <button class="comm-btn" onclick="showCommunityTab('chat')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-chat"/></svg><span>Chat</span></button>
+      <button class="comm-btn" id="nav-online" onclick="showOnlineList()">🟢 <span>Online</span> <span id="online-count" class="online-count"></span></button>
+      <button class="comm-btn" id="nav-feedback" onclick="openFeedback()">🐞 <span>Feedback</span></button>
     </div>
     <!-- Guard art — fixed to screen edges in the parchment surround -->
     <img class="map-decor map-decor-left"  id="map-decor-left"  src="" alt="" aria-hidden="true">
@@ -436,19 +468,23 @@
         <!-- Tavern and fishing overlays — inside map-area so sidebar stays visible -->
         <div class="tavern-overlay" id="tavern-overlay" style="display:none">
               <div class="tavern-bg" id="tavern-bg"></div>
+              <img class="tavern-keeper-sprite" id="tavern-keeper-sprite" alt="" style="display:none">
               <div class="tavern-inner">
                 <div class="tavern-header">
                   <button class="tavern-back-btn" onclick="leaveTavern()">← Leave Tavern</button>
                   <div class="tavern-title">🍺 The Woodland Tavern</div>
+                  <div class="tavern-header-spacer"></div>
                 </div>
+                <div class="tavern-dock">
                 <div class="tavern-innkeeper-area" id="tavern-innkeeper-area">
                   <div class="tavern-innkeeper-portrait" id="tavern-innkeeper-portrait">🦔</div>
                   <div class="tavern-innkeeper-msg" id="tavern-innkeeper-msg">Nobody is here. Perhaps you should hire an Innkeeper.</div>
                 </div>
                 <div class="tavern-menu" id="tavern-menu">
-                  <button class="tavern-menu-btn" onclick="openNoticeboardModal()">📜 Notice Board</button>
-                  <button class="tavern-menu-btn" onclick="openCardGameMenu()">🃏 Play a Card Game</button>
+                  <button class="tavern-menu-btn" onclick="openNoticeboardModal()"><span class="tmb-icon">📜</span><span class="tmb-name">Notice Board</span><span class="tmb-desc">Rumors, requests &amp; honest work</span></button>
+                  <button class="tavern-menu-btn" onclick="openCardGameMenu()"><span class="tmb-icon">🃏</span><span class="tmb-name">Card Table</span><span class="tmb-desc">Games of chance with the locals</span></button>
                 </div>
+              </div>
 
                 <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
                   <div class="tavern-card-menu-title">— Choose Your Game —</div>
@@ -468,9 +504,53 @@
                       <div class="tgb-reward">💰 Reward: 1–2 gold</div>
                     </div>
                   </button>
+                  <button class="tavern-game-btn" onclick="startCardGame('foragers')">
+                    <span class="tgb-icon">🍄</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">Forager's Gamble</div>
+                      <div class="tgb-desc">Draw and bank — but one mushroom spoils the basket.</div>
+                      <div class="tgb-reward">💰 Reward: 1–3 gold</div>
+                    </div>
+                  </button>
+                  <button class="tavern-game-btn" onclick="LobbySystem.choose('briar')">
+                    <span class="tgb-icon">🌿</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">The Briar Court <span class="tgb-mp-pill">👥 Multiplayer</span></div>
+                      <div class="tgb-desc">Bluff, challenge and banish — last courtier standing wins.</div>
+                      <div class="tgb-reward">💰 Reward: 4 gold</div>
+                    </div>
+                  </button>
+                  <button class="tavern-game-btn" onclick="LobbySystem.choose('squirrel')">
+                    <span class="tgb-icon">🐿️</span>
+                    <div class="tgb-info">
+                      <div class="tgb-name">Squirrel's Stash <span class="tgb-mp-pill">👥 Multiplayer</span></div>
+                      <div class="tgb-desc">Push your luck drawing acorns — bank before you bust.</div>
+                      <div class="tgb-reward">💰 Reward: 4 gold</div>
+                    </div>
+                  </button>
                   <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
                 </div>
                 <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
+              <div class="sq-backdrop" id="sq-backdrop" style="display:none">
+                <div class="sq-shell">
+                  <button class="bcmp-x" onclick="sqLeaveTable()" title="Leave table">✕</button>
+                  <div class="sq-game" id="sq-game"></div>
+                </div>
+              </div>
+              <div class="bcmp-backdrop" id="bcmp-backdrop" style="display:none">
+                <div class="bcmp-shell">
+                  <button class="bcmp-x" onclick="bcLeaveTable()" title="Leave table">✕</button>
+                  <div class="bcmp-game" id="bcmp-game"></div>
+                  <div class="bcmp-chat" id="bcmp-chat">
+                    <div class="bcmp-chat-log" id="bcmp-chat-log"></div>
+                    <div class="bcmp-chat-row">
+                      <select class="bcmp-chat-to" id="bcmp-chat-to"><option value="">All</option></select>
+                      <input class="bcmp-chat-input" id="bcmp-chat-input" placeholder="Say something…" maxlength="300">
+                      <button class="bcmp-chat-send" onclick="bcSendChat()">Send</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               </div>
             </div>
         
@@ -639,12 +719,22 @@
   <script src="/js/buildings.js?v=1778441000"></script>
   <script src="/js/expeditions.js"></script>
   <script src="/js/seasons.js"></script>
+  <script src="/js/season-atmosphere.js?v=1"></script>
   <script src="/js/tier.js"></script>
-  <script src="/js/profile.js"></script>
+  <script src="/js/profile.js?v=2"></script>
   <script src="/js/pixelart.js?v=1777763000"></script>
-  <script src="/js/audio.js?v=1778441000"></script>
-  <script src="/js/main.js?v=1778441000"></script>
-  <script src="/js/tavern.js"></script>
+  <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
+  <script src="/js/kwmap-core.js?v=1"></script>
+  <script src="/js/kwmap-topdown.js?v=1"></script>
+  <script src="/js/audio.js?v=4"></script>
+  <script src="/js/main.js?v=1781334901"></script>
+  <script src="/js/welcome-music-guard.js?v=1778501500"></script>
+  <script src="/js/online.js?v=1"></script>
+  <script src="/js/leaderboard.js?v=2"></script>
+  <script src="/js/briar_engine.js?v=5"></script>
+  <script src="/js/squirrel_engine.js?v=14"></script>
+  <script src="/js/lobby.js?v=12"></script>
+  <script src="/js/tavern.js?v=27"></script>
   <script src="/js/quests.js?v=1778441000"></script>
   <script src="/js/fishing.js"></script>
   <script src="/js/housing.js"></script>
@@ -652,9 +742,18 @@
   <script src="/js/inventory.js"></script>
   <script src="/js/diplomacy.js"></script>
   <script src="/js/item_admin.js"></script>
-  <script src="/js/enemy_admin.js?v=1778441000"></script>
-  <script src="/js/combat-engine.js?v=1778441000"></script>
-  <script src="/js/combat-ui.js?v=1778441000"></script>
+  <script src="/js/enemy_admin.js?v=1778502600"></script>
+  <script src="/js/combat-engine.js?v=1778502300"></script>
+  <script src="/js/card-definitions.js?v=1778500300"></script>
+  <script src="/js/card-formula.js?v=1778502300"></script>
+  <script src="/js/card-registry.js?v=1778502600"></script>
+  <script src="/js/card-engine.js?v=1778502600"></script>
+  <script src="/js/card-combat.js?v=1778502600"></script>
+  <script src="/js/card-hand-ui.js?v=1778502800"></script>
+  <script src="/js/card-admin.js?v=1778502700"></script>
+  <script src="/js/deck-builder.js?v=1778500800"></script>
+  <script src="/js/feedback.js?v=1778500800"></script>
+  <script src="/js/combat-ui.js?v=1778502800"></script>
   <script src="/js/battles.js?v=1778441000"></script>
   <script src="/js/realtime.js?v=1778441000"></script>
 
@@ -724,6 +823,8 @@
               <th><button class="ac-sort-btn" data-sort="endurance" onclick="acSort('endurance')">END ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="intelligence" onclick="acSort('intelligence')">INT ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="charisma" onclick="acSort('charisma')">CHA ↕</button></th>
+              <th>🏡</th>
+              <th>Partner</th>
               <th>Traits</th>
             </tr>
           </thead>
@@ -750,6 +851,7 @@
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-world',this);loadDiplomacyDebugNpcs()">🌍 World</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-cards',this);loadCardAdmin()">🃏 Cards</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
       </div>
@@ -1012,6 +1114,15 @@
         <div id="ia-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
       </div>
 
+      <!-- ── TAB: Cards ── -->
+      <div class="cheat-tab-panel" id="ct-cards" style="display:none">
+        <div class="ca-toolbar">
+          <button class="ca-new-btn" onclick="ca_new()">＋ New Card</button>
+        </div>
+        <div id="ca-filters" class="ca-filters"></div>
+        <div id="ca-list" class="ca-list"><div class="ca-muted">Loading…</div></div>
+      </div>
+
       <!-- ── TAB: Quests ── -->
       <div class="cheat-tab-panel" id="ct-quests" style="display:none">
         <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -1050,6 +1161,15 @@
   </div>
 
   <!-- COMMUNITY PANEL -->
+  <div class="online-backdrop" id="online-modal">
+    <div class="online-card">
+      <div class="online-card-header">
+        <div class="online-card-title">🟢 Currently in the Realm</div>
+        <button class="community-close" onclick="closeOnlineList()">✕</button>
+      </div>
+      <div class="online-card-body" id="online-list-body"></div>
+    </div>
+  </div>
   <div class="community-backdrop" id="community-modal">
     <div class="community-card">
       <div class="community-card-header">
@@ -1073,9 +1193,10 @@
   </div>
 
 
+
   <!-- ═══ PROFILE MODAL ═══ -->
   <div class="profile-modal-backdrop" id="profile-modal" onclick="closeProfileIfOutside(event)">
-    <div class="profile-modal-box">
+    <div class="profile-modal-box kw-ornate-frame">
       <button class="profile-modal-close" onclick="closeProfile()">✕</button>
 
       <div class="pm-header">
@@ -1085,8 +1206,26 @@
         </div>
         <div class="pm-header-info">
           <div class="pm-username" id="pm-username">—</div>
+          <div class="pm-title" id="pm-title" hidden></div>
           <div class="pm-species" id="pm-species"></div>
           <div class="pm-joined" id="pm-joined"></div>
+        </div>
+      </div>
+
+      <!-- Honors strip — populated by renderHonors('pm', …) in profile.js.
+           Shows zeros until the achievement system ships. -->
+      <div class="pm-honors">
+        <div class="pm-honor-chip">
+          <span class="pm-honor-val" id="pm-honor-points">0</span>
+          <span class="pm-honor-key">Achievement pts</span>
+        </div>
+        <div class="pm-honor-chip">
+          <span class="pm-honor-val" id="pm-honor-completion">0%</span>
+          <span class="pm-honor-key">Completion</span>
+        </div>
+        <div class="pm-honor-chip">
+          <span class="pm-honor-val" id="pm-honor-trophies">0</span>
+          <span class="pm-honor-key">Trophies</span>
         </div>
       </div>
 
@@ -1105,7 +1244,17 @@
       </div>
 
       <div class="pm-section">
-        <div class="pm-section-label">Stats</div>
+        <div class="pm-section-label">Trophy Cabinet</div>
+        <div class="pm-cabinet" id="pm-cabinet">
+          <div class="pm-cabinet-slot empty">✦</div>
+          <div class="pm-cabinet-slot empty">✦</div>
+          <div class="pm-cabinet-slot empty">✦</div>
+        </div>
+        <div class="pm-cabinet-hint">Deeds of renown will be displayed here.</div>
+      </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Chronicle</div>
         <div class="pm-stats-grid" id="pm-stats-grid">
           <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-citizens">—</span><span class="pm-stat-key">Citizens</span></div>
           <div class="pm-stat"><span class="pm-stat-val" id="pm-stat-buildings">—</span><span class="pm-stat-key">Buildings</span></div>
@@ -1118,27 +1267,56 @@
 
   <!-- ═══ VIEW OTHER PLAYER PROFILE ═══ -->
   <div class="profile-modal-backdrop" id="view-profile-modal" onclick="closeViewProfileIfOutside(event)">
-    <div class="profile-modal-box">
+    <div class="profile-modal-box kw-ornate-frame">
       <button class="profile-modal-close" onclick="closeViewProfile()">✕</button>
+
       <div class="pm-header">
         <div class="pm-avatar-wrap" style="cursor:default">
           <div class="pm-avatar" id="vp-avatar">?</div>
         </div>
         <div class="pm-header-info">
           <div class="pm-username" id="vp-username">—</div>
+          <div class="pm-title" id="vp-title" hidden></div>
           <div class="pm-species" id="vp-species"></div>
         </div>
       </div>
+
+      <div class="pm-honors">
+        <div class="pm-honor-chip">
+          <span class="pm-honor-val" id="vp-honor-points">0</span>
+          <span class="pm-honor-key">Achievement pts</span>
+        </div>
+        <div class="pm-honor-chip">
+          <span class="pm-honor-val" id="vp-honor-completion">0%</span>
+          <span class="pm-honor-key">Completion</span>
+        </div>
+        <div class="pm-honor-chip">
+          <span class="pm-honor-val" id="vp-honor-trophies">0</span>
+          <span class="pm-honor-key">Trophies</span>
+        </div>
+      </div>
+
       <div class="pm-section">
         <div class="pm-section-label">Bio</div>
         <div class="pm-bio-display" id="vp-bio">This ruler keeps their own counsel.</div>
       </div>
+
       <div class="pm-section">
         <div class="pm-section-label">Settlement</div>
         <div class="pm-settlements" id="vp-settlements"></div>
       </div>
+
+      <div class="pm-section">
+        <div class="pm-section-label">Trophy Cabinet</div>
+        <div class="pm-cabinet" id="vp-cabinet">
+          <div class="pm-cabinet-slot empty">✦</div>
+          <div class="pm-cabinet-slot empty">✦</div>
+          <div class="pm-cabinet-slot empty">✦</div>
+        </div>
+      </div>
     </div>
   </div>
+
 
 
   <!-- TAVERN CELEBRATION MODAL -->
@@ -1160,7 +1338,7 @@
        Shown on welcome + login screens
        ══════════════════════════════════ -->
   <div class="music-player" id="music-player">
-    <audio id="bg-music" loop preload="auto">
+    <audio id="bg-music" loop preload="none">
       <source src="/assets/audio/welcome.mp3" type="audio/mpeg">
     </audio>
 
@@ -1246,12 +1424,39 @@
                    oninput="onMusicVolumeSlide(this.value)">
             <span class="settings-slider-value" id="settings-music-volume-pct">50%</span>
           </div>
-          <div class="settings-hint">Adjusts battle music volume. Persists across sessions.</div>
+          <div class="settings-hint">Music for battles, the tavern, and the main menu. Persists across sessions.</div>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label" for="settings-sfx-volume">🔔 Sound Effects</label>
+          <div class="settings-slider-row">
+            <input type="range" id="settings-sfx-volume" class="settings-slider"
+                   min="0" max="100" step="1"
+                   oninput="onSfxVolumeSlide(this.value)">
+            <span class="settings-slider-value" id="settings-sfx-volume-pct">60%</span>
+          </div>
+          <div class="settings-hint">Card flips, coins, and other one-shot sounds.</div>
         </div>
       </div>
     </div>
   </div>
 
     <script src="js/settlement-view.js"></script>
+<!-- Kindlewood UI icon sprite (storybook theme) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>
+  <symbol id="kw-i-timber" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="10" cy="16" rx="4.5" ry="8"/><path d="M10 8 H24 M10 24 H24 M24 8 a4.5 8 0 0 1 0 16"/><ellipse cx="10" cy="16" rx="1.6" ry="3.2" stroke-width="1.2"/></symbol>
+  <symbol id="kw-i-stone" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="17" width="9.5" height="7.5" rx="1.5"/><rect x="17.5" y="17" width="8.5" height="7.5" rx="1.5"/><rect x="11" y="8.5" width="10.5" height="7.5" rx="1.5"/></symbol>
+  <symbol id="kw-i-metal" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 22 l3.5 -9 h14 l3.5 9 z"/><path d="M11 16.5 h10" stroke-width="1.2"/></symbol>
+  <symbol id="kw-i-wealth" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="8.5"/><circle cx="16" cy="16" r="5.3" stroke-width="1.2"/><path d="M16 13.5 l2.5 2.5 -2.5 2.5 -2.5 -2.5 z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="kw-i-map" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 l7 -3.5 l8 3.5 l7 -3.5 v14 l-7 3.5 l-8 -3.5 l-7 3.5 z"/><path d="M12 7.5 v14 M20 11 v14" stroke-width="1.5"/></symbol>
+  <symbol id="kw-i-quests" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9.5" y="7" width="13" height="18" rx="2"/><path d="M12.5 12 h7 M12.5 16 h7 M12.5 20 h4" stroke-width="1.5"/><circle cx="9.5" cy="8.5" r="2" stroke-width="1.5"/><circle cx="22.5" cy="23.5" r="2" stroke-width="1.5"/></symbol>
+  <symbol id="kw-i-inventory" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="11" width="16" height="15" rx="4.5"/><path d="M12.5 11 v-1 a3.5 3.5 0 0 1 7 0 v1"/><rect x="12" y="17.5" width="8" height="7" rx="2" stroke-width="1.5"/><path d="M8 15 h16" stroke-width="1.2"/></symbol>
+  <symbol id="kw-i-battles" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 8.5 L23.5 23.5 M23.5 8.5 L8.5 23.5"/><path d="M18.8 22.2 L22.2 18.8 M9.8 18.8 L13.2 22.2" stroke-width="1.7"/></symbol>
+  <symbol id="kw-i-events" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="9.5"/><path d="M16 10.5 L18.6 16 L16 21.5 L13.4 16 Z" stroke-width="1.5"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="kw-i-rankings" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 7.5 h11 v5.5 a5.5 5.5 0 0 1 -11 0 z"/><path d="M10.5 9 h-3 a3.2 3.2 0 0 0 3.3 5 M21.5 9 h3 a3.2 3.2 0 0 1 -3.3 5" stroke-width="1.5"/><path d="M16 18.5 v3.5 M11.5 24.5 h9"/></symbol>
+  <symbol id="kw-i-market" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8.5 v14 M8 8.5 h16 M8 8.5 v2.5 M24 8.5 v2.5"/><path d="M4.4 13.5 a3.6 3 0 0 0 7.2 0 M20.4 13.5 a3.6 3 0 0 0 7.2 0" stroke-width="1.5"/><path d="M11.5 22.5 h9"/></symbol>
+  <symbol id="kw-i-messages" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="10" width="20" height="13" rx="2"/><path d="M6.5 11 l9.5 7 l9.5 -7"/></symbol>
+  <symbol id="kw-i-chat" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="20" height="14" rx="4.5"/><path d="M11 22 l-2.5 4.5 L15 22"/><circle cx="11.5" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="20.5" cy="15" r="1.1" fill="currentColor" stroke="none"/></symbol>
+</svg>
 </body>
 </html>

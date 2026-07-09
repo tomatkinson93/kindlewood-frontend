@@ -318,7 +318,13 @@ function _showTooltip(resId, anchorRect, data) {
   if (sum.species_base) rows.push(['Base', sum.species_base]);
   if (sum.building) rows.push(['Buildings', sum.building]);
   if (sum.citizen_role) rows.push(['Citizens', sum.citizen_role]);
+  if (sum.outpost) rows.push(['Outposts', sum.outpost]);
   if (sum.season_multiplier) rows.push([data.season.name + ' ' + (data.season.emoji || ''), sum.season_multiplier]);
+  // Upkeep — citizen + outpost combined (both negative). Without this line
+  // any upkeep kind silently vanishes from the hover while still counting
+  // toward the total, which reads as a math error.
+  const upkeepSum = (sum.citizen_upkeep || 0) + (sum.outpost_upkeep || 0);
+  if (upkeepSum) rows.push(['Upkeep', upkeepSum]);
 
   const html = `
     <div class="resource-tooltip-head">${_resIcon(resId, 18)} ${RM_RESOURCE_LABELS[resId]} · ${bd.total}/hr</div>
@@ -405,11 +411,18 @@ function _renderTabs() {
   });
 }
 
-function _sourceIcon(kind, role) {
+function _sourceIcon(kind, role, source) {
   if (kind === 'species_base') return '🏷';
   if (kind === 'building') return '🏛';
   if (kind === 'citizen_role') return '👥';
   if (kind === 'season_multiplier') return '🌿';
+  // Outposts (010) — terrain-flavoured glyph when the source carries one
+  if (kind === 'outpost') {
+    const T = { plains: '🌾', forest: '🪓', hills: '⛏️', mountain: '⚒️', river: '🎣', marsh: '🌿', ruins: '🏺' };
+    return T[source?.terrain] || '⛺';
+  }
+  if (kind === 'outpost_upkeep') return '🏕';
+  if (kind === 'citizen_upkeep') return '🍽';
   return '•';
 }
 
@@ -444,7 +457,7 @@ function _renderModalBody() {
     }
     return `
       <div class="rm-source">
-        <span class="rm-source-icon">${_sourceIcon(s.kind, s.role)}</span>
+        <span class="rm-source-icon">${_sourceIcon(s.kind, s.role, s)}</span>
         <span class="rm-source-label">${s.label}</span>
         <span class="rm-source-val ${cls}">${val >= 0 ? '+' : ''}${val}</span>
       </div>

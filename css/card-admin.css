@@ -1,0 +1,152 @@
+/* card-admin.css — dev tools Cards tab. Deploys to css/card-admin.css */
+
+.ca-toolbar { display:flex; gap:8px; margin-bottom:8px; }
+.ca-new-btn {
+  flex:1; font-size:11px; padding:7px; border-radius:6px; cursor:pointer;
+  background:#6b5d3e; color:#1d1810; border:1px solid #8a7748; font-weight:600;
+}
+.ca-new-btn:hover { background:#f4c95d; }
+
+.ca-muted { color:rgba(192,221,151,.3); font-size:11px; padding:8px; }
+.ca-err { color:#e07a6a; font-size:11px; padding:8px; }
+
+/* List rows */
+.ca-list { max-height:200px; overflow-y:auto; }
+.ca-row {
+  display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:5px;
+}
+.ca-row:hover { background:rgba(201,164,92,.06); }
+.ca-row-cost {
+  width:20px; height:20px; border-radius:50%; color:#1d1810; font-weight:800;
+  font-size:11px; display:flex; align-items:center; justify-content:center;
+}
+.ca-row-name { flex:1; font-size:12px; color:#efe7d2; }
+.ca-row-type, .ca-row-rarity { font-size:9px; text-transform:uppercase; letter-spacing:.06em; min-width:54px; }
+.ca-row-btns { display:flex; gap:4px; }
+.ca-btn { background:#2c2618; color:#c9a45c; border:1px solid #50432a; border-radius:4px; cursor:pointer; padding:2px 6px; font-size:11px; }
+.ca-btn:hover { background:#3a3120; }
+.ca-btn-del:hover { background:#5a2a22; color:#e07a6a; }
+
+/* Editor */
+.ca-editor { margin-top:10px; padding-top:10px; border-top:1px solid #3a3120; position:relative; }
+.ca-editor-grid { display:flex; gap:16px; align-items:flex-start; }
+
+/* The live, editable card preview */
+.ca-card-preview {
+  width:150px; min-height:218px; flex:0 0 auto;
+  border-radius:12px; border:2px solid #6b5d3e; position:relative;
+  background: linear-gradient(170deg,#2c2618,#1d1810 70%,#14100a);
+  padding:34px 10px 12px; display:flex; flex-direction:column; gap:6px;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);
+}
+.ca-type-attack  { border-color:#a5563e; }
+.ca-type-defense { border-color:#4f7aa5; }
+.ca-type-support { border-color:#6ba55a; }
+.ca-type-magic   { border-color:#9c5cc4; box-shadow:0 6px 18px rgba(156,92,196,.3); }
+
+.ca-pv-cost {
+  position:absolute; top:8px; left:8px; width:28px; height:28px; border-radius:50%;
+  border:none; color:#1d1810; font-weight:800; font-size:14px; text-align:center;
+  -moz-appearance:textfield;
+}
+.ca-pv-cost::-webkit-inner-spin-button { display:none; }
+.ca-pv-name {
+  background:transparent; border:none; border-bottom:1px dashed rgba(244,201,93,.35);
+  color:#f4e9cf; font-weight:700; font-size:15px; font-family:inherit; width:100%; padding:2px 0;
+}
+.ca-pv-type {
+  background:rgba(0,0,0,.3); border:1px solid rgba(244,201,93,.25); border-radius:4px;
+  color:#cdbf9a; font-size:9px; text-transform:uppercase; letter-spacing:.1em; padding:2px 4px; width:fit-content;
+}
+.ca-pv-desc {
+  background:rgba(0,0,0,.25); border:1px dashed rgba(244,201,93,.2); border-radius:5px;
+  color:#e8ddc4; font-size:11px; line-height:1.35; font-family:inherit; resize:none; flex:1; padding:5px;
+}
+.ca-card-preview input:focus, .ca-card-preview textarea:focus, .ca-card-preview select:focus {
+  outline:1px solid #f4c95d;
+}
+
+/* Field column */
+.ca-fields { flex:1; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.ca-lbl { font-size:10px; color:#c9a45c; text-transform:uppercase; letter-spacing:.08em; margin-top:6px; }
+.ca-in {
+  background:#1a150d; border:1px solid #50432a; border-radius:5px; color:#efe7d2;
+  font-size:12px; padding:6px 8px; font-family:inherit; width:100%; box-sizing:border-box;
+}
+.ca-in:focus { outline:none; border-color:#f4c95d; }
+.ca-in[readonly] { opacity:.6; }
+.ca-formula { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; }
+.ca-formula-status { font-size:10px; min-height:14px; }
+.ca-formula-status.ok { color:#8ecf7e; }
+.ca-formula-status.err { color:#e0a06a; }
+
+.ca-editor-actions { display:flex; gap:8px; margin-top:10px; }
+.ca-save { flex:1; background:#6b5d3e; color:#1d1810; font-weight:700; border:1px solid #8a7748; border-radius:6px; padding:8px; cursor:pointer; }
+.ca-save:hover { background:#f4c95d; }
+.ca-cancel { background:#2c2618; color:#c9a45c; border:1px solid #50432a; border-radius:6px; padding:8px 14px; cursor:pointer; }
+.ca-cancel:hover { background:#3a3120; }
+.ca-feedback { font-size:11px; min-height:14px; margin-top:4px; }
+
+.ca-tip {
+  display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px;
+  border-radius:50%; background:#50432a; color:#c9a45c; font-size:9px; cursor:help; margin-left:3px;
+}
+.ca-help-btn { background:#50432a; color:#f4c95d; border:none; border-radius:50%; width:16px; height:16px; cursor:pointer; font-weight:700; }
+
+.ca-help-pop, .ea-help-pop {
+  position:absolute; top:0; right:0; width:340px; max-height:420px; overflow-y:auto;
+  background:#1a150d; border:1px solid #6b5d3e; border-radius:8px; padding:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.7); z-index:100000; font-size:11px; color:#e8ddc4;
+}
+.ca-help-title { font-weight:700; color:#f4c95d; margin-bottom:6px; }
+.ca-help-sec { margin-bottom:6px; line-height:1.4; }
+.ca-help-pre { background:#0f0c07; border:1px solid #3a3120; border-radius:5px; padding:8px; font-size:10.5px; color:#c9d8a8; white-space:pre-wrap; }
+.ca-help-pop code, .ea-help-pop code { background:#2c2618; padding:1px 4px; border-radius:3px; color:#f0d89a; font-size:10px; }
+
+/* ── Filters ───────────────────────────────────────────────────────────── */
+.ca-filters { margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ca-filter-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ca-ftypes { display: flex; gap: 4px; flex-wrap: wrap; }
+.ca-fbtn {
+  background: #2c2618; color: #c9a45c; border: 1px solid #50432a; border-radius: 4px;
+  padding: 3px 9px; font-size: 10px; cursor: pointer; text-transform: capitalize;
+}
+.ca-fbtn:hover { background: #3a3120; }
+.ca-fbtn.on { background: #6b5d3e; color: #1d1810; font-weight: 700; border-color: #8a7748; }
+.ca-search {
+  flex: 1; min-width: 120px; background: #1a150d; border: 1px solid #50432a;
+  border-radius: 5px; color: #efe7d2; font-size: 11px; padding: 5px 8px;
+}
+.ca-search:focus { outline: none; border-color: #f4c95d; }
+.ca-fsort {
+  background: #1a150d; border: 1px solid #50432a; border-radius: 5px;
+  color: #c9a45c; font-size: 10px; padding: 4px 6px; cursor: pointer;
+}
+.ca-row { cursor: pointer; }
+
+/* ── Pop-out editor modal ──────────────────────────────────────────────── */
+.ca-modal-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(8,5,3,.7);
+  display: flex; align-items: center; justify-content: center;
+}
+.ca-modal {
+  position: relative;
+  width: min(92vw, 600px); max-height: 90vh; overflow-y: auto;
+  background: linear-gradient(180deg, #221a0f, #15100a);
+  border: 1px solid #6b5d3e; border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.7);
+  padding: 14px 16px 18px;
+}
+.ca-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; font-weight: 700; color: #f4e9cf; font-size: 15px;
+}
+.ca-modal-close {
+  background: none; border: none; color: #c9a45c; font-size: 18px; cursor: pointer;
+}
+.ca-modal-close:hover { color: #f4c95d; }
+
+/* Pierce params row in card editor */
+.ca-pierce-row { display: flex; gap: 8px; }
+.ca-pierce-row > div { flex: 1; }

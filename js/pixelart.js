@@ -423,3 +423,98 @@ function getTileVariant(terrain, wq, wr) {
   // Nothing loaded at all yet.
   return null;
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+//  PAINTED CLOUD FOG (visual direction §10.5) — experimental, flag-gated.
+//  Replaces /assets/fog/fog_base.png with a procedurally painted
+//  illuminated-manuscript cloud field in the parchment palette, so the
+//  in-map fog and the zoomed-out cloud border read as ONE system.
+//  Seeded (_prng) — deterministic, no Math.random(). Generated once per
+//  page load (~1024² canvas, a few ms).
+//  Revert: set USE_PAINTED_FOG = false to fall back to fog_base.png.
+// ══════════════════════════════════════════════════════════════════════════
+
+const USE_PAINTED_FOG = true;
+
+function generatePaintedCloudFog(size = 1024) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rng = _prng(_strSeed('kindlewood-clouds'));
+
+  // Base parchment wash
+  ctx.fillStyle = '#d3c19c';
+  ctx.fillRect(0, 0, size, size);
+
+  // Broad tonal variation — big soft dabs, warm lights and shadowed hollows
+  for (let i = 0; i < 90; i++) {
+    const x = rng() * size, y = rng() * size;
+    const r = size * (0.06 + rng() * 0.14);
+    const col = rng() > 0.5 ? '#e2d3ae' : '#c0ab82';
+    _dab(ctx, x, y, r, col, 0.25 + rng() * 0.2);
+  }
+
+  // Cloud billows — clusters of overlapping puffs with a shaded underside
+  // and a lit crown, the manuscript-cloud silhouette.
+  const clusters = 26;
+  for (let i = 0; i < clusters; i++) {
+    const cx = rng() * size, cy = rng() * size;
+    const base = size * (0.035 + rng() * 0.05);
+    const puffs = 4 + Math.floor(rng() * 4);
+    // Underside shadow first
+    for (let p = 0; p < puffs; p++) {
+      const px = cx + (p - puffs / 2) * base * 0.9 + (rng() - 0.5) * base;
+      const py = cy + (rng() - 0.3) * base * 0.5 + base * 0.25;
+      _dab(ctx, px, py, base * (0.9 + rng() * 0.4), '#a68e64', 0.30);
+    }
+    // Body
+    for (let p = 0; p < puffs; p++) {
+      const px = cx + (p - puffs / 2) * base * 0.9 + (rng() - 0.5) * base;
+      const py = cy + (rng() - 0.5) * base * 0.5;
+      _dab(ctx, px, py, base * (0.85 + rng() * 0.35), '#e8dbb8', 0.55);
+    }
+    // Lit crowns
+    for (let p = 0; p < puffs - 1; p++) {
+      const px = cx + (p - puffs / 2 + 0.5) * base * 0.9 + (rng() - 0.5) * base * 0.6;
+      const py = cy - base * (0.25 + rng() * 0.25);
+      _dab(ctx, px, py, base * (0.5 + rng() * 0.3), '#f3ead0', 0.45);
+    }
+  }
+
+  // Ink swirls — lazy arcs in a warm sepia, the engraved-line feel
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 70; i++) {
+    const x = rng() * size, y = rng() * size;
+    const r = size * (0.015 + rng() * 0.05);
+    const a0 = rng() * Math.PI * 2;
+    const a1 = a0 + Math.PI * (0.6 + rng() * 1.1);
+    ctx.strokeStyle = `rgba(118, 96, 62, ${0.10 + rng() * 0.10})`;
+    ctx.lineWidth = 1.5 + rng() * 2.5;
+    ctx.beginPath();
+    ctx.arc(x, y, r, a0, a1);
+    ctx.stroke();
+  }
+
+  // Sparse curl accents — small double-spirals, the illuminated-map motif
+  for (let i = 0; i < 16; i++) {
+    const x = rng() * size, y = rng() * size;
+    const r0 = size * (0.008 + rng() * 0.012);
+    ctx.strokeStyle = `rgba(96, 76, 48, ${0.18 + rng() * 0.12})`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    let ang = rng() * Math.PI * 2;
+    let rad = r0 * 2.2;
+    ctx.moveTo(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad);
+    for (let s = 0; s < 26; s++) {
+      ang += 0.42;
+      rad *= 0.93;
+      ctx.lineTo(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad);
+    }
+    ctx.stroke();
+  }
+
+  // Paper grain to knock back digital flatness
+  _paperGrain(ctx, rng, 0.9);
+
+  return c;
+}

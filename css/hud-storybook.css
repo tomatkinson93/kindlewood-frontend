@@ -1,0 +1,3372 @@
+/* ════════════════════════════════════════════════════════════════
+   Kindlewood — storybook HUD theme (override layer)
+   Destination: /css/hud-storybook.css
+   Load AFTER main.css:
+     <link rel="stylesheet" href="/css/hud-storybook.css?v=1">
+   Remove that one line to revert the entire theme.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Fonts — harmless duplicate if main.css already imports these */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+  --kw-ink:       #1d150d;   /* darkest chrome (topbar) */
+  --kw-wood:      #241a10;   /* nav + sidebar */
+  --kw-wood-2:    #2c2013;   /* raised cells, secondary buttons */
+  --kw-border:    #3a2c1b;   /* quiet structural lines */
+  --kw-gold:      #e8c87a;   /* bright gold text */
+  --kw-gold-deep: #c9a45c;   /* gold accent lines, active underline */
+  --kw-gold-btn:  #cda451;   /* solid primary button fill */
+  --kw-gold-dim:  #6e5836;   /* muted gold borders */
+  --kw-cream:     #efe4cd;   /* primary text */
+  --kw-muted:     #a8946f;   /* secondary text */
+  --kw-good:      #9fc97a;   /* positive states (Stable, +rates) */
+}
+
+/* ── Topbar ─────────────────────────────────────────────── */
+.topbar {
+  background: var(--kw-ink);
+  border-bottom: 1px solid var(--kw-gold-deep);
+}
+
+/* !important required: main.css has late `.res-val { color:#fac775 !important }`
+   and `.res-rate { color:#7bc67e !important }` rules that would win otherwise */
+.topbar .res-val {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600 !important;
+  font-size: 16px;
+  color: var(--kw-cream) !important;
+  letter-spacing: .01em;
+  font-variant-numeric: lining-nums;
+}
+
+.topbar .res-rate {
+  font-family: 'Crimson Pro', serif;
+  color: var(--kw-muted) !important;
+}
+
+.topbar .res-icon-img {
+  filter: sepia(.25) saturate(.9);
+}
+
+.topbar .topbar-version {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  color: var(--kw-muted);
+  opacity: .6;
+}
+
+/* Season badge → gold-bordered pill (.season-badge-inner is JS-rendered) */
+.topbar .season-badge-inner,
+.topbar .season-badge {
+  font-family: 'Crimson Pro', serif;
+  background: transparent;
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 13px;
+  color: var(--kw-gold);
+}
+.topbar .season-badge-inner:hover {
+  border-color: var(--kw-gold-deep);
+  background: rgba(201, 164, 92, .08);
+}
+
+/* Bell, cheat, profile — quiet dark chrome */
+.topbar .btn-events-bell,
+.topbar .btn-cheat,
+.topbar .profile-trigger {
+  background: transparent;
+  border: 1px solid var(--kw-border);
+  border-radius: 6px;
+  color: var(--kw-muted);
+  transition: border-color .15s, color .15s;
+}
+.topbar .btn-events-bell:hover,
+.topbar .btn-cheat:hover,
+.topbar .profile-trigger:hover {
+  border-color: var(--kw-gold-dim);
+  color: var(--kw-gold);
+}
+
+/* ── Nav bar (community-bar) ────────────────────────────── */
+.community-bar {
+  background: var(--kw-wood);
+  border-bottom: 1px solid var(--kw-border);
+  gap: 2px;
+}
+
+.community-bar .comm-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  font-family: 'Crimson Pro', serif;
+  font-size: 15px;
+  color: var(--kw-muted);
+  padding: 10px 14px 8px;
+  transition: color .15s, border-color .15s;
+}
+.community-bar .comm-btn:hover {
+  color: var(--kw-cream);
+  background: transparent;
+}
+.community-bar .comm-btn.active,
+.community-bar #nav-map.active {
+  color: var(--kw-cream);
+  border-bottom-color: var(--kw-gold-deep);
+}
+
+/* ── Map surround ───────────────────────────────────────── */
+.game-body { background: var(--kw-ink); }
+.map-frame { border: 1px solid var(--kw-border); }
+
+.map-ctrl-btn {
+  background: rgba(36, 26, 16, .85);
+  border: 1px solid var(--kw-gold-dim);
+  color: var(--kw-gold);
+  border-radius: 6px;
+}
+.map-ctrl-btn:hover { background: var(--kw-wood-2); }
+
+/* ── Action bar ─────────────────────────────────────────── */
+.action-bar .action-bar-btn {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--kw-cream);
+  padding: 8px 16px;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.action-bar .action-bar-btn:hover {
+  border-color: var(--kw-gold-deep);
+  background: #352818;
+}
+.action-bar .action-bar-btn:active { transform: scale(.97); }
+
+/* Scout = the one solid-gold action on the map */
+.action-bar #action-scout {
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  color: #241a10;
+  font-weight: 600;
+}
+.action-bar #action-scout:hover {
+  background: #d9b261;
+  border-color: var(--kw-gold);
+}
+
+/* ── Sidebar ────────────────────────────────────────────── */
+.sidebar {
+  background: var(--kw-wood);
+  border-left: 1px solid var(--kw-border);
+}
+
+.sidebar .sidebar-tabs {
+  background: var(--kw-wood);
+  border-bottom: 1px solid var(--kw-border);
+}
+.sidebar .sidebar-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  font-family: 'Crimson Pro', serif;
+  font-size: 15px;
+  color: var(--kw-muted);
+  transition: color .15s, border-color .15s;
+}
+.sidebar .sidebar-tab:hover { color: var(--kw-cream); }
+.sidebar .sidebar-tab.active {
+  color: var(--kw-cream);
+  border-bottom-color: var(--kw-gold-deep);
+  background: transparent;
+}
+
+.sidebar .sidebar-title {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--kw-cream);
+}
+.sidebar .sidebar-sub {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--kw-muted);
+}
+
+/* ── Reusable storybook pieces ──────────────────────────────
+   Utility classes for JS-rendered panel content (settlement
+   card, stat boxes). Adopt these inside panel-body templates. */
+
+/* Double-border "storybook plate" frame */
+.kw-frame {
+  border: 1px solid var(--kw-gold-deep);
+  border-radius: 8px;
+  padding: 3px;
+}
+.kw-frame-inner {
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 5px;
+  padding: 16px;
+  background: var(--kw-wood-2);
+  text-align: center;
+}
+
+/* TIER 1 eyebrow / Village / Tomland */
+.kw-eyebrow {
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: var(--kw-gold-deep);
+}
+.kw-plate-title {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--kw-cream);
+  margin: 2px 0;
+}
+.kw-plate-sub {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--kw-muted);
+}
+
+/* ✦ divider: <div class="kw-divider"><span>✦</span><span>✦</span><span>✦</span></div> */
+.kw-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0;
+  color: var(--kw-gold-deep);
+  font-size: 10px;
+}
+.kw-divider::before,
+.kw-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--kw-gold-dim));
+}
+.kw-divider::after {
+  background: linear-gradient(to left, transparent, var(--kw-gold-dim));
+}
+
+/* Stat boxes: 21 ADULTS / 1 CHILD / 0 AWAY */
+.kw-statgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.kw-stat {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-border);
+  border-radius: 6px;
+  padding: 10px 6px;
+  text-align: center;
+}
+.kw-stat .kw-stat-num {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--kw-cream);
+  display: block;
+}
+.kw-stat .kw-stat-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--kw-muted);
+}
+
+/* Key/value rows: Happiness … 79% · Content */
+.kw-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'Crimson Pro', serif;
+  font-size: 14px;
+  padding: 4px 0;
+}
+.kw-row .kw-key { color: var(--kw-muted); }
+.kw-row .kw-val { color: var(--kw-cream); font-weight: 500; }
+.kw-row .kw-val.good { color: var(--kw-good); }
+
+/* Full-width gold CTA: Construct building */
+.kw-btn-gold {
+  display: block;
+  width: 100%;
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  border-radius: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #241a10;
+  padding: 11px;
+  cursor: pointer;
+  transition: background .15s, transform .12s;
+}
+.kw-btn-gold:hover { background: #d9b261; }
+.kw-btn-gold:active { transform: scale(.98); }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 2 — settlement panel re-skin (written against main.js's
+   _settlementTierCard / _selectWorldTileImpl markup and the
+   existing sett-* rules at main.css ~9560–9790; layout is kept,
+   only the skin changes)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Tier card → storybook plate. !important needed where main.js sets
+   inline tier colors (style="color:...") on the banner text. */
+.tier-card-img-wrap::before {
+  border: 1px solid var(--kw-gold-deep);
+}
+.tier-card-img-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid var(--kw-gold-dim);
+  pointer-events: none;
+  z-index: 2;
+}
+.tier-card-tier-num {
+  color: var(--kw-gold-deep) !important;
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  letter-spacing: .25em;
+  opacity: 1;
+}
+.tier-card-tier-name {
+  color: var(--kw-cream) !important;
+  font-weight: 600;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .9);
+}
+.tier-card-tier-name::before,
+.tier-card-tier-name::after {
+  content: '✦';
+  font-size: 9px;
+  color: var(--kw-gold-deep);
+  opacity: 1;
+  vertical-align: 3px;
+  padding: 0 8px;
+}
+.tier-card-sett-name {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--kw-muted);
+}
+
+/* Section labels → gold eyebrows */
+.sett-section-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .22em;
+  color: var(--kw-gold-deep);
+}
+
+/* Dividers → gradient line with centred ✦ */
+.sett-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--kw-gold-dim), transparent);
+  margin: 14px 0;
+  overflow: visible;
+}
+.sett-divider::after {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--kw-gold-deep);
+  background: var(--kw-wood);
+  padding: 0 8px;
+}
+
+/* Status rows */
+.sett-status-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: var(--kw-muted);
+}
+.sett-status-val {
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Population stat cells → dark boxes, serif numerals */
+.sett-stat {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-border);
+  border-radius: 6px;
+  padding: 10px 4px 8px;
+}
+.sett-stat-val {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--kw-cream);
+}
+.sett-stat-key {
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .15em;
+  color: var(--kw-muted);
+}
+
+/* Tags and species pills → quiet gold-bordered pills */
+.sett-tag,
+.sett-species-pip {
+  background: transparent;
+  border: 1px solid var(--kw-border);
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  color: var(--kw-muted);
+}
+.sett-tag-active {
+  border-color: var(--kw-gold-dim);
+  color: var(--kw-gold);
+  background: rgba(201, 164, 92, .08);
+}
+.sett-species-pip b { color: var(--kw-cream); }
+
+/* Primary action → the solid-gold CTA (replaces the gradient) */
+.sett-action-primary {
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  border-radius: 6px;
+  color: #241a10;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: .01em;
+}
+.sett-action-primary:hover {
+  background: #d9b261;
+  border-color: var(--kw-gold);
+}
+
+/* Secondary actions → parchment-on-wood */
+.sett-action-secondary {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-cream);
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: 12px;
+}
+.sett-action-secondary:hover {
+  background: #352818;
+  border-color: var(--kw-gold-deep);
+  color: var(--kw-cream);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 3 — tuning after first live deploy
+   ════════════════════════════════════════════════════════════════ */
+
+/* Scout → solid gold. main.css has a patch layer (~line 2202) that
+   sets .action-bar-btn background/border/color with !important —
+   important beats ID specificity, so these must be !important too. */
+.action-bar #action-scout {
+  background: var(--kw-gold-btn) !important;
+  border: 1px solid var(--kw-gold) !important;
+  color: #241a10 !important;
+  font-weight: 600;
+  text-shadow: none;
+  box-shadow: none;
+}
+.action-bar #action-scout:hover {
+  background: #d9b261 !important;
+  border-color: var(--kw-gold) !important;
+}
+
+/* Secondary action buttons — take back control from the same patch
+   layer; flatten the text-shadow / inset highlight */
+.action-bar .action-bar-btn {
+  background: var(--kw-wood-2) !important;
+  border: 1px solid var(--kw-gold-dim) !important;
+  color: var(--kw-cream) !important;
+  text-shadow: none;
+  box-shadow: none;
+}
+.action-bar .action-bar-btn:hover {
+  background: #352818 !important;
+  border-color: var(--kw-gold-deep) !important;
+  box-shadow: none;
+}
+
+/* Season badge internals — gold the name, mute the day counter,
+   and bring the progress bar onto the palette (its fill color is
+   set per-season from JS, hence !important) */
+.season-badge-inner .season-name { color: var(--kw-gold); }
+.season-badge-inner .season-day { color: var(--kw-muted); }
+.season-progress-bar { background: rgba(201, 164, 92, .15); }
+.season-progress-fill { background: var(--kw-gold-deep) !important; }
+
+/* Sidebar scrollbar — the default grey bar is the last un-themed
+   chrome on screen */
+.sidebar-body,
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.sidebar-body::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar { width: 7px; }
+.sidebar-body::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar-body::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--kw-gold-dim);
+  border-radius: 4px;
+}
+.sidebar-body::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--kw-gold-deep); }
+
+/* Unoccupied-tile info rows (click any empty hex) — bring onto
+   the same type system as the settlement panel */
+.sidebar .info-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: var(--kw-muted);
+}
+.sidebar .info-val {
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: var(--kw-cream);
+}
+.sidebar .sdivider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--kw-gold-dim), transparent);
+  margin: 12px 0;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 4 — second live pass
+   ════════════════════════════════════════════════════════════════ */
+
+/* Gold hairline under the topbar — main.css patch layers (~1755,
+   ~2141) set border-bottom and background with !important */
+.topbar {
+  background: var(--kw-ink) !important;
+  border-bottom: 1px solid var(--kw-gold-deep) !important;
+}
+
+/* Action bar removed (Scout / Build / Citizens / Centre).
+   NOTE: this orphans actionScout() and centreCamera() — they have
+   no other UI entry point. Build and Citizens remain reachable
+   via the sidebar. Delete this block to bring the bar back. */
+.action-bar { display: none !important; }
+
+/* Build tab removed from sidebar. switchTab('buildings') still
+   works programmatically (e.g. from Construct Building flows) —
+   only the tab header is hidden. */
+#tab-buildings { display: none !important; }
+
+/* "Found outpost here" and friends — off the old green palette */
+.sidebar .action-btn {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-cream);
+  font-size: 13px;
+}
+.sidebar .action-btn:hover {
+  background: #352818;
+  border-color: var(--kw-gold-deep);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 5 — modal harmonization (quests .qm-, battles .bm-,
+   inventory .inv-, noticeboard/diplomacy .nb-modal-, combat .cm-)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Shared shell: one ink background, one gold-dim border, and the
+   same hairline under every header that the topbar uses */
+.qm-card,
+.nb-modal-card,
+.inv-modal-card,
+.bm-card,
+.cm-card {
+  background: rgba(29, 21, 13, .98);
+  border: 1px solid var(--kw-gold-dim);
+}
+.qm-header,
+.nb-modal-header,
+.inv-header,
+.bm-header {
+  border-bottom: 1px solid var(--kw-gold-dim);
+}
+
+/* Section eyebrows — same treatment as SETTLEMENT STATUS in the
+   sidebar (IN PROGRESS, EQUIPMENT, MATERIAL, FOOD, BATTLE LOG) */
+.qm-section,
+.inv-group-label,
+.cm-log-label {
+  font-family: 'Crimson Pro', serif;
+  letter-spacing: .2em;
+  color: var(--kw-gold-deep);
+}
+
+/* Modal subtitles → Crimson italic muted */
+.bm-header-sub {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  color: var(--kw-muted);
+}
+
+/* Primary CTAs → solid gold, same as Scout / Construct Building.
+   One gold button per modal = the action hierarchy stays legible. */
+.qm-tavern-btn,
+.bm-engage {
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  border-radius: 6px;
+  color: #241a10;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 600;
+  text-shadow: none;
+}
+.qm-tavern-btn:hover,
+.bm-engage:hover {
+  background: #d9b261;
+  border-color: var(--kw-gold);
+  transform: none;
+}
+
+/* Quest timers → the topbar's serif numerals */
+.qm-quest-timer {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  color: var(--kw-cream);
+}
+
+/* Close buttons — quiet gold instead of the old green hover.
+   (.inv-close / .cm-close are best-effort; harmless if unmatched) */
+.qm-close,
+.nb-modal-close,
+.bm-close,
+.inv-close,
+.cm-close {
+  color: var(--kw-muted);
+}
+.qm-close:hover,
+.nb-modal-close:hover,
+.bm-close:hover,
+.inv-close:hover,
+.cm-close:hover {
+  background: rgba(201, 164, 92, .12);
+  color: var(--kw-gold);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 6 — vector asset pack (requires the icon sprite + markup
+   swaps in the matching index.html)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Sprite icons — stroke inherits currentColor from the parent */
+.kw-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: -3px;
+}
+.topbar .res .kw-icon { color: var(--kw-gold); }
+.community-bar .comm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.community-bar .comm-btn .kw-icon {
+  width: 16px;
+  height: 16px;
+  opacity: .8;
+}
+.community-bar .comm-btn.active .kw-icon,
+.community-bar .comm-btn:hover .kw-icon { opacity: 1; }
+
+/* Ornate storybook frame — nine-slice border-image with flourished
+   corners, replacing the plain 1px modal border from Part 5.
+   border-radius must be 0: border-image ignores radius, and a
+   rounded background would peek past the square corners. */
+.qm-card,
+.nb-modal-card,
+.inv-modal-card,
+.bm-card,
+.cm-card,
+.kw-ornate-frame {
+  border: 18px solid transparent;
+  border-radius: 0;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none'%3E%3Cg transform='translate(0,0)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,0) scale(-1,1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(0,90) scale(1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,90) scale(-1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cpath d='M30 0.75 H60 M30 89.25 H60 M0.75 30 V60 M89.25 30 V60' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M30 5 H60 M30 85 H60 M5 30 V60 M85 30 V60' stroke='%236e5836'/%3E%3C/g%3E%3C/svg%3E") 30 / 18px stretch;
+}
+
+/* Divider ornament — curls flanking the diamond, drawn over the
+   line (the rect in the data URI masks the line behind it; its
+   fill matches the sidebar wood) */
+.sett-divider {
+  height: 14px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 14'%3E%3Crect x='15' width='46' height='14' fill='%23241a10'/%3E%3Cg fill='none' stroke='%23c9a45c' stroke-width='1.2'%3E%3Cpath d='M27 11.5 a5 5 0 1 0 -5 -5'/%3E%3Cpath d='M49 11.5 a5 5 0 1 1 5 -5'/%3E%3C/g%3E%3Cpath d='M38 3 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/svg%3E") center / 76px 14px no-repeat,
+    linear-gradient(to right, transparent, var(--kw-gold-dim) 20%, var(--kw-gold-dim) 80%, transparent) center / 100% 1px no-repeat;
+}
+.sett-divider::after { content: none; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 7 — population & actions rework (pairs with the matching
+   main.js: attention pills + equal action grid)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Attention pills — citizen states needing the player's eye.
+   Rendered only when count > 0; click through to Citizens tab. */
+.sett-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.sett-pill {
+  background: transparent;
+  border: 1px solid var(--kw-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 12px;
+  color: var(--kw-muted);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.sett-pill b {
+  color: var(--kw-cream);
+  font-weight: 600;
+  margin-left: 2px;
+}
+.sett-pill:hover {
+  border-color: var(--kw-gold-dim);
+  color: var(--kw-cream);
+  background: rgba(201, 164, 92, .06);
+}
+
+/* Idle when high — opportunity, amber */
+.sett-pill--warn { border-color: #7a652e; color: #d9b261; }
+.sett-pill--warn b { color: #e8c87a; }
+
+/* Unhoused / Sick — problems, ember */
+.sett-pill--alert { border-color: #6e3a2e; color: #d98a6a; }
+.sett-pill--alert b { color: #e8a98f; }
+
+/* Actions — equal 2×2 grid; no permanent king */
+.sett-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sett-action {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-cream);
+  font-family: 'Crimson Pro', serif;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 9px 8px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.sett-action:hover {
+  background: #352818;
+  border-color: var(--kw-gold-deep);
+}
+.sett-action:active { transform: scale(.97); }
+
+/* Gold is earned: JS applies this to at most ONE action when the
+   game has an opinion about what to do next */
+.sett-action--glow {
+  border-color: var(--kw-gold);
+  color: var(--kw-gold);
+  box-shadow: 0 0 10px rgba(201, 164, 92, .22), inset 0 0 6px rgba(201, 164, 92, .1);
+}
+.sett-action--glow:hover {
+  border-color: var(--kw-gold);
+  box-shadow: 0 0 14px rgba(201, 164, 92, .32), inset 0 0 6px rgba(201, 164, 92, .14);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 8 — actions grid (5 buttons) + citizens modal reskin
+   ════════════════════════════════════════════════════════════════ */
+
+/* With an odd button count, the last action spans the full row so
+   the grid never leaves a hanging gap */
+.sett-actions-grid > .sett-action:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+/* (.sett-action--glow is now unused — the idle→Tavern rule was
+   removed from main.js. The class stays available for a future
+   priority system.) */
+
+/* ── Citizens modal ("Your People") ── */
+.all-citizens-modal {
+  background: rgba(29, 21, 13, .98);
+  border: 18px solid transparent;
+  border-radius: 0;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none'%3E%3Cg transform='translate(0,0)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,0) scale(-1,1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(0,90) scale(1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,90) scale(-1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cpath d='M30 0.75 H60 M30 89.25 H60 M0.75 30 V60 M89.25 30 V60' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M30 5 H60 M30 85 H60 M5 30 V60 M85 30 V60' stroke='%236e5836'/%3E%3C/g%3E%3C/svg%3E") 30 / 18px stretch;
+}
+
+.ac-header { border-bottom: 1px solid var(--kw-gold-dim); }
+.ac-title { color: var(--kw-cream); font-weight: 600; }
+.ac-count {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--kw-muted);
+}
+.ac-close { color: var(--kw-muted); }
+.ac-close:hover { color: var(--kw-gold); }
+
+.ac-search {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 14px;
+  color: var(--kw-cream);
+}
+.ac-search:focus { border-color: var(--kw-gold-deep); }
+.ac-search::placeholder { color: var(--kw-muted); opacity: .7; }
+
+/* Filter row */
+.ac-filter-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .2em;
+  color: var(--kw-gold-deep);
+}
+.ac-chip {
+  background: transparent;
+  border: 1px solid var(--kw-border);
+  border-radius: 999px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 12px;
+  color: var(--kw-muted);
+  transition: border-color .15s, color .15s, background .15s;
+}
+.ac-chip:hover {
+  border-color: var(--kw-gold-dim);
+  color: var(--kw-cream);
+  background: rgba(201, 164, 92, .06);
+}
+.ac-chip.active {
+  border-color: var(--kw-gold-deep);
+  color: var(--kw-gold);
+  background: rgba(201, 164, 92, .1);
+}
+.ac-chip-divider { background: var(--kw-border); }
+
+.ac-role-filter,
+.ac-role-select {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 5px;
+  font-family: 'Crimson Pro', serif;
+  color: var(--kw-cream);
+}
+.ac-role-filter:focus,
+.ac-role-select:focus { border-color: var(--kw-gold-deep); }
+
+/* Table */
+.ac-table thead { background: rgba(29, 21, 13, .98); }
+.ac-table th {
+  border-bottom: 1px solid var(--kw-gold-dim);
+}
+.ac-sort-btn,
+.ac-table th {
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--kw-gold-deep);
+}
+.ac-sort-btn:hover { color: var(--kw-gold); }
+.ac-sort-btn.active-asc,
+.ac-sort-btn.active-desc { color: var(--kw-gold); }
+
+/* Header alignment: stat columns (😊 through CHA, cols 5–11) and
+   the housed column (12) are centred like their data */
+.ac-table th:nth-child(n+5):nth-child(-n+12) { text-align: center; }
+
+.ac-row { border-bottom: 1px solid rgba(58, 44, 27, .55); }
+.ac-row:hover { background: rgba(201, 164, 92, .05); }
+.ac-row td { color: var(--kw-cream); }
+.ac-name { color: var(--kw-cream); }
+.ac-meta { color: var(--kw-muted); }
+.ac-stat { color: #d8cdb4; }
+.ac-child-tag {
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 999px;
+  color: var(--kw-muted);
+  background: transparent;
+}
+
+/* Themed scrollbar, same as the sidebar */
+.ac-table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.ac-table-wrap::-webkit-scrollbar { width: 7px; }
+.ac-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.ac-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--kw-gold-dim);
+  border-radius: 4px;
+}
+.ac-table-wrap::-webkit-scrollbar-thumb:hover { background: var(--kw-gold-deep); }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 9 — tavern scene reskin (CSS-only, markup untouched)
+   Principle: brighten the painting, make the UI solid storybook
+   plates instead of washed translucent bars.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Let the art breathe: lighter base dim + vignette toward edges */
+.tavern-bg::after {
+  background: radial-gradient(ellipse at center,
+    rgba(12, 8, 4, .28) 0%,
+    rgba(12, 8, 4, .5) 70%,
+    rgba(12, 8, 4, .68) 100%);
+}
+
+/* Header */
+.tavern-header {
+  border-bottom: 1px solid rgba(201, 164, 92, .55);
+  padding-bottom: 14px;
+}
+.tavern-title {
+  flex: 1;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--kw-gold);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, .85), 0 0 24px rgba(200, 140, 40, .35);
+}
+.tavern-title::before,
+.tavern-title::after {
+  content: '✦';
+  font-size: 11px;
+  color: var(--kw-gold-deep);
+  vertical-align: 5px;
+  padding: 0 12px;
+}
+.tavern-back-btn {
+  background: rgba(36, 26, 16, .92);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-cream);
+}
+.tavern-back-btn:hover {
+  background: #352818;
+  border-color: var(--kw-gold-deep);
+  color: var(--kw-cream);
+}
+
+/* Innkeeper plate — solid wood, double-framed */
+.tavern-innkeeper-area {
+  background: rgba(36, 26, 16, .94);
+  border: 1px solid var(--kw-gold-deep);
+  border-radius: 8px;
+  outline: 1px solid rgba(110, 88, 54, .6);
+  outline-offset: -5px;
+}
+.tavern-innkeeper-portrait {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  width: 56px;
+  padding: 6px 0;
+}
+.tavern-innkeeper-msg { color: var(--kw-cream); }
+.tavern-innkeeper-msg strong { color: var(--kw-gold); }
+.tavern-innkeeper-msg em { color: var(--kw-muted); }
+
+/* Menu plates */
+.tavern-menu-btn {
+  position: relative;
+  background: rgba(36, 26, 16, .92);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-cream);
+  font-weight: 500;
+  backdrop-filter: none;
+}
+.tavern-menu-btn::after {
+  content: '❯';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--kw-muted);
+  transition: color .15s, transform .15s;
+}
+.tavern-menu-btn:hover {
+  background: #352818;
+  border-color: var(--kw-gold-deep);
+  color: var(--kw-cream);
+}
+.tavern-menu-btn:hover::after {
+  color: var(--kw-gold);
+  transform: translateY(-50%) translateX(3px);
+}
+.tavern-menu-btn.secondary {
+  color: var(--kw-muted);
+  border-color: var(--kw-border);
+}
+.tavern-menu-btn.secondary::after { content: none; }
+.tavern-menu-btn.secondary:hover { color: var(--kw-cream); }
+
+/* Card game selection */
+.tavern-card-menu-title {
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--kw-gold-deep);
+}
+.tavern-game-btn {
+  background: rgba(36, 26, 16, .92);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  backdrop-filter: none;
+}
+.tavern-game-btn:hover {
+  background: #352818;
+  border-color: var(--kw-gold-deep);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+}
+.tgb-icon {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  width: 50px;
+  text-align: center;
+  padding: 6px 0;
+}
+.tgb-name { color: var(--kw-cream); }
+.tgb-desc {
+  font-style: italic;
+  color: var(--kw-muted);
+}
+.tgb-reward { color: #d9b261; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 10 — tavern layout rework: scene stays clear, actions dock
+   to the bottom counter (pairs with the tavern-dock markup)
+   ════════════════════════════════════════════════════════════════ */
+
+/* Full-bleed column: header band top, dock pinned bottom,
+   card menu / game area centered in the space between */
+.tavern-inner {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+/* Counter shadow at the bottom of the scene + soft vignette */
+.tavern-bg::after {
+  background:
+    linear-gradient(to top,
+      rgba(12, 8, 4, .8) 0%,
+      rgba(12, 8, 4, .3) 24%,
+      rgba(12, 8, 4, 0) 44%),
+    linear-gradient(to bottom,
+      rgba(12, 8, 4, .72) 0%,
+      rgba(12, 8, 4, 0) 18%),
+    radial-gradient(ellipse at center,
+      rgba(12, 8, 4, .12) 0%,
+      rgba(12, 8, 4, .38) 100%);
+}
+
+/* Header band */
+.tavern-header {
+  width: 100%;
+  padding: 16px 28px 14px;
+  border-bottom: none;
+  flex-shrink: 0;
+}
+.tavern-header-spacer { width: 118px; flex-shrink: 0; }
+
+/* Card menu and game table float centered in the scene */
+.tavern-card-menu,
+.tavern-game-area {
+  width: 100%;
+  max-width: 560px;
+  margin: auto;
+  padding: 16px 24px;
+}
+
+/* The dock — pinned to the counter */
+.tavern-dock {
+  margin-top: auto;
+  width: 100%;
+  max-width: 920px;
+  align-self: center;
+  padding: 0 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Tavernkeep plaque — compact strip above the cards */
+.tavern-dock .tavern-innkeeper-area {
+  padding: 12px 18px;
+  width: 100%;
+}
+
+/* Action cards, side by side */
+.tavern-dock .tavern-menu {
+  flex-direction: row;
+  gap: 14px;
+}
+.tavern-dock .tavern-menu-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 18px 16px 16px;
+  text-align: center;
+  transition: border-color .15s, background .15s, transform .15s, box-shadow .15s;
+}
+.tavern-dock .tavern-menu-btn::after { content: none; }
+.tavern-dock .tavern-menu-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .45);
+}
+.tmb-icon {
+  font-size: 28px;
+  line-height: 1;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 10px;
+  width: 58px;
+  padding: 11px 0;
+  transition: border-color .15s;
+}
+.tavern-dock .tavern-menu-btn:hover .tmb-icon {
+  border-color: var(--kw-gold-deep);
+}
+.tmb-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--kw-cream);
+}
+.tmb-desc {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--kw-muted);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 11 — tavernkeep character sprite, standing behind the dock
+   ════════════════════════════════════════════════════════════════ */
+
+/* Layering: bg (0) → keeper sprite (1) → UI (2) */
+.tavern-inner { z-index: 2; }
+
+.tavern-keeper-sprite {
+  position: absolute;
+  z-index: 1;
+  /* Centered behind the plaque; the waistline (≈47% up the sprite)
+     sits at the dock's top edge (~214px), so only below the waist
+     is hidden behind the UI */
+  --kw-keeper-h: clamp(440px, 64vh, 660px);
+  height: var(--kw-keeper-h);
+  bottom: calc(380px - var(--kw-keeper-h) * .47);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, .55));
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 12 — tavern odds & ends
+   ════════════════════════════════════════════════════════════════ */
+
+/* Inline "Assign a Tavernkeep" CTA in the empty plaque */
+.tavern-assign-btn {
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  border-radius: 5px;
+  color: #241a10;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 5px 12px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: 1px;
+}
+.tavern-assign-btn:hover { background: #d9b261; }
+
+/* Disabled bank button reads as "not yet worth anything" */
+.cg-btn:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 13 — The Briar Court
+   ════════════════════════════════════════════════════════════════ */
+
+.card-game.briar { max-width: 640px; }
+
+.bc-seats {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.bc-seat {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+  min-width: 108px;
+  transition: border-color .2s, opacity .2s;
+}
+.bc-seat.acting,
+.bc-you.acting { border-color: var(--kw-gold-deep); }
+.bc-seat.out,
+.bc-you.out { opacity: .4; }
+.bc-seat-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--kw-cream);
+}
+.bc-seat-acorns {
+  font-family: 'Crimson Pro', serif;
+  font-size: 12px;
+  color: var(--kw-muted);
+}
+.bc-seat-cards {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.bc-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: 15px;
+  line-height: 1.1;
+  border-radius: 5px;
+  padding: 5px 6px 3px;
+  min-width: 40px;
+}
+.bc-card span {
+  font-family: 'Crimson Pro', serif;
+  font-size: 9px;
+  letter-spacing: .04em;
+  color: var(--kw-muted);
+}
+.bc-card.back {
+  background: #1d150d;
+  border: 1px solid var(--kw-gold-dim);
+  color: var(--kw-gold-deep);
+  justify-content: center;
+  min-height: 38px;
+}
+.bc-card.mine {
+  background: #1d150d;
+  border: 1px solid var(--kw-gold-deep);
+}
+.bc-card.mine span { color: var(--kw-cream); }
+.bc-card.revealed {
+  background: transparent;
+  border: 1px dashed #6e3a2e;
+  opacity: .55;
+}
+
+.bc-log {
+  background: rgba(20, 14, 8, .85);
+  border: 1px solid var(--kw-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  min-height: 96px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: var(--kw-muted);
+  text-align: left;
+}
+.bc-log div:last-child { color: var(--kw-cream); }
+
+.bc-you {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  transition: border-color .2s;
+}
+.bc-you-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bc-prompt { margin-top: 12px; min-height: 64px; }
+.bc-question {
+  font-family: 'Crimson Pro', serif;
+  font-size: 14px;
+  color: var(--kw-cream);
+  margin-bottom: 8px;
+}
+.bc-options {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Briar Court rules panel + help button */
+.bc-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--kw-gold-dim);
+  background: transparent;
+  color: var(--kw-gold-deep);
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  cursor: pointer;
+  vertical-align: 3px;
+  margin-left: 6px;
+}
+.bc-help-btn:hover { border-color: var(--kw-gold); color: var(--kw-gold); }
+
+.bc-help {
+  background: rgba(20, 14, 8, .96);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 10px 0;
+  text-align: left;
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+}
+.bc-help-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--kw-gold);
+  margin-bottom: 8px;
+}
+.bc-help-row {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+  color: var(--kw-muted);
+}
+.bc-help-row b { color: var(--kw-cream); min-width: 118px; font-weight: 600; }
+.bc-help-note {
+  margin: 10px 0;
+  color: var(--kw-muted);
+  line-height: 1.45;
+}
+.bc-help-note b { color: var(--kw-cream); }
+.bc-help .cg-btn { margin-top: 2px; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 14 — Briar Court card art: fanned hand, hover inspect,
+   court ledger tracker
+   ════════════════════════════════════════════════════════════════ */
+
+/* Hover-enlarged cards must escape their containers */
+.card-game.briar,
+.tavern-game-area { overflow: visible; }
+
+/* Your hand — fanned pair, Hearthstone-style */
+.bc-hand {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  margin-top: 10px;
+  min-height: 158px;
+}
+.bc-hand-card {
+  width: 112px;
+  position: relative;
+  transition: transform .16s ease-out;
+  cursor: zoom-in;
+}
+.bc-hand-card img {
+  width: 100%;
+  display: block;
+  border-radius: 8px;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .55);
+}
+.bc-hand-card:first-child { transform: rotate(-4deg) translateX(7px); z-index: 2; }
+.bc-hand-card:last-child  { transform: rotate(4deg) translateX(-7px); z-index: 1; }
+.bc-hand-card:hover {
+  transform: scale(2.1) translateY(-64px);
+  z-index: 40;
+  cursor: zoom-in;
+}
+.bc-hand-card.dead img {
+  filter: grayscale(.95) brightness(.5);
+}
+.bc-hand-card.dead:hover {
+  transform: scale(1.15) translateY(-10px);
+}
+
+/* Revealed opponent cards — mini art, greyed */
+.bc-card.revealed-img {
+  width: 42px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  opacity: .85;
+}
+.bc-card.revealed-img img {
+  width: 100%;
+  display: block;
+  border-radius: 4px;
+  filter: grayscale(.95) brightness(.5);
+}
+
+/* Court ledger — three pips per role, dead copies grey out */
+.bc-tracker {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 0;
+  padding: 6px 10px;
+  background: rgba(20, 14, 8, .7);
+  border: 1px solid var(--kw-border);
+  border-radius: 999px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+.bc-tracker-role {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 14px;
+}
+.bc-pip {
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--kw-gold-deep);
+  border: 1px solid rgba(0, 0, 0, .4);
+}
+.bc-pip.dead {
+  background: #443625;
+  opacity: .55;
+}
+
+/* Slimmer you-bar now that cards live in the hand */
+.bc-you {
+  padding: 7px 16px;
+  gap: 14px;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 15 — Briar Court: bubbles, ledger modal, card inspection
+   ════════════════════════════════════════════════════════════════ */
+
+/* Thinking bubble above an AI seat */
+.bc-seat { position: relative; }
+.bc-bubble {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 14, 8, .95);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--kw-muted);
+  white-space: nowrap;
+  z-index: 6;
+  animation: bcBubbleIn .22s ease-out;
+}
+@keyframes bcBubbleIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Mini card art (help rows, ledger) — click to inspect */
+.bc-mini-card {
+  width: 54px;
+  border-radius: 4px;
+  cursor: zoom-in;
+  display: block;
+  transition: transform .12s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+}
+.bc-mini-card:hover { transform: translateY(-3px) scale(1.06); }
+.bc-mini-card.dead { filter: grayscale(.95) brightness(.45); }
+
+.bc-help-row { align-items: center; }
+.bc-help-row .bc-mini-card { flex-shrink: 0; }
+
+/* Tracker is clickable now */
+.bc-tracker { cursor: pointer; transition: border-color .15s; }
+.bc-tracker:hover { border-color: var(--kw-gold-dim); }
+
+/* Ledger modal */
+.bc-ledger-grid {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+.bc-ledger-role { text-align: center; }
+.bc-ledger-cards {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.bc-ledger-name {
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  color: var(--kw-muted);
+  margin-top: 5px;
+}
+
+/* Full-size card inspection overlay — click anywhere to dismiss */
+.bc-inspect {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  background: rgba(8, 5, 2, .78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  animation: bcBubbleIn .15s ease-out;
+}
+.bc-inspect img {
+  width: min(360px, 82vw);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .8), 0 0 0 1px var(--kw-gold-dim);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 16 — multiplayer lobby + multiplayer pill
+   ════════════════════════════════════════════════════════════════ */
+
+/* "Multiplayer" pill on game menu entries */
+.tgb-mp-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 999px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: .02em;
+  color: var(--kw-gold);
+  background: rgba(201, 164, 92, .08);
+  vertical-align: middle;
+}
+
+.lobby {
+  width: 100%;
+  max-width: 560px;
+  margin: auto;
+  padding: 18px 24px;
+  text-align: center;
+}
+.lobby-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--kw-gold);
+  margin-bottom: 4px;
+}
+.lobby-sub {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  color: var(--kw-muted);
+  margin-bottom: 18px;
+}
+
+/* Mode chooser + create cards */
+.lobby-mode-row { display: flex; gap: 14px; justify-content: center; }
+.lobby-card {
+  flex: 1;
+  max-width: 220px;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: border-color .15s, transform .15s, background .15s;
+}
+.lobby-card:hover { border-color: var(--kw-gold-deep); background: #352818; transform: translateY(-3px); }
+.lobby-card-icon { font-size: 30px; }
+.lobby-card-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px; font-weight: 600;
+  color: var(--kw-cream);
+  margin: 8px 0 4px;
+}
+.lobby-card-desc {
+  font-family: 'Crimson Pro', serif;
+  font-size: 12px; color: var(--kw-muted);
+}
+
+/* Room list */
+.lobby-rooms { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.lobby-room-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: left;
+}
+.lobby-room-host { font-family: 'Playfair Display', serif; color: var(--kw-cream); font-size: 15px; }
+.lobby-room-meta { font-family: 'Crimson Pro', serif; font-size: 12px; color: var(--kw-muted); }
+.lobby-empty {
+  font-family: 'Crimson Pro', serif; font-style: italic;
+  color: var(--kw-muted); padding: 24px 0;
+}
+
+.lobby-join-code { display: flex; gap: 8px; margin-bottom: 14px; }
+.lobby-join-code .ac-search { flex: 1; text-align: center; letter-spacing: .2em; text-transform: uppercase; }
+
+/* Create form */
+.lobby-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+.lobby-field { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.lobby-field span { font-family: 'Crimson Pro', serif; color: var(--kw-muted); font-size: 14px; }
+.lobby-field select { flex: 1; max-width: 280px; }
+
+/* Room view */
+.lobby-roomcode {
+  font-family: 'Crimson Pro', serif;
+  color: var(--kw-muted);
+  margin-bottom: 16px;
+}
+.lobby-roomcode strong {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; letter-spacing: .15em;
+  color: var(--kw-gold);
+  margin: 0 4px;
+}
+.lobby-copy {
+  background: transparent; border: 1px solid var(--kw-gold-dim);
+  border-radius: 5px; color: var(--kw-cream);
+  font-family: 'Crimson Pro', serif; font-size: 12px;
+  padding: 3px 10px; cursor: pointer; margin: 0 6px;
+}
+.lobby-copy:hover { border-color: var(--kw-gold-deep); }
+.lobby-vis-tag { font-size: 12px; color: var(--kw-muted); }
+
+.lobby-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px; margin-bottom: 18px;
+}
+.lobby-seat {
+  border-radius: 6px; padding: 12px;
+  font-family: 'Crimson Pro', serif; font-size: 14px;
+}
+.lobby-seat.filled { background: var(--kw-wood-2); border: 1px solid var(--kw-gold-dim); color: var(--kw-cream); }
+.lobby-seat.empty { background: transparent; border: 1px dashed var(--kw-border); color: var(--kw-muted); font-style: italic; }
+.lobby-waiting { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--kw-muted); align-self: center; }
+
+.lobby-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+
+.lobby-flash {
+  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+  background: var(--kw-gold-btn); color: #241a10;
+  font-family: 'Crimson Pro', serif; font-weight: 600;
+  padding: 10px 20px; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  z-index: 100002; animation: bcBubbleIn .2s ease-out;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 17 — lobby as a modal overlay + AI seat controls
+   ════════════════════════════════════════════════════════════════ */
+
+.lobby-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 5, 2, .72);
+  backdrop-filter: blur(2px);
+}
+.lobby-backdrop.open { display: flex; animation: bcBubbleIn .18s ease-out; }
+
+.lobby-card-shell {
+  position: relative;
+  width: min(620px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: rgba(29, 21, 13, .99);
+  border: 18px solid transparent;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none'%3E%3Cg transform='translate(0,0)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,0) scale(-1,1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(0,90) scale(1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,90) scale(-1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cpath d='M30 0.75 H60 M30 89.25 H60 M0.75 30 V60 M89.25 30 V60' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M30 5 H60 M30 85 H60 M5 30 V60 M85 30 V60' stroke='%236e5836'/%3E%3C/g%3E%3C/svg%3E") 30 / 18px stretch;
+}
+.lobby-x {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--kw-muted);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 2;
+}
+.lobby-x:hover { color: var(--kw-gold); }
+
+/* AI seat affordances */
+.lobby-seat.add-ai {
+  background: transparent;
+  border: 1px dashed var(--kw-gold-dim);
+  color: var(--kw-gold-deep);
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.lobby-seat.add-ai:hover {
+  border-color: var(--kw-gold-deep);
+  color: var(--kw-gold);
+  background: rgba(201, 164, 92, .06);
+}
+.lobby-ai-tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 6px;
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--kw-gold);
+  vertical-align: 1px;
+}
+.lobby-seat-x {
+  background: transparent;
+  border: none;
+  color: var(--kw-muted);
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 6px;
+}
+.lobby-seat-x:hover { color: #d98a6a; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 18 — large multiplayer game modal + in-game chat / whispers
+   ════════════════════════════════════════════════════════════════ */
+
+.bcmp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 5, 2, .8);
+  backdrop-filter: blur(3px);
+}
+.bcmp-shell {
+  position: relative;
+  display: flex;
+  gap: 0;
+  width: min(1080px, 94vw);
+  height: min(740px, 90vh);
+  background: rgba(29, 21, 13, .99);
+  border: 18px solid transparent;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none'%3E%3Cg transform='translate(0,0)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,0) scale(-1,1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(0,90) scale(1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,90) scale(-1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cpath d='M30 0.75 H60 M30 89.25 H60 M0.75 30 V60 M89.25 30 V60' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M30 5 H60 M30 85 H60 M5 30 V60 M85 30 V60' stroke='%236e5836'/%3E%3C/g%3E%3C/svg%3E") 30 / 18px stretch;
+}
+.bcmp-x {
+  position: absolute;
+  top: 4px; right: 8px;
+  background: transparent; border: none;
+  color: var(--kw-muted); font-size: 18px; cursor: pointer; z-index: 3;
+}
+.bcmp-x:hover { color: var(--kw-gold); }
+
+.bcmp-game {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+  display: flex;
+}
+.bcmp-game .card-game.briar { max-width: 680px; margin: auto; }
+
+/* Chat panel docked to the right */
+.bcmp-chat {
+  width: 268px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--kw-gold-dim);
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+.bcmp-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: var(--kw-cream);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-right: 4px;
+}
+.bcmp-chat-line { line-height: 1.4; }
+.bcmp-chat-line b { color: var(--kw-gold); }
+.bcmp-chat-line.whisper {
+  background: rgba(150, 110, 180, .12);
+  border-left: 2px solid #9a7bb5;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.bcmp-whisper-tag {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #b89bd0;
+  margin-right: 5px;
+}
+.bcmp-chat-row { display: flex; gap: 5px; margin-top: 8px; }
+.bcmp-chat-to {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 5px;
+  color: var(--kw-cream);
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  max-width: 78px;
+}
+.bcmp-chat-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 5px;
+  color: var(--kw-cream);
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  padding: 6px 8px;
+}
+.bcmp-chat-input:focus { border-color: var(--kw-gold-deep); outline: none; }
+.bcmp-chat-send {
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  border-radius: 5px;
+  color: #241a10;
+  font-family: 'Crimson Pro', serif;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+/* Whisper bubble reuses the thinking bubble, tinted */
+.bc-bubble.whisper {
+  border-color: #9a7bb5;
+  color: #c9b3dd;
+}
+
+/* On narrow screens, stack chat under the game */
+@media (max-width: 760px) {
+  .bcmp-shell { flex-direction: column; height: 92vh; }
+  .bcmp-chat { width: auto; border-left: none; border-top: 1px solid var(--kw-gold-dim); height: 180px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 19 — networked Court states
+   ════════════════════════════════════════════════════════════════ */
+.bc-wait, .bc-waiting {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  color: var(--kw-muted);
+  padding: 18px 0;
+  text-align: center;
+}
+.bc-hand-card.back-lg {
+  width: 112px;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d150d;
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  color: var(--kw-gold-deep);
+  font-size: 28px;
+}
+.bc-hand-card.selected img {
+  outline: 2px solid var(--kw-gold);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.cg-btn.disabled { opacity: .45; pointer-events: none; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 20 — game-modal scrollbar + disconnect banner
+   ════════════════════════════════════════════════════════════════ */
+.bcmp-game, .bcmp-chat-log {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.bcmp-game::-webkit-scrollbar,
+.bcmp-chat-log::-webkit-scrollbar { width: 8px; }
+.bcmp-game::-webkit-scrollbar-track,
+.bcmp-chat-log::-webkit-scrollbar-track { background: transparent; }
+.bcmp-game::-webkit-scrollbar-thumb,
+.bcmp-chat-log::-webkit-scrollbar-thumb {
+  background: var(--kw-gold-dim);
+  border-radius: 4px;
+}
+.bcmp-game::-webkit-scrollbar-thumb:hover,
+.bcmp-chat-log::-webkit-scrollbar-thumb:hover { background: var(--kw-gold-deep); }
+
+/* Also theme the lobby + card-shell scrollbars */
+.lobby-card-shell, .bcmp-shell {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.lobby-card-shell::-webkit-scrollbar,
+.bcmp-shell::-webkit-scrollbar { width: 8px; }
+.lobby-card-shell::-webkit-scrollbar-thumb,
+.bcmp-shell::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 4px; }
+.lobby-card-shell::-webkit-scrollbar-track,
+.bcmp-shell::-webkit-scrollbar-track { background: transparent; }
+
+.bcmp-absent {
+  background: rgba(110, 58, 46, .25);
+  border: 1px solid #6e3a2e;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: #d98a6a;
+  text-align: center;
+}
+.bcmp-absent .cg-btn { margin-left: 8px; padding: 3px 12px; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 21 — Owl consult glow + larger scrollable log
+   ════════════════════════════════════════════════════════════════ */
+
+/* Selected consult cards get a clear gold radiance */
+.bc-hand-card.selected {
+  transform: translateY(-10px) scale(1.04);
+  z-index: 5;
+}
+.bc-hand-card.selected img {
+  outline: 2px solid var(--kw-gold);
+  outline-offset: 2px;
+  border-radius: 8px;
+  box-shadow:
+    0 0 14px 3px rgba(232, 200, 122, .65),
+    0 0 30px 8px rgba(201, 164, 92, .35);
+  animation: bcSelGlow 1.6s ease-in-out infinite;
+}
+@keyframes bcSelGlow {
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(232,200,122,.5), 0 0 26px 6px rgba(201,164,92,.28); }
+  50%      { box-shadow: 0 0 18px 5px rgba(232,200,122,.8), 0 0 38px 11px rgba(201,164,92,.45); }
+}
+
+/* History log: a little taller, scrollable, themed bar */
+.bc-log {
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.bc-log::-webkit-scrollbar { width: 7px; }
+.bc-log::-webkit-scrollbar-track { background: transparent; }
+.bc-log::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 4px; }
+.bc-log::-webkit-scrollbar-thumb:hover { background: var(--kw-gold-deep); }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 22 — body-level overlays (help/ledger) + seat reaction tints
+   ════════════════════════════════════════════════════════════════ */
+
+/* Help & ledger overlay — fixed, above the game modal (which is 100000) */
+.bc-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100002;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 5, 2, .72);
+  backdrop-filter: blur(2px);
+}
+.bc-overlay-backdrop.open { display: flex; animation: bcBubbleIn .16s ease-out; }
+.bc-overlay-panel {
+  background: rgba(20, 14, 8, .98);
+  border: 1px solid var(--kw-gold-deep);
+  border-radius: 10px;
+  padding: 20px 22px;
+  max-width: 460px;
+  width: 90vw;
+  max-height: 84vh;
+  overflow-y: auto;
+  text-align: left;
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .7);
+}
+.bc-overlay-panel .cg-btn { margin-top: 12px; }
+
+/* Inspect layer sits above everything, including the overlay panel */
+.bc-inspect { z-index: 100003; }
+
+/* Seat reaction tints */
+.bc-seat { transition: background .25s, border-color .25s; position: relative; }
+.bc-seat-react {
+  position: absolute;
+  top: -9px; left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .04em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  z-index: 4;
+}
+.bc-seat.react-passed    { background: rgba(120, 160, 90, .18); border-color: #7a9a5a; }
+.bc-seat.react-passed    .bc-seat-react { background: #4d6b38; color: #cfe0b4; }
+.bc-seat.react-challenge { background: rgba(150, 110, 180, .22); border-color: #9a7bb5; }
+.bc-seat.react-challenge .bc-seat-react { background: #6a4d85; color: #e0cdf0; }
+.bc-seat.react-block     { background: rgba(90, 130, 175, .2); border-color: #5a82af; }
+.bc-seat.react-block     .bc-seat-react { background: #3d5d7e; color: #c4d8ec; }
+.bc-seat.react-fail {
+  background: rgba(175, 70, 55, .35) !important;
+  border-color: #af4637 !important;
+  animation: bcFailFlash .9s ease-out;
+}
+@keyframes bcFailFlash {
+  0% { background: rgba(175, 70, 55, .6); }
+  100% { background: rgba(175, 70, 55, 0); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 23 — Online presence list
+   ════════════════════════════════════════════════════════════════ */
+.online-count { color: var(--kw-good); font-family: 'Crimson Pro', serif; font-size: 12px; }
+
+.online-backdrop {
+  position: fixed; inset: 0; z-index: 100000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8, 5, 2, .72); backdrop-filter: blur(2px);
+}
+.online-backdrop.open { display: flex; animation: bcBubbleIn .16s ease-out; }
+.online-card {
+  width: min(420px, 92vw); max-height: 80vh; display: flex; flex-direction: column;
+  background: rgba(29, 21, 13, .99);
+  border: 1px solid var(--kw-gold-deep); border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.7);
+}
+.online-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--kw-border);
+}
+.online-card-title {
+  font-family: 'Playfair Display', serif; font-size: 17px; color: var(--kw-gold);
+}
+.online-card-body { padding: 10px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--kw-gold-dim) transparent; }
+.online-card-body::-webkit-scrollbar { width: 8px; }
+.online-card-body::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 4px; }
+
+.online-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: var(--kw-wood-2); border: 1px solid var(--kw-border);
+  border-radius: 7px; padding: 10px 14px; margin-bottom: 6px; cursor: pointer;
+  font-family: 'Crimson Pro', serif; color: var(--kw-cream); text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.online-row:hover:not([disabled]) { border-color: var(--kw-gold-deep); background: #352818; }
+.online-row[disabled] { opacity: .6; cursor: default; }
+.online-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--kw-good); box-shadow: 0 0 6px var(--kw-good); flex-shrink: 0; }
+.online-name { flex: 1; font-size: 15px; }
+.online-name em { color: var(--kw-muted); font-size: 12px; }
+.online-go { color: var(--kw-gold-deep); font-size: 13px; }
+.online-empty { padding: 28px 0; text-align: center; color: var(--kw-muted); font-family: 'Crimson Pro', serif; font-style: italic; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 24 — Hall of Renown (leaderboard)
+   ════════════════════════════════════════════════════════════════ */
+.lb-backdrop {
+  position: fixed; inset: 0; z-index: 100001;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8, 5, 2, .8); backdrop-filter: blur(3px);
+}
+.lb-backdrop.open { display: flex; animation: bcBubbleIn .18s ease-out; }
+
+.lb-shell {
+  position: relative;
+  width: min(1000px, 95vw); height: min(720px, 90vh);
+  display: flex; flex-direction: column;
+  background: rgba(29, 21, 13, .99);
+  border: 18px solid transparent;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none'%3E%3Cg transform='translate(0,0)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,0) scale(-1,1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(0,90) scale(1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,90) scale(-1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cpath d='M30 0.75 H60 M30 89.25 H60 M0.75 30 V60 M89.25 30 V60' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M30 5 H60 M30 85 H60 M5 30 V60 M85 30 V60' stroke='%236e5836'/%3E%3C/g%3E%3C/svg%3E") 30 / 18px stretch;
+}
+.lb-x { position: absolute; top: 6px; right: 10px; background: transparent; border: none; color: var(--kw-muted); font-size: 18px; cursor: pointer; z-index: 3; }
+.lb-x:hover { color: var(--kw-gold); }
+
+.lb-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 22px; border-bottom: 1px solid var(--kw-gold-dim);
+}
+.lb-crest { font-size: 34px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.lb-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--kw-gold); }
+.lb-sub { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--kw-muted); font-size: 13px; }
+
+.lb-body { display: flex; flex: 1; min-height: 0; }
+.lb-tabs {
+  width: 210px; flex-shrink: 0; overflow-y: auto;
+  border-right: 1px solid var(--kw-border); padding: 12px 10px;
+  scrollbar-width: thin; scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.lb-tab-group { margin-bottom: 14px; }
+.lb-tab-group-title {
+  font-family: 'Crimson Pro', serif; font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--kw-gold-deep); margin: 0 0 5px 8px;
+}
+.lb-tab {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  padding: 7px 10px; margin-bottom: 3px; cursor: pointer;
+  font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--kw-cream);
+  transition: background .12s, border-color .12s;
+}
+.lb-tab:hover { background: var(--kw-wood-2); }
+.lb-tab.active { background: var(--kw-wood-2); border-color: var(--kw-gold-deep); color: var(--kw-gold); }
+
+.lb-content {
+  flex: 1; overflow-y: auto; padding: 22px 26px;
+  scrollbar-width: thin; scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.lb-content::-webkit-scrollbar, .lb-tabs::-webkit-scrollbar { width: 8px; }
+.lb-content::-webkit-scrollbar-thumb, .lb-tabs::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 4px; }
+
+.lb-loading, .lb-soon { text-align: center; padding: 40px 0; color: var(--kw-muted); font-family: 'Crimson Pro', serif; }
+.lb-soon-icon { font-size: 40px; margin-bottom: 10px; opacity: .8; }
+.lb-soon-title { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--kw-cream); margin-bottom: 6px; }
+.lb-soon-text { font-style: italic; max-width: 360px; margin: 0 auto; line-height: 1.5; }
+
+/* Podium */
+.lb-podium {
+  display: flex; align-items: flex-end; justify-content: center; gap: 16px;
+  margin: 10px 0 28px; min-height: 220px;
+}
+.lb-podium-spot {
+  display: flex; flex-direction: column; align-items: center;
+  width: 150px; padding: 16px 10px 0; border-radius: 10px 10px 0 0;
+  position: relative;
+}
+.lb-podium-spot.place-1 { transform: translateY(-22px); }
+.lb-podium-trophy { font-size: 38px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.5)); }
+.lb-podium-name {
+  font-family: 'Playfair Display', serif; font-weight: 600; font-size: 16px;
+  color: var(--kw-cream); margin-top: 6px; text-align: center;
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lb-podium-stat { font-family: 'Crimson Pro', serif; font-size: 12px; color: var(--kw-muted); margin-bottom: 10px; }
+.lb-podium-base {
+  font-family: 'Playfair Display', serif; font-weight: 700; font-size: 30px;
+  width: 100%; text-align: center; padding: 18px 0;
+  border-radius: 6px 6px 0 0;
+}
+.lb-podium-spot.gold .lb-podium-base {
+  background: linear-gradient(180deg, #e8c87a, #c9a45c); color: #3a2c1b;
+  box-shadow: 0 0 26px rgba(232,200,122,.4);
+  min-height: 130px;
+}
+.lb-podium-spot.silver .lb-podium-base {
+  background: linear-gradient(180deg, #d8d8de, #a8a8b2); color: #2c2c33;
+  min-height: 100px;
+}
+.lb-podium-spot.bronze .lb-podium-base {
+  background: linear-gradient(180deg, #cd9b6a, #a8753f); color: #3a2614;
+  min-height: 78px;
+}
+.lb-podium-spot.gold .lb-podium-name { color: var(--kw-gold); }
+
+/* Table for ranks 4+ */
+.lb-table { width: 100%; border-collapse: collapse; font-family: 'Crimson Pro', serif; }
+.lb-table th {
+  text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--kw-gold-deep); padding: 8px 12px; border-bottom: 1px solid var(--kw-gold-dim);
+}
+.lb-table td { padding: 9px 12px; border-bottom: 1px solid var(--kw-border); color: var(--kw-cream); font-size: 14px; }
+.lb-table tr:hover td { background: rgba(201,164,92,.05); }
+.lb-rank { color: var(--kw-muted); font-family: 'Playfair Display', serif; }
+.lb-name { font-weight: 600; }
+
+@media (max-width: 720px) {
+  .lb-body { flex-direction: column; }
+  .lb-tabs { width: auto; display: flex; flex-wrap: wrap; gap: 4px; border-right: none; border-bottom: 1px solid var(--kw-border); }
+  .lb-tab-group { margin-bottom: 6px; }
+}
+
+/* Leaderboard: podium games count + clickable rows */
+.lb-podium-games { color: var(--kw-gold-dim); font-size: 11px; }
+.lb-podium-spot { cursor: pointer; transition: transform .12s; }
+.lb-podium-spot:hover { transform: translateY(-4px); }
+.lb-podium-spot.place-1:hover { transform: translateY(-26px); }
+.lb-row-click { cursor: pointer; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 25 — Squirrel's Stash table
+   ════════════════════════════════════════════════════════════════ */
+.sq-backdrop {
+  position: fixed; inset: 0; z-index: 100000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8, 5, 2, .8); backdrop-filter: blur(3px);
+}
+.sq-shell {
+  position: relative;
+  width: min(1160px, 96vw); height: min(780px, 92vh);
+  background: rgba(29, 21, 13, .99);
+  border: 18px solid transparent;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none'%3E%3Cg transform='translate(0,0)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,0) scale(-1,1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(0,90) scale(1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cg transform='translate(90,90) scale(-1,-1)'%3E%3Cpath d='M0.75 30 C0.75 13 13 0.75 30 0.75' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M5 30 C5 16 16 5 30 5' stroke='%236e5836'/%3E%3Cpath d='M12 8 l4 4 -4 4 -4 -4 z' fill='%23c9a45c'/%3E%3C/g%3E%3Cpath d='M30 0.75 H60 M30 89.25 H60 M0.75 30 V60 M89.25 30 V60' stroke='%23c9a45c' stroke-width='1.5'/%3E%3Cpath d='M30 5 H60 M30 85 H60 M5 30 V60 M85 30 V60' stroke='%236e5836'/%3E%3C/g%3E%3C/svg%3E") 30 / 18px stretch;
+  overflow: hidden;
+}
+.sq-table { display: flex; flex-direction: column; height: 100%; padding: 6px 16px 14px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--kw-gold-dim) transparent; }
+.sq-table::-webkit-scrollbar { width: 8px; }
+.sq-table::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 4px; }
+
+.sq-roundbar {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  font-family: 'Crimson Pro', serif; color: var(--kw-gold); font-size: 14px;
+  padding: 4px 0 8px; border-bottom: 1px solid var(--kw-border);
+}
+.sq-deckcount { color: var(--kw-muted); }
+
+/* Opponent player boxes along the top */
+.sq-others { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 10px 0; }
+.sq-player {
+  background: var(--kw-wood-2); border: 1px solid var(--kw-border);
+  border-radius: 8px; padding: 7px 10px; min-width: 150px; transition: border-color .2s;
+}
+.sq-player.acting { border-color: var(--kw-gold-deep); box-shadow: 0 0 12px rgba(201,164,92,.25); }
+.sq-player-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.sq-player-name { font-family: 'Playfair Display', serif; font-size: 13px; color: var(--kw-cream); }
+.sq-player-score { font-family: 'Crimson Pro', serif; font-size: 12px; color: var(--kw-gold); }
+
+/* Stashes — face up cards */
+.sq-stash { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; min-height: 30px; }
+.sq-empty { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--kw-muted); font-size: 11px; }
+.sq-card { width: 38px; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.sq-card img { width: 100%; display: block; }
+.sq-card.mini { width: 30px; }
+.sq-card.rotten img { filter: saturate(1.1) brightness(.95); }
+
+/* Center messy pile */
+.sq-center { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 230px; position: relative; }
+.sq-pile { position: relative; width: 160px; height: 190px; }
+.sq-pile-card {
+  position: absolute; top: 50%; left: 50%; width: 84px; border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.5); transition: transform .12s;
+}
+.sq-pile.drawable .sq-pile-card { cursor: pointer; }
+.sq-pile.drawable .sq-pile-card:hover { filter: brightness(1.15); }
+.sq-pile-hint {
+  position: absolute; bottom: -34px; left: 50%; transform: translateX(-50%);
+  white-space: nowrap; font-family: 'Crimson Pro', serif; font-style: italic;
+  color: var(--kw-gold); font-size: 13px; animation: bcBubbleIn .3s;
+}
+
+/* My area */
+.sq-me {
+  background: var(--kw-wood-2); border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px; padding: 10px 14px; margin-top: 6px; transition: border-color .2s;
+}
+.sq-me.active { border-color: var(--kw-gold); box-shadow: 0 0 16px rgba(232,200,122,.2); }
+.sq-me-header { display: flex; align-items: center; gap: 14px; }
+.sq-me-name { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--kw-cream); }
+.sq-me-score { font-family: 'Crimson Pro', serif; font-size: 13px; color: var(--kw-gold); }
+.sq-badge { font-family: 'Crimson Pro', serif; font-size: 11px; color: var(--kw-good); border: 1px solid var(--kw-good); border-radius: 999px; padding: 1px 8px; }
+.sq-my-stash .sq-card { width: 48px; }
+
+/* Prompt */
+.sq-prompt { margin-top: 10px; min-height: 56px; text-align: center; }
+.sq-question { font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--kw-cream); margin-bottom: 8px; }
+.sq-waiting { font-style: italic; color: var(--kw-muted); }
+.sq-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.sq-choices, .sq-pick { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.sq-card.choose, .sq-card.pick { width: 64px; cursor: pointer; transition: transform .12s; text-align: center; }
+.sq-card.choose:hover, .sq-card.pick:hover { transform: translateY(-5px); }
+.sq-card.choose span { display: block; font-family: 'Crimson Pro', serif; font-size: 11px; color: var(--kw-muted); margin-top: 3px; }
+.sq-magpie-target { margin: 6px 0; }
+.sq-magpie-name { font-family: 'Crimson Pro', serif; font-size: 12px; color: var(--kw-gold); margin-bottom: 3px; }
+.sq-final { font-family: 'Crimson Pro', serif; color: var(--kw-cream); margin: 8px 0; line-height: 1.6; }
+.sq-wait { font-family: 'Crimson Pro', serif; font-style: italic; color: var(--kw-muted); text-align: center; padding: 40px; }
+
+/* ════════════════════════════════════════════════════════════════
+   Part 26 — Squirrel's Stash layout rework
+   ════════════════════════════════════════════════════════════════ */
+.sq-table { gap: 4px; }
+
+/* Opponents: roomier boxes, readable stashes */
+.sq-others { gap: 12px; padding: 14px 0 6px; align-items: flex-start; }
+.sq-player { min-width: 180px; max-width: 240px; padding: 9px 12px; }
+.sq-player-head { margin-bottom: 4px; }
+.sq-player-name { font-size: 14px; }
+.sq-player-score { font-size: 11px; color: var(--kw-gold-deep); white-space: nowrap; }
+.sq-player .sq-stash { min-height: 56px; gap: 4px; }
+.sq-player .sq-card { width: 40px; }      /* bigger so numbers are legible */
+.sq-player-stashval {
+  font-family: 'Crimson Pro', serif; font-size: 10.5px; color: var(--kw-good);
+  margin-top: 4px; letter-spacing: .02em;
+}
+
+/* Center: tidy stacked pile + caption, less empty space */
+.sq-center { min-height: 150px; flex-direction: column; gap: 8px; padding: 6px 0; }
+.sq-pile { width: 130px; height: 150px; }
+.sq-pile-card { width: 104px; }
+.sq-pile.drawable { cursor: pointer; }
+.sq-pile.drawable:hover .sq-pile-card { filter: brightness(1.12); }
+.sq-center-caption {
+  font-family: 'Crimson Pro', serif; font-style: italic;
+  color: var(--kw-gold); font-size: 13px; text-align: center;
+}
+
+/* Your area: prominent, big readable cards */
+.sq-me { margin-top: 4px; padding: 12px 16px; }
+.sq-me-header { gap: 12px; margin-bottom: 8px; }
+.sq-me-name { font-size: 16px; }
+.sq-me-score { margin-left: auto; color: var(--kw-gold); }
+.sq-my-stash { min-height: 74px; gap: 5px; }
+.sq-my-stash .sq-card { width: 60px; }
+.sq-hint {
+  font-family: 'Crimson Pro', serif; font-style: italic; font-size: 12px;
+  color: var(--kw-muted); text-align: center; margin-top: 8px; max-width: 520px;
+  margin-left: auto; margin-right: auto; line-height: 1.4;
+}
+
+/* Hoard tracker button + overlay grid */
+.sq-hoard-btn {
+  background: transparent; border: 1px solid var(--kw-gold-dim); border-radius: 999px;
+  color: var(--kw-muted); font-family: 'Crimson Pro', serif; font-size: 13px;
+  padding: 3px 12px; cursor: pointer; transition: border-color .15s, color .15s;
+}
+.sq-hoard-btn:hover { border-color: var(--kw-gold-deep); color: var(--kw-gold); }
+.sq-hoard-panel { max-width: 540px; }
+.sq-hoard-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 10px; margin: 12px 0;
+}
+.sq-hoard-cell { text-align: center; }
+.sq-hoard-cell img { width: 100%; border-radius: 4px; display: block; }
+.sq-hoard-n {
+  display: block; font-family: 'Playfair Display', serif; font-size: 13px;
+  color: var(--kw-cream); margin-top: 3px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Part 26 — Squirrel: scattered hoard spread + layout polish
+   (overrides the old tidy-pile styles from Part 25)
+   ════════════════════════════════════════════════════════════════ */
+
+/* The hoard is a wide scatter area filling the center */
+.sq-center {
+  flex: 1 !important;
+  flex-direction: column !important;
+  min-height: 280px !important;
+  gap: 6px !important;
+  padding: 8px 0 !important;
+}
+.sq-hoard {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  height: 300px;
+  margin: 0 auto;
+}
+.sq-hoard-card {
+  position: absolute;
+  width: 62px;
+  border-radius: 5px;
+  box-shadow: 0 2px 7px rgba(0,0,0,.45);
+  transition: transform .1s, filter .1s;
+  pointer-events: none;   /* default: not clickable */
+}
+.sq-hoard.drawable .sq-hoard-card {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.sq-hoard.drawable .sq-hoard-card:hover {
+  filter: brightness(1.2);
+  z-index: 999 !important;
+}
+.sq-center-caption {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  color: var(--kw-gold);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Player boxes: tighter, in a row that uses the horizontal space */
+.sq-others {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  justify-content: center !important;
+  padding: 6px 0 !important;
+  overflow-x: auto;
+}
+.sq-player {
+  flex: 1 1 0 !important;
+  min-width: 130px !important;
+  max-width: 220px !important;
+}
+.sq-player-stashval {
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  color: var(--kw-good);
+  margin-top: 3px;
+}
+
+/* Stash cards a touch bigger now that the layout has room */
+.sq-card { width: 40px !important; }
+.sq-card.mini { width: 34px !important; }
+.sq-my-stash .sq-card { width: 52px !important; }
+
+/* My area uses full width, stash wraps cleanly */
+.sq-me { margin-top: 4px !important; }
+.sq-my-stash { gap: 4px !important; }
+
+.sq-hint {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--kw-muted);
+  margin-top: 6px;
+  max-width: 460px;
+  margin-left: auto; margin-right: auto;
+  line-height: 1.4;
+}
+
+/* Hoard tracker overlay grid */
+.sq-hoard-panel { max-width: 520px; }
+.sq-hoard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.sq-hoard-cell { position: relative; text-align: center; }
+.sq-hoard-cell img { width: 100%; border-radius: 4px; }
+.sq-hoard-n {
+  display: block;
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  color: var(--kw-cream);
+  margin-top: 2px;
+}
+.sq-hoard-btn {
+  background: transparent;
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-gold);
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.sq-hoard-btn:hover { border-color: var(--kw-gold-deep); }
+
+/* Part 27 — Squirrel: prevent opponent stash boxes from overlapping the hoard */
+.sq-others { align-items: flex-start !important; }
+.sq-player {
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.sq-player::-webkit-scrollbar { width: 6px; }
+.sq-player::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 3px; }
+/* Wider hoard area to use the horizontal space */
+.sq-hoard { max-width: 820px !important; height: 320px !important; }
+.sq-hoard-card { width: 56px !important; }
+
+/* Part 28 — Squirrel: Magpie steal targeting highlight */
+.sq-player.magpie-targetable {
+  border-color: var(--kw-gold) !important;
+  box-shadow: 0 0 14px rgba(232, 200, 122, .35);
+}
+.sq-card.magpie-target {
+  cursor: pointer;
+  outline: 2px solid var(--kw-gold);
+  outline-offset: 1px;
+  border-radius: 5px;
+  animation: sqMagpiePulse 1.3s ease-in-out infinite;
+}
+.sq-card.magpie-target:hover {
+  transform: translateY(-6px) scale(1.08);
+  z-index: 50;
+}
+@keyframes sqMagpiePulse {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(232,200,122,.5); }
+  50% { box-shadow: 0 0 12px 4px rgba(232,200,122,.85); }
+}
+
+/* Part 29 — Squirrel: draw-card reveal + bust highlight */
+.sq-reveal-layer {
+  position: absolute; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0;
+  transition: opacity .18s ease-out;
+}
+.sq-reveal-layer.show { opacity: 1; pointer-events: auto; }
+.sq-reveal-card {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  animation: sqFlipIn .35s cubic-bezier(.2,.9,.3,1.2);
+  cursor: pointer;
+}
+.sq-reveal-card img {
+  width: 200px; border-radius: 12px;
+  box-shadow: 0 14px 50px rgba(0,0,0,.7), 0 0 30px rgba(232,200,122,.3);
+}
+.sq-reveal-card.reveal-bust img {
+  box-shadow: 0 14px 50px rgba(0,0,0,.7), 0 0 40px 8px rgba(190,60,45,.7);
+}
+.sq-reveal-card.reveal-steal img {
+  box-shadow: 0 14px 50px rgba(0,0,0,.7), 0 0 40px 8px rgba(232,200,122,.7);
+}
+.sq-reveal-label {
+  font-family: 'Playfair Display', serif; font-size: 18px;
+  color: var(--kw-cream); background: rgba(20,14,8,.92);
+  border: 1px solid var(--kw-gold-deep); border-radius: 8px;
+  padding: 6px 16px;
+}
+.sq-reveal-card.reveal-bust .sq-reveal-label { color: #f0b0a0; border-color: #be3c2d; }
+@keyframes sqFlipIn {
+  0% { transform: perspective(800px) rotateY(90deg) scale(.6); opacity: 0; }
+  100% { transform: perspective(800px) rotateY(0) scale(1); opacity: 1; }
+}
+.sq-card-bust {
+  outline: 2px solid #be3c2d !important;
+  animation: sqBustFlash .9s ease-out;
+}
+@keyframes sqBustFlash {
+  0%, 100% { box-shadow: 0 0 0 rgba(190,60,45,0); }
+  50% { box-shadow: 0 0 16px 5px rgba(190,60,45,.85); }
+}
+
+/* Part 30 — Squirrel: Storm/Fox targeting + solitaire stash stacking */
+.sq-card.storm-target {
+  cursor: pointer; outline: 2px solid #7da7d9; outline-offset: 1px; border-radius: 5px;
+  animation: sqStormPulse 1.2s ease-in-out infinite;
+}
+.sq-card.storm-target:hover { transform: translateY(-6px) scale(1.08); z-index: 50; }
+@keyframes sqStormPulse {
+  0%,100% { box-shadow: 0 0 6px 1px rgba(125,167,217,.5); }
+  50% { box-shadow: 0 0 13px 4px rgba(125,167,217,.9); }
+}
+.sq-player.fox-targetable {
+  cursor: pointer; border-color: #d98c4a !important;
+  animation: sqFoxPulse 1.3s ease-in-out infinite;
+}
+.sq-player.fox-targetable:hover { background: #3a2818 !important; }
+@keyframes sqFoxPulse {
+  0%,100% { box-shadow: 0 0 8px rgba(217,140,74,.3); }
+  50% { box-shadow: 0 0 16px 3px rgba(217,140,74,.55); }
+}
+
+/* Solitaire-style stacking: cards overlap vertically so matching cards fan
+   out like a solitaire pile. Applied to stashes. */
+.sq-stash { align-items: flex-start; }
+.sq-stash .sq-card { margin-right: -22px; }   /* horizontal overlap */
+.sq-stash .sq-card:last-child { margin-right: 0; }
+.sq-stash .sq-card:hover { z-index: 30; }
+.sq-my-stash { min-height: 78px; }
+.sq-player { min-height: 96px; }
+
+/* Part 31 — Squirrel: vertical same-card stacking + steal travel ghosts */
+
+/* Vertical stack: same cards pile downward, slightly offset, with a count */
+.sq-stash { align-items: flex-start; gap: 6px !important; }
+.sq-stash .sq-card { margin-right: 0 !important; }  /* override the old horizontal overlap */
+.sq-stack {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+}
+.sq-stack .sq-card.stacked { position: relative; }
+.sq-stack-count {
+  position: absolute; top: -6px; right: -6px;
+  background: var(--kw-gold); color: #2c2013;
+  font-family: 'Playfair Display', serif; font-weight: 700; font-size: 11px;
+  min-width: 17px; height: 17px; line-height: 17px; text-align: center;
+  border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.5); z-index: 100;
+}
+/* a touch more height so vertical stacks fit */
+.sq-my-stash { min-height: 92px; }
+.sq-player { min-height: 110px; max-height: 200px !important; }
+
+/* Steal travel ghost cards */
+.sq-steal-ghost {
+  position: absolute;
+  width: 40px; border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.6);
+  z-index: 300; pointer-events: none;
+  transition: left .55s cubic-bezier(.4,.1,.3,1), top .55s cubic-bezier(.4,.1,.3,1), opacity .55s;
+}
+
+/* Part 32 — Squirrel: count badge, hover-magnify, zoom, readable help,
+   stronger steal feedback (overrides earlier stacking styles) */
+
+/* Single-card-with-count: undo vertical stack offsets */
+.sq-stack { position: relative; display: inline-block; }
+.sq-stack .sq-card { margin-top: 0 !important; position: relative; }
+.sq-stack-count {
+  position: absolute; top: -7px; right: -7px;
+  background: var(--kw-gold); color: #2c2013;
+  font-family: 'Playfair Display', serif; font-weight: 700; font-size: 12px;
+  min-width: 19px; height: 19px; line-height: 19px; text-align: center;
+  border-radius: 50%; box-shadow: 0 1px 5px rgba(0,0,0,.6); z-index: 100;
+  border: 1px solid #2c2013;
+}
+.sq-my-stash { min-height: 70px; }
+.sq-player { min-height: 96px; max-height: 180px !important; }
+
+/* Hover magnify on revealed/zoomable cards */
+.sq-card.zoomable { cursor: zoom-in; transition: transform .12s ease-out; }
+.sq-card.zoomable:hover { transform: scale(1.35) translateY(-6px); z-index: 60; box-shadow: 0 8px 20px rgba(0,0,0,.6); }
+
+/* Full zoom modal */
+.sq-zoom-backdrop {
+  position: absolute; inset: 0; z-index: 100003;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8,5,2,.85); backdrop-filter: blur(3px); cursor: zoom-out;
+}
+.sq-zoom-backdrop.open { display: flex; animation: bcBubbleIn .15s; }
+.sq-zoom-backdrop img {
+  max-height: 78vh; max-width: 80vw; border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 40px rgba(232,200,122,.25);
+}
+
+/* Readable help modal (replaces the dark bc-overlay reuse) */
+.sq-help-backdrop {
+  position: absolute; inset: 0; z-index: 100002;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8,5,2,.8); backdrop-filter: blur(3px);
+}
+.sq-help-backdrop.open { display: flex; animation: bcBubbleIn .16s; }
+.sq-help-card {
+  position: relative;
+  width: min(680px, 92vw); max-height: 86vh; overflow-y: auto;
+  background: rgba(33, 24, 14, .995);
+  border: 1px solid var(--kw-gold-deep); border-radius: 12px;
+  padding: 22px 26px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.7);
+  scrollbar-width: thin; scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.sq-help-card::-webkit-scrollbar { width: 8px; }
+.sq-help-card::-webkit-scrollbar-thumb { background: var(--kw-gold-dim); border-radius: 4px; }
+.sq-help-x { position: absolute; top: 10px; right: 14px; background: transparent; border: none; color: var(--kw-muted); font-size: 18px; cursor: pointer; }
+.sq-help-x:hover { color: var(--kw-gold); }
+.sq-help-h { font-family: 'Playfair Display', serif; font-size: 23px; color: var(--kw-gold); margin-bottom: 12px; }
+.sq-help-rules { font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--kw-cream); line-height: 1.55; }
+.sq-help-rules p { margin: 0 0 10px; }
+.sq-help-rules b { color: var(--kw-gold); }
+.sq-help-gallery {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;
+  margin-top: 14px; border-top: 1px solid var(--kw-border); padding-top: 14px;
+}
+.sq-help-item { display: flex; gap: 10px; align-items: center; }
+.sq-help-item img { width: 52px; border-radius: 5px; cursor: zoom-in; transition: transform .12s; flex-shrink: 0; }
+.sq-help-item img:hover { transform: scale(1.15); }
+.sq-help-item-text { font-family: 'Crimson Pro', serif; font-size: 12px; color: var(--kw-cream); }
+.sq-help-item-text b { display: block; color: var(--kw-gold); font-size: 13px; }
+.sq-help-item-text span { color: var(--kw-muted); line-height: 1.35; }
+
+/* Stronger steal feedback */
+.sq-steal-ghost { width: 56px !important; }
+.sq-steal-ghost.flying {
+  box-shadow: 0 6px 22px rgba(0,0,0,.7), 0 0 18px 5px rgba(232,200,122,.6) !important;
+  transition: left .75s cubic-bezier(.35,.05,.25,1), top .75s cubic-bezier(.35,.05,.25,1), opacity .35s !important;
+}
+.sq-stash-flash-out { animation: sqFlashOut 1s ease-out; }
+.sq-stash-flash-in { animation: sqFlashIn 1.2s ease-out; }
+@keyframes sqFlashOut { 0%,100% { background: transparent; } 40% { background: rgba(190,90,60,.25); } }
+@keyframes sqFlashIn { 0%,100% { background: transparent; } 40% { background: rgba(232,200,122,.25); } }
+
+/* Part 33 — Squirrel's Stash: MOBILE responsive layout
+   (Briar has its own mobile rules; Squirrel needs its own or it overflows.) */
+@media (max-width: 760px) {
+  .sq-backdrop { align-items: stretch; }
+  .sq-shell {
+    width: 100vw !important; height: 100vh !important;
+    max-width: 100vw; max-height: 100vh;
+    border-width: 8px !important; border-radius: 0 !important;
+  }
+  .sq-table { padding: 4px 6px 10px; }
+  .sq-roundbar { gap: 8px; font-size: 12px; flex-wrap: wrap; }
+
+  /* Opponents: wrap into a compact grid instead of one overflowing row */
+  .sq-others { flex-wrap: wrap !important; gap: 5px !important; overflow-x: visible; }
+  .sq-player {
+    flex: 1 1 44% !important; min-width: 44% !important; max-width: 49% !important;
+    min-height: auto; max-height: 130px !important; padding: 5px 7px;
+  }
+  .sq-player-name { font-size: 11px; }
+  .sq-player-score { font-size: 10px; }
+
+  /* Hoard area: fit the narrow screen */
+  .sq-center { min-height: 180px !important; }
+  .sq-hoard { max-width: 96vw !important; height: 200px !important; }
+  .sq-hoard-card { width: 40px !important; }
+
+  /* Cards sized down */
+  .sq-card { width: 32px !important; }
+  .sq-card.mini { width: 28px !important; }
+  .sq-my-stash .sq-card { width: 40px !important; }
+  .sq-card.choose, .sq-card.pick { width: 48px !important; }
+
+  /* My area + prompt */
+  .sq-me { padding: 7px 9px; }
+  .sq-me-name { font-size: 13px; }
+  .sq-prompt { min-height: 44px; }
+  .sq-question { font-size: 13px; }
+  .sq-hint { font-size: 10px; }
+
+  /* Reveal card smaller so it fits */
+  .sq-reveal-card img { width: 140px; }
+  .sq-reveal-label { font-size: 14px; }
+
+  /* Help + zoom fit mobile */
+  .sq-help-card { width: 94vw; padding: 16px 16px; }
+  .sq-help-gallery { grid-template-columns: 1fr; }
+  .sq-zoom-backdrop img { max-width: 92vw; max-height: 70vh; }
+}
+
+/* Very small phones */
+@media (max-width: 420px) {
+  .sq-player { flex: 1 1 100% !important; max-width: 100% !important; max-height: 96px !important; }
+  .sq-hoard-card { width: 34px !important; }
+}
+
+/* Part 34 — Squirrel: Storm wind effect + draggable cards */
+.sq-wind-layer {
+  position: absolute; inset: 0; z-index: 250; pointer-events: none; overflow: hidden;
+}
+.sq-wind-layer.active { animation: sqStormTint 3.6s ease-in-out; }
+@keyframes sqStormTint {
+  0% { background: rgba(40,60,90,0); }
+  25% { background: rgba(40,60,90,.22); }
+  75% { background: rgba(40,60,90,.18); }
+  100% { background: rgba(40,60,90,0); }
+}
+.sq-wind-leaf {
+  position: absolute; left: -40px;
+  animation-name: sqWindBlow; animation-timing-function: ease-in;
+  animation-iteration-count: 2; will-change: transform; opacity: .9;
+}
+.sq-wind-gust {
+  position: absolute; left: -120px;
+  width: 120px; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(220,230,245,.55), transparent);
+  border-radius: 2px;
+  animation-name: sqWindGust; animation-timing-function: linear;
+  animation-iteration-count: 2;
+}
+@keyframes sqWindBlow {
+  0% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  10% { opacity: .95; }
+  100% { transform: translateX(110vw) rotate(540deg); opacity: 0; }
+}
+@keyframes sqWindGust {
+  0% { transform: translateX(0); opacity: 0; }
+  20% { opacity: .8; }
+  100% { transform: translateX(112vw); opacity: 0; }
+}
+
+/* Draggable hoard cards: allow pointer dragging on touch without scrolling */
+.sq-hoard.drawable .sq-hoard-card { touch-action: none; }
+.sq-hoard-card:active { cursor: grabbing; }
+
+/* Part 35 — Multiplayer cursors + SFX settings row */
+.sq-cursor-layer { position: absolute; inset: 0; z-index: 400; pointer-events: none; overflow: hidden; }
+.sq-cursor {
+  position: absolute; transform: translate(-2px, -2px);
+  transition: left .12s linear, top .12s linear, opacity .3s;
+  opacity: 0; will-change: left, top;
+}
+.sq-cursor.active { opacity: 1; }
+.sq-cursor svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.sq-cursor-name {
+  position: absolute; left: 16px; top: 14px;
+  font-family: 'Crimson Pro', serif; font-size: 11px; font-weight: 600;
+  color: #1d150d; padding: 1px 7px; border-radius: 8px; white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+
+/* Part 36 — action banners, fox self-target, badger shield, pact shimmer */
+
+/* Floating color-coded action banner over the table */
+.sq-action-banner {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 260; pointer-events: none;
+  animation: sqBannerIn .3s ease-out;
+}
+.sq-action-big {
+  font-family: 'Playfair Display', serif; font-weight: 700; font-size: 30px;
+  letter-spacing: .04em; text-shadow: 0 2px 8px rgba(0,0,0,.7);
+  animation: sqBannerPulse 1.6s ease-in-out infinite;
+}
+.sq-action-sub {
+  font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--kw-cream);
+  margin-top: 2px; text-shadow: 0 1px 4px rgba(0,0,0,.8);
+}
+.sq-action-banner.magpie   .sq-action-big { color: #c88ad9; }
+.sq-action-banner.squirrel .sq-action-big { color: #e0913f; }
+.sq-action-banner.foxdare  .sq-action-big { color: #e0584a; }
+.sq-action-banner.storm    .sq-action-big { color: #5b8fd6; }
+@keyframes sqBannerIn { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes sqBannerPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+/* Fox self-target: highlight your own stash box */
+.sq-me.fox-self-target {
+  cursor: pointer; border-color: #e0584a !important;
+  animation: sqFoxSelfPulse 1.2s ease-in-out infinite;
+}
+.sq-me.fox-self-target:hover { background: #3a2018 !important; }
+@keyframes sqFoxSelfPulse {
+  0%,100% { box-shadow: 0 0 8px rgba(224,88,74,.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(224,88,74,.6); }
+}
+
+/* Badger's Protection: shimmering protective outline around your stash */
+.sq-me.badger-shield {
+  position: relative;
+  border-color: #9fc97a !important;
+  animation: sqShieldPulse 1.8s ease-in-out infinite;
+}
+@keyframes sqShieldPulse {
+  0%,100% { box-shadow: 0 0 10px 1px rgba(159,201,122,.4), inset 0 0 12px rgba(159,201,122,.1); }
+  50% { box-shadow: 0 0 22px 5px rgba(159,201,122,.75), inset 0 0 18px rgba(159,201,122,.2); }
+}
+.sq-shield-label {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  font-family: 'Playfair Display', serif; font-weight: 700; font-size: 12px;
+  letter-spacing: .08em; color: #2c2013; background: linear-gradient(90deg,#9fc97a,#c9e0a8);
+  padding: 2px 14px; border-radius: 999px; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5); z-index: 20;
+  animation: sqShieldText 1.8s ease-in-out infinite;
+}
+@keyframes sqShieldText { 0%,100% { opacity: .85; } 50% { opacity: 1; } }
+
+/* Forest Pact waiting in a stash: gentle shimmer + wiggle */
+.sq-card.pact {
+  animation: sqPactWiggle 2.4s ease-in-out infinite;
+  border-radius: 5px;
+}
+.sq-card.pact img {
+  border-radius: 5px;
+  box-shadow: 0 0 10px 2px rgba(120,200,150,.6);
+  animation: sqPactShimmer 2s ease-in-out infinite;
+}
+@keyframes sqPactWiggle {
+  0%,100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+@keyframes sqPactShimmer {
+  0%,100% { box-shadow: 0 0 8px 1px rgba(120,200,150,.45); }
+  50% { box-shadow: 0 0 16px 5px rgba(140,220,170,.85); }
+}
+
+/* Part 37 — center Squirrel choices + end screen */
+
+/* Squirrel two-card choice, large & highlighted in the center */
+.sq-center-choices {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 270; display: flex; gap: 22px; pointer-events: auto;
+  animation: sqBannerIn .3s ease-out;
+}
+.sq-choice-card {
+  cursor: pointer; text-align: center;
+  transition: transform .14s ease-out;
+  animation: sqChoicePulse 1.6s ease-in-out infinite;
+}
+.sq-choice-card img {
+  width: 130px; border-radius: 12px;
+  border: 3px solid #e0913f;
+  box-shadow: 0 10px 36px rgba(0,0,0,.7), 0 0 26px rgba(224,145,63,.55);
+}
+.sq-choice-card:hover { transform: scale(1.12) translateY(-6px); }
+.sq-choice-label {
+  display: block; margin-top: 8px;
+  font-family: 'Playfair Display', serif; font-size: 15px; color: var(--kw-cream);
+  text-shadow: 0 1px 4px rgba(0,0,0,.8);
+}
+@keyframes sqChoicePulse {
+  0%,100% { filter: drop-shadow(0 0 4px rgba(224,145,63,.4)); }
+  50% { filter: drop-shadow(0 0 12px rgba(224,145,63,.7)); }
+}
+
+/* End screen */
+.sq-end-backdrop {
+  position: absolute; inset: 0; z-index: 100004;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(8,5,2,.86); backdrop-filter: blur(4px);
+}
+.sq-end-backdrop.open { display: flex; animation: bcBubbleIn .2s; }
+.sq-end-card {
+  width: min(520px, 92vw); max-height: 88vh; overflow-y: auto;
+  background: radial-gradient(120% 100% at 50% 0%, #2c2013 0%, #211810 70%);
+  border: 1px solid var(--kw-gold-deep); border-radius: 16px;
+  padding: 26px 28px; text-align: center;
+  box-shadow: 0 22px 70px rgba(0,0,0,.75);
+  scrollbar-width: thin; scrollbar-color: var(--kw-gold-dim) transparent;
+}
+.sq-end-title {
+  font-family: 'Playfair Display', serif; font-size: 30px; color: var(--kw-gold);
+  text-shadow: 0 2px 10px rgba(232,200,122,.3);
+}
+.sq-end-sub { font-family: 'Crimson Pro', serif; font-size: 15px; color: var(--kw-cream); margin: 6px 0 18px; }
+.sq-end-sub strong { color: var(--kw-gold); }
+.sq-end-table { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.sq-end-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; border-radius: 10px;
+  background: rgba(0,0,0,.25); border: 1px solid var(--kw-border);
+  font-family: 'Crimson Pro', serif;
+}
+.sq-end-row.winner { border-color: var(--kw-gold); background: rgba(232,200,122,.12); }
+.sq-end-row.me { outline: 1px solid var(--kw-gold-dim); }
+.sq-end-rank { font-size: 20px; min-width: 30px; text-align: center; }
+.sq-end-name { flex: 1; text-align: left; color: var(--kw-cream); font-size: 16px; }
+.sq-end-score { font-family: 'Playfair Display', serif; color: var(--kw-gold); font-size: 17px; }
+.sq-end-facts {
+  border-top: 1px solid var(--kw-border); padding-top: 14px; margin-bottom: 18px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.sq-end-fact {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Crimson Pro', serif; font-size: 13px; color: var(--kw-muted);
+}
+.sq-fact-emoji { font-size: 16px; }
+.sq-fact-label { flex: 1; text-align: left; }
+.sq-fact-who { color: var(--kw-cream); }
+.sq-end-actions { display: flex; gap: 10px; justify-content: center; }
+
+@media (max-width: 760px) {
+  .sq-choice-card img { width: 96px; }
+  .sq-end-card { padding: 18px 16px; }
+  .sq-end-title { font-size: 24px; }
+}
+
+/* Part 38 — in-game audio control (mute + slider) */
+.kw-audio-ctrl {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: 8px; vertical-align: middle;
+}
+.kw-audio-mute {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 2px;
+  opacity: .8; transition: opacity .12s;
+}
+.kw-audio-mute:hover { opacity: 1; }
+.kw-audio-slider {
+  width: 70px; height: 4px; cursor: pointer;
+  accent-color: var(--kw-gold);
+}
+@media (max-width: 760px) {
+  .kw-audio-slider { width: 52px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SEASONAL MAP GRADE (visual direction §10.4.1)
+   seasons.js already toggles .season-{id} on #screen-game via
+   applySeasonFilter() — these rules make that hook visible. GPU-composited
+   CSS filters on the canvas element: zero cost in the draw loop.
+   Summer is the neutral-warm baseline; winter desaturates and cools;
+   autumn warms into sepia; spring lifts the greens.
+   ══════════════════════════════════════════════════════════════════════ */
+
+#screen-game #map-canvas {
+  transition: filter 1.2s ease;
+}
+#screen-game.season-summer #map-canvas {
+  filter: saturate(1.05) brightness(1.02);
+}
+#screen-game.season-autumn #map-canvas {
+  filter: sepia(0.18) saturate(1.08) hue-rotate(-6deg);
+}
+#screen-game.season-winter #map-canvas {
+  filter: saturate(0.72) hue-rotate(-8deg) brightness(1.05) contrast(0.98);
+}
+#screen-game.season-spring #map-canvas {
+  filter: saturate(1.12) hue-rotate(6deg);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   OUTPOSTS (010) — tile side-panel section
+   Matches the existing .info-row / .action-btn language: serif, quiet
+   borders, leaf-green text, gold only where it means "yours".
+   ══════════════════════════════════════════════════════════════════════ */
+
+.op-section { display: flex; flex-direction: column; gap: 7px; }
+
+.op-title {
+  font-size: 13px;
+  color: #e8d9a8;
+  letter-spacing: 0.02em;
+}
+
+.op-note {
+  font-size: 11px;
+  color: rgba(192, 221, 151, 0.5);
+  font-style: italic;
+}
+
+.op-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.op-chip {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid rgba(192, 221, 151, 0.16);
+  color: rgba(192, 221, 151, 0.75);
+  background: rgba(192, 221, 151, 0.05);
+  white-space: nowrap;
+}
+.op-chip-plus  { border-color: rgba(142, 207, 126, 0.35); color: #8ecf7e; }
+.op-chip-minus { border-color: rgba(224, 122, 106, 0.30); color: #d99a8c; }
+.op-chip-short {
+  border-color: rgba(224, 122, 106, 0.55);
+  color: #e07a6a;
+  background: rgba(224, 122, 106, 0.08);
+}
+
+.op-cost-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(192, 221, 151, 0.4);
+  margin-top: 2px;
+}
+
+.op-cap-note {
+  font-size: 10px;
+  color: rgba(192, 221, 151, 0.35);
+  text-align: right;
+}
+
+.op-reason {
+  font-size: 11px;
+  color: #d99a8c;
+  border-left: 2px solid rgba(224, 122, 106, 0.4);
+  padding-left: 7px;
+}
+
+.action-btn.op-build:not([disabled]) {
+  border-color: rgba(212, 175, 80, 0.4);
+  color: #e8d9a8;
+}
+.action-btn.op-build:not([disabled]):hover {
+  background: rgba(212, 175, 80, 0.08);
+  border-color: rgba(212, 175, 80, 0.7);
+}
+.action-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.action-btn[disabled]:hover { transform: none; background: transparent; }
+
+.action-btn.op-dismantle {
+  border-color: rgba(224, 122, 106, 0.25);
+  color: rgba(217, 154, 140, 0.8);
+}
+.action-btn.op-dismantle:hover {
+  background: rgba(224, 122, 106, 0.06);
+  border-color: rgba(224, 122, 106, 0.5);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SEASON ATMOSPHERE (visual direction §10.4.2)
+   Kill-switch for the colour grade (SeasonAtmosphere.setAtmosphere(false)
+   adds .atmo-off) + season-panel toggle styles.
+   ══════════════════════════════════════════════════════════════════════ */
+
+#screen-game.atmo-off #map-canvas {
+  filter: none !important;
+}
+
+.sp-settings {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(192, 221, 151, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sp-settings-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(232, 217, 168, 0.5);
+}
+
+.sp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(192, 221, 151, 0.75);
+  cursor: pointer;
+  user-select: none;
+}
+.sp-toggle input[type="checkbox"] {
+  accent-color: #d4af50;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+.sp-toggle:hover { color: #c0dd97; }
+/* ════════════════════════════════════════════════════════════════
+   Part 39 — profile modal reskin (own profile + view player)
+   APPEND to end of css/hud-storybook.css, then bump index.html to
+   hud-storybook.css?v=43.
+   Moves the last green-palette modal onto the ink/gold theme and
+   adds the honors strip + trophy cabinet layout. The .kw-ornate-frame
+   class on .profile-modal-box (new markup) supplies the flourished
+   border via the existing Part 6 rule.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Shell — same treatment as the Part 5 modals */
+.profile-modal-box {
+  background: rgba(29, 21, 13, .98);
+  padding: 22px 24px 20px;
+  width: 460px;
+}
+
+.profile-modal-close { color: var(--kw-muted); }
+.profile-modal-close:hover {
+  background: rgba(201, 164, 92, .12);
+  color: var(--kw-gold);
+}
+
+/* ── Header ── */
+.pm-avatar {
+  background: var(--kw-wood-2);
+  border: 2px solid var(--kw-gold-dim);
+  color: var(--kw-gold);
+}
+.pm-avatar-wrap:hover .pm-avatar { border-color: var(--kw-gold-deep); }
+
+.pm-username {
+  color: var(--kw-cream);
+  font-size: 22px;
+  margin-bottom: 2px;
+}
+.pm-title {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--kw-gold-deep);
+  margin-bottom: 3px;
+}
+.pm-species {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  color: var(--kw-muted);
+}
+.pm-joined { color: var(--kw-muted); opacity: .65; }
+
+/* ── Honors strip (achievement pts / completion / trophies) ── */
+.pm-honors {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--kw-gold-dim);
+}
+.pm-honor-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 6px;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 6px;
+}
+.pm-honor-val {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--kw-gold);
+  font-variant-numeric: lining-nums;
+}
+.pm-honor-key {
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--kw-muted);
+  text-align: center;
+}
+
+/* ── Section eyebrows — same voice as IN PROGRESS / EQUIPMENT ── */
+.pm-section-label {
+  font-family: 'Crimson Pro', serif;
+  letter-spacing: .2em;
+  color: var(--kw-gold-deep);
+}
+
+/* ── Bio ── */
+.pm-bio-input {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  color: var(--kw-cream);
+}
+.pm-bio-input:focus { border-color: var(--kw-gold-deep); }
+.pm-bio-counter { color: var(--kw-muted); opacity: .7; }
+
+/* Save bio → the one gold button in this modal */
+.pm-save-btn {
+  background: var(--kw-gold-btn);
+  border: 1px solid var(--kw-gold);
+  border-radius: 6px;
+  color: #241a10;
+  font-weight: 600;
+}
+.pm-save-btn:hover { background: #d9b261; }
+
+/* Bio display (other players) */
+.pm-bio-display {
+  color: var(--kw-cream);
+  background: var(--kw-wood-2);
+  border-left: 2px solid var(--kw-gold-deep);
+}
+
+/* ── Settlement card ── */
+.pm-settlement-card {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-border);
+}
+.pm-settlement-card:hover {
+  background: var(--kw-wood-2);
+  border-color: var(--kw-gold-dim);
+}
+.pm-settlement-name { color: var(--kw-cream); font-family: 'Playfair Display', serif; }
+.pm-settlement-meta { color: var(--kw-muted); font-family: 'Crimson Pro', serif; }
+.pm-settlement-loading { color: var(--kw-muted); }
+
+/* ── Trophy cabinet ── */
+.pm-cabinet {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pm-cabinet-slot {
+  aspect-ratio: 1.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: rgba(44, 32, 19, .5);
+  border: 1px dashed var(--kw-gold-dim);
+  border-radius: 6px;
+  color: var(--kw-gold-deep);
+}
+.pm-cabinet-slot.empty { opacity: .35; }
+.pm-cabinet-slot.filled {
+  opacity: 1;
+  border-style: solid;
+  border-color: var(--kw-gold-deep);
+  background: var(--kw-wood-2);
+  box-shadow: inset 0 0 14px rgba(201, 164, 92, .12);
+}
+.pm-cabinet-hint {
+  margin-top: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--kw-muted);
+  opacity: .7;
+  text-align: center;
+}
+
+/* ── Chronicle (stats) ── */
+.pm-stat {
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-border);
+}
+.pm-stat-val {
+  color: var(--kw-cream);
+  font-variant-numeric: lining-nums;
+}
+.pm-stat-key {
+  font-family: 'Crimson Pro', serif;
+  color: var(--kw-muted);
+}
+
+/* ── Mobile ── */
+@media (max-width: 520px) {
+  .profile-modal-box { padding: 14px 14px 14px; }
+  .pm-header { gap: 12px; }
+  .pm-avatar { width: 58px; height: 58px; font-size: 22px; }
+  .pm-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .pm-honor-key { font-size: 9px; }
+}
+

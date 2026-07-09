@@ -1,3 +1,6 @@
+// IMPORTANT: this file is a copy of frontend/js/combat-engine.js.
+// Keep them in sync until we have a build step that shares the file.
+// The IIFE detects globalThis vs module.exports so the same source runs in both.
 // ══════════════════════════════════════════════════════════════════════════
 //  COMBAT ENGINE — Kindlewood
 //
@@ -19,6 +22,34 @@
 
 (function (global) {
   'use strict';
+
+  // ── Card system modules (optional) ───────────────────────────────────────
+  // Dual-engine: on the server we require(); in the browser they're attached
+  // to window by their own script tags. All three are optional — if absent,
+  // the engine runs exactly as before (classic stamina actions only).
+  //
+  // IMPORTANT: in the browser we resolve these LAZILY (per call) rather than
+  // at IIFE-run time, because this file may load BEFORE the card-*.js scripts.
+  // Capturing window.CARD_* once at load time would freeze them as null.
+  var _isNodeEnv = (typeof module !== 'undefined' && module.exports);
+  var _nodeCards = null;
+  if (_isNodeEnv) {
+    _nodeCards = { DEFS: null, ENGINE: null, COMBAT: null };
+    try { _nodeCards.DEFS   = require('./card_definitions'); } catch (e) { console.error('[combat_engine] card_definitions require FAILED:', e.message); }
+    try { _nodeCards.ENGINE = require('./card_engine'); }      catch (e) { console.error('[combat_engine] card_engine require FAILED:', e.message); }
+    try { _nodeCards.COMBAT = require('./card_combat'); }      catch (e) { console.error('[combat_engine] card_combat require FAILED:', e.message); }
+    console.log('[combat_engine] card system:',
+      (_nodeCards.DEFS && _nodeCards.ENGINE && _nodeCards.COMBAT) ? 'ALL OK' : 'INCOMPLETE',
+      '(defs:' + !!_nodeCards.DEFS + ' engine:' + !!_nodeCards.ENGINE + ' combat:' + !!_nodeCards.COMBAT + ')');
+  }
+  function _cards() {
+    if (_isNodeEnv) return _nodeCards;
+    return { DEFS: global.CARD_DEFS || null, ENGINE: global.CARD_ENGINE || null, COMBAT: global.CARD_COMBAT || null };
+  }
+  function cardsAvailable() {
+    var c = _cards();
+    return !!(c.DEFS && c.ENGINE && c.COMBAT);
+  }
 
   // ── Tunables ─────────────────────────────────────────────────────────────
   // Damage formula breaks down small enough to read at a glance:
@@ -248,6 +279,14 @@
       icon: '🧑',
       archetype: 'citizen',
       citizen_id: c.id,
+      // Species drives the battle sprite. Not all citizens carry one yet (the
+      // settlement only gains multiple species after the opening period), so we
+      // default to 'human'. When the users/citizens schema gains a species
+      // field, pass it through here and sprites update automatically.
+      species: (c.species || c.race || 'human'),
+      visible_traits: (c.visible_traits || c.traits || []),
+      partner_id: (c.partner_id || null),
+      parent_ids: (c.parent_ids || []),
       ...stats,
       skill_label:   skill.label,
       skill_icon:    skill.icon,
@@ -331,6 +370,12 @@
             },
             reward_weight: row.reward_weight,
             attack_verb: row.attack_verb,
+            // Formation-aware ability system (007). Moves use the card DSL.
+            moves: Array.isArray(row.moves) ? row.moves : [],
+            move_mode: row.move_mode || 'sequence',
+            hp_min: (row.hp_min != null ? row.hp_min : null),
+            hp_max: (row.hp_max != null ? row.hp_max : null),
+            drops: Array.isArray(row.drops) ? row.drops : [],
           };
         }
         _enemies = fresh;
@@ -349,11 +394,13 @@
   function unitFromEnemy(enemyKey, index) {
     const e = _enemies[enemyKey];
     if (!e) throw new Error('Unknown enemy: ' + enemyKey);
-    const maxHp = e.stats.maxHp;
-    // Position-prefixed id makes duplicates in an encounter unique while
-    // staying deterministic across replays. If `index` is omitted, fall
-    // back to a random suffix (used by the dev test-battle entry point
-    // where determinism doesn't matter).
+    // HP: if a min/max range is set, roll within it using the battle RNG so the
+    // result is deterministic for replay; otherwise use the flat maxHp.
+    let maxHp = e.stats.maxHp;
+    if (e.hp_min != null && e.hp_max != null && e.hp_max >= e.hp_min) {
+      const span = e.hp_max - e.hp_min;
+      maxHp = e.hp_min + Math.floor(rand(0, 1) * (span + 1));
+    }
     const idPos = (index != null) ? String(index) : 'r' + Math.floor(Math.random() * 1e6);
     return {
       id: 'e_' + idPos + '_' + enemyKey,
@@ -373,12 +420,20 @@
       intelligence: 5,
       combatSkill: e.stats.combatSkill,
       attack_verb: e.attack_verb,
+      // Ability system: a copy of the move list, the cycling mode, the current
+      // sequence index (for StS-style telegraphed intents), and loot table.
+      moves: (e.moves || []).slice(),
+      move_mode: e.move_mode || 'sequence',
+      _moveIdx: 0,
+      drops: (e.drops || []).slice(),
+      block: 0,
+      buffs: {},
       flags: { defending: false, downed: false },
     };
   }
 
   // ── Build a battle ───────────────────────────────────────────────────────
-  function createBattle({ players, enemies, scene, seed }) {
+  function createBattle({ players, enemies, scene, seed, deck, deckSeed, formation, enemyFormation, species }) {
     // If a seed was supplied, build a battle-local RNG and use it for the
     // initial turn-order roll too. The battle stores the seed so callers can
     // replay or resume.
@@ -386,6 +441,27 @@
     try {
       const playerUnits = players.map(p => p.archetype ? p : unitFromCitizen(p));
       const enemyUnits  = enemies.map((e, i) => typeof e === 'string' ? unitFromEnemy(e, i) : e);
+
+      // Stamp the settlement species onto player units (the whole party shares
+      // it). Per-unit species, if ever present, takes precedence.
+      if (species) {
+        playerUnits.forEach(u => { if (!u.species || u.species === 'human') u.species = species; });
+      }
+
+      // Card effects use unit.block and unit.buffs. Ensure every unit has them
+      // so card and classic actions can coexist on the same battle.
+      [...playerUnits, ...enemyUnits].forEach(u => {
+        if (u.block == null) u.block = 0;
+        if (u.buffs == null) u.buffs = {};
+      });
+
+      // ── Formation positions (1 = front, ascending toward the back) ────────
+      // Optional `formation` / `enemyFormation` are arrays of unit ids (or
+      // citizen ids) giving front-to-back order; anything omitted keeps its
+      // natural order after the listed ones. This is the hook the quest system
+      // will populate from the formation a party was sent out in.
+      _assignPositions(playerUnits, formation);
+      _assignPositions(enemyUnits, enemyFormation);
 
       const reward = enemyUnits.reduce((sum, u) => {
         const def = _enemies[u.enemy_key];
@@ -407,18 +483,133 @@
         _listeners: [],
         _seed: (seed != null) ? ((seed | 0) || 1) : null,
         _actionsApplied: 0,  // for tracking how many actions the engine has consumed
+        _deckOps: 0,         // monotonic counter for deterministic deck shuffles
+        // Deck shuffles derive from _deckSeed. We accept an explicit deckSeed
+        // so deck determinism works even when the battle is driven by the
+        // module-level seeded RNG (resolver replay) rather than the per-action
+        // _seed path. Falls back to _seed, then to a stable constant.
+        _deckSeed: (deckSeed != null) ? ((deckSeed | 0) || 1)
+                 : (seed != null) ? ((seed | 0) || 1)
+                 : null,
       };
       state.log.push('A battle begins!');
+
+      // Initialise the shared player-side battle deck if a deck map was passed
+      // and the card modules are present. `deck` is { cardKey: count }, the
+      // settlement's active template (server) or the same map echoed to the
+      // client. Absent deck => classic stamina-only battle (the fallback).
+      if (deck && cardsAvailable()) {
+        try {
+          _cards().ENGINE.initDeck(state, deck);
+          state.uses_cards = true;
+        } catch (e) {
+          console.warn('combat: deck init failed, falling back to classic actions.', e);
+          state.uses_cards = false;
+        }
+      } else {
+        state.uses_cards = false;
+      }
+
+      // If the battle opens on an enemy with moves, telegraph its first intent
+      // so the UI can show it before the player acts.
+      _telegraphCurrent(state);
+
       return state;
     } finally {
       _battleRng = null;
     }
   }
 
+  // ── Formation positions ────────────────────────────────────────────────
+  // Each unit has `pos` (1 = front). Lower pos acts as the front line for
+  // targeting and front/back conditionals. Positions are kept contiguous per
+  // side via normalizePositions after any change (move/push/death).
+  function _assignPositions(sideUnits, order) {
+    if (order && order.length) {
+      // Order is an array of ids (unit id or citizen_id). Listed ones first,
+      // in the given order; the rest keep their natural order after.
+      const rank = new Map();
+      order.forEach((id, i) => rank.set(String(id), i));
+      const keyOf = (u) => rank.has(String(u.id)) ? rank.get(String(u.id))
+                      : rank.has(String(u.citizen_id)) ? rank.get(String(u.citizen_id))
+                      : (1000 + sideUnits.indexOf(u));
+      sideUnits.slice().sort((a, b) => keyOf(a) - keyOf(b)).forEach((u, i) => { u.pos = i + 1; });
+    } else {
+      sideUnits.forEach((u, i) => { u.pos = i + 1; });
+    }
+  }
+
+  function sideOf(state, unit) {
+    return state.units.filter(u => u.side === unit.side);
+  }
+  function livingSide(state, side) {
+    return state.units.filter(u => u.side === side && !u.flags.downed && u.hp > 0);
+  }
+  // Living units of a side ordered front→back by pos.
+  function orderedSide(state, side) {
+    return livingSide(state, side).sort((a, b) => (a.pos || 99) - (b.pos || 99));
+  }
+  function frontmost(state, side) {
+    const o = orderedSide(state, side);
+    return o.length ? o[0] : null;
+  }
+  function backmost(state, side) {
+    const o = orderedSide(state, side);
+    return o.length ? o[o.length - 1] : null;
+  }
+  function isFront(state, unit) {
+    const f = frontmost(state, unit.side);
+    return f && f.id === unit.id;
+  }
+  function isBack(state, unit) {
+    const b = backmost(state, unit.side);
+    return b && b.id === unit.id;
+  }
+  // Re-pack a side's positions to 1..N preserving order (call after death/move).
+  function normalizePositions(state, side) {
+    orderedSide(state, side).forEach((u, i) => { u.pos = i + 1; });
+  }
+
+  // Move a unit forward (delta<0) or back (delta>0) by swapping with neighbours,
+  // clamped to the line. Returns events. Deterministic.
+  function moveUnit(state, unit, delta) {
+    const order = orderedSide(state, unit.side);
+    const idx = order.findIndex(u => u.id === unit.id);
+    if (idx < 0) return [];
+    let target = Math.max(0, Math.min(order.length - 1, idx + delta));
+    if (target === idx) return [];
+    // Swap stepwise so it reads as moving through the line.
+    const moved = order.splice(idx, 1)[0];
+    order.splice(target, 0, moved);
+    order.forEach((u, i) => { u.pos = i + 1; });
+    return [{ type: 'unit-moved', unit_id: unit.id, to_pos: moved.pos,
+      log: unit.name + ' moves to position ' + moved.pos + '.' }];
+  }
+  // Push a unit toward the back (n>0) or pull toward front (n<0). Wrapper over
+  // moveUnit used by card/enemy 'push' effects.
+  function pushUnit(state, unit, n) {
+    if (!n) return [];
+    const evs = moveUnit(state, unit, n);
+    if (evs.length) evs[0].log = unit.name + (n > 0 ? ' is pushed back.' : ' is pulled forward.');
+    return evs;
+  }
+
+  // A small stable [0,1) jitter derived from the unit id, used only as a
+  // tiebreaker between equal-agility units. It MUST be deterministic: deriving
+  // it from a fresh rand() each call made the displayed turn order reshuffle on
+  // every re-render (e.g. when spamming the move button), and also wasn't great
+  // for replay. A hash of the id is stable and still spreads ties out.
+  function _idJitter(id) {
+    var s = String(id);
+    var h = 0;
+    for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+    return (h % 1000) / 1000; // [0, 0.999]
+  }
   function _computeTurnOrder(units) {
     return units
       .filter(u => !u.flags.downed)
-      .map(u => ({ id: u.id, agi: u.agility + rand(0, 0.99) }))
+      // 'slow' debuff lowers effective agility for ordering this round.
+      .map(u => ({ id: u.id, agi: (u.agility - ((u.buffs && u.buffs.slow) || 0)) + _idJitter(u.id) }))
       .sort((a, b) => b.agi - a.agi)
       .map(x => x.id);
   }
@@ -481,6 +672,111 @@
     }
   }
 
+  // ── Card actions ─────────────────────────────────────────────────────────
+  // playCard / endTurn are the deck-system analogues of performAction. They
+  // run inside the same per-action seeded-RNG window so any randomness (card
+  // effects, and the reshuffle that endTurn may trigger) is deterministic on
+  // replay. They share performAction's post-action bookkeeping: fall
+  // detection, battle-end check, and turn advance.
+  // Move the active player unit forward (delta<0) or back (delta>0) in the
+  // formation, spending 1 energy. Replay-safe (no RNG). delta is normally ±1.
+  function moveActor(state, delta) {
+    if (state.status !== 'active' || !state.uses_cards) return false;
+    const actor = currentUnit(state);
+    if (!actor || actor.side !== 'player') return false;
+    if (!state.deck || state.deck.energy < 1) {
+      emit(state, { type: 'rejected', actor_id: actor.id, reason: 'no-energy',
+        log: actor.name + ' lacks the energy to reposition.' });
+      return false;
+    }
+    const evs = _cards().COMBAT.moveUnit(state, actor, delta);
+    if (!evs.length) return false; // already at the end of the line
+    state.deck.energy -= 1;
+    emit(state, { type: 'energy-spent', actor_id: actor.id, amount: 1 });
+    for (const e of evs) emit(state, e);
+    state._actionsApplied = (state._actionsApplied || 0) + 1;
+    return true;
+  }
+
+  function playCard(state, handIndex, targetId) {
+    if (state.status !== 'active') return false;
+    if (!state.uses_cards || !cardsAvailable()) return false;
+    const prev = _battleRng;
+    if (state._seed != null && _battleRng == null) {
+      _battleRng = makeSeededRng(state._seed + (state._actionsApplied || 0) * 17);
+    }
+    try {
+      const ok = _playCardInner(state, handIndex, targetId);
+      if (ok) state._actionsApplied = (state._actionsApplied || 0) + 1;
+      return ok;
+    } finally {
+      _battleRng = prev;
+    }
+  }
+
+  function _playCardInner(state, handIndex, targetId) {
+    const actor = currentUnit(state);
+    if (!actor) return false;
+    // Cards are only playable on a player unit's turn in the MVP. Enemy turns
+    // still use the classic AI attack path.
+    if (actor.side !== 'player') return false;
+
+    const result = _cards().COMBAT.playCard(state, actor, handIndex, targetId);
+    if (!result.ok) {
+      emit(state, {
+        type: 'rejected', actor_id: actor.id, reason: result.error,
+        log: result.error === 'no-energy' ? actor.name + ' lacks the energy.' : 'Cannot play that card.',
+      });
+      return false;
+    }
+
+    emit(state, { type: 'action-started', actor_id: actor.id, action: 'card' });
+    for (const e of result.events) emit(state, e);
+
+    // Falls — identical to performAction.
+    for (const u of state.units) {
+      if (u.hp <= 0 && !u.flags.downed) {
+        u.flags.downed = true;
+        emit(state, { type: 'unit-fell', unit_id: u.id, log: '' });
+      }
+    }
+
+    if (_checkBattleEnd(state)) return true;
+
+    // NOTE: playing a card does NOT advance the turn — the player may play
+    // multiple cards until energy runs out, then ends their turn explicitly.
+    emit(state, { type: 'action-ended', actor_id: actor.id });
+    return true;
+  }
+
+  // End the current player unit's turn: discard hand, refill energy, draw a
+  // fresh hand, THEN advance the turn. Mirrors performAction's RNG wrapper.
+  function endTurn(state) {
+    if (state.status !== 'active') return false;
+    if (!state.uses_cards || !cardsAvailable()) {
+      // No deck — "end turn" just advances (lets a player pass with classic UI).
+      _advanceTurn(state);
+      return true;
+    }
+    const actor = currentUnit(state);
+    if (!actor || actor.side !== 'player') return false;
+
+    const prev = _battleRng;
+    if (state._seed != null && _battleRng == null) {
+      _battleRng = makeSeededRng(state._seed + (state._actionsApplied || 0) * 17);
+    }
+    try {
+      const events = _cards().ENGINE.endTurnCycle(state);
+      emit(state, { type: 'turn-ended', actor_id: actor.id });
+      for (const e of events) emit(state, e);
+      state._actionsApplied = (state._actionsApplied || 0) + 1;
+      _advanceTurn(state);
+      return true;
+    } finally {
+      _battleRng = prev;
+    }
+  }
+
   function _performActionInner(state, actionKey, targetId) {
     const actor = currentUnit(state);
     if (!actor) return false;
@@ -528,6 +824,69 @@
     return true;
   }
 
+  // Run the enemy's whole turn. If the enemy has formula-driven moves, it uses
+  // the telegraphed (current) move; otherwise it falls back to the classic
+  // single-target attack. Handles falls, loot drops, battle-end and turn
+  // advance — the unified path for both the UI and the resolver.
+  function enemyAct(state) {
+    const actor = currentUnit(state);
+    if (!actor || actor.side !== 'enemy') return false;
+
+    let events;
+    if (actor.moves && actor.moves.length) {
+      // Telegraphed move (selected at the start of this enemy's turn).
+      const move = actor._intent || _cards().COMBAT.selectNextMove(state, actor);
+      const res = _cards().COMBAT.runMove(state, actor, move, null);
+      events = res.events || [];
+      emit(state, { type: 'action-started', actor_id: actor.id, action: 'move' });
+      for (const e of events) emit(state, e);
+      _cards().COMBAT.advanceMove(actor);
+      // Refresh this enemy's telegraph to show its NEXT move immediately.
+      actor._intent = _cards().COMBAT.selectNextMove(state, actor);
+      emit(state, { type: 'intent-set', actor_id: actor.id,
+        intent: actor._intent ? (actor._intent.intent || 'attack') : 'attack',
+        move_name: actor._intent ? actor._intent.name : '' });
+    } else {
+      // Classic fallback.
+      const choice = chooseAITargetAndAction(state, actor);
+      if (choice) return performAction(state, choice.actionKey, choice.targetId);
+      return false;
+    }
+
+    // Falls + loot drops.
+    for (const u of state.units) {
+      if (u.hp <= 0 && !u.flags.downed) {
+        u.flags.downed = true;
+        emit(state, { type: 'unit-fell', unit_id: u.id, log: '' });
+      }
+    }
+    if (_checkBattleEnd(state)) return true;
+    _advanceTurn(state);
+    emit(state, { type: 'action-ended', actor_id: actor.id });
+    return true;
+  }
+
+  // Pick & stash a visible "intent" (next move) for EVERY living enemy, so the
+  // player can see all telegraphs from the start of combat — not just the enemy
+  // about to act. Sequence enemies show their current sequence slot; weighted
+  // enemies show a representative pick (re-rolled when they act).
+  function _telegraphAll(state) {
+    for (const u of state.units) {
+      if (u.side !== 'enemy' || u.flags.downed || !u.moves || !u.moves.length) continue;
+      if (!u._intent) {
+        u._intent = _cards().COMBAT.selectNextMove(state, u);
+        emit(state, { type: 'intent-set', actor_id: u.id,
+          intent: u._intent ? (u._intent.intent || 'attack') : 'attack',
+          move_name: u._intent ? u._intent.name : '' });
+      }
+    }
+  }
+
+  // Pick & stash the current enemy's next move as a visible "intent".
+  function _telegraphCurrent(state) {
+    _telegraphAll(state);
+  }
+
   // ── Enemy AI ─────────────────────────────────────────────────────────────
   // Prefer the lowest-HP living player about 50% of the time, otherwise pick
   // randomly. Deliberately simple — first pass.
@@ -563,7 +922,36 @@
       }
       const next = getUnit(state, state.turn_order[state.current_index]);
       if (next && !next.flags.downed && next.hp > 0) {
+        // Poison ticks at the start of the unit's turn (damage over time).
+        if (next.buffs && next.buffs.poison > 0) {
+          var pd = next.buffs.poison | 0;
+          next.hp = Math.max(0, next.hp - pd);
+          emit(state, { type: 'poison-tick', unit_id: next.id, amount: pd,
+            log: next.name + ' suffers ' + pd + ' poison damage.' });
+          // Poison decays by 1 each tick (classic DoT falloff).
+          next.buffs.poison = Math.max(0, pd - 1);
+          if (next.hp <= 0 && !next.flags.downed) {
+            next.flags.downed = true;
+            emit(state, { type: 'unit-fell', unit_id: next.id, log: next.name + ' succumbs to poison.' });
+            if (_checkBattleEnd(state)) return;
+            continue; // unit died to poison; move to next
+          }
+        }
+        // Stun: skip this turn, consuming one stun charge.
+        if (next.buffs && next.buffs.stun > 0) {
+          next.buffs.stun = (next.buffs.stun | 0) - 1;
+          emit(state, { type: 'turn-skipped', unit_id: next.id,
+            log: next.name + ' is stunned and loses the turn.' });
+          continue; // skip to the next unit
+        }
         emit(state, { type: 'turn-started', unit_id: next.id });
+        // Telegraph an enemy's chosen move as it becomes their turn.
+        if (next.side === 'enemy' && next.moves && next.moves.length && !next._intent) {
+          next._intent = _cards().COMBAT.selectNextMove(state, next);
+          emit(state, { type: 'intent-set', actor_id: next.id,
+            intent: next._intent ? (next._intent.intent || 'attack') : 'attack',
+            move_name: next._intent ? next._intent.name : '' });
+        }
         return;
       }
       // Slot is downed/dead — try the next one.
@@ -576,6 +964,27 @@
   function _checkBattleEnd(state) {
     if (!aliveOnSide(state, 'enemy').length) {
       state.status = 'victory';
+      // Fold any card-granted bonus gold into the reward.
+      if (state.bonus_gold && state.reward) {
+        state.reward.wealth = (state.reward.wealth || 0) + state.bonus_gold;
+      }
+      // Roll loot from every defeated enemy (seeded → deterministic). Drops are
+      // aggregated by item key and attached to the reward for the reward screen.
+      const drops = {};
+      for (const u of state.units) {
+        if (u.side !== 'enemy' || !u.drops || !u.drops.length) continue;
+        for (const d of u.drops) {
+          if (!d.item) continue;
+          if (rand(0, 1) <= (d.chance != null ? d.chance : 1)) {
+            const lo = d.min != null ? d.min : 1;
+            const hi = d.max != null ? d.max : lo;
+            const qty = lo + Math.floor(rand(0, 1) * (Math.max(lo, hi) - lo + 1));
+            if (qty > 0) drops[d.item] = (drops[d.item] || 0) + qty;
+          }
+        }
+      }
+      const dropList = Object.keys(drops).map(k => ({ item: k, qty: drops[k] }));
+      if (state.reward) state.reward.drops = dropList;
       emit(state, { type: 'battle-ended', outcome: 'victory', reward: state.reward, log: 'Victory!' });
       return true;
     }
@@ -646,6 +1055,10 @@
   global.CombatEngine = {
     createBattle,
     performAction,
+    playCard,
+    moveActor,
+    enemyAct,
+    endTurn,
     chooseAITargetAndAction,
     on,
     currentUnit,

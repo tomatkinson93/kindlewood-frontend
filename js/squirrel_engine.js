@@ -1,0 +1,759 @@
+// lib/squirrel_engine.js — server-authoritative Squirrel's Stash.
+//
+// Push-your-luck: draw from a shared pile, bank Acorns, avoid busting on a
+// duplicate number in your own stash. Dual Node/browser export so the same
+// engine drives single-player (local) and multiplayer (server), exactly
+// like the Briar engine.
+//
+// PHASES (state machine — advances only on the expected player's input):
+//   'turn'        — current player must Draw or Bank (after 3 safe draws)
+//   'squirrel'    — current player drew Squirrel: keep 1 of 2 drawn
+//   'storm'       — EVERY living player picks 1 stash card to shuffle back
+//   'magpie'      — current player steals ONE card from a chosen player
+//   'foxdare'     — current player chose a victim who must draw 3
+//   'gameover'
+//
+// Stashes are PUBLIC (face-up) — view() does not redact them. Banked piles
+// are counted at the end; Rotten Acorn (-7) included.
+
+// ── Deck definition ──
+function buildDeck() {
+  const deck = [];
+  const add = (n, kind, value, extra) => {
+    for (let i = 0; i < n; i++) deck.push(Object.assign({ kind, value }, extra || {}));
+  };
+  // Number cards (1-6, 8-10) ×7 each. Note: no 7 (Lucky Seven is its own).
+  for (const num of [1, 2, 3, 4, 5, 6, 8, 9, 10]) add(7, 'number', num, { num });
+  // Special value cards
+  add(7, 'lucky7', 7, { num: 'L7' });           // banks automatically, can't be stolen
+  add(7, 'rotten', -7, { num: 'R7' });          // own unique number for dup checks
+  add(2, 'golden', 20, { num: 'G20' });         // rare high value
+  // Special effect cards (3 each)
+  add(3, 'magpie', 0);
+  add(3, 'burrow', 0);
+  add(3, 'pact', 0);                            // Forest Pact
+  add(3, 'badger', 0);
+  add(3, 'squirrel', 0);
+  add(3, 'storm', 0);
+  add(3, 'foxdare', 0);                         // Fox's Dare
+  return deck;
+}
+
+const CARD_LABEL = {
+  number: c => String(c.num),
+  lucky7: () => 'Lucky 7',
+  rotten: () => 'Rotten (-7)',
+  golden: () => 'Golden (20)',
+  magpie: () => 'Magpie',
+  burrow: () => 'Burrow',
+  pact: () => 'Forest Pact',
+  badger: () => 'Badger',
+  squirrel: () => 'Squirrel',
+  storm: () => 'Storm',
+  foxdare: () => "Fox's Dare",
+};
+function label(c) { return CARD_LABEL[c.kind] ? CARD_LABEL[c.kind](c) : c.kind; }
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+const TOTAL_ROUNDS = 5;
+
+function create(seats, opts) {
+  const difficulty = (opts && opts.difficulty) || 'smart';
+  const deck = shuffle(buildDeck());
+  const players = seats.map(s => ({
+    seat: s.seat, id: s.id, name: s.name, isAI: !!s.isAI,
+    banked: [],          // permanent score pile (array of cards)
+    stash: [],           // current unbanked cards
+    badgerArmed: false,  // a Badger in stash can absorb one bust
+    drawsThisTurn: 0,
+    busted: false,
+    stats: { drawn: 0, busts: 0, rotten: 0, effects: 0, steals: 0, golden: 0 },
+  }));
+  const g = {
+    deck, players,
+    turn: Math.floor(Math.random() * players.length),
+    round: 1, totalRounds: TOTAL_ROUNDS,
+    turnsThisRound: 0,
+    phase: 'turn',
+    pending: null,
+    log: [],
+    winner: null,
+    difficulty,
+  };
+  log(g, "The squirrel's hoard is tipped onto the table. Draw, but mind the duplicates!");
+  log(g, `${cur(g).name} reaches in first.`);
+  return g;
+}
+
+const cur = g => g.players[g.turn];
+const alive = g => g.players; // all players play every round; "alive" not used like Briar
+function log(g, m) { g.log.push(m); if (g.log.length > 16) g.log.shift(); }
+const bySeat = (g, s) => g.players.find(p => p.seat === s);
+
+// Numbers that count for duplicate/steal matching (number, lucky7 excluded
+// from busting per rules — but lucky7 can't be stolen and doesn't bust;
+// rotten counts as its own unique number; golden counts as its own).
+function matchKey(c) {
+  if (c.kind === 'number') return 'n' + c.num;
+  if (c.kind === 'rotten') return 'rotten';
+  if (c.kind === 'golden') return 'golden';
+  return null; // lucky7 and specials don't participate in dup/steal matching
+}
+
+// ── Draw a card from the pile ──
+function draw(g, seat) {
+  if (g.phase !== 'turn' || cur(g).seat !== seat) return false;
+  const p = cur(g);
+  if (!g.deck.length) { endGame(g); return true; }
+  const card = g.deck.pop();
+  p.drawsThisTurn++;
+  if (p.stats) {
+    p.stats.drawn++;
+    if (card.kind === 'rotten') p.stats.rotten++;
+    else if (card.kind === 'golden') p.stats.golden++;
+    else if (['magpie','burrow','pact','storm','squirrel','foxdare','badger'].includes(card.kind)) p.stats.effects++;
+  }
+  log(g, `${p.name} draws ${label(card)}.`);
+  // Record this draw for the client reveal animation.
+  g._seq = (g._seq || 0) + 1;
+  g.lastDraw = { seq: g._seq, seat: p.seat, card: { kind: card.kind, num: card.num, value: card.value, label: label(card) }, outcome: 'pending' };
+  const _busted0 = p.busted;
+
+  // Special effect cards trigger immediately and are DISCARDED after use
+  // (they never sit in the stash, can't be banked or stolen). The only
+  // exception is Badger, which stays armed in the stash until it absorbs a
+  // bust or the stash banks.
+  switch (card.kind) {
+    case 'squirrel': return _doSquirrel(g, p, card);          // discarded; draws 2 keep 1
+    case 'storm':    log(g, `${p.name} draws Storm!`); return _doStorm(g, p);
+    case 'burrow':
+      log(g, `${p.name} draws Burrow — banking everything.`);
+      if (g.dare && p.seat === g.dare.victimSeat) {
+        // Burrow ends the dare. Bank the victim's stash, then hand control back
+        // to the caller (whose turn continues) — unless they dared themselves.
+        if (p.stash.length) { const n = _bankStash(p); log(g, `${p.name} banks ${n}.`); }
+        return _endDare(g, 'burrow');
+      }
+      return bank(g, seat, true);
+    case 'magpie':   log(g, `${p.name} draws a Magpie!`); return _enterMagpie(g, p);
+    case 'foxdare':  log(g, `${p.name} draws Fox's Dare!`); return _enterFoxDare(g, p);
+    case 'pact':     log(g, `${p.name} draws a Forest Pact!`); return _doPact(g, p, card);
+    case 'badger': {
+      // Badgers do not stack: drawing a second simply replaces the first, so
+      // you always have exactly one shield (the old one is discarded).
+      const had = p.stash.some(c => c.kind === 'badger');
+      p.stash = p.stash.filter(c => c.kind !== 'badger');
+      p.stash.push(card); p.badgerArmed = true;
+      log(g, had ? `${p.name} swaps in a fresh Badger — still one guarding.` : `${p.name} tucks a Badger away — the next bust will be ignored.`);
+      return _afterDraw(g, p);
+    }
+  }
+
+  // Lucky 7 — can't be stolen, auto-banks at turn end. BUT drawing a second
+  // while you already hold one is a bust like any duplicate.
+  if (card.kind === 'lucky7') {
+    const safe = p.drawsThisTurn <= 3;
+    if (!safe && p.stash.some(c => c.kind === 'lucky7')) {
+      if (p.badgerArmed) { _consumeOneBadger(p); log(g, `${p.name} draws a second Lucky 7 — but a Badger absorbs it!`); return _afterDraw(g, p); }
+      return _bust(g, p, card);
+    }
+    p.stash.push(card);
+    return _afterDraw(g, p);
+  }
+
+  // Number / rotten / golden: check steals + busts
+  const key = matchKey(card);
+
+  // BUST CHECK FIRST: you bust only if you ALREADY held this number in your
+  // own stash before this draw (a true duplicate from the pile). Stealing is a
+  // separate, GOOD outcome and never busts you, even if it stacks copies.
+  const safe = p.drawsThisTurn <= 3;
+  const alreadyHeld = p.stash.some(c => matchKey(c) === key);
+
+  if (!safe && alreadyHeld) {
+    // Genuine duplicate of something you already had → bust (Badger can save).
+    if (p.badgerArmed) {
+      _consumeOneBadger(p);
+      p.stash.push(card);
+      log(g, `${p.name} would bust on ${label(card)} — but a Badger absorbs it!`);
+      return _afterDraw(g, p);
+    }
+    p.stash.push(card);
+    return _bust(g, p, card);
+  }
+
+  // Not a bust — resolve any steal (take ALL copies from every other player).
+  let stoleFrom = null;
+  for (const other of g.players) {
+    if (other === p) continue;
+    const taken = other.stash.filter(c => matchKey(c) === key);
+    if (taken.length) {
+      other.stash = other.stash.filter(c => matchKey(c) !== key);
+      p.stash.push(...taken);
+      stoleFrom = { name: other.name, count: taken.length };
+      if (p.stats) p.stats.steals += taken.length;
+      g._seq = (g._seq || 0) + 1;
+      g.lastSteal = { seq: g._seq, fromSeat: other.seat, toSeat: p.seat, count: taken.length, label: label(card) };
+    }
+  }
+  p.stash.push(card);
+  if (stoleFrom) { if (g.lastDraw) g.lastDraw.outcome = 'steal'; log(g, `${p.name} steals ${stoleFrom.count} × ${label(card)} from ${stoleFrom.name}!`); }
+
+  return _afterDraw(g, p);
+}
+
+function _afterDraw(g, p) {
+  // The pile just emptied → the game is over the moment the last card is drawn
+  // (no need to wait for another draw/stop). Bank survivors and score.
+  if (!g.deck.length) { g.dare = null; return endGame(g); }
+  // If a dare is in progress and this was the victim's forced draw, advance
+  // the dare (continue remaining draws, or restore the real turn).
+  if (g.dare && p.seat === g.dare.victimSeat) {
+    return _dareAdvance(g);
+  }
+  g.phase = 'turn';
+  g.pending = null;
+  return true;
+}
+
+function _bust(g, p, card) {
+  if (p.stats) p.stats.busts++;
+  if (g.lastDraw && g.lastDraw.seat === p.seat) g.lastDraw.outcome = 'bust';
+  log(g, `${p.name} draws a second ${label(card)} and BUSTS — the whole stash is lost!`);
+  p.stash = [];
+  p.busted = true;
+  p.badgerArmed = false;
+  // A bust during a dare ends the dare; control returns to the caller (whose
+  // turn continues) unless they dared themselves.
+  if (g.dare && p.seat === g.dare.victimSeat) {
+    return _endDare(g, 'bust');
+  }
+  endTurn(g);
+  return true;
+}
+
+// ── Bank ──  (manual after 3 draws, or forced by Burrow)
+// "Stop" (the player chooses to end drawing). Cards STAY in the stash, active
+// and stealable, until the player's next turn. force=true (Burrow / Forest
+// Pact) banks immediately instead.
+function bank(g, seat, force) {
+  if (!force) {
+    if (g.phase !== 'turn' || cur(g).seat !== seat) return false;
+    if (cur(g).drawsThisTurn < 3) return false; // must take the 3 safe draws first
+  }
+  const p = bySeat(g, seat);
+  if (force) {
+    if (p.stash.length) {
+      const n = _bankStash(p);
+      log(g, `${p.name} banks ${n} card${n === 1 ? '' : 's'}.`);
+    }
+  } else {
+    log(g, `${p.name} stops, leaving ${p.stash.length} card${p.stash.length === 1 ? '' : 's'} on the table.`);
+  }
+  endTurn(g);
+  return true;
+}
+
+// Move only VALUE cards from a stash to the banked pile; specials (badger)
+// are discarded. Returns how many were banked.
+function _bankStash(p) {
+  const value = p.stash.filter(c => c.kind !== 'badger' && !_isSpecial(c));
+  p.banked.push(...value);
+  p.stash = [];
+  p.badgerArmed = false;
+  return value.length;
+}
+// Remove exactly ONE badger from a stash and re-derive the armed flag, so
+// stacked badgers each absorb a separate bust.
+function _consumeOneBadger(p) {
+  const idx = p.stash.findIndex(c => c.kind === 'badger');
+  if (idx >= 0) p.stash.splice(idx, 1);
+  p.badgerArmed = p.stash.some(c => c.kind === 'badger');
+}
+
+function _isSpecial(c) {
+  // Effect cards that never bank. Pact lives in the stash but is also discarded
+  // on bank (handled in _bankStash), so keep it listed here for bank-filtering.
+  return ['magpie','burrow','pact','storm','squirrel','foxdare'].includes(c.kind);
+}
+
+// Bank a player's surviving active stash (called at the start of their turn).
+function _bankActive(g, p) {
+  if (!p.stash.length) return;
+  const n = _bankStash(p);
+  if (n) log(g, `${p.name} banks their stash from last turn (${n} card${n === 1 ? '' : 's'}).`);
+}
+
+// At a safe turn end, any Lucky 7s auto-bank even if the rest is lost? Per
+// rules Lucky 7 banks automatically at end of your turn IF YOU SURVIVE.
+// On a bust the stash is lost — but Lucky 7 "remains even if other cards are
+// stolen" and "cannot be stolen"; it does not say it survives a bust, so we
+// only auto-bank Lucky 7 on a non-bust turn end (handled in endTurn).
+function endTurn(g) {
+  const p = cur(g);
+  // Lucky 7 banks immediately at the end of YOUR turn (it can't be stolen, so
+  // there's no reason to leave it active). It survives even if the rest of the
+  // stash stays on the table for rivals to raid.
+  if (!p.busted) {
+    const l7 = p.stash.filter(c => c.kind === 'lucky7');
+    if (l7.length) {
+      p.banked.push(...l7);
+      p.stash = p.stash.filter(c => c.kind !== 'lucky7');
+      log(g, `${p.name}'s Lucky 7${l7.length > 1 ? 's' : ''} bank${l7.length > 1 ? '' : 's'} automatically.`);
+    }
+  }
+  p.busted = false;
+  p.drawsThisTurn = 0;
+
+  // Deck empty → game ends immediately and we count.
+  if (!g.deck.length) { endGame(g); return; }
+
+  g.turnsThisRound++;
+  // Advance to next player
+  g.turn = (g.turn + 1) % g.players.length;
+  if (g.turnsThisRound >= g.players.length) {
+    g.turnsThisRound = 0;
+    g.round++;
+    // The game ends only when the hoard is empty (checked above/below), not at
+    // a fixed round count — rounds are just a progress label now.
+    log(g, `— Round ${g.round} —`);
+  }
+  // The NEW current player banks whatever survived on the table since their
+  // last turn, then starts fresh.
+  _bankActive(g, cur(g));
+  if (!g.deck.length) { endGame(g); return; }
+  g.phase = 'turn';
+  g.pending = null;
+}
+
+// ── Special effect resolvers ──
+function _doSquirrel(g, p, card) {
+  const a = g.deck.pop(), b = g.deck.pop();
+  const drawn = [a, b].filter(Boolean);
+  if (drawn.length < 2) { // not enough to choose; just keep what we got as a draw
+    drawn.forEach(c => g.deck.push(c));
+    return _afterDraw(g, p);
+  }
+  g.phase = 'squirrel';
+  g.pending = { actorSeat: p.seat, choices: drawn };
+  log(g, `${p.name} found a Squirrel — drawing two to keep one.`);
+  return true;
+}
+function resolveSquirrel(g, seat, keepIndex) {
+  if (g.phase !== 'squirrel' || g.pending.actorSeat !== seat) return false;
+  const p = bySeat(g, seat);
+  const choices = g.pending.choices;
+  const keep = choices[keepIndex] || choices[0];
+  const back = choices[keepIndex === 0 ? 1 : 0];
+  g.deck.push(back); shuffle(g.deck);
+  log(g, `${p.name} keeps ${label(keep)}, slips the other back.`);
+  // The kept card resolves like a normal draw (could be a number → steal/bust)
+  g.phase = 'turn'; g.pending = null;
+  return _resolveKeptCard(g, p, keep);
+}
+function _resolveKeptCard(g, p, card) {
+  // Specials resolve their effect and discard (not pushed to stash).
+  if (['magpie','burrow','pact','badger','storm','squirrel','foxdare','lucky7'].includes(card.kind)) {
+    if (card.kind === 'lucky7') {
+      const safe = p.drawsThisTurn <= 3;
+      if (!safe && p.stash.some(c => c.kind === 'lucky7')) {
+        if (p.badgerArmed) { _consumeOneBadger(p); log(g, `${p.name}'s Badger absorbs a second Lucky 7!`); return true; }
+        return _bust(g, p, card);
+      }
+      p.stash.push(card); return true;
+    }
+    if (card.kind === 'burrow') { return bank(g, p.seat, true); }
+    if (card.kind === 'badger') { p.stash.push(card); p.badgerArmed = true; return true; }
+    if (card.kind === 'storm') { return _doStorm(g, p); }
+    if (card.kind === 'magpie') { return _enterMagpie(g, p); }
+    if (card.kind === 'foxdare') { return _enterFoxDare(g, p); }
+    if (card.kind === 'pact') { return _doPact(g, p, card); }
+    if (card.kind === 'squirrel') { return _doSquirrel(g, p, card); }
+  }
+  const key = matchKey(card);
+  if (!key) { p.stash.push(card); return true; }
+  // BUST only if you ALREADY held this number before keeping it. Stealing is
+  // pure gain and never busts you, even if it stacks copies (same rule as the
+  // normal draw path).
+  const safe = p.drawsThisTurn <= 3;
+  const alreadyHeld = p.stash.some(c => matchKey(c) === key);
+  if (!safe && alreadyHeld) {
+    if (p.badgerArmed) { _consumeOneBadger(p); p.stash.push(card); log(g, `${p.name}'s Badger absorbs it!`); return true; }
+    p.stash.push(card);
+    return _bust(g, p, card);
+  }
+  // Not a bust → resolve any steal.
+  for (const other of g.players) { if (other === p) continue;
+    const taken = other.stash.filter(c => matchKey(c) === key);
+    if (taken.length) {
+      other.stash = other.stash.filter(c => matchKey(c) !== key); p.stash.push(...taken);
+      if (p.stats) p.stats.steals += taken.length;
+      g._seq = (g._seq || 0) + 1;
+      g.lastSteal = { seq: g._seq, fromSeat: other.seat, toSeat: p.seat, count: taken.length, label: label(card) };
+      log(g, `${p.name} steals ${taken.length} × ${label(card)} from ${other.name}!`);
+    }
+  }
+  p.stash.push(card);
+  return true;
+}
+
+function _doStorm(g, actor) {
+  log(g, `A Storm sweeps the table — everyone returns a card to the hoard.`);
+  // Each player with a stash must choose one card to shuffle back.
+  const needers = g.players.filter(p => p.stash.length > 0);
+  if (!needers.length) return _afterDraw(g, actor);
+  g.phase = 'storm';
+  g.pending = { actorSeat: actor.seat, resolved: [] };
+  return true;
+}
+function resolveStorm(g, seat, cardIndex) {
+  if (g.phase !== 'storm') return false;
+  const p = bySeat(g, seat);
+  if (!p || g.pending.resolved.includes(seat)) return false;
+  if (p.stash.length) {
+    const idx = Math.max(0, Math.min(p.stash.length - 1, cardIndex | 0));
+    const chosen = p.stash[idx];
+    const key = matchKey(chosen);
+    // Giving up a card means giving up the WHOLE matching stack (all copies
+    // of that number). Specials (no matchKey) just remove the one card.
+    let returned;
+    if (key) { returned = p.stash.filter(c => matchKey(c) === key); p.stash = p.stash.filter(c => matchKey(c) !== key); }
+    else { returned = [chosen]; p.stash.splice(idx, 1); }
+    // Defer the shuffle: collect returned cards, only mix them back into the
+    // hoard once EVERYONE has returned (so the board doesn't reshuffle mid-Storm).
+    g.deck.push(...returned);
+    g.pending._stormReturned = (g.pending._stormReturned || 0) + returned.length;
+    log(g, `${p.name} returns ${returned.length > 1 ? returned.length + ' × ' : ''}${label(chosen)} to the hoard.`);
+  }
+  g.pending.resolved.push(seat);
+  // Done when every player with cards has resolved
+  const remaining = g.players.filter(pl => pl.stash.length > 0 && !g.pending.resolved.includes(pl.seat));
+  if (!remaining.length) {
+    shuffle(g.deck);  // single shuffle now that all returns are in
+    g._returnedToPile = (g._returnedToPile || 0) + (g.pending._stormReturned || 0); // signal one reshuffle
+    if (g.dare) { _dareAdvance(g); } else { g.phase = 'turn'; g.pending = null; }
+  }
+  return true;
+}
+function stormPending(g) { // seats still needing to act
+  if (g.phase !== 'storm') return [];
+  return g.players.filter(p => p.stash.length > 0 && !g.pending.resolved.includes(p.seat)).map(p => p.seat);
+}
+
+function _enterMagpie(g, p) {
+  const targets = g.players.filter(o => o !== p && o.stash.some(c => c.kind !== 'lucky7'));
+  if (!targets.length) { log(g, `${p.name}'s Magpie finds nothing to take.`); return _afterDraw(g, p); }
+  g.phase = 'magpie';
+  g.pending = { actorSeat: p.seat };
+  return true;
+}
+function resolveMagpie(g, seat, targetSeat, cardIndex) {
+  if (g.phase !== 'magpie' || g.pending.actorSeat !== seat) return false;
+  const p = bySeat(g, seat), t = bySeat(g, targetSeat);
+  if (!t || t === p) return false;
+  const stealable = t.stash.map((c, i) => ({ c, i })).filter(x => x.c.kind !== 'lucky7');
+  if (!stealable.length) { g.phase = 'turn'; g.pending = null; return _afterDraw(g, p); }
+  const pick = stealable.find(x => x.i === cardIndex) || stealable[0];
+  // Taking a card takes its whole matching STACK (all copies of that number),
+  // consistent with how draws and the Storm work. Specials/lucky7 (no key)
+  // take just the one card.
+  const key = matchKey(pick.c);
+  let taken;
+  if (key) { taken = t.stash.filter(c => matchKey(c) === key); t.stash = t.stash.filter(c => matchKey(c) !== key); }
+  else { taken = [pick.c]; t.stash.splice(pick.i, 1); }
+  p.stash.push(...taken);
+  // Record for the steal-travel animation.
+  g._seq = (g._seq || 0) + 1;
+  g.lastSteal = { seq: g._seq, fromSeat: t.seat, toSeat: p.seat, count: taken.length, label: label(pick.c) };
+  log(g, `${p.name}'s Magpie snatches ${taken.length > 1 ? taken.length + ' × ' : ''}${label(pick.c)} from ${t.name}.`);
+  if (g.dare && p.seat === g.dare.victimSeat) return _dareAdvance(g);
+  g.phase = 'turn'; g.pending = null;
+  return true;
+}
+
+function _enterFoxDare(g, p) {
+  // A Fox's Dare drawn DURING a dare can't cleanly nest (it would corrupt the
+  // outer dare's turn bookkeeping), so it fizzles and the current dare resumes.
+  if (g.dare) {
+    log(g, `${p.name} draws Fox's Dare mid-dare — it fizzles in the chaos.`);
+    return _afterDraw(g, p);   // advances the active dare
+  }
+  g.phase = 'foxdare';
+  g.pending = { actorSeat: p.seat };
+  log(g, `${p.name} plays Fox's Dare — someone must draw three.`);
+  return true;
+}
+function resolveFoxDare(g, seat, targetSeat) {
+  if (g.phase !== 'foxdare' || g.pending.actorSeat !== seat) return false;
+  const t = bySeat(g, targetSeat);
+  if (!t) return false;
+  // Cap the dare at however many cards remain — can't force more than exist.
+  const remaining = Math.min(3, g.deck.length);
+  if (remaining <= 0) {
+    // No cards left to force; the dare fizzles and we just end the actor's turn.
+    log(g, `${bySeat(g,seat).name} plays Fox's Dare, but the pile is empty — it fizzles.`);
+    g.phase = 'turn'; g.pending = null;
+    endTurn(g);
+    return true;
+  }
+  log(g, `${bySeat(g,seat).name} dares ${t.name} to draw ${remaining}!`);
+  // A dare temporarily makes the VICTIM the current player so their forced
+  // draws run through the exact same draw()/special logic as a normal turn.
+  g.dare = {
+    victimSeat: targetSeat,
+    returnSeat: seat,
+    remaining,
+    savedTurn: g.turn,
+    savedDraws: t.drawsThisTurn,
+  };
+  g.turn = g.players.findIndex(pl => pl.seat === targetSeat);
+  t.drawsThisTurn = 3;            // dare draws are not safe
+  g.phase = 'turn';
+  g.pending = null;
+  return true;
+}
+
+// One forced draw of the dare. Called repeatedly (by human click or AI tick)
+// until remaining hits 0 or the victim busts.
+// During a dare the victim is the current player; a dare draw is just a normal
+// draw. After it resolves we decrement and, when done, restore the real turn.
+function dareDraw(g, seat) {
+  if (!g.dare || g.dare.victimSeat !== seat) return false;
+  if (g.phase !== 'turn') return false;
+  // Defensive: if g.turn drifted (e.g. after a table-wide Storm mid-dare),
+  // snap it back to the victim so the real draw() operates on the right player.
+  const vIdx = g.players.findIndex(pl => pl.seat === g.dare.victimSeat);
+  if (g.turn !== vIdx) g.turn = vIdx;
+  g.dare.remaining--;
+  draw(g, seat);   // full real draw — specials enter their real phases
+  return true;
+}
+
+// The seat whose action the game is currently waiting on for a draw-type turn:
+// the dare victim if a dare is active, otherwise the normal turn holder.
+function currentActor(g) {
+  if (g.dare) return g.dare.victimSeat;
+  return g.players[g.turn] ? g.players[g.turn].seat : null;
+}
+
+// Called by _afterDraw / endTurn / bank when a dare is active, to decide
+// whether to continue the dare, or restore the original turn.
+function _dareAdvance(g) {
+  const d = g.dare;
+  if (!d) return false;
+  const victim = bySeat(g, d.victimSeat);
+  if (victim.busted) { return _endDare(g, 'bust'); }
+  if (d.remaining > 0 && g.deck.length) {
+    // Keep the victim as current player, waiting for the next forced draw.
+    g.turn = g.players.findIndex(pl => pl.seat === d.victimSeat);
+    g.phase = 'turn';
+    g.pending = null;
+    return true;
+  }
+  return _endDare(g, 'done');
+}
+
+// End a dare. `endedReason`: 'done' (3 draws), 'bust', or 'burrow'.
+// RULE: control always returns to the CALLER, whose turn continues — UNLESS
+// the caller dared themselves and busted/burrowed (then their turn ends).
+function _endDare(g, endedReason) {
+  const d = g.dare;
+  g.dare = null;
+  if (!d) { g.phase = 'turn'; g.pending = null; return true; }
+  const victim = bySeat(g, d.victimSeat);
+  victim.busted = false;
+  victim.drawsThisTurn = d.savedDraws;
+
+  const selfDare = (d.victimSeat === d.returnSeat);
+  const victimEndedBadly = (endedReason === 'bust' || endedReason === 'burrow');
+
+  if (selfDare && victimEndedBadly) {
+    // Caller dared themselves and busted/burrowed → their turn ends normally.
+    g.turn = g.players.findIndex(pl => pl.seat === d.returnSeat);
+    return endTurn(g);
+  }
+
+  // Otherwise: return to the CALLER and their turn CONTINUES (they may keep
+  // drawing or stop). Restore their seat as current; do NOT advance the turn.
+  g.turn = g.players.findIndex(pl => pl.seat === d.returnSeat);
+  g.phase = 'turn';
+  g.pending = null;
+  return true;
+}
+
+function _doPact(g, p, card) {
+  // A Forest Pact card STAYS in your stash, shimmering, waiting for a match.
+  // If another player already holds a pact in their stash, the two resonate:
+  // both bank everything at once (the pact cards themselves are discarded).
+  const other = g.players.find(o => o !== p && o.stash.some(c => c.kind === 'pact'));
+  if (other) {
+    log(g, `Two Forest Pacts resonate — ${p.name} and ${other.name} both bank everything!`);
+    // The just-drawn pact is NOT added to p's stash here; both pacts vanish.
+    for (const who of [p, other]) _bankStash(who);
+    endTurn(g);
+    return true;
+  }
+  // Drawing a SECOND pact yourself (already holding one) busts like any
+  // duplicate — unless within the safe first 3 draws or a Badger saves you.
+  if (p.stash.some(c => c.kind === 'pact')) {
+    const safe = p.drawsThisTurn <= 3;
+    if (!safe) {
+      if (p.badgerArmed) { _consumeOneBadger(p); log(g, `${p.name} draws a second Forest Pact — but a Badger absorbs the clash!`); return _afterDraw(g, p); }
+      log(g, `${p.name} draws a second Forest Pact!`);
+      return _bust(g, p, card);
+    }
+  }
+  // No match yet: the pact card sits in the stash and the turn continues.
+  p.stash.push(card);
+  log(g, `${p.name} lays down a Forest Pact — it waits for another to complete it.`);
+  return _afterDraw(g, p);
+}
+
+// ── End / scoring ──
+function score(p) { return p.banked.reduce((s, c) => s + (c.value || 0), 0); }
+function endGame(g) {
+  g.phase = 'gameover';
+  // Active stashes count at game end (they were just unbanked, not lost).
+  for (const p of g.players) { if (p.stash.length) _bankStash(p); }
+  let best = null;
+  for (const p of g.players) { const s = score(p); if (best == null || s > best.s) best = { seat: p.seat, s, name: p.name }; }
+  g.winner = best ? best.seat : null;
+  log(g, `The hoard is empty. Final tallies are counted…`);
+  if (best) log(g, `🏆 ${best.name} wins with ${best.s} acorns!`);
+}
+
+// Count remaining cards by display label (for the 'what's left' tracker).
+function _composition(deck) {
+  const counts = {};
+  for (const c of deck) {
+    const key = c.kind === 'number' ? ('n' + c.num) : c.kind;
+    if (!counts[key]) counts[key] = { kind: c.kind, num: c.num, label: label(c), n: 0 };
+    counts[key].n++;
+  }
+  return counts;
+}
+
+// ── Redacted view (stashes are PUBLIC; banked shown as counts + score) ──
+function view(g, forId) {
+  return {
+    game: 'squirrel',
+    phase: g.phase,
+    turn: g.turn,
+    turnSeat: g.dare ? g.dare.victimSeat : (g.players[g.turn] ? g.players[g.turn].seat : null),
+    round: g.round, totalRounds: g.totalRounds,
+    deckLeft: g.deck.length,
+    deckComposition: _composition(g.deck),
+    lastDraw: g.lastDraw || null,
+    lastSteal: g.lastSteal || null,
+    dare: g.dare ? { victimSeat: g.dare.victimSeat, remaining: g.dare.remaining } : null,
+    _returnedToPile: g._returnedToPile || 0,
+    winner: g.winner,
+    log: g.log.slice(-10),
+    pending: g.pending ? {
+      actorSeat: g.pending.actorSeat,
+      choices: (g.phase === 'squirrel' && bySeat(g, g.pending.actorSeat).id === forId) ? g.pending.choices.map(c => ({ kind: c.kind, num: c.num, value: c.value, label: label(c) })) : undefined,
+      stormResolved: g.phase === 'storm' ? g.pending.resolved.slice() : undefined,
+    } : null,
+    players: g.players.map(p => ({
+      seat: p.seat, id: p.id, name: p.name, isAI: p.isAI,
+      score: score(p),
+      bankedCount: p.banked.length,
+      drawsThisTurn: p.drawsThisTurn,
+      badgerArmed: p.badgerArmed,
+      stash: p.stash.map(c => ({ kind: c.kind, num: c.num, value: c.value, label: label(c) })),
+      stats: p.stats ? { ...p.stats } : null,
+    })),
+    final: g.phase === 'gameover' ? _finalSummary(g) : null,
+  };
+}
+
+// Build the end-of-game summary: ranked standings + a few fun superlatives.
+function _finalSummary(g) {
+  const standings = g.players
+    .map(p => ({ seat: p.seat, name: p.name, isAI: p.isAI, score: score(p), stats: { ...p.stats } }))
+    .sort((a, b) => b.score - a.score);
+  // Superlatives: pick the leader for each stat (ties → first; skip if all 0).
+  const facts = [];
+  const top = (key, label, emoji) => {
+    let best = null;
+    for (const p of g.players) { const v = p.stats[key] || 0; if (!best || v > best.v) best = { name: p.name, v }; }
+    if (best && best.v > 0) facts.push({ emoji, label, name: best.name, value: best.v });
+  };
+  top('drawn', 'Most cards drawn', '🃏');
+  top('busts', 'Most busts', '💥');
+  top('rotten', 'Most rotten acorns', '🤢');
+  top('effects', 'Most effect cards', '✨');
+  top('steals', 'Most cards stolen', '🪶');
+  return { standings, facts };
+}
+
+// ── AI ──
+// Push-your-luck heuristic: draw while safe or stash is small; bank when the
+// stash is valuable or risk of a duplicate climbs. Bust risk rises with the
+// count of distinct numbers held vs numbers left.
+function aiResolve(g, seat) {
+  const p = bySeat(g, seat);
+  if (!p) return null;
+
+  if (g.phase === 'turn' && !g.dare && g.turn === g.players.findIndex(x => x.seat === seat)) {
+    if (p.drawsThisTurn < 3) return { kind: 'draw' };           // safe draws — always take
+    if (p.badgerArmed) return { kind: 'draw' };                 // Badger = next bust free, keep going
+    // Estimate bust risk: distinct number-keys in stash / cards left
+    const keys = new Set(p.stash.map(matchKey).filter(Boolean));
+    const stashVal = p.stash.reduce((s, c) => s + (c.value || 0), 0);
+    const risk = Math.min(0.85, keys.size / Math.max(8, g.deckLeft || g.deck.length) * 9);
+    // Greed scales with difficulty; bank more readily when stash is fat
+    const greed = g.difficulty === 'simple' ? 0.35 : 0.5;
+    const wantBank = stashVal >= 12 ? 0.6 : 0.2;
+    if (Math.random() < Math.max(risk, wantBank) && Math.random() > greed) return { kind: 'bank' };
+    if (risk > 0.6 && Math.random() < 0.7) return { kind: 'bank' };
+    return { kind: 'draw' };
+  }
+  // During a dare, the victim is the current turn player and MUST draw.
+  if (g.phase === 'turn' && g.dare && g.dare.victimSeat === seat) {
+    return { kind: 'daredraw' };
+  }
+  if (g.phase === 'squirrel' && g.pending.actorSeat === seat) {
+    // Keep the higher-value, lower-risk card
+    const ch = g.pending.choices;
+    const val = c => (c.kind === 'golden' ? 20 : c.value || 0) - (matchKeyHeld(p, c) ? 8 : 0);
+    return { kind: 'squirrel', keepIndex: val(ch[0]) >= val(ch[1]) ? 0 : 1 };
+  }
+  if (g.phase === 'storm') {
+    // Return the least valuable stash card
+    if (!p.stash.length) return null;
+    let worst = 0; for (let i = 1; i < p.stash.length; i++) if ((p.stash[i].value||0) < (p.stash[worst].value||0)) worst = i;
+    return { kind: 'storm', cardIndex: worst };
+  }
+  if (g.phase === 'magpie' && g.pending.actorSeat === seat) {
+    // Steal the most valuable stealable card from the richest rival
+    let best = null;
+    for (const o of g.players) { if (o.seat === seat) continue;
+      o.stash.forEach((c, i) => { if (c.kind === 'lucky7') return; const v = c.value||0; if (!best || v > best.v) best = { targetSeat: o.seat, cardIndex: i, v }; }); }
+    if (!best) return { kind: 'magpie', targetSeat: seat, cardIndex: 0 };
+    return { kind: 'magpie', targetSeat: best.targetSeat, cardIndex: best.cardIndex };
+  }
+  if (g.phase === 'foxdare' && g.pending.actorSeat === seat) {
+    // Dare the player with the fattest stash (most to lose)
+    let best = null;
+    for (const o of g.players) { if (o.seat === seat) continue; const v = o.stash.reduce((s,c)=>s+(c.value||0),0); if (!best || v > best.v) best = { seat: o.seat, v }; }
+    return { kind: 'foxdare', targetSeat: best ? best.seat : seat };
+  }
+  return null;
+}
+function matchKeyHeld(p, c) {
+  const k = matchKey(c); if (!k) return false;
+  return p.stash.some(x => matchKey(x) === k);
+}
+
+const SquirrelEngine = {
+  create, draw, bank,
+  resolveSquirrel, resolveStorm, resolveMagpie, resolveFoxDare, dareDraw, currentActor,
+  stormPending, view, aiResolve, score,
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = SquirrelEngine;
+if (typeof window !== 'undefined') window.SquirrelEngine = SquirrelEngine;

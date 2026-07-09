@@ -64,7 +64,8 @@ const combatRoutes = require('./routes/combat');
 app.use('/api/combat', combatRoutes);
 const streamRoutes = require('./routes/stream');
 app.use('/api/stream', streamRoutes);
-
+const gameStatsRoutes = require('./routes/game_stats');
+app.use('/api/presence', presenceRoutes);
 app.use((err, req, res, next) => {
   console.error(err.message);
   res.status(500).json({ error: 'Internal server error.' });

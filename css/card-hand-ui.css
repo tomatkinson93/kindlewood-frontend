@@ -1,0 +1,732 @@
+/* card-hand-ui.css  — deploys to css/card-hand-ui.css (link with ?v=) */
+/* Fanned hand inspired by the Briar Court cards: portrait card faces, a
+   gentle arc, and a soft lift-on-hover (deliberately less zoom than Briar). */
+
+.kw-cards-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 8px;
+  width: 100%;
+}
+
+/* The mount container itself — force full width and block layout so the hand
+   centres in the modal rather than collapsing to its content on the right. */
+#cm-cards {
+  width: 100%;
+  display: block;
+}
+
+/* Top bar: energy on the left, pile counts on the right, full width. */
+.kw-cards-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #e8e0cf;
+  padding: 0 6px;
+}
+.kw-energy { display: flex; align-items: center; gap: 7px; }
+.kw-energy-label { opacity: .8; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; }
+.kw-energy-pips { display: inline-flex; gap: 4px; }
+.kw-pip {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #3a3327; border: 1px solid #5a4f3a;
+  transition: background .15s, box-shadow .15s;
+}
+.kw-pip.on { background: #f4c95d; border-color: #f4c95d; box-shadow: 0 0 6px #f4c95daa; }
+.kw-energy-num { font-variant-numeric: tabular-nums; opacity: .9; min-width: 30px; }
+.kw-piles { display: flex; gap: 14px; opacity: .72; font-size: 12px; letter-spacing: .02em; }
+
+/* The hand is a centered arc. overflow visible so hovered cards can lift out. */
+.kw-hand {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  position: relative;
+  min-height: 188px;
+  margin-top: 4px;
+  padding: 0 40px;       /* room for outermost fanned cards */
+  overflow: visible;
+}
+
+/* Each card. transform is set inline (the fan); transform-origin at the
+   bottom centre makes rotation pivot like real fanned cards. Negative margins
+   make neighbours overlap. */
+.kw-card {
+  width: 116px;
+  height: 168px;
+  margin: 0 -18px;                 /* overlap */
+  flex: 0 0 auto;
+  position: relative;
+  transform-origin: bottom center;
+  transition: transform .16s ease-out, box-shadow .16s ease-out, filter .16s;
+  cursor: pointer;
+  border-radius: 11px;
+  border: 1px solid #6b5d3e;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255,236,190,.06), transparent 60%),
+    linear-gradient(170deg, #2c2618 0%, #1d1810 70%, #14100a 100%);
+  box-shadow: 0 6px 16px rgba(0,0,0,.55);
+  padding: 0;
+  color: #efe7d2;
+  /* When you add card art later: set background-image here (or per-type below)
+     and the inner text overlays it. */
+}
+.kw-card:hover:not(.disabled) { box-shadow: 0 16px 34px rgba(0,0,0,.6); }
+.kw-card.disabled { filter: grayscale(.5) brightness(.7); cursor: default; }
+
+/* Type accents on the frame edge. */
+.kw-card-attack  { border-color: #a5563e; }
+.kw-card-defense { border-color: #4f7aa5; }
+.kw-card-support { border-color: #6ba55a; }
+.kw-card-magic   { border-color: #9c5cc4; }
+
+.kw-card-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 8px 8px 8px;
+  text-align: left;
+  overflow: hidden;
+  border-radius: 11px;
+  /* A vertical scrim so name/description stay legible even when a neighbouring
+     card overlaps this one in the fan. Darkest at the bottom where the
+     description sits. */
+  background: linear-gradient(180deg, rgba(20,16,10,.35) 0%, rgba(15,12,7,.62) 55%, rgba(12,9,5,.82) 100%);
+}
+/* Name and description get their own subtle plate for guaranteed contrast. */
+.kw-card-name {
+  margin-top: 24px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .01em;
+  width: 100%;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+}
+.kw-card-desc {
+  margin-top: auto;
+  font-size: 9.5px;
+  line-height: 1.28;
+  color: #efe7d2;
+  width: 100%;
+  background: rgba(8,6,3,.55);
+  border-radius: 4px;
+  padding: 3px 4px;
+  text-shadow: 0 1px 2px rgba(0,0,0,.9);
+}
+
+/* Cost coin, top-left. */
+.kw-card-cost {
+  position: absolute;
+  top: 7px; left: 7px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe6a3, #e0a93a);
+  color: #1d1810;
+  font-weight: 800; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.kw-card-type {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  opacity: .6;
+}
+.kw-card-attack  .kw-card-type { color: #e0937c; opacity: .85; }
+.kw-card-defense .kw-card-type { color: #93b6e0; opacity: .85; }
+.kw-card-support .kw-card-type { color: #9ed084; opacity: .85; }
+.kw-card-magic   .kw-card-type { color: #c79ce0; opacity: .85; }
+
+/* Footer: End Turn, right-aligned. */
+.kw-cards-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+.kw-endturn {
+  padding: 9px 26px;
+  border-radius: 7px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #7d6c47, #5d4f33);
+  color: #1d1810;
+  font-weight: 700;
+  letter-spacing: .03em;
+  border: 1px solid #8a7748;
+  box-shadow: 0 3px 8px rgba(0,0,0,.4);
+  transition: background .15s, transform .1s;
+}
+.kw-endturn:hover:not(.disabled) { background: linear-gradient(180deg, #f4c95d, #d9a93f); }
+.kw-endturn:active:not(.disabled) { transform: translateY(1px); }
+.kw-endturn.disabled { opacity: .4; cursor: default; }
+
+.kw-cards-empty { opacity: .6; font-size: 12px; text-align: center; padding: 40px 0; align-self: center; }
+
+/* ── Targeting visuals ─────────────────────────────────────────────────── */
+/* Pending card: a gold ring + glow so it's clearly "armed" while you pick. */
+.kw-card-pending {
+  box-shadow: 0 0 0 2px #f4c95d, 0 14px 30px rgba(0,0,0,.6), 0 0 22px #f4c95d88 !important;
+  filter: none !important;
+}
+
+/* Targeting prompt line in the action bar. */
+.cm-actor-prompt.cm-targeting {
+  color: #f4c95d;
+  animation: kw-target-pulse 1.1s ease-in-out infinite;
+}
+@keyframes kw-target-pulse { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+
+/* Highlight units that can be targeted by the pending card. These piggyback
+   on the existing .is-targetable class the combat UI already applies. The
+   base stylesheet may style it for classic actions; we make it unmistakable. */
+#combat-modal .cm-unit.is-targetable {
+  cursor: pointer;
+  box-shadow: 0 0 0 2px #f4c95d, 0 0 18px #f4c95d77 !important;
+  border-radius: 10px;
+  animation: kw-target-pulse 1.1s ease-in-out infinite;
+}
+#combat-modal .cm-unit.is-targetable:hover {
+  box-shadow: 0 0 0 3px #ffe6a3, 0 0 26px #f4c95daa !important;
+}
+
+/* ── Pile buttons (Draw / Discard / Exhaust) ───────────────────────────── */
+.kw-pile-btn {
+  background: rgba(40,33,20,.7); border: 1px solid #50432a; color: #d8c9a0;
+  border-radius: 5px; padding: 3px 9px; font-size: 11px; cursor: pointer;
+  font-family: inherit;
+}
+.kw-pile-btn:hover { background: #50432a; color: #f4c95d; }
+
+/* End Turn relocated into the right rail. */
+.kw-endturn-foot-rail { justify-content: stretch; margin: 0 0 6px 0; }
+.kw-endturn-foot-rail .kw-endturn { width: 100%; }
+
+/* ── Pile modal ────────────────────────────────────────────────────────── */
+.kw-pile-overlay {
+  position: fixed; inset: 0; z-index: 2147483000;
+  background: rgba(10,7,4,.66);
+  display: flex; align-items: center; justify-content: center;
+}
+.kw-pile-modal {
+  width: min(86vw, 760px); max-height: 80vh; overflow: hidden;
+  background: linear-gradient(180deg,#241b10,#160f08);
+  border: 1px solid #6b5d3e; border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  display: flex; flex-direction: column;
+}
+.kw-pile-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid #3a3120;
+}
+.kw-pile-modal-title { font-weight: 700; color: #f4e9cf; font-size: 15px; }
+.kw-pile-modal-close {
+  background: none; border: none; color: #c9a45c; font-size: 18px; cursor: pointer;
+}
+.kw-pile-modal-close:hover { color: #f4c95d; }
+.kw-pile-modal-note { padding: 6px 16px 0; font-size: 11px; opacity: .6; font-style: italic; }
+.kw-pile-grid {
+  display: flex; flex-wrap: wrap; gap: 14px; padding: 16px;
+  overflow-y: auto; align-content: flex-start; justify-content: center;
+}
+.kw-pile-card-wrap { position: relative; }
+.kw-pile-count {
+  position: absolute; bottom: -6px; right: -6px;
+  background: #f4c95d; color: #1d1810; font-weight: 800; font-size: 12px;
+  border-radius: 12px; padding: 1px 8px; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+
+/* Static card face (in pile modals): same look, no fan transform/hover. */
+.kw-card-static {
+  margin: 0; transform: none !important; cursor: default;
+  width: 116px; height: 168px;
+}
+.kw-card-static:hover { box-shadow: 0 6px 16px rgba(0,0,0,.55); }
+
+/* End Turn sitting in the initiative row, right-aligned. */
+.cm-endturn-rail {
+  align-self: center;
+}
+.cm-endturn-rail.disabled { opacity: .4; cursor: default; }
+
+/* ── Left rail (energy + piles, vertical) ──────────────────────────────── */
+.kw-cards-bar-vertical {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+}
+.kw-cards-bar-vertical .kw-energy { flex-direction: row; align-items: center; gap: 9px; }
+.kw-cards-bar-vertical .kw-energy-label { font-size: 13px; }
+.kw-cards-bar-vertical .kw-pip { width: 16px; height: 16px; }
+.kw-cards-bar-vertical .kw-energy-num { font-size: 15px; }
+.kw-cards-bar-vertical .kw-piles { flex-direction: row; flex-wrap: wrap; gap: 12px; align-items: flex-start; width: 100%; }
+
+/* Compact pile tiles: an icon with a count badge and a small caption. Three sit
+   in a row under the energy and never push the UI off-screen. */
+.kw-pile-tile {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  width: 56px; padding: 4px 2px 2px;
+  background: transparent; border: none; cursor: pointer;
+  color: #c7b48a; font-size: 10px; letter-spacing: .02em;
+}
+.kw-pile-svg { width: 34px; height: 34px; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); transition: transform .12s ease; }
+.kw-pile-tile:hover .kw-pile-svg { transform: translateY(-2px) scale(1.08); }
+.kw-pile-tile:hover .kw-pile-cap { color: #f4c95d; }
+.kw-pile-cap { text-transform: uppercase; opacity: .8; }
+.kw-pile-badge {
+  position: absolute; top: -2px; right: 6px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center;
+  background: #2c2618; border: 1px solid #6b5d3e; border-radius: 9px;
+  color: #f0d89a; font-size: 10px; font-weight: 800; line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+.kw-pile-withered .kw-pile-badge { border-color: #9a5cff; color: #e0ccff; background: #2a1640; }
+.kw-pile-withered .kw-pile-cap { color: #c4a4ff; }
+
+/* Calculated effect preview — a bubble popping out the TOP of the card so it
+   never hides the card's own text. Hidden until hover/selection. */
+.kw-card-preview-val {
+  position: absolute; left: 50%; top: -14px;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  font-size: 11px; font-weight: 700; color: #f4c95d;
+  background: rgba(10,7,4,.94); border: 1px solid #6b5d3e; border-radius: 7px;
+  padding: 5px 9px; opacity: 0; transition: opacity .12s;
+  pointer-events: none; text-shadow: none; line-height: 1.25; z-index: 70;
+  box-shadow: 0 4px 12px rgba(0,0,0,.5);
+}
+/* little pointer triangle at the bottom of the bubble */
+.kw-card-preview-val::after {
+  content: ''; position: absolute; left: 50%; bottom: -5px;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 5px solid #6b5d3e;
+}
+.kw-card:hover .kw-card-preview-val { opacity: 1; }
+.kw-card-pending .kw-card-preview-val { opacity: 1; }
+
+/* Burned-card ghost (hand full). */
+.kw-burn-ghost {
+  position: absolute; z-index: 500; font-size: 30px; color: #c9a45c;
+  pointer-events: none; filter: drop-shadow(0 3px 6px rgba(0,0,0,.6));
+}
+
+/* ── Status effect pips under units ────────────────────────────────────── */
+.cm-status-pips {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px;
+  justify-content: center;
+}
+.cm-pip {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 5px; border-radius: 11px;
+  font-size: 11px; line-height: 1; cursor: help;
+  border: 1px solid;
+}
+.cm-pip-icon { font-size: 11px; }
+.cm-pip-val { font-weight: 800; font-size: 10px; }
+.cm-pip-buff   { background: rgba(70,150,80,.22); border-color: #5bbd6a; color: #b9e8bf; }
+.cm-pip-debuff { background: rgba(170,60,50,.22); border-color: #c8584a; color: #f0bdb5; }
+.cm-pip-shield { background: rgba(80,120,170,.24); border-color: #5b8fd0; color: #bcd6f0; }
+/* Tooltip */
+.cm-pip-tip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  width: max-content; max-width: 200px;
+  background: rgba(10,7,4,.97); border: 1px solid #6b5d3e; border-radius: 7px;
+  color: #efe7d2; font-size: 11px; line-height: 1.3; font-weight: 400;
+  padding: 6px 9px; opacity: 0; pointer-events: none; transition: opacity .12s;
+  z-index: 9999; box-shadow: 0 4px 14px rgba(0,0,0,.7); white-space: normal;
+  text-align: left;
+}
+.cm-pip:hover .cm-pip-tip { opacity: 1; }
+/* Elevate the whole unit card above its siblings while a pip tooltip is open,
+   so the bubble paints over neighbouring cards instead of behind them. */
+.cm-unit { position: relative; }
+.cm-unit:has(.cm-pip:hover) { z-index: 500; }
+
+/* "Hand is full" bubble above the hand. */
+.kw-handfull-bubble {
+  position: absolute; left: 50%; top: -10px;
+  transform: translate(-50%, -100%);
+  background: rgba(90,40,30,.95); border: 1px solid #c8584a; border-radius: 8px;
+  color: #f4d9d2; font-size: 12px; font-weight: 700; padding: 6px 12px;
+  white-space: nowrap; z-index: 80; box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  animation: kw-bubble-in .2s ease-out;
+}
+.kw-handfull-bubble.fade { opacity: 0; transition: opacity .3s; }
+@keyframes kw-bubble-in {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+.cm-cards { position: relative; }
+
+/* ── Formation move controls (left rail) ───────────────────────────────── */
+.kw-formation {
+  display: flex; flex-direction: column; gap: 7px;
+  padding-top: 10px; margin-top: 4px; border-top: 1px solid #3a3120;
+  width: 100%;
+}
+.kw-formation-title {
+  font-size: 11px; color: #c9a45c; text-transform: uppercase; letter-spacing: .06em;
+}
+.kw-form-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(40,33,20,.85); border: 1px solid #6b5d3e; color: #f4e9cf;
+  border-radius: 7px; padding: 8px 10px; cursor: pointer; font-family: inherit;
+  width: 100%; transition: background .12s;
+}
+.kw-form-btn:hover:not(.disabled) { background: #6b5d3e; }
+.kw-form-btn.disabled { opacity: .4; cursor: default; }
+.kw-form-arrow { font-size: 16px; color: #f4c95d; }
+.kw-form-label { display: flex; flex-direction: column; line-height: 1.15; font-size: 12px; font-weight: 600; flex: 1; }
+.kw-form-label small { font-size: 9px; font-weight: 400; opacity: .6; }
+
+/* Static position badge on unit cards. */
+.cm-pos-badge {
+  font-size: 10px; font-weight: 800; color: #c9a45c;
+  background: rgba(0,0,0,.35); border: 1px solid #50432a; border-radius: 9px;
+  padding: 1px 6px;
+}
+.cm-pos-badge-static { margin-left: auto; opacity: .7; }
+
+/* Animate a unit sliding when its formation position changes. */
+.cm-unit { transition: transform .25s ease, opacity .2s; }
+.cm-unit.cm-moving { transform: translateY(-6px) scale(1.03); }
+
+/* ── Enemy intent telegraph ────────────────────────────────────────────── */
+.cm-intent {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(60,30,25,.92); border: 1px solid #b06a5a; border-radius: 12px;
+  padding: 2px 9px 2px 6px; margin-bottom: 5px;
+  font-size: 11px; color: #f2c9bf; max-width: 100%; cursor: help;
+}
+.cm-intent-icon { font-size: 13px; }
+.cm-intent-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cm-intent-tip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  width: max-content; max-width: 220px;
+  background: rgba(10,7,4,.97); border: 1px solid #b06a5a; border-radius: 7px;
+  color: #f4e3de; font-size: 11px; line-height: 1.3; font-weight: 600;
+  padding: 6px 9px; opacity: 0; pointer-events: none; transition: opacity .12s;
+  z-index: 9999; box-shadow: 0 4px 14px rgba(0,0,0,.7); white-space: normal; text-align: center;
+}
+.cm-intent:hover .cm-intent-tip { opacity: 1; }
+
+/* Units an intent would affect, highlighted while hovering the telegraph. */
+.cm-unit.cm-intent-target {
+  outline: 2px solid #e07a6a;
+  outline-offset: 1px;
+  box-shadow: 0 0 16px rgba(224,122,106,.5);
+}
+
+/* Reward-screen loot drops */
+.cm-result-drops { margin-top: 10px; }
+.cm-result-drops-title { font-size: 11px; color: #c9a45c; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
+.cm-result-drop {
+  display: inline-block; background: rgba(40,33,20,.6); border: 1px solid #6b5d3e;
+  border-radius: 6px; padding: 4px 9px; margin: 0 5px 5px 0; font-size: 12px; color: #efe7d2;
+}
+
+/* ── Uniform unit boxes with full names ────────────────────────────────── */
+/* All unit cards share one width so the layout reads evenly regardless of
+   name length, and names wrap/fit instead of truncating. */
+#combat-modal .cm-unit {
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+  box-sizing: border-box;
+}
+#combat-modal .cm-unit-name {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  font-size: 13px;
+  line-height: 1.15;
+  word-break: break-word;
+}
+#combat-modal .cm-unit-name-block { min-width: 0; flex: 1 1 auto; }
+/* Keep both sides' rows aligned and wrapping consistently. */
+#combat-modal .cm-side { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+#combat-modal .cm-side-enemy { justify-content: flex-end; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Combat sprites, turn highlight, hit flash, damage numbers, lunge
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Species sprite inside the portrait. Falls back to the initial medallion if
+   the image is missing (handled by onerror in markup). */
+#combat-modal .cm-portrait-citizen { position: relative; overflow: hidden; }
+#combat-modal .cm-sprite {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center top;
+  display: block; image-rendering: auto;
+}
+#combat-modal .cm-sprite-fallback {
+  display: none;           /* shown only if the sprite img errors */
+  align-items: center; justify-content: center;
+  width: 100%; height: 100%; font-weight: 700;
+}
+
+/* Turn highlight: gently glow the acting unit's sprite/portrait. */
+#combat-modal .cm-unit.is-current { }
+#combat-modal .cm-unit.is-current .cm-portrait {
+  box-shadow: 0 0 0 2px #f4c95d, 0 0 14px rgba(244,201,93,.55);
+  animation: cm-turn-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cm-turn-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #f4c95d, 0 0 10px rgba(244,201,93,.40); }
+  50%      { box-shadow: 0 0 0 2px #ffd97a, 0 0 20px rgba(244,201,93,.75); }
+}
+
+/* Hit flash: a red wash over the struck unit. */
+#combat-modal .cm-unit.is-hit { animation: cm-hit-flash .42s ease-out; }
+@keyframes cm-hit-flash {
+  0%   { background-color: rgba(224,80,60,.0); transform: translateX(0); }
+  12%  { background-color: rgba(224,80,60,.55); transform: translateX(-4px); }
+  30%  { transform: translateX(4px); }
+  50%  { transform: translateX(-2px); }
+  70%  { transform: translateX(2px); }
+  100% { background-color: rgba(224,80,60,0); transform: translateX(0); }
+}
+/* Tint the sprite itself red on hit for extra punch. */
+#combat-modal .cm-unit.is-hit .cm-sprite { animation: cm-sprite-redflash .42s ease-out; }
+@keyframes cm-sprite-redflash {
+  0%   { filter: none; }
+  15%  { filter: brightness(1.4) sepia(1) hue-rotate(-35deg) saturate(4); }
+  100% { filter: none; }
+}
+
+/* Stable FX overlay layer for floating numbers — sits above sprites, never
+   rebuilt, so damage numbers always animate fully regardless of re-renders. */
+#combat-modal .cm-fx-layer {
+  position: absolute; inset: 0; pointer-events: none; z-index: 400;
+}
+/* Arcade damage number floating up and fading. Positioned via inline left/top
+   set in JS (relative to the stage). */
+#combat-modal .cm-damage-pop {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 900; font-size: 28px;
+  color: #ff5a48;
+  text-shadow: 0 2px 0 #5a1810, 0 0 10px rgba(255,90,72,.6);
+  pointer-events: none; z-index: 400;
+  animation: cm-dmg-float 1.1s cubic-bezier(.2,.7,.3,1) forwards;
+}
+@keyframes cm-dmg-float {
+  0%   { opacity: 0; transform: translate(-50%, 6px) scale(.6); }
+  18%  { opacity: 1; transform: translate(-50%, -10px) scale(1.25); }
+  35%  { transform: translate(-50%, -22px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -54px) scale(.95); }
+}
+
+/* Lunge: a quick forward jerk when a unit acts. Players lunge toward the enemy
+   side (right), enemies toward the player side (left). */
+#combat-modal .cm-side-player .cm-unit.is-lunge { animation: cm-lunge-right .34s ease-out; }
+#combat-modal .cm-side-enemy  .cm-unit.is-lunge { animation: cm-lunge-left  .34s ease-out; }
+@keyframes cm-lunge-right {
+  0% { transform: translateX(0); } 40% { transform: translateX(14px); } 100% { transform: translateX(0); }
+}
+@keyframes cm-lunge-left {
+  0% { transform: translateX(0); } 40% { transform: translateX(-14px); } 100% { transform: translateX(0); }
+}
+
+/* Allow the floating damage number to escape the unit box. */
+#combat-modal .cm-unit { overflow: visible; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Battlefield character sprites (standing on the arena, above the info cards)
+   ════════════════════════════════════════════════════════════════════════ */
+#combat-modal .cm-stage { position: relative; }
+
+/* Two sprite rows positioned in the open battlefield area, above the info
+   cards. Players occupy the left half, enemies the right half. Sprites sit
+   along a "ground line" a bit above the unit cards. */
+#combat-modal .cm-sprites {
+  position: absolute;
+  bottom: 38%;                 /* the ground line — above the info cards */
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  pointer-events: none;        /* clicks go to the info cards below */
+  z-index: 5;
+}
+#combat-modal .cm-sprites-player {
+  left: 6%;
+  flex-direction: row;         /* front (#1) ends nearest centre via reverse() */
+  justify-content: flex-start;
+}
+#combat-modal .cm-sprites-enemy {
+  right: 6%;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+#combat-modal .cm-bf-sprite {
+  position: relative;
+  width: 120px;                  /* player base width (+30%); height follows art */
+  display: flex; align-items: flex-end; justify-content: center;
+  transition: transform .2s ease, filter .2s ease;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.55));
+  pointer-events: auto;          /* sprites are clickable (layer is none) */
+}
+/* Selectable target: pulse + cursor, matching the info-card highlight. */
+#combat-modal .cm-bf-sprite.is-targetable {
+  cursor: pointer;
+  filter: drop-shadow(0 0 10px rgba(244,201,93,.9)) drop-shadow(0 8px 10px rgba(0,0,0,.55));
+  animation: cm-bf-target 1.1s ease-in-out infinite;
+}
+#combat-modal .cm-bf-sprite.is-targetable:hover {
+  filter: drop-shadow(0 0 16px rgba(255,225,120,1)) drop-shadow(0 8px 10px rgba(0,0,0,.6));
+}
+@keyframes cm-bf-target {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-5px); }
+}
+
+/* ── Arcade intent block above an enemy sprite ─────────────────────────── */
+/* Sprites are tall boxes with the art bottom-aligned, so the character's head
+   is only ~55-65% up the box. Anchor the telegraph just above that, NOT near
+   the box top (which floats it way above the visible character). */
+#combat-modal .cm-bf-intent {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  pointer-events: none; z-index: 30; white-space: nowrap;
+}
+#combat-modal .cm-bf-intent-row { display: flex; align-items: center; gap: 6px; }
+#combat-modal .cm-bf-intent-chunk {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-weight: 900; font-size: 26px; line-height: 1;
+  text-shadow: 0 2px 0 rgba(0,0,0,.65), 0 0 8px rgba(0,0,0,.5);
+}
+#combat-modal .cm-bf-intent-ic { font-size: 20px; }
+#combat-modal .cm-bf-intent-chunk.kind-damage { color: #ff5a48; }
+#combat-modal .cm-bf-intent-chunk.kind-block  { color: #5ba8ff; }
+#combat-modal .cm-bf-intent-chunk.kind-heal   { color: #6ee07a; }
+#combat-modal .cm-bf-intent-chunk.kind-status { color: #c77dff; font-size: 19px; }
+#combat-modal .cm-bf-intent-chunk.kind-buff   { color: #ffd36e; font-size: 19px; }
+#combat-modal .cm-bf-intent-chunk.kind-move   { color: #e0c089; font-size: 19px; }
+#combat-modal .cm-bf-intent-chunk.kind-special{ color: #e0c089; font-size: 16px; }
+#combat-modal .cm-bf-intent-target {
+  font-size: 11px; font-weight: 700; color: #f2d9b0;
+  background: rgba(20,12,8,.8); border: 1px solid #6b5d3e; border-radius: 8px;
+  padding: 1px 7px; text-shadow: none;
+}
+/* Enemies are larger and NOT mirrored — sprites are authored facing left. */
+#combat-modal .cm-sprites-enemy .cm-bf-sprite {
+  width: 193px;                  /* +40%; height follows the art */
+}
+#combat-modal .cm-bf-sprite-img {
+  width: 100%; height: auto; max-height: 280px;
+  object-fit: contain; object-position: bottom center;
+  display: block;
+}
+/* Fallback when no sprite image: a big emoji/initial standing in. */
+#combat-modal .cm-bf-sprite-fallback {
+  display: none;
+  align-items: flex-end; justify-content: center;
+  width: 100%; height: 100%;
+  font-size: 56px; line-height: 1;
+}
+#combat-modal .cm-bf-emoji { font-size: 64px; }
+
+/* Sprites are authored facing the correct way (enemies face left), so no
+   mirroring is applied. */
+
+/* Turn highlight: lift + glow the acting unit's sprite. */
+#combat-modal .cm-bf-sprite.is-current {
+  filter: drop-shadow(0 0 10px rgba(244,201,93,.8)) drop-shadow(0 8px 10px rgba(0,0,0,.55));
+  animation: cm-bf-turn 1.6s ease-in-out infinite;
+}
+@keyframes cm-bf-turn {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+/* Hit flash on the sprite: red tint + shake. */
+#combat-modal .cm-bf-sprite.is-hit .cm-bf-sprite-img,
+#combat-modal .cm-bf-sprite.is-hit .cm-bf-sprite-fallback {
+  animation: cm-bf-hit .42s ease-out;
+}
+@keyframes cm-bf-hit {
+  0%   { filter: none; }
+  15%  { filter: brightness(1.5) sepia(1) hue-rotate(-35deg) saturate(5); transform: translateX(-4px); }
+  40%  { transform: translateX(4px); }
+  70%  { transform: translateX(-2px); }
+  100% { filter: none; transform: translateX(0); }
+}
+
+/* Lunge toward the opponent. */
+#combat-modal .cm-sprites-player .cm-bf-sprite.is-lunge { animation: cm-bf-lunge-r .34s ease-out; }
+#combat-modal .cm-sprites-enemy  .cm-bf-sprite.is-lunge { animation: cm-bf-lunge-l .34s ease-out; }
+@keyframes cm-bf-lunge-r { 0%{transform:translateX(0)} 40%{transform:translateX(20px)} 100%{transform:translateX(0)} }
+@keyframes cm-bf-lunge-l { 0%{transform:translateX(0)} 40%{transform:translateX(-20px)} 100%{transform:translateX(0)} }
+
+/* ════════════════════════════════════════════════════════════════════════
+   "Withers" cards — single-use, cracked purple glass + smoke poof
+   ════════════════════════════════════════════════════════════════════════ */
+.kw-card.kw-card-wither {
+  border-color: #9a5cff !important;
+  box-shadow: 0 0 0 1px rgba(154,92,255,.5), 0 6px 16px rgba(60,20,90,.5);
+  position: relative;
+}
+/* Purple tint wash + cracked-glass overlay drawn with layered gradients. */
+.kw-card.kw-card-wither::after {
+  content: "";
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  z-index: 4;
+  background:
+    linear-gradient(135deg, transparent 42%, rgba(190,150,255,.55) 43%, transparent 44%),
+    linear-gradient(115deg, transparent 60%, rgba(190,150,255,.40) 61%, transparent 62%),
+    linear-gradient(60deg,  transparent 30%, rgba(190,150,255,.35) 31%, transparent 32%),
+    linear-gradient(20deg,  transparent 70%, rgba(190,150,255,.30) 71%, transparent 72%),
+    radial-gradient(ellipse at 50% 40%, rgba(120,60,200,.18), rgba(80,30,150,.30));
+  mix-blend-mode: screen;
+}
+/* Small "once" pip in the corner. */
+.kw-card.kw-card-wither::before {
+  content: "✦ once";
+  position: absolute; top: 4px; right: 4px; z-index: 5;
+  font-size: 8px; font-weight: 800; letter-spacing: .04em;
+  color: #e7d2ff; background: rgba(80,40,130,.85);
+  border: 1px solid #9a5cff; border-radius: 6px; padding: 1px 5px;
+  text-transform: uppercase;
+}
+
+/* Smoke poof burst spawned in the FX layer when a wither card is played. */
+#combat-modal .cm-wither-poof {
+  position: absolute; width: 0; height: 0; z-index: 410; pointer-events: none;
+}
+#combat-modal .cm-wither-puff {
+  position: absolute; left: 0; top: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(200,160,255,.9), rgba(120,60,200,.5) 60%, rgba(80,30,150,0) 75%);
+  transform: translate(-50%, -50%) scale(.4);
+  opacity: 0;
+  animation: cm-wither-puff .85s ease-out forwards;
+}
+@keyframes cm-wither-puff {
+  0%   { opacity: 0;   transform: translate(-50%,-50%) scale(.3); }
+  20%  { opacity: .95; transform: translate(calc(-50% + var(--dx)*.4), calc(-50% + var(--dy)*.4)) scale(.9); }
+  100% { opacity: 0;   transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.8); }
+}
+
+/* Withered pile button — purple-tinted to match the wither theme. */
+.kw-pile-btn.kw-pile-withered {
+  border-color: #9a5cff;
+  color: #d9c2ff;
+  background: linear-gradient(180deg, rgba(60,30,90,.4), rgba(40,20,70,.4));
+}
+
+/* Modal-level FX overlay (for the wither poof over the hand). */
+#combat-modal { position: fixed; }
+#combat-modal .cm-modal-fx { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
