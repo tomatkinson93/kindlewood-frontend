@@ -15,8 +15,8 @@ iso unchanged (verified — `season-atmosphere.js` never references the renderer
 
 | path | change | `?v=` |
 |---|---|---|
-| `js/kwmap-iso.js` | haze/vignette gradient (`_hazeOn`), selection beacon in `renderUiFx` | `?v=5` → **`?v=6`** |
-| `js/kwmap-decor.js` | winter placeholder variant (snow on props) via the season chain | `?v=1` → **`?v=2`** |
+| `js/kwmap-iso.js` | haze/vignette gradient (`_hazeOn`), selection beacon in `renderUiFx` | `?v=5` → **`?v=7`** |
+| `js/kwmap-decor.js` | winter placeholder variant (snow on props) via the season chain | `?v=1` → **`?v=3`** |
 | `js/seasons.js` | `updateSeasonProgress` fires `KWMap.controller.invalidate('season')` on flip (guarded) | *(unversioned)* → **`?v=2`** |
 | `index.html` | the three `?v=` bumps above | — |
 
