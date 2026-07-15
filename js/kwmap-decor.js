@@ -274,6 +274,11 @@
     collect(view, mapState) {
       const out = [];
       if (!mapState || !mapState.tiles) return out;
+      // Degradation ladder (Phase 6): the renderer passes a decor density scale
+      // on view.detail. 0 skips decor entirely; a fraction keeps a deterministic
+      // leading subset of each tile's memoized props.
+      const scale = (view && view.detail && typeof view.detail.decorScale === 'number') ? view.detail.decorScale : 1;
+      if (scale <= 0) return out;
       const worldSeed = worldSeedOf(mapState);
       const season = view && view.seasonId ? view.seasonId : null;
       const tm = tileMapOf(mapState);
@@ -282,7 +287,9 @@
       for (const t of tiles) {
         if (!t || t.terrain === 'fog' || !DECOR_TABLE[t.terrain]) continue;
         const props = decorFor(t.q, t.r, t.terrain, worldSeed, season);
-        for (const p of props) {
+        const keep = scale >= 1 ? props.length : Math.round(props.length * scale);
+        for (let i = 0; i < keep; i++) {
+          const p = props[i];
           out.push({ wq: t.q, wr: t.r, tall: p.tall, heightPx: p.heightPx, ox: p.ox, oy: p.oy, prop: p, draw: drawDecor });
         }
       }

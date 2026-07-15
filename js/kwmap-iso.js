@@ -492,9 +492,50 @@
   // ══════════════════════════════════════════════════════════════════════════
   //  The renderer
   // ══════════════════════════════════════════════════════════════════════════
-  const MARGIN = 160;                 // GROUND buffer margin per side (px). One
-                                      // screen would be spec-ideal; tuned smaller
-                                      // for v1 memory, revisited in Phase 6.
+  // ── Performance: device tier, buffer margin, degradation ladder (spec §6) ──
+  // The ladder reacts to REBUILD time (the buffered renderer's cost lives in
+  // rebuilds, not per-frame blits): sustained slow rebuilds step detail DOWN,
+  // sustained fast rebuilds recover slowly. Drop order (spec §6.6): particles
+  // (season-atmosphere's own adaptive) → decor ×0.5 → decor 0 → haze off →
+  // shadows off → suggest top-down (never auto-switch).
+  const _deviceTier = (() => {
+    try {
+      const cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+      const small = (typeof screen !== 'undefined') && Math.min(screen.width, screen.height) < 760;
+      return (small || cores <= 4) ? 'low' : 'high';
+    } catch (e) { return 'high'; }
+  })();
+
+  const PERF = {
+    tier: _deviceTier,
+    // px per side. Bigger = rarer but slower rebuilds; since the per-rebuild
+    // spike is the hitch, keep it moderate and let the ladder cut content.
+    margin: _deviceTier === 'low' ? 96 : 150,
+    budget: _deviceTier === 'low' ? 50 : 16,     // rebuild-ms target
+    level: 0,                                    // 0 full … 5 minimal (auto-adapted)
+    lowDetail: (() => { try { return localStorage.getItem('kw_map_low_detail') === '1'; } catch (e) { return false; } })(),
+    _slow: 0, _fast: 0,
+  };
+
+  // Effective ladder level = max(auto, pinned-by-toggle). The "Reduce map
+  // detail" toggle pins the ladder ≥ step 2 (spec §9).
+  function effLevel() { return Math.max(PERF.level, PERF.lowDetail ? 2 : 0); }
+  function detail() {
+    const lvl = effLevel();
+    return {
+      level: lvl,
+      decorScale: lvl >= 2 ? 0 : (lvl >= 1 ? 0.5 : 1),
+      haze: lvl < 3,
+      shadows: lvl < 4,
+      suggestTopdown: lvl >= 5,
+    };
+  }
+  // React to a rebuild's cost. Slow ⇒ step down after 2; fast ⇒ recover after 6.
+  function adaptPerf(ms) {
+    if (ms > PERF.budget * 1.35) { PERF._slow++; PERF._fast = 0; if (PERF._slow >= 2) { PERF.level = Math.min(5, PERF.level + 1); PERF._slow = 0; } }
+    else if (ms < PERF.budget * 0.6) { PERF._fast++; PERF._slow = 0; if (PERF._fast >= 6) { PERF.level = Math.max(0, PERF.level - 1); PERF._fast = 0; } }
+    else { PERF._slow = 0; PERF._fast = 0; }
+  }
 
   const IsometricRenderer = {
     id: 'iso',
@@ -526,6 +567,11 @@
       const sig = _contentSig(data);
       if (sig !== this._sig) { this._sig = sig; this._invalid = true; }
 
+      // Current detail level (degradation ladder). Drives decor density, haze,
+      // and contact shadows this frame.
+      const det = detail();
+      this._detail = det;
+
       // 1. Clear to the unified border tone (same as top-down's clear).
       ctx.fillStyle = '#3a2e22';
       ctx.fillRect(0, 0, W, H);
@@ -534,7 +580,7 @@
       _drawFogBackdrop(ctx, W, H);
 
       // 3. GROUND + TALL buffers — rebuild if needed, then blit in order.
-      this._ensureBuffers(g, W, H, dpr, seasonId, data);
+      this._ensureBuffers(g, W, H, dpr, seasonId, data, det);
       const gr = this._ground;
       if (gr) {
         const blitX = Math.round(g.cx + gr.bufWX - g.camPxX);
@@ -545,8 +591,8 @@
       }
 
       // 4. Atmospheric haze + vignette — one radial gradient per frame (spec §7).
-      //    Degradation ladder (Phase 6) can disable via _hazeOn.
-      if (this._hazeOn) _drawHaze(ctx, W, H);
+      //    Ladder step 3 disables it (and the explicit _hazeOn override).
+      if (this._hazeOn && det.haze) _drawHaze(ctx, W, H);
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);
@@ -555,23 +601,27 @@
     // ── GROUND + TALL buffer lifecycle ────────────────────────────────────
     // Both buffers share one origin/size/scan and rebuild in lockstep on the
     // same triggers (margin-cross / resize / dpr / season / invalidate).
-    _ensureBuffers(g, W, H, dpr, seasonId, data) {
+    _ensureBuffers(g, W, H, dpr, seasonId, data, det) {
+      det = det || detail();
       const camWX = g.camPxX, camWY = g.camPxY;
       const gr = this._ground;
-      const bwCss = W + 2 * MARGIN, bhCss = H + 2 * MARGIN;
+      const bwCss = W + 2 * PERF.margin, bhCss = H + 2 * PERF.margin;
       const need = this._invalid || !gr
         || gr.W !== W || gr.H !== H || gr.dpr !== dpr
         || gr.seasonKey !== seasonId
-        || Math.abs(camWX - gr.camWX0) > MARGIN
-        || Math.abs(camWY - gr.camWY0) > MARGIN;
+        || gr.detailLevel !== det.level                 // ladder changed → repaint
+        || Math.abs(camWX - gr.camWX0) > PERF.margin
+        || Math.abs(camWY - gr.camWY0) > PERF.margin;
       if (!need) return;
 
       const t0 = (typeof performance !== 'undefined' ? performance.now() : 0);
-      const bufWX = camWX - g.cx - MARGIN;
-      const bufWY = camWY - g.cy - MARGIN;
+      const bufWX = camWX - g.cx - PERF.margin;
+      const bufWY = camWY - g.cy - PERF.margin;
 
-      // One visible-tile scan shared by both buffers.
+      // One visible-tile scan shared by both buffers. `detail` rides on the view
+      // so providers can trim (decor density) at the current ladder level.
       const { visible, view } = _collectVisible(g, bufWX, bufWY, bwCss, bhCss, seasonId);
+      view.detail = det;
 
       const gc = this._makeBuf(gr && gr.canvas, bwCss, bhCss, dpr);
       gc.ctx.clearRect(0, 0, bwCss, bhCss);
@@ -583,12 +633,13 @@
 
       this._ground = {
         canvas: gc.canvas, ctx: gc.ctx, bufWX, bufWY, bwCss, bhCss,
-        camWX0: camWX, camWY0: camWY, dpr, W, H, seasonKey: seasonId,
+        camWX0: camWX, camWY0: camWY, dpr, W, H, seasonKey: seasonId, detailLevel: det.level,
       };
       this._tall = { canvas: tc.canvas, ctx: tc.ctx };
       this._invalid = false;
       this._rebuildCount++;
       this._lastRebuildMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
+      adaptPerf(this._lastRebuildMs);                   // step the ladder for next rebuild
     },
 
     // Create (or reuse when same size) an offscreen buffer canvas.
@@ -662,9 +713,10 @@
     // position tie-breaker. Each drawable gets a contact-shadow ellipse before
     // its sprite. Sprites anchor at the tile's (lifted) face centre and rise up.
     _rebuildTall(tctx, g, visible, view, data) {
+      const shadows = !view.detail || view.detail.shadows;   // ladder step 4 off
       const items = _collectTallItems(g, visible, view, data);
       for (const it of items) {
-        _contactShadow(tctx, it.cx, it.groundCentreY, g);
+        if (shadows) _contactShadow(tctx, it.cx, it.groundCentreY, g);
         it.draw(tctx, it.cx, it.cy, it.ctx3);
       }
     },
@@ -674,8 +726,8 @@
     // proofs (§12.10). No side effects.
     _computeTallOrder(W, H, data) {
       const g = geo(W, H);
-      const bwCss = W + 2 * MARGIN, bhCss = H + 2 * MARGIN;
-      const bufWX = g.camPxX - g.cx - MARGIN, bufWY = g.camPxY - g.cy - MARGIN;
+      const bwCss = W + 2 * PERF.margin, bhCss = H + 2 * PERF.margin;
+      const bufWX = g.camPxX - g.cx - PERF.margin, bufWY = g.camPxY - g.cy - PERF.margin;
       const { visible, view } = _collectVisible(g, bufWX, bufWY, bwCss, bhCss, null);
       return _collectTallItems(g, visible, view, data).map(it => ({ wq: it.wq, wr: it.wr, layer: it.layer }));
     },
@@ -767,9 +819,29 @@
     _drawHud(g, seasonId) {
       const el = _ensureHud();
       if (!el) return;
+      const lvl = effLevel();
       el.textContent =
         `iso · frame ${this._lastFrameMs.toFixed(1)}ms · rebuild ${this._lastRebuildMs.toFixed(1)}ms · ` +
-        `rebuilds ${this._rebuildCount} · season ${seasonId || '—'}`;
+        `rebuilds ${this._rebuildCount} · season ${seasonId || '—'} · ` +
+        `${PERF.tier}/m${PERF.margin} · detail ${lvl}${PERF.lowDetail ? '(low)' : ''}`;
+    },
+  };
+
+  // ── Public perf surface (Phase 7 settings UI + debugging) ─────────────────
+  KW.perf = {
+    get tier() { return PERF.tier; },
+    get level() { return effLevel(); },
+    get lowDetail() { return PERF.lowDetail; },
+    get margin() { return PERF.margin; },
+    get budget() { return PERF.budget; },
+    detail,
+    _adapt: adaptPerf,                 // test hook
+    _raw: PERF,                        // debug
+    setLowDetail(on) {
+      PERF.lowDetail = !!on;
+      try { localStorage.setItem('kw_map_low_detail', on ? '1' : '0'); } catch (e) {}
+      IsometricRenderer._invalid = true;
+      KW.controller.requestRender();
     },
   };
 

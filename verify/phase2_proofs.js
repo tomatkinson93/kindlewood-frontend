@@ -165,18 +165,21 @@ const run = (env, stmt) => vm.runInContext(stmt, env.context);
   const e = isoEnv(true, { q: 20, r: 15 });
   const rc = () => run(e, 'KWMap.controller.active._rebuildCount');
   const frame = (q, r, ts) => { setUi(e, null, null, null, { q, r }); run(e, `KWMap.controller.renderFrame(${ts});`); };
+  const HEXW = 48, margin = run(e, 'KWMap.perf.margin');           // tunable buffer margin (px)
+  const within = Math.floor((margin - HEXW) / HEXW);               // hex pan that stays inside
+  const past = Math.ceil((margin + HEXW) / HEXW);                  // hex pan that crosses it
 
   frame(20, 15, 100);
   const c0 = rc();
-  frame(23, 15, 116);                 // ΔcamWX = 3*48 = 144 < MARGIN(160)
+  frame(20 + within, 15, 116);        // Δq·hexW < margin
   const c1 = rc();
-  check('D. pan within margin (144px) → pure blit, no rebuild', c1 === c0, `rebuilds ${c0}→${c1}`);
+  check(`D. pan within margin (${within * HEXW}px < ${margin}) → pure blit, no rebuild`, c1 === c0, `rebuilds ${c0}→${c1}`);
 
-  frame(24, 15, 132);                 // ΔcamWX from origin = 192 > 160
+  frame(20 + past, 15, 132);          // Δq·hexW from origin > margin
   const c2 = rc();
-  check('D. pan past margin (192px) → exactly one rebuild', c2 === c1 + 1, `rebuilds ${c1}→${c2}`);
+  check(`D. pan past margin (${past * HEXW}px > ${margin}) → exactly one rebuild`, c2 === c1 + 1, `rebuilds ${c1}→${c2}`);
 
-  frame(25, 15, 148);                 // still within new margin
+  frame(20 + past + within, 15, 148); // still within the new margin band
   const c3 = rc();
   check('D. subsequent within-margin pan → no extra rebuild', c3 === c2, `rebuilds ${c2}→${c3}`);
 
