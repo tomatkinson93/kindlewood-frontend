@@ -65,6 +65,13 @@ function updateSeasonProgress() {
   const changed = updated.index !== currentSeason?.index;
   currentSeason = updated;
   if (changed && typeof refreshResources === 'function') refreshResources();
+  // Map renderer hook (Phase 5): on a season flip, invalidate the season-
+  // dependent map layers (decor variants, palettes). Guarded — the KWMap
+  // controller may not exist on older deploys. renderSeasonBadge below also
+  // swaps the season CSS class, which the iso renderer reads for grading.
+  if (changed && window.KWMap && KWMap.controller && KWMap.controller.invalidate) {
+    try { KWMap.controller.invalidate('season'); } catch (e) {}
+  }
   renderSeasonBadge();
   renderSeasonPanel();
 }

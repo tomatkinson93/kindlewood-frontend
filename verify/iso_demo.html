@@ -57,7 +57,12 @@
   put(11,10,{ terrain:'mountain' });
   put(10,11,{ terrain:'mountain' });
 
-  worldMapData = { tiles, mapW:30, mapH:30, playerSettlement:{ q:15, r:14 } };
+  const season = new URLSearchParams(location.search).get('season');
+  if (season) {
+    const sg = document.getElementById('screen-game');
+    sg.className = sg.className.replace(/season-\w+/, 'season-' + season);
+  }
+  worldMapData = { tiles, mapW:30, mapH:30, playerSettlement:{ q:15, r:14 }, seasonId: season || 'summer' };
   camera.q = 15; camera.r = 14;
 
   if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();

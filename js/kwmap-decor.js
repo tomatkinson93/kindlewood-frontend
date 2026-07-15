@@ -231,6 +231,25 @@
     }
     const painter = PLACEHOLDERS[prop.type];
     if (painter) painter(ctx, cx, cy, prop.scale);
+    // Winter placeholder variant (spec §5.2 season chain): dust props with snow.
+    // Real winter art (decor.<key>_winter in the manifest) supersedes this.
+    if (season === 'winter') _winterCap(ctx, cx, cy, prop.scale, prop.type);
+  }
+
+  function _winterCap(ctx, cx, cy, sc, type) {
+    ctx.fillStyle = 'rgba(240,246,252,0.85)';
+    if (type === 'bush') {
+      ctx.beginPath(); ctx.arc(cx, cy - 5 * sc, 3.2 * sc, Math.PI, 0); ctx.fill();
+    } else if (type === 'tree_lone') {
+      ctx.beginPath(); ctx.arc(cx - 2 * sc, cy - 19 * sc, 4 * sc, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy - 14 * sc, 4.5 * sc, Math.PI, 0); ctx.fill();
+    } else if (type === 'rock_small') {
+      ctx.beginPath(); ctx.ellipse(cx, cy - 2.6 * sc, 2.6 * sc, 1 * sc, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'log') {
+      ctx.beginPath(); ctx.ellipse(cx, cy - 2.6 * sc, 4 * sc, 1 * sc, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (type === 'standing_stone') {
+      ctx.beginPath(); ctx.ellipse(cx - 0.5 * sc, cy - 12.5 * sc, 2.6 * sc, 1.1 * sc, 0, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   // ── Provider ──────────────────────────────────────────────────────────────

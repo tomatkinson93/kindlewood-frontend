@@ -504,6 +504,8 @@
     _lastFrameMs: 0,
     _invalid: true,                   // force a rebuild
     _hud: null,
+    _hazeOn: true,                    // haze/vignette (Phase 6 ladder may disable)
+    _tall: null,                      // depth-sorted TALL buffer
 
     camWX() { const g = geo(1, 1); return g.camPxX; },   // camera world-x (size-independent)
     camWY() { const g = geo(1, 1); return g.camPxY; },
@@ -541,6 +543,10 @@
         if (this._tall && this._tall.canvas)
           ctx.drawImage(this._tall.canvas, blitX, blitY, gr.bwCss, gr.bhCss); // tall (depth-sorted)
       }
+
+      // 4. Atmospheric haze + vignette — one radial gradient per frame (spec §7).
+      //    Degradation ladder (Phase 6) can disable via _hazeOn.
+      if (this._hazeOn) _drawHaze(ctx, W, H);
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);
@@ -708,13 +714,17 @@
       // selection ring
       if (ui.selected) {
         const t = tm.get(ui.selected.wq + ',' + ui.selected.wr);
-        if (!(t && t.settlement && t.settlement.isOwn)) {
-          const p = isoFirstVisibleCopy(ui.selected.wq, ui.selected.wr, W, H, true);
-          if (p) {
+        const p = isoFirstVisibleCopy(ui.selected.wq, ui.selected.wr, W, H, true);
+        if (p) {
+          if (!(t && t.settlement && t.settlement.isOwn)) {
             strokeHex(p);
             ctx.strokeStyle = 'rgba(255,220,80,0.95)'; ctx.lineWidth = 2.5; ctx.stroke();
             ctx.fillStyle = 'rgba(255,220,80,0.08)'; ctx.fill();
           }
+          // Selection beacon — a small pin above the tile on the uifx canvas
+          // (always on top), so a selection stays locatable even when the tile
+          // body is occluded by a canopy/massif in front (occlusion relief).
+          _drawBeacon(ctx, p.cx, p.y - 3);
         }
       }
       // fog selection
@@ -762,6 +772,39 @@
         `rebuilds ${this._rebuildCount} · season ${seasonId || '—'}`;
     },
   };
+
+  // ── Selection beacon (occlusion relief) — a small map-pin above the tile. ─
+  function _drawBeacon(ctx, x, tipY) {
+    const h = 12, w = 9;
+    const headY = tipY - h - 5;
+    ctx.save();
+    // downward spike
+    ctx.beginPath();
+    ctx.moveTo(x, tipY); ctx.lineTo(x - w * 0.42, tipY - h); ctx.lineTo(x + w * 0.42, tipY - h); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,205,60,0.95)'; ctx.fill();
+    // head
+    ctx.beginPath(); ctx.arc(x, headY, w * 0.62, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,218,88,0.96)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(120,80,10,0.55)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, headY, 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(90,60,10,0.9)'; ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Atmospheric haze + vignette (spec §7) ─────────────────────────────────
+  // One radial gradient per frame: transparent out to ~35% radius, then a low-
+  // alpha warm-grey wash toward the corners — depth cue + vignette in one cheap
+  // fill. Deliberately NOT baked into the buffers (that would force a rebuild
+  // every pan); one gradient reads the same at zero rebuild cost.
+  function _drawHaze(ctx, W, H) {
+    const cx = W / 2, cy = H / 2;
+    const r = Math.max(W, H) * 0.72;
+    const grd = ctx.createRadialGradient(cx, cy, r * 0.35, cx, cy, r);
+    grd.addColorStop(0, 'rgba(120,110,90,0)');
+    grd.addColorStop(1, 'rgba(120,110,90,0.18)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // ── Fog backdrop (reused verbatim from top-down's treatment) ──────────────
   function _drawFogBackdrop(ctx, W, H) {
