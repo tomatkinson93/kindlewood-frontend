@@ -175,7 +175,8 @@
         visible.push({ wq, wr, aq, ar, gx, gy });
       }
     }
-    return { visible, view: { qStart, rStart, rowsVisible, colsVisible, g, seasonId } };
+    const view = { qStart, rStart, rowsVisible, colsVisible, g, seasonId, visible };
+    return { visible, view };
   }
 
   // Collect TALL drawables across every registered tall-layer provider for the
@@ -185,26 +186,34 @@
     const map = tileMapFor(data);
     const posByKey = new Map();
     for (const vt of visible) posByKey.set(vt.wq + ',' + vt.wr, vt);
+    // TALL group = tall drawables from feature / building / outpost / NPC /
+    // player providers, plus TALL decor (L.DECOR). A drawable may carry a
+    // per-prop pixel offset (ox, oy) — decor scatters within the face.
     const providers = KW.controller.listProviders()
-      .filter(p => p.space !== 'screen' && isTallLayer(p.layer));
+      .filter(p => p.space !== 'screen' && (isTallLayer(p.layer) || p.layer === L.DECOR));
 
     const items = [];
     for (const p of providers) {
-      if (typeof p.collect !== 'function' || typeof p.draw !== 'function') continue;
+      if (typeof p.collect !== 'function') continue;
       const drawables = p.collect(view, data) || [];
       for (const d of drawables) {
+        const tall = d.tall !== undefined ? d.tall : isTallLayer(p.layer);
+        if (!tall) continue;                       // flat content → GROUND buffer
+        const draw = d.draw || p.draw;
+        if (typeof draw !== 'function') continue;
         const vt = posByKey.get(d.wq + ',' + d.wr);
         if (!vt) continue;
         const t = d.t || map.get(d.wq + ',' + d.wr);
         if (!t) continue;
         const elev = elevationOf(t.terrain);
-        const cx = vt.gx + g.hexW / 2;
-        const groundCentreY = vt.gy + g.faceH / 2;              // ground plane → sort + shadow
+        const ox = d.ox || 0, oy = d.oy || 0;
+        const cx = vt.gx + g.hexW / 2 + ox;
+        const groundCentreY = vt.gy + g.faceH / 2 + oy;         // ground plane → sort + shadow
         const faceCentreY = groundCentreY - elev * ISO.ELEV_PX;  // lifted face → sprite anchor
         items.push({
           wq: d.wq, wr: d.wr, groundY: groundCentreY, layer: p.layer, x: cx,
-          cx, cy: faceCentreY, groundCentreY,
-          draw: p.draw, ctx3: { g, seasonId: view.seasonId, t, heightPx: d.heightPx || 0 },
+          cx, cy: faceCentreY, groundCentreY, draw,
+          ctx3: { g, seasonId: view.seasonId, t, heightPx: d.heightPx || 0, d },
         });
       }
     }
@@ -592,24 +601,45 @@
     // raised faces overlap the tiles behind them.
     _rebuildGround(bctx, g, visible, view, data) {
       const map = tileMapFor(data);
+      // GROUND group = flat drawables from terrain / road / river / claim
+      // providers, plus FLAT decor (L.DECOR). Drawn in layer order; within a
+      // layer, scan order (back→front) for correct terrain overlap.
       const providers = KW.controller.listProviders()
-        .filter(p => p.space !== 'screen' && isGroundLayer(p.layer))
+        .filter(p => p.space !== 'screen' && (isGroundLayer(p.layer) || p.layer === L.DECOR))
         .sort((a, b) => a.layer - b.layer);
       const ctx3base = { g, seasonId: view.seasonId, frame: null };
       for (const p of providers) {
-        if (typeof p.collect !== 'function' || typeof p.draw !== 'function') continue;
+        if (typeof p.collect !== 'function') continue;
         const drawables = p.collect(view, data) || [];
-        const byKey = new Map();
-        for (const d of drawables) byKey.set(d.wq + ',' + d.wr, d);
+        // group flat drawables by tile (a tile may carry several, e.g. decor)
+        const byTile = new Map();
+        for (const d of drawables) {
+          const tall = d.tall !== undefined ? d.tall : isTallLayer(p.layer);
+          if (tall) continue;                       // tall content → TALL buffer
+          const k = d.wq + ',' + d.wr;
+          let arr = byTile.get(k); if (!arr) { arr = []; byTile.set(k, arr); }
+          arr.push(d);
+        }
         for (const vt of visible) {      // scan order → correct overlap
-          const d = byKey.get(vt.wq + ',' + vt.wr);
-          if (!d) continue;
-          const t = d.t || map.get(vt.wq + ',' + vt.wr);
+          const arr = byTile.get(vt.wq + ',' + vt.wr);
+          if (!arr) continue;
+          const t = map.get(vt.wq + ',' + vt.wr);
           if (!t) continue;
           const elev = elevationOf(t.terrain);
-          const x = vt.gx, y = vt.gy - elev * ISO.ELEV_PX;   // lift the face
+          const x = vt.gx, y = vt.gy - elev * ISO.ELEV_PX;   // face top-left (lifted)
           ctx3base.t = t; ctx3base.wq = vt.wq; ctx3base.wr = vt.wr;
-          p.draw(bctx, x, y, ctx3base);
+          for (const d of arr) {
+            ctx3base.d = d;
+            if (typeof d.draw === 'function') {
+              // self-drawing, centre-anchored drawable (decor) — pass the prop
+              // centre + offset on the lifted face, matching the TALL convention.
+              const cx = vt.gx + g.hexW / 2 + (d.ox || 0);
+              const cy = y + g.faceH / 2 + (d.oy || 0);
+              d.draw(bctx, cx, cy, ctx3base);
+            } else if (typeof p.draw === 'function') {
+              p.draw(bctx, x, y, ctx3base);          // face top-left (terrain / claims)
+            }
+          }
         }
       }
     },
