@@ -147,6 +147,200 @@
     ctx.closePath();
   }
 
+  // Visible tiles covering the BUFFER region, deduped in window/scan order.
+  // Shared by the GROUND and TALL rebuilds. Each entry carries the face
+  // top-left in buffer-pixel space on the ground plane (elevation applied
+  // per-tile by the consumer).
+  function _collectVisible(g, bufWX, bufWY, bwCss, bhCss, seasonId) {
+    const rowsVisible = Math.ceil(bhCss / (g.hexVert * ISO.K)) + 12;
+    const colsVisible = Math.ceil(bwCss / g.hexW) + rowsVisible + 4;
+    const centreWX = bufWX + bwCss / 2, centreWY = bufWY + bhCss / 2;
+    const centreR = centreWY / (g.hexVert * ISO.K);
+    const centreQ = centreWX / g.hexW - centreR / 2;
+    const qStart = Math.round(centreQ) - Math.ceil(colsVisible / 2);
+    const rStart = Math.round(centreR) - Math.ceil(rowsVisible / 2);
+    const seen = new Set();
+    const visible = [];
+    for (let dr = 0; dr < rowsVisible; dr++) {
+      for (let dq = 0; dq < colsVisible; dq++) {
+        const aq = qStart + dq, ar = rStart + dr;
+        const wq = ((aq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
+        const wr = ((ar % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
+        const key = wq + ',' + wr;
+        if (seen.has(key)) continue;
+        const gx = isoGroundX(aq, ar, g) - g.hexW / 2 - bufWX;
+        const gy = isoGroundY(aq, ar, g) - g.faceH / 2 - bufWY;
+        if (gx < -g.hexW * 2 || gx > bwCss + g.hexW || gy < -g.hexH * 2 || gy > bhCss + g.hexH) continue;
+        seen.add(key);
+        visible.push({ wq, wr, aq, ar, gx, gy });
+      }
+    }
+    return { visible, view: { qStart, rStart, rowsVisible, colsVisible, g, seasonId } };
+  }
+
+  // Collect TALL drawables across every registered tall-layer provider for the
+  // visible window, tag each with its tile's projected geometry, and return them
+  // depth-sorted by (drawn-copy ground-Y, layer, x) — spec §3.2.
+  function _collectTallItems(g, visible, view, data) {
+    const map = tileMapFor(data);
+    const posByKey = new Map();
+    for (const vt of visible) posByKey.set(vt.wq + ',' + vt.wr, vt);
+    const providers = KW.controller.listProviders()
+      .filter(p => p.space !== 'screen' && isTallLayer(p.layer));
+
+    const items = [];
+    for (const p of providers) {
+      if (typeof p.collect !== 'function' || typeof p.draw !== 'function') continue;
+      const drawables = p.collect(view, data) || [];
+      for (const d of drawables) {
+        const vt = posByKey.get(d.wq + ',' + d.wr);
+        if (!vt) continue;
+        const t = d.t || map.get(d.wq + ',' + d.wr);
+        if (!t) continue;
+        const elev = elevationOf(t.terrain);
+        const cx = vt.gx + g.hexW / 2;
+        const groundCentreY = vt.gy + g.faceH / 2;              // ground plane → sort + shadow
+        const faceCentreY = groundCentreY - elev * ISO.ELEV_PX;  // lifted face → sprite anchor
+        items.push({
+          wq: d.wq, wr: d.wr, groundY: groundCentreY, layer: p.layer, x: cx,
+          cx, cy: faceCentreY, groundCentreY,
+          draw: p.draw, ctx3: { g, seasonId: view.seasonId, t, heightPx: d.heightPx || 0 },
+        });
+      }
+    }
+    // depth sort: back→front, layer tie-break within a ground position, then x
+    items.sort((a, b) => (a.groundY - b.groundY) || (a.layer - b.layer) || (a.x - b.x));
+    return items;
+  }
+
+  // Cheap FNV-style signature of the mutable, render-affecting tile fields.
+  // Changes when terrain / settlement / outpost / claim state changes, so the
+  // buffered iso view refreshes without the frozen main.js firing invalidate.
+  function _contentSig(data) {
+    if (!data || !data.tiles) return 0;
+    let h = 2166136261 >>> 0;
+    for (const t of data.tiles) {
+      let c = 0;
+      if (t.settlement) {
+        const s = t.settlement;
+        c |= 1 | (s.isOwn ? 2 : 0) | (s.is_kingdom ? 4 : 0)
+          | (s.settlement_type === 'npc' ? 8 : 0)
+          | (s.settlement_type === 'hostile' ? 16 : 0)
+          | (s.settlement_type === 'kingdom' ? 32 : 0);
+      }
+      if (t.outpost) c |= 64 | (t.outpost.mine ? 128 : 0);
+      if (t.claimed_by_me) c |= 256;
+      if (t.claim_owner) c |= 512;
+      const tc = t.terrain ? t.terrain.charCodeAt(0) : 0;
+      h = (h ^ (((t.q * 73856093) ^ (t.r * 19349663) ^ (c * 97 + tc)) >>> 0)) >>> 0;
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h;
+  }
+
+  // Soft contact-shadow ellipse under a TALL drawable (spec §7). Sells the lift.
+  function _contactShadow(ctx, cx, cy, g) {
+    const rx = g.hexW * 0.34, ry = g.faceH * 0.30;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    grd.addColorStop(0, 'rgba(0,0,0,0.24)');
+    grd.addColorStop(0.65, 'rgba(0,0,0,0.12)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(0, 0, rx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Placeholder TALL sprites (deterministic canvas primitives — no pixelart
+  //    dependency, so they render identically in node and browser). Anchored at
+  //    the tile's lifted face centre (cx, cy), rising upward. ─────────────────
+  function _drawCanopy(ctx, cx, cy, g) {
+    // trunk hint
+    ctx.fillStyle = 'rgba(58,40,22,0.9)';
+    ctx.fillRect(cx - 1.5, cy - 5, 3, 8);
+    // foliage mass — layered blobs (dark → light), wide enough to read as canopy
+    const blobs = [
+      [-8, -7, 9, '#26401a'], [8, -7, 9, '#26401a'], [0, -9, 11, '#2b491d'],
+      [-5, -15, 8, '#345520'], [5, -15, 8, '#345520'], [0, -21, 9, '#3f6628'],
+      [-2, -25, 5, '#4c7832'],
+    ];
+    for (const [dx, dy, r, col] of blobs) {
+      ctx.beginPath(); ctx.fillStyle = col; ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // top-left highlight (light baked top-left, spec §7)
+    ctx.beginPath(); ctx.fillStyle = 'rgba(140,178,96,0.5)';
+    ctx.arc(cx - 4, cy - 24, 3.2, 0, Math.PI * 2); ctx.fill();
+  }
+  function _drawMassif(ctx, cx, cy, g) {
+    // rocky peak rising above the (already lifted) mountain face
+    const apexY = cy - 32, baseY = cy + 3, hw = 14;
+    ctx.beginPath();
+    ctx.moveTo(cx, apexY); ctx.lineTo(cx + hw, baseY); ctx.lineTo(cx - hw, baseY); ctx.closePath();
+    ctx.fillStyle = '#463f38'; ctx.fill();
+    // lit left face
+    ctx.beginPath();
+    ctx.moveTo(cx, apexY); ctx.lineTo(cx - hw, baseY); ctx.lineTo(cx - 2, baseY); ctx.closePath();
+    ctx.fillStyle = '#5e564c'; ctx.fill();
+    // snow cap
+    ctx.beginPath();
+    ctx.moveTo(cx, apexY); ctx.lineTo(cx + 6, apexY + 12); ctx.lineTo(cx - 6, apexY + 12); ctx.closePath();
+    ctx.fillStyle = '#eef2f5'; ctx.fill();
+  }
+  function _drawRelief(ctx, cx, cy, g) {
+    // low rounded rise for hills — modest vertical presence over the face
+    ctx.beginPath();
+    ctx.moveTo(cx - 15, cy + 3);
+    ctx.quadraticCurveTo(cx - 7, cy - 12, cx + 2, cy - 9);
+    ctx.quadraticCurveTo(cx + 12, cy - 6, cx + 15, cy + 3);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(122,96,56,0.92)'; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx - 15, cy + 3);
+    ctx.quadraticCurveTo(cx - 9, cy - 9, cx - 2, cy - 8);
+    ctx.lineTo(cx - 4, cy + 3); ctx.closePath();
+    ctx.fillStyle = 'rgba(160,132,88,0.55)'; ctx.fill();   // top-left light
+  }
+  // Settlement / outpost token (disc + emoji), now a shadowed TALL drawable.
+  function _drawSettlementToken(ctx, cx, cy, ctx3) {
+    const { g, t } = ctx3;
+    const s = t.settlement;
+    const sType = s.settlement_type || (s.is_kingdom ? 'kingdom' : s.disposition === 'hostile' ? 'hostile' : (s.isOwn ? 'player' : 'npc'));
+    let fill = 'rgba(60,90,150,0.9)', ring = 'rgba(255,210,120,0.95)', glyph = '🏘';
+    if (sType === 'kingdom') { fill = 'rgba(140,100,5,0.9)'; ring = 'rgba(255,215,50,0.98)'; glyph = '👑'; }
+    else if (sType === 'hostile') { fill = 'rgba(100,8,8,0.9)'; ring = 'rgba(240,50,30,0.95)'; glyph = '💀'; }
+    else if (sType === 'npc') { fill = 'rgba(20,110,80,0.9)'; ring = 'rgba(60,220,150,0.95)'; glyph = '🏡'; }
+    const r = Math.min(g.hexW, g.faceH) * 0.72;
+    const dy = -r * 0.35;                        // sit the token slightly up
+    ctx.beginPath(); ctx.arc(cx, cy + dy, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = ring; ctx.lineWidth = 2.2; ctx.stroke();
+    if (g.hexW >= 36) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = Math.round(g.faceH * 0.72) + 'px serif';
+      ctx.fillText(glyph, cx, cy + dy);
+    }
+  }
+  function _drawOutpostToken(ctx, cx, cy, ctx3) {
+    const { g, t } = ctx3;
+    const op = t.outpost;
+    const r = Math.min(g.hexW, g.faceH) * 0.44;
+    const dy = -r * 0.35;
+    ctx.beginPath(); ctx.arc(cx, cy + dy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(40,30,18,0.82)'; ctx.fill();
+    ctx.strokeStyle = op.mine ? 'rgba(230,190,90,0.9)' : 'rgba(150,140,120,0.6)';
+    ctx.lineWidth = op.mine ? 2 : 1.4; ctx.stroke();
+    if (g.hexW >= 36) {
+      const glyph = (typeof OUTPOST_ICONS !== 'undefined' && OUTPOST_ICONS[op.terrain]) || '⛺';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = Math.round(g.faceH * 0.55) + 'px serif';
+      ctx.fillText(glyph, cx, cy + dy + 1);
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   //  Built-in GROUND providers (spec §3.0/§3.1) — registered on the layer
   //  stack so the registry is exercised, not decorative. Read-only consumers.
@@ -224,13 +418,67 @@
     },
   };
 
+  // ── Built-in TALL providers (spec §3.1) — depth-sorted into the TALL buffer.
+  // terrain-features: the terrain's tall body (canopy / massif / hill relief).
+  const terrainFeaturesProvider = {
+    id: 'terrain-features', layer: L.TERRAIN_FEATURE, space: 'world',
+    collect(view, mapState) {
+      const out = [];
+      if (!mapState || !mapState.tiles) return out;
+      for (const t of mapState.tiles) {
+        if (!t) continue;
+        if (t.terrain === 'forest') out.push({ wq: t.q, wr: t.r, heightPx: 30, t });
+        else if (t.terrain === 'mountain') out.push({ wq: t.q, wr: t.r, heightPx: 40, t });
+        else if (t.terrain === 'hills') out.push({ wq: t.q, wr: t.r, heightPx: 14, t });
+      }
+      return out;
+    },
+    draw(ctx, cx, cy, ctx3) {
+      const terrain = ctx3.t.terrain;
+      if (terrain === 'forest') _drawCanopy(ctx, cx, cy, ctx3.g);
+      else if (terrain === 'mountain') _drawMassif(ctx, cx, cy, ctx3.g);
+      else if (terrain === 'hills') _drawRelief(ctx, cx, cy, ctx3.g);
+    },
+  };
+
+  // settlements: player / NPC / kingdom / hostile buildings.
+  const settlementsProvider = {
+    id: 'settlements', layer: L.BUILDING, space: 'world',
+    collect(view, mapState) {
+      const out = [];
+      if (!mapState || !mapState.tiles) return out;
+      for (const t of mapState.tiles) if (t && t.settlement) out.push({ wq: t.q, wr: t.r, heightPx: 18, t });
+      return out;
+    },
+    draw(ctx, cx, cy, ctx3) { _drawSettlementToken(ctx, cx, cy, ctx3); },
+  };
+
+  // outposts: outpost stamps (only where there is no settlement).
+  const outpostsProvider = {
+    id: 'outposts', layer: L.OUTPOST, space: 'world',
+    collect(view, mapState) {
+      const out = [];
+      if (!mapState || !mapState.tiles) return out;
+      for (const t of mapState.tiles) if (t && t.outpost && !t.settlement) out.push({ wq: t.q, wr: t.r, heightPx: 12, t });
+      return out;
+    },
+    draw(ctx, cx, cy, ctx3) { _drawOutpostToken(ctx, cx, cy, ctx3); },
+  };
+
   // Register with the controller (dedup-safe; layer-sorted). The iso renderer
-  // consumes controller.listProviders() filtered to the ground group.
+  // consumes controller.listProviders() filtered to the ground / tall groups.
   KW.controller.register(terrainProvider);
   KW.controller.register(claimsProvider);
+  KW.controller.register(terrainFeaturesProvider);
+  KW.controller.register(settlementsProvider);
+  KW.controller.register(outpostsProvider);
 
   const GROUND_LAYERS = [L.TERRAIN, L.ROAD, L.RIVER_OVERLAY, L.CLAIM_BORDER];   // + flat DECOR later
   const isGroundLayer = (layer) => GROUND_LAYERS.indexOf(layer) !== -1;
+  // TALL group (spec §3.1): terrain features, tall decor (Phase 4), buildings,
+  // outposts, quest markers, NPC, player. Depth-sorted, contact-shadowed.
+  const TALL_LAYERS = [L.TERRAIN_FEATURE, L.BUILDING, L.OUTPOST, L.QUEST_MARKER, L.NPC, L.PLAYER];
+  const isTallLayer = (layer) => TALL_LAYERS.indexOf(layer) !== -1;
 
   // ══════════════════════════════════════════════════════════════════════════
   //  The renderer
@@ -260,6 +508,13 @@
       const g = geo(W, H);
       const seasonId = data.seasonId || _currentSeasonId();
 
+      // Content signature — cheap read-only pass so buffered ground/tall content
+      // (claims, settlements, outposts, terrain edits) refreshes on change even
+      // though the frozen main.js never calls invalidate('tiles'). Phase 4a
+      // wires real invalidation and this can drop away.
+      const sig = _contentSig(data);
+      if (sig !== this._sig) { this._sig = sig; this._invalid = true; }
+
       // 1. Clear to the unified border tone (same as top-down's clear).
       ctx.fillStyle = '#3a2e22';
       ctx.fillRect(0, 0, W, H);
@@ -267,25 +522,25 @@
       // 2. Fog cloud backdrop — verbatim treatment from top-down.
       _drawFogBackdrop(ctx, W, H);
 
-      // 3. GROUND buffer — rebuild if needed, then blit.
-      this._ensureGround(g, W, H, dpr, seasonId, data);
+      // 3. GROUND + TALL buffers — rebuild if needed, then blit in order.
+      this._ensureBuffers(g, W, H, dpr, seasonId, data);
       const gr = this._ground;
       if (gr) {
         const blitX = Math.round(g.cx + gr.bufWX - g.camPxX);
         const blitY = Math.round(g.cy + gr.bufWY - g.camPxY);
-        ctx.drawImage(gr.canvas, blitX, blitY, gr.bwCss, gr.bhCss);
+        ctx.drawImage(gr.canvas, blitX, blitY, gr.bwCss, gr.bhCss);           // ground
+        if (this._tall && this._tall.canvas)
+          ctx.drawImage(this._tall.canvas, blitX, blitY, gr.bwCss, gr.bhCss); // tall (depth-sorted)
       }
-
-      // 4. Temporary flat markers (settlements/outposts) — Phase 3 makes these
-      //    real depth-sorted sprites in the TALL buffer.
-      _drawMarkers(ctx, W, H, data);
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);
     },
 
-    // ── GROUND buffer lifecycle ───────────────────────────────────────────
-    _ensureGround(g, W, H, dpr, seasonId, data) {
+    // ── GROUND + TALL buffer lifecycle ────────────────────────────────────
+    // Both buffers share one origin/size/scan and rebuild in lockstep on the
+    // same triggers (margin-cross / resize / dpr / season / invalidate).
+    _ensureBuffers(g, W, H, dpr, seasonId, data) {
       const camWX = g.camPxX, camWY = g.camPxY;
       const gr = this._ground;
       const bwCss = W + 2 * MARGIN, bhCss = H + 2 * MARGIN;
@@ -296,73 +551,51 @@
         || Math.abs(camWY - gr.camWY0) > MARGIN;
       if (!need) return;
 
-      let canvas, bctx;
-      if (gr && gr.canvas && gr.bwCss === bwCss && gr.bhCss === bhCss && gr.dpr === dpr) {
-        canvas = gr.canvas; bctx = gr.ctx;
-      } else {
-        canvas = document.createElement('canvas');
-        canvas.width = Math.round(bwCss * dpr);
-        canvas.height = Math.round(bhCss * dpr);
-        bctx = canvas.getContext('2d');
-      }
-      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      bctx.clearRect(0, 0, bwCss, bhCss);
-
+      const t0 = (typeof performance !== 'undefined' ? performance.now() : 0);
       const bufWX = camWX - g.cx - MARGIN;
       const bufWY = camWY - g.cy - MARGIN;
-      this._rebuildGround(bctx, g, bufWX, bufWY, bwCss, bhCss, seasonId, data);
+
+      // One visible-tile scan shared by both buffers.
+      const { visible, view } = _collectVisible(g, bufWX, bufWY, bwCss, bhCss, seasonId);
+
+      const gc = this._makeBuf(gr && gr.canvas, bwCss, bhCss, dpr);
+      gc.ctx.clearRect(0, 0, bwCss, bhCss);
+      this._rebuildGround(gc.ctx, g, visible, view, data);
+
+      const tc = this._makeBuf(this._tall && this._tall.canvas, bwCss, bhCss, dpr);
+      tc.ctx.clearRect(0, 0, bwCss, bhCss);
+      this._rebuildTall(tc.ctx, g, visible, view, data);
 
       this._ground = {
-        canvas, ctx: bctx, bufWX, bufWY, bwCss, bhCss,
+        canvas: gc.canvas, ctx: gc.ctx, bufWX, bufWY, bwCss, bhCss,
         camWX0: camWX, camWY0: camWY, dpr, W, H, seasonKey: seasonId,
       };
+      this._tall = { canvas: tc.canvas, ctx: tc.ctx };
       this._invalid = false;
       this._rebuildCount++;
+      this._lastRebuildMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
     },
 
-    // Paint the ground group into the buffer (buffer-pixel space). Tiles are
-    // scanned in window/dedup order (row-ascending = back→front) so raised
-    // terrain faces correctly overlap the tiles behind them. Providers are
-    // applied in layer order: all terrain (scan order), then all claims.
-    _rebuildGround(bctx, g, bufWX, bufWY, bwCss, bhCss, seasonId, data) {
-      const t0 = (typeof performance !== 'undefined' ? performance.now() : 0);
+    // Create (or reuse when same size) an offscreen buffer canvas.
+    _makeBuf(existing, bwCss, bhCss, dpr) {
+      const pw = Math.round(bwCss * dpr), ph = Math.round(bhCss * dpr);
+      let canvas;
+      if (existing && existing.width === pw && existing.height === ph) canvas = existing;
+      else { canvas = document.createElement('canvas'); canvas.width = pw; canvas.height = ph; }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { canvas, ctx };
+    },
 
-      // Visible tiles covering the BUFFER region, deduped in scan order.
-      const rowsVisible = Math.ceil(bhCss / (g.hexVert * ISO.K)) + 12;
-      const colsVisible = Math.ceil(bwCss / g.hexW) + rowsVisible + 4;
-      // Buffer's top-left world point maps to (bufWX, bufWY). Centre the scan
-      // on the buffer centre in axial space.
-      const centreWX = bufWX + bwCss / 2, centreWY = bufWY + bhCss / 2;
-      const centreR = (centreWY / (g.hexVert * ISO.K));
-      const centreQ = (centreWX / g.hexW) - centreR / 2;
-      const qStart = Math.round(centreQ) - Math.ceil(colsVisible / 2);
-      const rStart = Math.round(centreR) - Math.ceil(rowsVisible / 2);
-
-      const seen = new Set();
-      const visible = [];              // scan order
-      for (let dr = 0; dr < rowsVisible; dr++) {
-        for (let dq = 0; dq < colsVisible; dq++) {
-          const aq = qStart + dq, ar = rStart + dr;
-          const wq = ((aq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
-          const wr = ((ar % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
-          const key = wq + ',' + wr;
-          if (seen.has(key)) continue;
-          // buffer-pixel face top-left (ground plane; elevation applied per-tile)
-          const gx = isoGroundX(aq, ar, g) - g.hexW / 2 - bufWX;
-          const gy = isoGroundY(aq, ar, g) - g.faceH / 2 - bufWY;
-          if (gx < -g.hexW * 2 || gx > bwCss + g.hexW || gy < -g.hexH * 2 || gy > bhCss + g.hexH) continue;
-          seen.add(key);
-          visible.push({ wq, wr, gx, gy });
-        }
-      }
-
+    // GROUND group (spec §3.1): terrain faces + skirts, then claim borders, in
+    // layer order. Within terrain, scan order (row-ascending = back→front) so
+    // raised faces overlap the tiles behind them.
+    _rebuildGround(bctx, g, visible, view, data) {
       const map = tileMapFor(data);
       const providers = KW.controller.listProviders()
         .filter(p => p.space !== 'screen' && isGroundLayer(p.layer))
         .sort((a, b) => a.layer - b.layer);
-
-      const view = { qStart, rStart, rowsVisible, colsVisible, g, seasonId };
-      const ctx3base = { g, seasonId, frame: null };
+      const ctx3base = { g, seasonId: view.seasonId, frame: null };
       for (const p of providers) {
         if (typeof p.collect !== 'function' || typeof p.draw !== 'function') continue;
         const drawables = p.collect(view, data) || [];
@@ -379,8 +612,30 @@
           p.draw(bctx, x, y, ctx3base);
         }
       }
+    },
 
-      this._lastRebuildMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
+    // TALL group (spec §3.1/§3.2): terrain features, buildings, outposts (+
+    // future NPC/player) collected across providers, then ONE depth-sorted pass
+    // by (drawn-copy ground-Y, layer, x) — back→front with layer as the within-
+    // position tie-breaker. Each drawable gets a contact-shadow ellipse before
+    // its sprite. Sprites anchor at the tile's (lifted) face centre and rise up.
+    _rebuildTall(tctx, g, visible, view, data) {
+      const items = _collectTallItems(g, visible, view, data);
+      for (const it of items) {
+        _contactShadow(tctx, it.cx, it.groundCentreY, g);
+        it.draw(tctx, it.cx, it.cy, it.ctx3);
+      }
+    },
+
+    // Test/debug affordance: the depth-sorted TALL draw order for the current
+    // camera as [{wq, wr, layer}], back→front. Used by the layer-contract
+    // proofs (§12.10). No side effects.
+    _computeTallOrder(W, H, data) {
+      const g = geo(W, H);
+      const bwCss = W + 2 * MARGIN, bhCss = H + 2 * MARGIN;
+      const bufWX = g.camPxX - g.cx - MARGIN, bufWY = g.camPxY - g.cy - MARGIN;
+      const { visible, view } = _collectVisible(g, bufWX, bufWY, bwCss, bhCss, null);
+      return _collectTallItems(g, visible, view, data).map(it => ({ wq: it.wq, wr: it.wr, layer: it.layer }));
     },
 
     // ── Interaction ─────────────────────────────────────────────────────────
@@ -483,44 +738,6 @@
     ctx.globalAlpha = _fogImg._painted ? 0.94 : 0.58;
     ctx.drawImage(_fogImg, (W - drawSize) / 2 + driftX, (H - drawSize) / 2 + driftY, drawSize, drawSize);
     ctx.globalAlpha = 1;
-  }
-
-  // ── Temporary settlement / outpost markers (screen-space, per frame) ──────
-  function _drawMarkers(ctx, W, H, data) {
-    if (!data || !data.tiles) return;
-    const showEmoji = TILE_PX() >= 36;
-    for (const t of data.tiles) {
-      if (!t || (!t.settlement && !t.outpost)) continue;
-      const p = isoFirstVisibleCopy(t.q, t.r, W, H, true);
-      if (!p) continue;
-      const cx = p.cx, cy = p.cy;
-      const r2 = Math.min(p.hexW, p.faceH) * 0.7;
-      if (t.settlement) {
-        const s = t.settlement;
-        const sType = s.settlement_type || (s.is_kingdom ? 'kingdom' : s.disposition === 'hostile' ? 'hostile' : (s.isOwn ? 'player' : 'npc'));
-        let fill = 'rgba(200,160,60,0.85)', ring = 'rgba(255,210,120,0.95)', glyph = '🏘';
-        if (sType === 'kingdom') { fill = 'rgba(140,100,5,0.85)'; ring = 'rgba(255,215,50,0.98)'; glyph = '👑'; }
-        else if (sType === 'hostile') { fill = 'rgba(100,8,8,0.85)'; ring = 'rgba(240,50,30,0.95)'; glyph = '💀'; }
-        else if (sType === 'npc') { fill = 'rgba(20,110,80,0.85)'; ring = 'rgba(60,220,150,0.95)'; glyph = '🏡'; }
-        else if (s.isOwn) { fill = 'rgba(60,90,150,0.85)'; ring = 'rgba(255,210,120,0.95)'; glyph = '🏘'; }
-        ctx.beginPath(); ctx.arc(cx, cy, r2, 0, Math.PI * 2);
-        ctx.fillStyle = fill; ctx.fill();
-        ctx.strokeStyle = ring; ctx.lineWidth = 2.2; ctx.stroke();
-        if (showEmoji) { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `${Math.round(p.faceH * 0.7)}px serif`; ctx.fillText(glyph, cx, cy); }
-      } else if (t.outpost && !t.settlement) {
-        const op = t.outpost;
-        const orr = Math.min(p.hexW, p.faceH) * 0.42;
-        ctx.beginPath(); ctx.arc(cx, cy, orr, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(40,30,18,0.78)'; ctx.fill();
-        ctx.strokeStyle = op.mine ? 'rgba(230,190,90,0.9)' : 'rgba(150,140,120,0.6)';
-        ctx.lineWidth = op.mine ? 2 : 1.4; ctx.stroke();
-        if (showEmoji) {
-          const glyph = (typeof OUTPOST_ICONS !== 'undefined' && OUTPOST_ICONS[op.terrain]) || '⛺';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `${Math.round(p.faceH * 0.55)}px serif`;
-          ctx.fillText(glyph, cx, cy + 1);
-        }
-      }
-    }
   }
 
   // ── Season id (DOM-class-driven, decoupled like season-atmosphere.js) ─────
