@@ -17,7 +17,7 @@ stream. Decorations are NEVER consulted by hit-testing or any gameplay route.
 | path | change | `?v=` |
 |---|---|---|
 | `js/kwmap-decor.js` | NEW — decor tables, seeded placement, provider on `L.DECOR`, procedural placeholder sprites | `?v=1` |
-| `js/kwmap-iso.js` | consumption generalized to route drawables flat→GROUND / tall→TALL and allow several props per tile | `?v=3` → **`?v=4`** |
+| `js/kwmap-iso.js` | consumption generalized + flat-decor face clipping | `?v=3` → **`?v=5`** |
 | `index.html` | added the decor script tag; bumped `kwmap-iso.js` to `?v=4` | — |
 
 `kwmap-core.js`, `kwmap-assets.js`, `kwmap-topdown.js`, `main.js`, and

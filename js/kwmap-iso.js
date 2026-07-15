@@ -633,9 +633,15 @@
             if (typeof d.draw === 'function') {
               // self-drawing, centre-anchored drawable (decor) — pass the prop
               // centre + offset on the lifted face, matching the TALL convention.
+              // Clip to the tile's face so a prop placed near the edge can't
+              // spill over the cliff/skirt of the tile in front of it.
               const cx = vt.gx + g.hexW / 2 + (d.ox || 0);
               const cy = y + g.faceH / 2 + (d.oy || 0);
+              bctx.save();
+              isoHexPath(bctx, x, y, g.hexW, g.faceH);
+              bctx.clip();
               d.draw(bctx, cx, cy, ctx3base);
+              bctx.restore();
             } else if (typeof p.draw === 'function') {
               p.draw(bctx, x, y, ctx3base);          // face top-left (terrain / claims)
             }
