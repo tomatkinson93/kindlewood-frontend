@@ -237,18 +237,21 @@
   }
 
   function _winterCap(ctx, cx, cy, sc, type) {
-    ctx.fillStyle = 'rgba(240,246,252,0.85)';
+    // Soft snow dusting — capped arcs sitting ON TOP of the prop, low alpha so
+    // it reads as a light coating rather than a hard white blob.
+    ctx.fillStyle = 'rgba(238,244,250,0.62)';
     if (type === 'bush') {
-      ctx.beginPath(); ctx.arc(cx, cy - 5 * sc, 3.2 * sc, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx - 1.5 * sc, cy - 5.5 * sc, 2.4 * sc, 1.5 * sc, 0, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + 1.8 * sc, cy - 5.2 * sc, 2 * sc, 1.3 * sc, 0, Math.PI, 0); ctx.fill();
     } else if (type === 'tree_lone') {
-      ctx.beginPath(); ctx.arc(cx - 2 * sc, cy - 19 * sc, 4 * sc, Math.PI, 0); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx, cy - 14 * sc, 4.5 * sc, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx - 2 * sc, cy - 19.5 * sc, 3 * sc, 1.6 * sc, 0, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + 1.5 * sc, cy - 14.5 * sc, 2.6 * sc, 1.5 * sc, 0, Math.PI, 0); ctx.fill();
     } else if (type === 'rock_small') {
-      ctx.beginPath(); ctx.ellipse(cx, cy - 2.6 * sc, 2.6 * sc, 1 * sc, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx - 0.4 * sc, cy - 2.8 * sc, 2.2 * sc, 0.9 * sc, 0, Math.PI, 0); ctx.fill();
     } else if (type === 'log') {
-      ctx.beginPath(); ctx.ellipse(cx, cy - 2.6 * sc, 4 * sc, 1 * sc, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx, cy - 2.6 * sc, 3.4 * sc, 0.9 * sc, 0, Math.PI, 0); ctx.fill();
     } else if (type === 'standing_stone') {
-      ctx.beginPath(); ctx.ellipse(cx - 0.5 * sc, cy - 12.5 * sc, 2.6 * sc, 1.1 * sc, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx - 0.5 * sc, cy - 12.6 * sc, 2.2 * sc, 1 * sc, 0, Math.PI, 0); ctx.fill();
     }
   }
 

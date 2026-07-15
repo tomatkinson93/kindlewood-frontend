@@ -30,9 +30,10 @@ const PLAINS = `(function(){const tiles=[];for(let q=0;q<40;q++)for(let r=0;r<40
   const e = env5(PLAINS);
   run(e, 'KWMap.controller.renderFrame(100);');
   const grads = e.logs.map.filter(op => op[0] === 'createRadialGradient').length;
-  const fullFill = e.logs.map.some(op => op[0] === 'fillRect' && op[3] === 1400 && op[4] === 800);
+  // aspect-fitted elliptical vignette: gradient drawn inside a save/scale/fill.
+  const scaled = e.logs.map.some(op => op[0] === 'scale');
   check('1. haze draws exactly one radial gradient on the map canvas', grads === 1, `${grads} gradients`);
-  check('1. haze is a full-frame gradient fill', fullFill);
+  check('1. haze is aspect-scaled (elliptical vignette, all edges)', scaled);
   // ladder off-switch
   run(e, 'KWMap.controller.active._hazeOn = false;');
   e.logs.map.length = 0;

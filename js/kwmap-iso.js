@@ -797,13 +797,20 @@
   // fill. Deliberately NOT baked into the buffers (that would force a rebuild
   // every pan); one gradient reads the same at zero rebuild cost.
   function _drawHaze(ctx, W, H) {
-    const cx = W / 2, cy = H / 2;
-    const r = Math.max(W, H) * 0.72;
-    const grd = ctx.createRadialGradient(cx, cy, r * 0.35, cx, cy, r);
-    grd.addColorStop(0, 'rgba(120,110,90,0)');
-    grd.addColorStop(1, 'rgba(120,110,90,0.18)');
+    // Aspect-fitted elliptical vignette so ALL edges darken evenly (a circular
+    // gradient sized to max(W,H) barely touches the short edges on a wide map).
+    // Transparent out to ~42% then a warm-dark wash toward the corners.
+    const mx = Math.max(W, H);
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(W / mx, H / mx);
+    const rad = mx / 2;
+    const grd = ctx.createRadialGradient(0, 0, rad * 0.42, 0, 0, rad * 1.02);
+    grd.addColorStop(0, 'rgba(44,34,22,0)');
+    grd.addColorStop(1, 'rgba(36,27,17,0.34)');
     ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(-mx * 2, -mx * 2, mx * 4, mx * 4);
+    ctx.restore();
   }
 
   // ── Fog backdrop (reused verbatim from top-down's treatment) ──────────────
