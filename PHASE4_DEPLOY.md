@@ -18,7 +18,7 @@ stream. Decorations are NEVER consulted by hit-testing or any gameplay route.
 |---|---|---|
 | `js/kwmap-decor.js` | NEW — decor tables, seeded placement, provider on `L.DECOR`, procedural placeholder sprites | `?v=1` |
 | `js/kwmap-iso.js` | consumption generalized + flat-decor face clipping | `?v=3` → **`?v=5`** |
-| `index.html` | added the decor script tag; bumped `kwmap-iso.js` to `?v=4` | — |
+| `index.html` | added the decor script tag; bumped `kwmap-iso.js` to `?v=5` | — |
 
 `kwmap-core.js`, `kwmap-assets.js`, `kwmap-topdown.js`, `main.js`, and
 `assets/iso/manifest.json` are unchanged from Phase 3.
@@ -26,7 +26,7 @@ stream. Decorations are NEVER consulted by hit-testing or any gameplay route.
 Index load order (decor loads after the iso renderer):
 ```html
 <script src="/js/kwmap-assets.js?v=1"></script>
-<script src="/js/kwmap-iso.js?v=4"></script>
+<script src="/js/kwmap-iso.js?v=5"></script>
 <script src="/js/kwmap-decor.js?v=1"></script>
 ```
 
