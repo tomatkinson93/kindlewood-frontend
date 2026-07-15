@@ -3181,6 +3181,23 @@
   cursor: pointer;
 }
 .sp-toggle:hover { color: #c0dd97; }
+/* Map View select row (Phase 7 — "✦ Map & Atmosphere" block) */
+.sp-select-row {
+  justify-content: space-between;
+  cursor: default;
+}
+.sp-select {
+  background: rgba(20, 26, 16, 0.85);
+  color: #c0dd97;
+  border: 1px solid rgba(192, 221, 151, 0.28);
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+  outline: none;
+}
+.sp-select:focus { border-color: #d4af50; }
+.sp-select option { background: #1a2412; color: #c0dd97; }
 /* ════════════════════════════════════════════════════════════════
    Part 39 — profile modal reskin (own profile + view player)
    APPEND to end of css/hud-storybook.css, then bump index.html to
