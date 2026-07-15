@@ -43,7 +43,7 @@ top-down path is untouched):
 <script src="/js/kwmap-core.js?v=2"></script>      <!-- bumped -->
 <script src="/js/kwmap-topdown.js?v=1"></script>
 <script src="/js/kwmap-assets.js?v=1"></script>    <!-- new -->
-<script src="/js/kwmap-iso.js?v=1"></script>       <!-- new -->
+<script src="/js/kwmap-iso.js?v=2"></script>       <!-- new (v2: raised-terrain uifx lift) -->
 ```
 Load order: after `pixelart.js` + `kwmap-core.js`, before `main.js`.
 

@@ -61,8 +61,18 @@
 
   if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 
-  const view = new URLSearchParams(location.search).get('view') === 'topdown' ? 'topdown' : 'iso';
+  const qs = new URLSearchParams(location.search);
+  const view = qs.get('view') === 'topdown' ? 'topdown' : 'iso';
   KWMap.controller.setRenderer(view);
+  // Optional selection/hover injection for verifying uifx placement:
+  //   ?sel=q,r   ?hov=q,r
+  const parseQR = (s) => { if (!s) return null; const [q, r] = s.split(',').map(Number); return { wq: q, wr: r }; };
+  if (qs.get('sel')) _selectedTile = parseQR(qs.get('sel'));
+  if (qs.get('hov')) _hoveredTile = parseQR(qs.get('hov'));
+  const cap = document.getElementById('cap');
+  if (cap) cap.textContent = view === 'iso'
+    ? 'iso view — placeholder diorama (procedural faces + skirts, claim borders, settlement/outpost markers)'
+    : 'top-down view — the frozen Phase-1 renderer (full water treatment)';
   // Render a few frames as variant art streams in.
   let n = 0;
   const draw = () => { KWMap.controller.renderFrame(1000 + n * 16); if (++n < 40) requestAnimationFrame(draw); };

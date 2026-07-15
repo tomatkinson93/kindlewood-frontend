@@ -402,9 +402,13 @@
       return p ? { x: p.cx, y: p.cy } : null;
     },
 
-    // uifx strokes (hover / selection / fog-selection), iso-projected on the
-    // ground plane. Mirrors the top-down conditions/styles (isOwn suppression,
-    // selFog-beats-hover on the same tile). Runs on the uifx canvas.
+    // uifx strokes (hover / selection / fog-selection), iso-projected onto each
+    // tile's DRAWN face — i.e. lifted by its terrain elevation (elevInclude=
+    // true), so the outline hugs the visible top face of raised terrain instead
+    // of floating at the ground plane below it. (hexToScreen stays ground-plane
+    // for external overlay/panel anchoring per §2.3; only the stroke lifts.)
+    // Mirrors the top-down conditions/styles (isOwn suppression, selFog-beats-
+    // hover on the same tile). Runs on the uifx canvas.
     renderUiFx(ctx, W, H, ui, cam) {
       if (!ui) return;
       const tm = tileMapFor(worldMapData);
@@ -414,7 +418,7 @@
       if (ui.selected) {
         const t = tm.get(ui.selected.wq + ',' + ui.selected.wr);
         if (!(t && t.settlement && t.settlement.isOwn)) {
-          const p = isoFirstVisibleCopy(ui.selected.wq, ui.selected.wr, W, H, false);
+          const p = isoFirstVisibleCopy(ui.selected.wq, ui.selected.wr, W, H, true);
           if (p) {
             strokeHex(p);
             ctx.strokeStyle = 'rgba(255,220,80,0.95)'; ctx.lineWidth = 2.5; ctx.stroke();
@@ -426,7 +430,7 @@
       if (ui.selectedFog) {
         const t = tm.get(ui.selectedFog.wx + ',' + ui.selectedFog.wy);
         if (!(t && t.settlement && t.settlement.isOwn)) {
-          const p = isoFirstVisibleCopy(ui.selectedFog.wx, ui.selectedFog.wy, W, H, false);
+          const p = isoFirstVisibleCopy(ui.selectedFog.wx, ui.selectedFog.wy, W, H, true);
           if (p) { strokeHex(p); ctx.strokeStyle = 'rgba(220,175,60,0.85)'; ctx.lineWidth = 2; ctx.stroke(); }
         }
       }
@@ -436,7 +440,7 @@
         const dup = sf && sf.wx === ui.hovered.wq && sf.wy === ui.hovered.wr;
         const t = tm.get(ui.hovered.wq + ',' + ui.hovered.wr);
         if (!dup && !(t && t.settlement && t.settlement.isOwn)) {
-          const p = isoFirstVisibleCopy(ui.hovered.wq, ui.hovered.wr, W, H, false);
+          const p = isoFirstVisibleCopy(ui.hovered.wq, ui.hovered.wr, W, H, true);
           if (p) {
             const isFog = !t || t.terrain === 'fog';
             ctx.save(); strokeHex(p); ctx.clip();
