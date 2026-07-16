@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>KWMap iso demo (dev harness)</title>
+<link rel="stylesheet" href="/css/hud-storybook.css">
 <style>
   html,body{margin:0;background:#241c14;}
   #screen-game{position:relative;}
@@ -28,6 +29,7 @@
 <script src="/js/kwmap-iso.js"></script>
 <script src="/js/kwmap-decor.js"></script>
 <script src="/js/main.js"></script>
+<script src="/js/kwmap-tileactions.js"></script>
 
 <script>
 // Minimal bootstrap: build a fixture world with terrain clusters + features,
@@ -75,6 +77,11 @@
   const parseQR = (s) => { if (!s) return null; const [q, r] = s.split(',').map(Number); return { wq: q, wr: r }; };
   if (qs.get('sel')) _selectedTile = parseQR(qs.get('sel'));
   if (qs.get('hov')) _hoveredTile = parseQR(qs.get('hov'));
+  // Tile Detail modal auto-open for screenshots: ?detail=q,r
+  if (qs.get('detail')) {
+    const d = parseQR(qs.get('detail'));
+    setTimeout(() => { const t = tiles.find(z => z.q === d.wq && z.r === d.wr); if (t && window.openTileDetail) window.openTileDetail(t); }, 300);
+  }
   const cap = document.getElementById('cap');
   if (cap) cap.textContent = view === 'iso'
     ? 'iso view — placeholder diorama (procedural faces + skirts, claim borders, settlement/outpost markers)'
