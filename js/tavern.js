@@ -458,7 +458,9 @@ function bcLeaveTable() {
   const bd = document.getElementById('bcmp-backdrop');
   if (bd) bd.style.display = 'none';
   if (typeof stopBriarMusic === 'function') stopBriarMusic();
-  _bc = null; _currentGame = null; _bcMultiplayer = null; _spGame = null;
+  clearTimeout(_bcmpAiTimer); _bcmpAiTimer = null;
+  clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
+  _bc = null; _bcmp = null; _currentGame = null; _bcMultiplayer = null; _spGame = null;
   const chat = document.getElementById('bcmp-chat'); if (chat) chat.style.display = '';
   if (typeof LobbySystem !== 'undefined') LobbySystem.close();
 }
@@ -1120,8 +1122,9 @@ function closeTavernCelebration() {
 // ══════════════════════════════════════════════
 //  The server (lib/briar_engine.js) is authoritative. This renders the
 //  redacted state it pushes and sends the local player's intents back.
-//  AI seats: the HOST's browser watches state and posts AI decisions via
-//  /ai-action so the engine advances. Non-hosts never drive AI.
+//  AI seats advance on the SERVER clock (lib/game_rooms.js _serverTick); the
+//  client never drives AI in multiplayer. A server-enforced per-phase deadline
+//  (state.deadlineAt) guarantees no window stalls on an absent player.
 //
 //  Reuses the single-player visuals: BC_ROLES, BC_CARD_IMG, the .bc-* CSS.
 
@@ -1229,12 +1232,36 @@ function _bcmpRender() {
         <span class="bc-seat-acorns">🌰 ${me.acorns}</span>
       </div>
       <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
+      <div id="bcmp-deadline" class="bcmp-deadline" style="display:none"></div>
       <div class="bc-prompt">${prompt}</div>
     </div>`;
   const lg = area.querySelector('.bc-log');
   if (lg) lg.scrollTop = lg.scrollHeight;
   _bcApplyPassTints(s);
   _bcFlashFromLog(s);
+  _bcmpEnsureDeadlineTimer();
+}
+
+// ── Decision-timer countdown (§3.2) ──
+// The server stamps deadlineAt onto each pushed multiplayer state (solo has no
+// server clock, so deadlineAt is absent and no countdown shows). A single 500ms
+// interval refreshes just the countdown text — no full re-render — and clears
+// itself once the table closes.
+let _bcmpDeadlineTimer = null;
+function _bcmpEnsureDeadlineTimer() {
+  if (_bcmpDeadlineTimer) return;
+  _bcmpDeadlineTimer = setInterval(_bcmpUpdateDeadline, 500);
+  _bcmpUpdateDeadline();
+}
+function _bcmpUpdateDeadline() {
+  const el = document.getElementById('bcmp-deadline');
+  if (!el) { clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null; return; }
+  const s = _bcmp && _bcmp.state;
+  if (!s || s.phase === 'gameover' || !s.deadlineAt) { el.style.display = 'none'; return; }
+  const remain = Math.max(0, Math.ceil((s.deadlineAt - Date.now()) / 1000));
+  el.style.display = '';
+  el.className = 'bcmp-deadline' + (remain <= 5 ? ' urgent' : '');
+  el.textContent = `⏳ auto-resolves in ${remain}s`;
 }
 
 function _bcReactionClass(p) {
@@ -1471,57 +1498,27 @@ function bcmpTarget(action) {
 function bcmpActOn(action, targetSeat) { _bcmp.channel.send({ kind: 'action', action, targetSeat }); _bcmpAwait('Your move is in…'); }
 function bcmpBack() { _bcmpRender(); }
 
-// ── Host AI driver ──
-// AI reasoning now lives on the server. The host simply pings /ai-action;
-// the server figures out which seat to resolve and applies its decision,
-// then pushes new state. The host pings again on each state until no AI
-// is pending. A short randomized delay gives the suspense beat.
+// ── AI driver (SOLO ONLY) ──
+// In multiplayer, AI seats advance on the SERVER clock (lib/game_rooms.js
+// _serverTick) — the client no longer pings /ai-action. This tick only runs
+// for solo, where the whole engine lives in the browser. "Who's next" comes
+// straight from the shared engine (pendingSeats), so there is no client-side
+// mirror of the server's logic to drift out of sync.
 let _bcmpAiTimer = null;
 function _bcmpMaybeDriveAI(s) {
   clearTimeout(_bcmpAiTimer);
+  if (!_bcmp || !_bcmp.solo || !_spGame) return;   // multiplayer: server drives
   if (!s || s.phase === 'gameover') return;
-  const seat = _bcmpAiPendingSeat(s);
+  const seat = window.BriarEngine.pendingSeats(_spGame).find(seatNo => {
+    const o = _bcmp.seats.find(x => x.seat === seatNo);
+    return o && o.isAI;
+  });
   if (seat == null) return;
   _bcmpAiTimer = setTimeout(() => {
-    if (_bcmp && _bcmp.solo) {
-      // Solo: resolve the AI locally with the engine's reasoning.
-      if (!_spGame) return;
-      const d = window.BriarEngine.aiResolve(_spGame, seat);
-      if (d) _spApplyAiLocal(seat, d);
-    } else {
-      // Multiplayer: ping the host tick; server decides + pushes new state.
-      apiFetch('/api/rooms/' + _bcmp.code + '/ai-action', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-      }).catch(() => {});
-    }
+    if (!_bcmp || !_bcmp.solo || !_spGame) return;
+    const d = window.BriarEngine.aiResolve(_spGame, seat);
+    if (d) _spApplyAiLocal(seat, d);
   }, 1400 + Math.random() * 1800);
-}
-
-// Which seat is the engine waiting on, and is it AI? (mirror of server)
-function _bcmpAiPendingSeat(s) {
-  const P = s.pending;
-  const isAi = seat => { const o = _bcmp.seats.find(x => x.seat === seat); return o && o.isAI; };
-  if (s.phase === 'action') return isAi(s.turnSeat) ? s.turnSeat : null;
-  if (!P) return null;
-  if (s.phase === 'loseInfluence') return isAi(P.loserSeat) ? P.loserSeat : null;
-  if (s.phase === 'consult') return isAi(P.actorSeat) ? P.actorSeat : null;
-  if (s.phase === 'challengeBlock') return isAi(P.actorSeat) ? P.actorSeat : null;
-  if (s.phase === 'challengeAction') {
-    // Exclude seats that have already passed — otherwise we re-ask the same
-    // AI forever and the game sticks. (This was the single-player stall.)
-    const cand = s.players.filter(p => p.alive && p.seat !== P.actorSeat && !(P.passes || []).includes(p.seat));
-    const ai = cand.find(p => isAi(p.seat));
-    return ai ? ai.seat : null;
-  }
-  if (s.phase === 'block') {
-    const blockers = (P.action === 'gather'
-      ? s.players.filter(p => p.alive && p.seat !== P.actorSeat)
-      : s.players.filter(p => p.seat === P.targetSeat && p.alive)
-    ).filter(p => !(P.passes || []).includes(p.seat));
-    const ai = blockers.find(p => isAi(p.seat));
-    return ai ? ai.seat : null;
-  }
-  return null;
 }
 
 // ── Sounds on transitions ──
@@ -2353,15 +2350,11 @@ function _sqMaybeDriveAI(s) {
   if (seat == null) return;
   _sqAiTimer = setTimeout(() => {
     if (!_sq) return;                       // table was closed / failed to open
-    if (_sq.solo) {
-      if (!_sqGame) return;
-      const d = window.SquirrelEngine.aiResolve(_sqGame, seat);
-      if (d) _sqApplyAiLocal(seat, d);
-    } else {
-      apiFetch('/api/rooms/' + _sq.code + '/ai-action', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-      }).catch(() => {});
-    }
+    // Multiplayer AI now advances on the server clock; only solo drives locally.
+    if (!_sq.solo) return;
+    if (!_sqGame) return;
+    const d = window.SquirrelEngine.aiResolve(_sqGame, seat);
+    if (d) _sqApplyAiLocal(seat, d);
   }, 1100 + Math.random() * 1400);
 }
 

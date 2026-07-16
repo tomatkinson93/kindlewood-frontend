@@ -89,6 +89,11 @@ const LobbySystem = (() => {
           <div class="lobby-card-name">Cunning Court</div>
           <div class="lobby-card-desc">They count cards and read the table</div>
         </button>
+        <button class="lobby-card" onclick="LobbySystem.soloStart('${gameType}','cunning')">
+          <div class="lobby-card-icon">\u{1F40D}</div>
+          <div class="lobby-card-name">Ruthless Court</div>
+          <div class="lobby-card-desc">Each courtier a sharpened character — relentless, and hard to bluff</div>
+        </button>
       </div>
       <div class="lobby-actions"><button class="cg-btn secondary" onclick="LobbySystem.choose('${gameType}')">\u2190 Back</button></div>`);
   }
@@ -148,6 +153,7 @@ const LobbySystem = (() => {
           <select id="lobby-diff" class="ac-role-select">
             <option value="smart">Cunning \u2014 counts cards</option>
             <option value="simple">Gentle \u2014 rarely challenges</option>
+            <option value="cunning">Ruthless \u2014 amplified & relentless</option>
           </select></label>
       </div>
       <div class="lobby-actions">
