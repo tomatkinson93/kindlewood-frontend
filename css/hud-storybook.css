@@ -1347,17 +1347,19 @@
 }
 
 .bc-prompt { margin-top: 12px; min-height: 64px; }
-/* Decision-timer countdown (§3.2) — server-enforced per-phase deadline. */
+/* Decision-timer countdown (§3.2) — server-enforced per-phase deadline.
+   Fixed min-height reserves its line so ticking/empty states never shift the
+   modal's height. */
 .bcmp-deadline {
+  min-height: 1.4em;
   margin-top: 10px;
   text-align: center;
   font-family: 'Crimson Pro', serif;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   letter-spacing: 0.02em;
-  color: #b9a487;
-  opacity: 0.8;
+  color: #e6d6ad;
 }
-.bcmp-deadline.urgent { color: #e07a5f; opacity: 1; font-weight: 600; }
+.bcmp-deadline.urgent { color: #f0a888; font-weight: 600; }
 .bc-question {
   font-family: 'Crimson Pro', serif;
   font-size: 14px;

@@ -1232,7 +1232,7 @@ function _bcmpRender() {
         <span class="bc-seat-acorns">🌰 ${me.acorns}</span>
       </div>
       <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
-      <div id="bcmp-deadline" class="bcmp-deadline" style="display:none"></div>
+      <div id="bcmp-deadline" class="bcmp-deadline">${_bcmpDeadlineText(s)}</div>
       <div class="bc-prompt">${prompt}</div>
     </div>`;
   const lg = area.querySelector('.bc-log');
@@ -1245,23 +1245,27 @@ function _bcmpRender() {
 // ── Decision-timer countdown (§3.2) ──
 // The server stamps deadlineAt onto each pushed multiplayer state (solo has no
 // server clock, so deadlineAt is absent and no countdown shows). A single 500ms
-// interval refreshes just the countdown text — no full re-render — and clears
-// itself once the table closes.
+// interval refreshes just the countdown text IN PLACE — the element is always
+// present and keeps a reserved height (CSS min-height), never toggling display,
+// so the modal doesn't expand/contract as it ticks or re-renders.
 let _bcmpDeadlineTimer = null;
+function _bcmpDeadlineText(s) {
+  if (!s || s.phase === 'gameover' || !s.deadlineAt) return '';
+  const remain = Math.max(0, Math.ceil((s.deadlineAt - Date.now()) / 1000));
+  return `⏳ auto-resolves in ${remain}s`;
+}
 function _bcmpEnsureDeadlineTimer() {
   if (_bcmpDeadlineTimer) return;
   _bcmpDeadlineTimer = setInterval(_bcmpUpdateDeadline, 500);
-  _bcmpUpdateDeadline();
 }
 function _bcmpUpdateDeadline() {
   const el = document.getElementById('bcmp-deadline');
   if (!el) { clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null; return; }
   const s = _bcmp && _bcmp.state;
-  if (!s || s.phase === 'gameover' || !s.deadlineAt) { el.style.display = 'none'; return; }
-  const remain = Math.max(0, Math.ceil((s.deadlineAt - Date.now()) / 1000));
-  el.style.display = '';
-  el.className = 'bcmp-deadline' + (remain <= 5 ? ' urgent' : '');
-  el.textContent = `⏳ auto-resolves in ${remain}s`;
+  const text = _bcmpDeadlineText(s);
+  if (el.textContent !== text) el.textContent = text;   // update in place, no reflow of the whole modal
+  const remain = (s && s.deadlineAt) ? Math.ceil((s.deadlineAt - Date.now()) / 1000) : 999;
+  el.className = 'bcmp-deadline' + (text && remain <= 5 ? ' urgent' : '');
 }
 
 function _bcReactionClass(p) {

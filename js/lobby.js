@@ -130,7 +130,6 @@ const LobbySystem = (() => {
       <div class="lobby-actions">
         <button class="cg-btn" onclick="LobbySystem.createForm('${gameType}')">+ Host a table</button>
         <button class="cg-btn secondary" onclick="LobbySystem.browse('${gameType}')">\u21BB Refresh</button>
-        <button class="cg-btn secondary" onclick="LobbySystem.choose('${gameType}')">\u2190 Back</button>
       </div>`);
   }
 
