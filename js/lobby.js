@@ -206,6 +206,7 @@ const LobbySystem = (() => {
       // open game modal so the room shows through (no-op outside a match).
       if (typeof window.__closeActiveGameModal === 'function') window.__closeActiveGameModal();
       current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
+      if (_pickerCode) _renderCourtierPicker();   // keep the courtier grid in sync
     } else if (msg.type === 'match_started') {
       const g = games[current.gameType];
       const m = document.getElementById('lobby-modal');
@@ -248,7 +249,7 @@ const LobbySystem = (() => {
           ? ` <button class="lobby-seat-x" onclick="LobbySystem.removeAI('${code}','${p.id}')" title="Remove">\u2715</button>` : '';
         seats.push(`<div class="lobby-seat filled">${_esc(p.name)}${crown}${aiTag}${kick}</div>`);
       } else if (isHost) {
-        seats.push(`<button class="lobby-seat add-ai" onclick="LobbySystem.addAI('${code}')" title="Add an AI courtier">+ Add AI</button>`);
+        seats.push(`<button class="lobby-seat add-ai" onclick="LobbySystem.openCourtierPicker('${code}')" title="Add an AI courtier">+ Add AI</button>`);
       } else {
         seats.push(`<div class="lobby-seat empty">Waiting\u2026</div>`);
       }
@@ -278,8 +279,90 @@ const LobbySystem = (() => {
       () => _flash('Code: ' + current.code));
   }
 
-  async function addAI(code) { try { await _api('/' + code + '/ai/add', { method: 'POST', body: {} }); } catch (e) { _flash(e.message); } }
+  async function addAI(code, name) {
+    try { await _api('/' + code + '/ai/add', { method: 'POST', body: name ? { name } : {} }); }
+    catch (e) { _flash(e.message); }
+  }
   async function removeAI(code, id) { try { await _api('/' + code + '/ai/remove', { method: 'POST', body: { id } }); } catch (e) { _flash(e.message); } }
+
+  // ── Courtier picker (AI select) ──────────────────────────────────────
+  // Flavour for each AI courtier, keyed by the server's roster name. Drop a
+  // /assets/images/courtier_<slug>.png in later and the card uses it; until
+  // then it falls back to the emoji.
+  const COURTIER_META = {
+    'Old Bracken': { color: '#8a9a5b', emoji: '🦡', title: 'The Wary Elder',
+      blurb: 'Rarely bluffs and slow to trust. He watches the table and calls out the bold — but cross him and he remembers.' },
+    'Sly Whisper': { color: '#b06fc9', emoji: '🦊', title: 'The Silver Tongue',
+      blurb: 'Spins a bluff at every turn and spreads her mischief wide. Trust nothing she claims — yet she seldom challenges yours.' },
+    'Marigold':    { color: '#e0a93b', emoji: '🐇', title: 'The Hoarder',
+      blurb: 'Greedy and patient. She piles up acorns and plays it safe, striking only when the odds are hers.' },
+    'Thorn':       { color: '#c0503f', emoji: '🐍', title: 'The Vengeful',
+      blurb: 'Quick to the dagger and slow to forgive. Strike her once and she will come back for you.' },
+  };
+  const COURTIER_DEFAULT = { color: '#7a6a52', emoji: '🌿', title: 'Courtier', blurb: 'A courtier of unknown temperament.' };
+  const _courtierMeta = name => COURTIER_META[name] || Object.assign({}, COURTIER_DEFAULT, { title: name });
+
+  let _pickerCode = null;
+  function _pickerHost() {
+    let m = document.getElementById('courtier-picker');
+    if (!m) { m = document.createElement('div'); m.id = 'courtier-picker'; m.className = 'courtier-picker-backdrop';
+      m.addEventListener('click', e => { if (e.target === m) closeCourtierPicker(); });   // click backdrop to dismiss
+      document.body.appendChild(m); }
+    return m;
+  }
+  function openCourtierPicker(code) { _pickerCode = code; _renderCourtierPicker(); }
+  function closeCourtierPicker() { _pickerCode = null; const m = document.getElementById('courtier-picker'); if (m) m.classList.remove('open'); }
+
+  function _renderCourtierPicker() {
+    if (!_pickerCode) return;
+    const room = current;
+    if (!room) { closeCourtierPicker(); return; }
+    const m = _pickerHost();
+    const roster = room.aiRoster || Object.keys(COURTIER_META);
+    const seated = new Map();                       // name -> ai player id
+    for (const p of room.players) if (p.isAI) seated.set(p.name, p.id);
+    const full = room.players.length >= room.maxPlayers;
+
+    const cards = roster.map(name => {
+      const meta = _courtierMeta(name);
+      const slug = name.toLowerCase().replace(/\s+/g, '_');
+      const isSeated = seated.has(name);
+      const cls = 'courtier-card' + (isSeated ? ' seated' : (full ? ' disabled' : ''));
+      const onclick = (!isSeated && !full) ? ` onclick="LobbySystem.pickCourtier('${_pickerCode}','${_esc(name)}')"` : '';
+      const removeBtn = isSeated
+        ? `<button class="courtier-remove" title="Remove from the table" onclick="event.stopPropagation();LobbySystem.unpickCourtier('${_pickerCode}','${_esc(name)}')">✕</button>` : '';
+      const footer = isSeated ? `<div class="courtier-status seated">Already at the table</div>`
+        : full ? `<div class="courtier-status">Table is full</div>`
+               : `<div class="courtier-status add">+ Seat this courtier</div>`;
+      return `<div class="${cls}" style="--accent:${meta.color}"${onclick}>
+          ${removeBtn}
+          <div class="courtier-avatar">
+            <img src="/assets/images/courtier_${slug}.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+            <span class="courtier-emoji">${meta.emoji}</span>
+          </div>
+          <div class="courtier-name">${_esc(name)}</div>
+          <div class="courtier-title">${_esc(meta.title)}</div>
+          <div class="courtier-blurb">${_esc(meta.blurb)}</div>
+          ${footer}
+        </div>`;
+    }).join('');
+
+    m.innerHTML = `<div class="courtier-picker-shell">
+        <button class="lobby-x" onclick="LobbySystem.closeCourtierPicker()">✕</button>
+        <div class="courtier-picker-title">Select a Courtier</div>
+        <div class="courtier-picker-sub">Seat an AI rival — each plays a different game.</div>
+        <div class="courtier-grid">${cards}</div>
+        <div class="courtier-picker-actions"><button class="cg-btn secondary" onclick="LobbySystem.closeCourtierPicker()">Done</button></div>
+      </div>`;
+    m.classList.add('open');
+  }
+  // Add / remove flow the room-state refresh through the SSE lobby_update, which
+  // re-renders the picker in place (see _handle) — so the grid updates itself.
+  function pickCourtier(code, name) { addAI(code, name); }
+  function unpickCourtier(code, name) {
+    const p = current && current.players.find(x => x.isAI && x.name === name);
+    if (p) removeAI(code, p.id);
+  }
   async function start(code) { try { await _api('/' + code + '/start', { method: 'POST' }); } catch (e) { _flash(e.message); } }
   async function leave(code) {
     _closeStream();
@@ -318,6 +401,7 @@ const LobbySystem = (() => {
 
   return { register, choose, browse, createForm, create, join, joinByInput,
            invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, removeAI, close,
+           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier,
            get current() { return current; } };
 })();
 
