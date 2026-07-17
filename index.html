@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=1778502800">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=1778500800">
-  <link rel="stylesheet" href="/css/hud-storybook.css?v=43">
+  <link rel="stylesheet" href="/css/hud-storybook.css?v=44">
   <link rel="stylesheet" href="/css/carousel.css">
   <link rel="stylesheet" href="/css/hero.css">
   <link rel="stylesheet" href="/css/mobile.css">
@@ -486,26 +486,8 @@
                 </div>
               </div>
 
-                <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
-                  <div class="tavern-card-menu-title">— Choose Your Game —</div>
-                  <button class="tavern-game-btn" onclick="LobbySystem.choose('briar')">
-                    <span class="tgb-icon">🌿</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">Briarwood Court <span class="tgb-mp-pill">👥 Multiplayer</span></div>
-                      <div class="tgb-desc">Bluff, challenge and banish — last courtier standing wins.</div>
-                      <div class="tgb-reward">💰 Reward: 4 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-game-btn" onclick="LobbySystem.choose('squirrel')">
-                    <span class="tgb-icon">🐿️</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">Squirrel's Stash <span class="tgb-mp-pill">👥 Multiplayer</span></div>
-                      <div class="tgb-desc">Push your luck drawing acorns — bank before you bust.</div>
-                      <div class="tgb-reward">💰 Reward: 4 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
-                </div>
+                <!-- Populated by renderGameSelect() from KWGames.META (spec 19 §5) -->
+                <div class="tavern-card-menu" id="tavern-card-menu" style="display:none"></div>
                 <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
               <div class="sq-backdrop" id="sq-backdrop" style="display:none">
                 <div class="sq-shell">
@@ -707,11 +689,11 @@
   <script src="/js/welcome-music-guard.js?v=1778501500"></script>
   <script src="/js/online.js?v=1"></script>
   <script src="/js/leaderboard.js?v=3"></script>
-  <script src="/js/games-meta.js?v=1"></script>
+  <script src="/js/games-meta.js?v=2"></script>
   <script src="/js/briar_engine.js?v=5"></script>
   <script src="/js/squirrel_engine.js?v=14"></script>
   <script src="/js/lobby.js?v=13"></script>
-  <script src="/js/tavern.js?v=28"></script>
+  <script src="/js/tavern.js?v=29"></script>
   <script src="/js/quests.js?v=1778441000"></script>
   <script src="/js/fishing.js"></script>
   <script src="/js/housing.js"></script>

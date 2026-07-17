@@ -84,8 +84,48 @@ function _renderTavernkeep() {
 
 function openCardGameMenu() {
   document.getElementById('tavern-menu').style.display = 'none';
-  document.getElementById('tavern-card-menu').style.display = 'flex';
+  const el = document.getElementById('tavern-card-menu');
+  renderGameSelect(el);   // data-driven (KWGames.META) — overwrites any stale static markup
+  el.style.display = 'flex';
   document.getElementById('tavern-game-area').style.display = 'none';
+}
+
+// Two-crest game select (spec 19 §5). Built from KWGames.META so the game list
+// is the single source of truth and can't drift with a stale index.html. Crest
+// images fall back to the game's emoji when the asset isn't uploaded yet.
+function renderGameSelect(el) {
+  if (!el) return;
+  const meta = (window.KWGames && KWGames.META) || {};
+  const order = ['briar', 'squirrel'];
+  const cards = order.filter(k => meta[k]).map(k => {
+    const m = meta[k];
+    const themeCls = m.accent === 'court' ? ' theme-court' : '';
+    return `
+      <div class="kw-gs-card${themeCls}">
+        <div class="kw-gs-crest">
+          <img src="${m.crest}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+          <span class="kw-gs-crest-fallback">${m.icon || '🎴'}</span>
+        </div>
+        <div class="kw-gs-name">${_esc(m.displayName)}</div>
+        <div class="kw-gs-tagline">${_esc(m.tagline)}</div>
+        <div class="kw-gs-meta"><span class="kw-gs-reward">Reward: ${_esc(m.reward)}</span><span class="kw-gs-counts" data-game="${k}"></span></div>
+        <div class="kw-gs-actions">
+          <button class="kw-gs-btn host" onclick="LobbySystem.createForm('${k}')">Host a table</button>
+          <button class="kw-gs-btn join" onclick="LobbySystem.browse('${k}')">Join</button>
+        </div>
+      </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="kw-game-select">
+      <div class="kw-gs-eyebrow">Card Table</div>
+      <h2 class="kw-gs-heading">The Woodland Tavern</h2>
+      <div class="kw-gs-bramble">
+        <div class="kw-gs-bramble-av">🦔</div>
+        <div class="kw-gs-bramble-line">Fancy a game, friend? Pull up a stool and try your luck.</div>
+      </div>
+      <div class="kw-gs-crests">${cards}</div>
+      <button class="kw-gs-back" onclick="closeCardGameMenu()">← Back to the Tavern</button>
+    </div>`;
 }
 
 function closeCardGameMenu() {

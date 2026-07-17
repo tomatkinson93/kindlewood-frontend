@@ -10,6 +10,7 @@ window.KWGames.META = {
     displayName: 'Briarwood Court',
     tagline: 'Bluff, challenge and banish — last courtier standing wins.',
     crest: '/assets/img/games/crest_briarwood_court.png',
+    icon: '🌿',                         // fallback when the crest asset is missing
     reward: '4 gold',
     accent: 'court',                    // theme class suffix → .theme-court
   },
@@ -18,6 +19,7 @@ window.KWGames.META = {
     displayName: "Squirrel's Stash",
     tagline: 'Push your luck drawing acorns — bank before you bust.',
     crest: '/assets/img/games/crest_squirrels_stash.png',
+    icon: '🐿️',
     reward: '4 gold',
     accent: 'stash',
   },

@@ -1945,6 +1945,156 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
+   Spec 19 — Tavern card-games overhaul
+   ──────────────────────────────────────────────────────────────
+   §4.2 per-game theme tokens. Shared by the game-table shell
+   (.kw-game-modal, P3/P4) and the select-screen cards (.kw-gs-card),
+   so a future game is a variable block, not a fork. Stash = default
+   gold; Court = plum via the .theme-court class.
+   ════════════════════════════════════════════════════════════════ */
+.kw-game-modal, .kw-gs-card {
+  --kw-game-accent:      #d9b464;
+  --kw-game-accent-deep: #a0865c;
+  --kw-game-panel:       #241c13;
+  --kw-game-panel-hot:   #2a2115;
+  --kw-game-border:      #3d3223;
+  --kw-game-border-mid:  #6e5a38;
+  --kw-game-text:        #e8cf9a;
+  --kw-game-text-dim:    #a89372;
+}
+.kw-game-modal.theme-court, .kw-gs-card.theme-court {
+  --kw-game-accent:      #b48fbc;
+  --kw-game-accent-deep: #8f7396;
+  --kw-game-panel:       #241d26;
+  --kw-game-panel-hot:   #2b2230;
+  --kw-game-border:      #382d3b;
+  --kw-game-border-mid:  #5e4a63;
+  --kw-game-text:        #dcc4e0;
+  --kw-game-text-dim:    #a08fa5;
+}
+
+/* §5 — two-crest game select */
+.kw-game-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 6px 4px 8px;
+}
+.kw-gs-eyebrow {
+  font-family: 'Crimson Pro', Georgia, serif;
+  text-transform: uppercase;
+  letter-spacing: .28em;
+  font-size: .72rem;
+  color: var(--kw-gold-dim, #a89372);
+}
+.kw-gs-heading {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.7rem;
+  color: var(--kw-cream, #e8cf9a);
+  text-align: center;
+}
+.kw-gs-bramble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  padding: 8px 14px;
+  background: #efe4cd;
+  color: #3a2c1c;
+  border: 1px solid #c9b48c;
+  border-radius: 10px;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: .92rem;
+}
+.kw-gs-bramble-av {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d9c39a;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+.kw-gs-crests {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+  gap: 18px;
+  justify-content: center;
+  width: 100%;
+}
+.kw-gs-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 16px 16px;
+  background: var(--kw-game-panel);
+  border: 1px solid var(--kw-game-border);
+  border-top: 4px solid var(--kw-game-accent);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+}
+.kw-gs-crest {
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5));
+}
+.kw-gs-crest img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.kw-gs-crest-fallback { display: none; font-size: 84px; line-height: 1; }
+.kw-gs-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.2rem;
+  color: var(--kw-game-text);
+}
+.kw-gs-tagline {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: .86rem;
+  color: var(--kw-game-text-dim);
+  line-height: 1.35;
+  min-height: 2.4em;
+}
+.kw-gs-meta { font-family: 'Crimson Pro', Georgia, serif; font-size: .8rem; color: var(--kw-game-text-dim); }
+.kw-gs-reward::before { content: '💰 '; }
+.kw-gs-counts:not(:empty)::before { content: ' · '; }
+.kw-gs-actions { display: flex; gap: 8px; margin-top: 6px; }
+.kw-gs-btn {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .9rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--kw-game-accent);
+  transition: filter .12s ease, background .12s ease;
+}
+.kw-gs-btn.host { background: var(--kw-game-accent); color: #241c13; font-weight: 600; }
+.kw-gs-btn.host:hover { filter: brightness(1.09); }
+.kw-gs-btn.join { background: transparent; color: var(--kw-game-accent); }
+.kw-gs-btn.join:hover { background: rgba(255, 255, 255, .06); }
+.kw-gs-back {
+  margin-top: 4px;
+  background: transparent;
+  border: none;
+  color: var(--kw-muted, #a89372);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.kw-gs-back:hover { color: var(--kw-cream, #e8cf9a); }
+@media (max-width: 520px) {
+  .kw-gs-crests { grid-template-columns: 1fr; }
+  .kw-gs-tagline { min-height: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
    Part 18 — large multiplayer game modal + in-game chat / whispers
    ════════════════════════════════════════════════════════════════ */
 
