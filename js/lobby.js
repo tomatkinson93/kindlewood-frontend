@@ -408,7 +408,7 @@ const LobbySystem = (() => {
 // Register Squirrel's Stash with the lobby
 LobbySystem.register({
   type: 'squirrel',
-  name: "Squirrel's Stash",
+  name: (window.KWGames && KWGames.name('squirrel')) || "Squirrel's Stash",
   minPlayers: 2,
   maxPlayers: 6,
   onSingle: (difficulty) => { if (typeof startSquirrelSolo === 'function') startSquirrelSolo(difficulty || 'smart'); },
@@ -419,10 +419,10 @@ LobbySystem.register({
   onEvent: (msg) => { if (typeof sqOnRoomEvent === 'function') sqOnRoomEvent(msg); },
 });
 
-// Register the Briar Court with the lobby
+// Register Briarwood Court with the lobby
 LobbySystem.register({
   type: 'briar',
-  name: 'The Briar Court',
+  name: (window.KWGames && KWGames.name('briar')) || 'Briarwood Court',
   minPlayers: 2,
   maxPlayers: 6,
   onSingle: (difficulty) => { if (typeof startBriarCourtSolo === 'function') startBriarCourtSolo(difficulty || 'smart'); else startCardGame('briar'); },
