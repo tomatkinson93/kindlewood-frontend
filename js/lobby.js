@@ -202,6 +202,9 @@ const LobbySystem = (() => {
       if (msg.room.youId != null) myId = msg.room.youId;     // authoritative
       current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
     } else if (msg.type === 'lobby_update') {
+      // A rematch drops a finished match back to the lobby room view; close any
+      // open game modal so the room shows through (no-op outside a match).
+      if (typeof window.__closeActiveGameModal === 'function') window.__closeActiveGameModal();
       current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
     } else if (msg.type === 'match_started') {
       const g = games[current.gameType];
@@ -212,8 +215,11 @@ const LobbySystem = (() => {
       g.onStart({ seats: msg.seats, code, myId, isHost: amHost, players: current.players, channel: _channel(code) });
     } else if (msg.type === 'room_closed') {
       _closeStream(); _error('The host closed the room.', () => browse(_lastGame));
-    } else if (msg.type === 'game_event' || msg.type === 'game_state' || msg.type === 'match_over' || msg.type === 'chat' || msg.type === 'typing' || msg.type === 'cursor') {
-      // current may be null on a late reconnect; fall back to last known game
+    } else {
+      // Any other event (game_state, match_over, chat, typing, cursor,
+      // presence, host_changed, seat_converted/restored, …) is game-level —
+      // hand it to the active game. current may be null on a late reconnect, so
+      // fall back to the last known game. Unknown types are ignored downstream.
       const gt = (current && current.gameType) || _lastGame;
       if (gt && games[gt]?.onEvent) games[gt].onEvent(msg);
     }

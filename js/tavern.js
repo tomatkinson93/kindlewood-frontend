@@ -494,6 +494,20 @@ function bcOnRoomEvent(msg) {
   if (msg.type === 'game_state') { if (typeof bcmpOnState === 'function') bcmpOnState(msg.state); return; }
   if (msg.type === 'match_over') { if (typeof bcmpOnOver === 'function') bcmpOnOver(msg); return; }
   if (msg.type === 'presence') { if (typeof bcmpOnPresence === 'function') bcmpOnPresence(msg); return; }
+  // Host migrated mid-match (§3.3) — recompute our host status so the End /
+  // Run-it-back controls appear for the new host.
+  if (msg.type === 'host_changed') {
+    if (_bcmp) { _bcmp.isHost = String(msg.hostId) === String(_bcmpMyUserId()); _bcmpRender(); }
+    return;
+  }
+  // A disconnected seat was handed to (or reclaimed from) the AI (§3.3). The
+  // pushed game_state already carries the new isAI flag; just clear any stale
+  // "waiting for them" banner and re-render.
+  if (msg.type === 'seat_converted') {
+    if (_bcmp) { if (_bcmp.absent) delete _bcmp.absent[msg.seat]; _bcmpRender(); }
+    return;
+  }
+  if (msg.type === 'seat_restored') { if (_bcmp) _bcmpRender(); return; }
   if (!_bc && !_bcmp) return;
   if (msg.type === 'chat') {
     const log = document.getElementById('bcmp-chat-log');
@@ -1134,6 +1148,8 @@ function startBriarCourtMultiplayerNet({ code, channel, seats, isHost }) {
   const mySeat = _bcmpMySeat(seats);
   _bcmp = { code, channel, seats, mySeat, isHost, state: null, lastPhaseSig: '', _seenLog: 0 };
   _bcMultiplayer = { code, channel, players: seats };  // chat/typing reuse this
+  // Let the lobby close this modal when a rematch drops us back to the room view.
+  window.__closeActiveGameModal = _bcmpCloseGameOnly;
   _bcOpenTable();   // big modal + chat dock (from single-player MP path)
   const g = document.getElementById('bcmp-game');
   if (g) g.innerHTML = '<div class="bc-wait">Dealing the Court…</div>';
@@ -1170,12 +1186,19 @@ function bcmpOnState(state) {
   if (_bcmp.isHost) _bcmpMaybeDriveAI(state);
 }
 
+// Host-only "Run it back" button (§3.4), plus the always-present Leave.
+function _bcmpEndOptions() {
+  const rematch = _bcmp && _bcmp.isHost
+    ? `<button class="cg-btn" onclick="bcmpRematch()">↻ Run it back</button>` : '';
+  return `<div class="bc-options">${rematch}<button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave table</button></div>`;
+}
+
 function bcmpOnOver(msg) {
   if (!_bcmp) return;
   if (msg.ended) {
     const g = document.getElementById('bcmp-game');
     if (g) g.innerHTML = '<div class="bc-wait">The host ended the game.</div>'
-      + '<div class="bc-options" style="justify-content:center;margin-top:12px"><button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave table</button></div>';
+      + `<div style="justify-content:center;margin-top:12px">${_bcmpEndOptions()}</div>`;
     return;
   }
   const mineWon = msg.winnerSeat === _bcmp.mySeat;
@@ -1186,9 +1209,37 @@ function bcmpOnOver(msg) {
       ? '👑 You hold the last seat at the Briar Court! <strong>+4 gold</strong>'
       : `👑 ${_esc(msg.winnerName || 'A rival')} holds the last seat.`;
     g.querySelector('.bc-prompt')?.insertAdjacentHTML('beforeend',
-      `<div class="card-game-message">${banner}</div>
-       <div class="bc-options"><button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave table</button></div>`);
+      `<div class="card-game-message">${banner}</div>${_bcmpEndOptions()}`);
   }
+}
+
+function _bcmpMyUserId() {
+  return (window._authUser && window._authUser.userId != null)
+    ? window._authUser.userId
+    : (typeof _bcMyUserId === 'function' ? _bcMyUserId() : null);
+}
+
+// Host runs it back (§3.4): the server resets the room to the lobby and
+// broadcasts lobby_update, which reopens the lobby room view. We only close the
+// game modal here — the SSE stays open (LobbySystem owns it) so that update
+// arrives.
+function bcmpRematch() {
+  if (!_bcmp || !_bcmp.code) return;
+  const code = _bcmp.code;
+  apiFetch('/api/rooms/' + code + '/rematch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  }).then(r => { if (r && r.ok) _bcmpCloseGameOnly(); }).catch(() => {});
+}
+
+// Close the game modal WITHOUT tearing down the lobby SSE (unlike bcLeaveTable,
+// which calls LobbySystem.close()). Used on rematch so the lobby can reopen.
+function _bcmpCloseGameOnly() {
+  const bd = document.getElementById('bcmp-backdrop');
+  if (bd) bd.style.display = 'none';
+  if (typeof stopBriarMusic === 'function') stopBriarMusic();
+  clearTimeout(_bcmpAiTimer); _bcmpAiTimer = null;
+  clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
+  _bcmp = null; _spGame = null;
 }
 
 // ── Render the server's redacted view ──
