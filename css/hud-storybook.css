@@ -1945,156 +1945,6 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
-   Spec 19 — Tavern card-games overhaul
-   ──────────────────────────────────────────────────────────────
-   §4.2 per-game theme tokens. Shared by the game-table shell
-   (.kw-game-modal, P3/P4) and the select-screen cards (.kw-gs-card),
-   so a future game is a variable block, not a fork. Stash = default
-   gold; Court = plum via the .theme-court class.
-   ════════════════════════════════════════════════════════════════ */
-.kw-game-modal, .kw-gs-card {
-  --kw-game-accent:      #d9b464;
-  --kw-game-accent-deep: #a0865c;
-  --kw-game-panel:       #241c13;
-  --kw-game-panel-hot:   #2a2115;
-  --kw-game-border:      #3d3223;
-  --kw-game-border-mid:  #6e5a38;
-  --kw-game-text:        #e8cf9a;
-  --kw-game-text-dim:    #a89372;
-}
-.kw-game-modal.theme-court, .kw-gs-card.theme-court {
-  --kw-game-accent:      #b48fbc;
-  --kw-game-accent-deep: #8f7396;
-  --kw-game-panel:       #241d26;
-  --kw-game-panel-hot:   #2b2230;
-  --kw-game-border:      #382d3b;
-  --kw-game-border-mid:  #5e4a63;
-  --kw-game-text:        #dcc4e0;
-  --kw-game-text-dim:    #a08fa5;
-}
-
-/* §5 — two-crest game select */
-.kw-game-select {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 6px 4px 8px;
-}
-.kw-gs-eyebrow {
-  font-family: 'Crimson Pro', Georgia, serif;
-  text-transform: uppercase;
-  letter-spacing: .28em;
-  font-size: .72rem;
-  color: var(--kw-gold-dim, #a89372);
-}
-.kw-gs-heading {
-  margin: 0;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.7rem;
-  color: var(--kw-cream, #e8cf9a);
-  text-align: center;
-}
-.kw-gs-bramble {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 460px;
-  padding: 8px 14px;
-  background: #efe4cd;
-  color: #3a2c1c;
-  border: 1px solid #c9b48c;
-  border-radius: 10px;
-  font-family: 'Crimson Pro', Georgia, serif;
-  font-style: italic;
-  font-size: .92rem;
-}
-.kw-gs-bramble-av {
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #d9c39a;
-  display: grid;
-  place-items: center;
-  font-size: 20px;
-}
-.kw-gs-crests {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
-  gap: 18px;
-  justify-content: center;
-  width: 100%;
-}
-.kw-gs-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 8px;
-  padding: 18px 16px 16px;
-  background: var(--kw-game-panel);
-  border: 1px solid var(--kw-game-border);
-  border-top: 4px solid var(--kw-game-accent);
-  border-radius: 14px;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
-}
-.kw-gs-crest {
-  width: 150px;
-  height: 150px;
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5));
-}
-.kw-gs-crest img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.kw-gs-crest-fallback { display: none; font-size: 84px; line-height: 1; }
-.kw-gs-name {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.2rem;
-  color: var(--kw-game-text);
-}
-.kw-gs-tagline {
-  font-family: 'Crimson Pro', Georgia, serif;
-  font-style: italic;
-  font-size: .86rem;
-  color: var(--kw-game-text-dim);
-  line-height: 1.35;
-  min-height: 2.4em;
-}
-.kw-gs-meta { font-family: 'Crimson Pro', Georgia, serif; font-size: .8rem; color: var(--kw-game-text-dim); }
-.kw-gs-reward::before { content: '💰 '; }
-.kw-gs-counts:not(:empty)::before { content: ' · '; }
-.kw-gs-actions { display: flex; gap: 8px; margin-top: 6px; }
-.kw-gs-btn {
-  font-family: 'Crimson Pro', Georgia, serif;
-  font-size: .9rem;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  border: 1px solid var(--kw-game-accent);
-  transition: filter .12s ease, background .12s ease;
-}
-.kw-gs-btn.host { background: var(--kw-game-accent); color: #241c13; font-weight: 600; }
-.kw-gs-btn.host:hover { filter: brightness(1.09); }
-.kw-gs-btn.join { background: transparent; color: var(--kw-game-accent); }
-.kw-gs-btn.join:hover { background: rgba(255, 255, 255, .06); }
-.kw-gs-back {
-  margin-top: 4px;
-  background: transparent;
-  border: none;
-  color: var(--kw-muted, #a89372);
-  font-family: 'Crimson Pro', Georgia, serif;
-  font-size: .9rem;
-  cursor: pointer;
-}
-.kw-gs-back:hover { color: var(--kw-cream, #e8cf9a); }
-@media (max-width: 520px) {
-  .kw-gs-crests { grid-template-columns: 1fr; }
-  .kw-gs-tagline { min-height: 0; }
-}
-
-/* ════════════════════════════════════════════════════════════════
    Part 18 — large multiplayer game modal + in-game chat / whispers
    ════════════════════════════════════════════════════════════════ */
 
@@ -3657,3 +3507,258 @@
   .pm-honor-key { font-size: 9px; }
 }
 
+
+
+/* ===== KWMap Phase 7 + Tile Actions styles (appended) ===== */
+/* Map View select row (Phase 7 — "✦ Map & Atmosphere" block) */
+.sp-select-row {
+  justify-content: space-between;
+  cursor: default;
+}
+.sp-select {
+  background: rgba(20, 26, 16, 0.85);
+  color: #c0dd97;
+  border: 1px solid rgba(192, 221, 151, 0.28);
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+  outline: none;
+}
+.sp-select:focus { border-color: #d4af50; }
+.sp-select option { background: #1a2412; color: #c0dd97; }
+
+/* ════════════════════════════════════════════════════════════════
+   Tile actions overlay + Tile Detail modal (spec 11 — increment 1)
+   ════════════════════════════════════════════════════════════════ */
+#map-tile-actions {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 7;
+}
+.tile-action-btn {
+  pointer-events: auto;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(212, 175, 80, 0.85);
+  background: rgba(26, 20, 12, 0.92);
+  color: #f0e2c0;
+  font-size: 15px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.tile-action-btn:hover {
+  transform: scale(1.12);
+  background: rgba(48, 38, 20, 0.96);
+  border-color: #f0cf6a;
+}
+
+.tile-detail-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(6, 4, 2, 0.72);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1200;
+}
+.tile-detail-backdrop.open { display: flex; }
+.tile-detail-card {
+  width: min(420px, 92vw);
+  background: #14100a;
+  border: 1px solid rgba(192, 221, 151, 0.16);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+.tile-detail-close {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: none; background: rgba(0, 0, 0, 0.45); color: #c9b78c;
+  font-size: 14px; cursor: pointer;
+}
+.tile-detail-close:hover { background: rgba(0, 0, 0, 0.7); color: #f0e2c0; }
+.td-scene-bg {
+  height: 150px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+}
+.td-scene-glyph { font-size: 64px; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); }
+.td-scene-badges { position: absolute; bottom: 8px; right: 10px; display: flex; gap: 6px; }
+.td-scene-badge {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(20, 16, 10, 0.85); border: 1px solid rgba(212, 175, 80, 0.7);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.tile-detail-body { padding: 14px 16px 16px; }
+.td-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.td-header-glyph { font-size: 24px; }
+.td-title { font-size: 16px; color: #e8d9a8; font-weight: 600; }
+.td-sub { font-size: 11px; color: rgba(192, 221, 151, 0.5); }
+.td-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 12px; padding: 5px 0;
+  border-top: 1px solid rgba(192, 221, 151, 0.08);
+}
+.td-row-k { color: rgba(192, 221, 151, 0.6); }
+.td-row-v { color: #c0dd97; text-align: right; }
+.td-mine { color: #e8c76a; }
+.td-soon {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px dashed rgba(192, 221, 151, 0.14);
+  font-size: 10.5px; color: rgba(192, 221, 151, 0.4); font-style: italic;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Spec 19 — Tavern card-games overhaul
+   ──────────────────────────────────────────────────────────────
+   §4.2 per-game theme tokens. Shared by the game-table shell
+   (.kw-game-modal, P3/P4) and the select-screen cards (.kw-gs-card),
+   so a future game is a variable block, not a fork. Stash = default
+   gold; Court = plum via the .theme-court class.
+   ════════════════════════════════════════════════════════════════ */
+.kw-game-modal, .kw-gs-card {
+  --kw-game-accent:      #d9b464;
+  --kw-game-accent-deep: #a0865c;
+  --kw-game-panel:       #241c13;
+  --kw-game-panel-hot:   #2a2115;
+  --kw-game-border:      #3d3223;
+  --kw-game-border-mid:  #6e5a38;
+  --kw-game-text:        #e8cf9a;
+  --kw-game-text-dim:    #a89372;
+}
+.kw-game-modal.theme-court, .kw-gs-card.theme-court {
+  --kw-game-accent:      #b48fbc;
+  --kw-game-accent-deep: #8f7396;
+  --kw-game-panel:       #241d26;
+  --kw-game-panel-hot:   #2b2230;
+  --kw-game-border:      #382d3b;
+  --kw-game-border-mid:  #5e4a63;
+  --kw-game-text:        #dcc4e0;
+  --kw-game-text-dim:    #a08fa5;
+}
+
+/* §5 — two-crest game select */
+.kw-game-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 6px 4px 8px;
+}
+.kw-gs-eyebrow {
+  font-family: 'Crimson Pro', Georgia, serif;
+  text-transform: uppercase;
+  letter-spacing: .28em;
+  font-size: .72rem;
+  color: var(--kw-gold-dim, #a89372);
+}
+.kw-gs-heading {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.7rem;
+  color: var(--kw-cream, #e8cf9a);
+  text-align: center;
+}
+.kw-gs-bramble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  padding: 8px 14px;
+  background: #efe4cd;
+  color: #3a2c1c;
+  border: 1px solid #c9b48c;
+  border-radius: 10px;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: .92rem;
+}
+.kw-gs-bramble-av {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d9c39a;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+.kw-gs-crests {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+  gap: 18px;
+  justify-content: center;
+  width: 100%;
+}
+.kw-gs-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 16px 16px;
+  background: var(--kw-game-panel);
+  border: 1px solid var(--kw-game-border);
+  border-top: 4px solid var(--kw-game-accent);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+}
+.kw-gs-crest {
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5));
+}
+.kw-gs-crest img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.kw-gs-crest-fallback { display: none; font-size: 84px; line-height: 1; }
+.kw-gs-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.2rem;
+  color: var(--kw-game-text);
+}
+.kw-gs-tagline {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: .86rem;
+  color: var(--kw-game-text-dim);
+  line-height: 1.35;
+  min-height: 2.4em;
+}
+.kw-gs-meta { font-family: 'Crimson Pro', Georgia, serif; font-size: .8rem; color: var(--kw-game-text-dim); }
+.kw-gs-reward::before { content: '💰 '; }
+.kw-gs-counts:not(:empty)::before { content: ' · '; }
+.kw-gs-actions { display: flex; gap: 8px; margin-top: 6px; }
+.kw-gs-btn {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .9rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--kw-game-accent);
+  transition: filter .12s ease, background .12s ease;
+}
+.kw-gs-btn.host { background: var(--kw-game-accent); color: #241c13; font-weight: 600; }
+.kw-gs-btn.host:hover { filter: brightness(1.09); }
+.kw-gs-btn.join { background: transparent; color: var(--kw-game-accent); }
+.kw-gs-btn.join:hover { background: rgba(255, 255, 255, .06); }
+.kw-gs-back {
+  margin-top: 4px;
+  background: transparent;
+  border: none;
+  color: var(--kw-muted, #a89372);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.kw-gs-back:hover { color: var(--kw-cream, #e8cf9a); }
+@media (max-width: 520px) {
+  .kw-gs-crests { grid-template-columns: 1fr; }
+  .kw-gs-tagline { min-height: 0; }
+}
