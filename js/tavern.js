@@ -1917,19 +1917,19 @@ function _sqRender() {
           ${_sqCenterChoices(s, me)}
           <div class="sq-center-caption">${myTurn ? (me.drawsThisTurn < 3 ? '🐿️ Grab a card — safe draw ' + (me.drawsThisTurn + 1) + ' of 3' : 'Grab another, or stop to leave your stash on the table') : 'Waiting for ' + _esc(turnName) + '…'}</div>
         </div>
-      </div>
 
-      <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
-        ${badgerCount ? `<div class="sq-shield-label">🛡 BADGER'S PROTECTION${badgerCount > 1 ? ' ×' + badgerCount : ''}</div>` : ''}
-        <div class="sq-me-header">
-          <span class="sq-me-name">Your stash</span>
-          ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
-          <span class="sq-me-hoard"><span class="sq-hoard-lbl">Hoard</span><span class="sq-hoard-val">${me.score}</span><span class="sq-hoard-ac">🌰</span></span>
+        <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
+          ${badgerCount ? `<div class="sq-shield-label">🛡 BADGER'S PROTECTION${badgerCount > 1 ? ' ×' + badgerCount : ''}</div>` : ''}
+          <div class="sq-me-header">
+            <span class="sq-me-name">Your stash</span>
+            ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
+            <span class="sq-me-hoard"><span class="sq-hoard-lbl">Hoard</span><span class="sq-hoard-val">${me.score}</span><span class="sq-hoard-ac">🌰</span></span>
+          </div>
+          <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
+            cardClass: stormMine ? () => 'storm-target' : null,
+            wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
+          }) : ''}</div>
         </div>
-        <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
-          cardClass: stormMine ? () => 'storm-target' : null,
-          wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
-        }) : ''}</div>
       </div>
 
       <div class="sq-prompt">${prompt}</div>

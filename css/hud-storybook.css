@@ -3775,13 +3775,15 @@
    your-stash scroll INSIDE their own boxes, and the action row stays pinned
    and visible at the bottom. */
 .sq-table { overflow: hidden; }
-/* Header, your-stash and the Draw/Bank row are pinned; the seats + hoard live
-   in a scroll region between them, so the action row is ALWAYS visible no
-   matter how tall the table gets or how short the shell is. */
-.sq-roundbar, .sq-me, .sq-prompt { flex-shrink: 0; }
+/* Only the round bar (top) and the Draw/Bank prompt (bottom) are pinned. The
+   seats, hoard AND your-stash all live in the scroll region between them, so
+   the action row is ALWAYS visible no matter how tall the table gets or how
+   short the browser window is — the your-stash bar was previously pinned too,
+   and on short viewports that pushed the buttons below the fold. */
+.sq-roundbar, .sq-prompt { flex-shrink: 0; }
 .sq-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
-.sq-others { flex-shrink: 0; }
-.sq-center { flex: 1 0 auto; min-height: 200px; }
+.sq-others, .sq-me { flex-shrink: 0; }
+.sq-center { flex: 1 1 auto; min-height: 160px; }
 /* fixed-height opponent stash; horizontal+vertical padding so the count badge
    and the cards sit clear of the scroll box edges */
 .sq-player .sq-stash { height: 92px; overflow-y: auto; padding: 10px 6px 4px; }
