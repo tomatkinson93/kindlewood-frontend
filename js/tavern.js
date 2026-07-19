@@ -1908,13 +1908,15 @@ function _sqRender() {
         ${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}
       </div>
 
-      <div class="sq-others">${others}</div>
+      <div class="sq-scroll">
+        <div class="sq-others">${others}</div>
 
-      <div class="sq-center">
-        <div class="sq-hoard ${canDrawHoard ? 'drawable' : ''}">${pile}</div>
-        ${_sqActionBanner(s, me)}
-        ${_sqCenterChoices(s, me)}
-        <div class="sq-center-caption">${myTurn ? (me.drawsThisTurn < 3 ? '🐿️ Grab a card — safe draw ' + (me.drawsThisTurn + 1) + ' of 3' : 'Grab another, or stop to leave your stash on the table') : 'Waiting for ' + _esc(turnName) + '…'}</div>
+        <div class="sq-center">
+          <div class="sq-hoard ${canDrawHoard ? 'drawable' : ''}">${pile}</div>
+          ${_sqActionBanner(s, me)}
+          ${_sqCenterChoices(s, me)}
+          <div class="sq-center-caption">${myTurn ? (me.drawsThisTurn < 3 ? '🐿️ Grab a card — safe draw ' + (me.drawsThisTurn + 1) + ' of 3' : 'Grab another, or stop to leave your stash on the table') : 'Waiting for ' + _esc(turnName) + '…'}</div>
+        </div>
       </div>
 
       <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
