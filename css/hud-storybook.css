@@ -3784,3 +3784,33 @@
 /* Reserve the steal-count line's space even when empty, so a seat panel is the
    same height whether the opponent holds cards or not (no table shift). */
 .sq-player-stashval { min-height: 1.15em; }
+
+/* ── P3 §7.2 hoard shelf + §7.4 pile badge ────────────────────────────── */
+/* Right-aligned HOARD total: small-caps eyebrow + big Playfair accent numeral. */
+.sq-me-hoard { margin-left: auto; display: inline-flex; align-items: baseline; gap: 5px; }
+.sq-hoard-lbl {
+  font-family: 'Crimson Pro', serif; text-transform: uppercase; letter-spacing: .14em;
+  font-size: 9px; color: var(--kw-game-text-dim, #a89372); align-self: center;
+}
+.sq-hoard-val {
+  font-family: 'Playfair Display', Georgia, serif; font-weight: 700;
+  font-size: 22px; line-height: 1; color: var(--kw-gold, #d9b464);
+  font-variant-numeric: tabular-nums;
+}
+.sq-hoard-ac { font-size: 13px; align-self: center; }
+/* Empty your-stash = dashed slot outline (no placeholder sentence). */
+.sq-my-stash:empty {
+  min-height: 60px; border: 1px dashed var(--kw-game-border-mid, #6e5a38);
+  border-radius: 8px; opacity: .5;
+}
+/* §7.4 pile counter → accent pill badge (still opens the "what's left" breakdown). */
+.sq-hoard-btn {
+  background: var(--kw-gold, #d9b464) !important;
+  color: #241c13 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 3px 12px !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sq-hoard-btn:hover { filter: brightness(1.08); }

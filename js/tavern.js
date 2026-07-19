@@ -1903,7 +1903,7 @@ function _sqRender() {
     <div class="sq-table">
       <div class="sq-roundbar">
         <span>Round ${s.round}</span>
-        <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in the pile ▾</button>
+        <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in pile ▾</button>
         <button class="bc-help-btn" onclick="sqToggleHelp()" title="Rules">?</button>
         ${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}
       </div>
@@ -1922,12 +1922,12 @@ function _sqRender() {
         <div class="sq-me-header">
           <span class="sq-me-name">Your stash</span>
           ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
-          <span class="sq-me-score">Hoard ${me.score} 🌰</span>
+          <span class="sq-me-hoard"><span class="sq-hoard-lbl">Hoard</span><span class="sq-hoard-val">${me.score}</span><span class="sq-hoard-ac">🌰</span></span>
         </div>
         <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
           cardClass: stormMine ? () => 'storm-target' : null,
           wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
-        }) : '<span class="sq-empty">No cards yet — draw to begin.</span>'}</div>
+        }) : ''}</div>
       </div>
 
       <div class="sq-prompt">${prompt}</div>
