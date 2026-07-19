@@ -3649,6 +3649,8 @@
   align-items: center;
   gap: 14px;
   width: 100%;
+  flex: 1 1 auto;      /* fill the flex-row #tavern-card-menu, not content-size */
+  min-width: 0;
   padding: 6px 4px 8px;
 }
 .kw-gs-eyebrow {
@@ -3691,7 +3693,7 @@
 }
 .kw-gs-crests {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+  grid-template-columns: repeat(2, minmax(0, 240px));   /* always two, side by side */
   gap: 18px;
   justify-content: center;
   width: 100%;
