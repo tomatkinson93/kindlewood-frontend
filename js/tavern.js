@@ -2079,48 +2079,52 @@ function _sqCenterChoices(s, me) {
   </div>`;
 }
 
-// ── Prompt for the active phase ──
+// Persistent action row (spec 19 §7.1). Draw + Bank are ALWAYS rendered so the
+// player sees the full decision space; they enable/disable by state instead of
+// mounting/unmounting, and carry a disabled-reason title. (Steal is NOT a turn
+// action in this game — it's the Magpie card's effect, resolved by clicking a
+// target's stash during the magpie phase — so it is not a button here.)
+function _sqActionRow(s, me) {
+  const myTurn = s.turnSeat === me.seat && s.phase === 'turn' && !s.dare;
+  const myDare = s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat;
+  const canDraw = myTurn || myDare;
+  const canBank = myTurn && me.drawsThisTurn >= 3;
+  const drawExpr = myDare ? 'sqDareDraw()' : 'sqDraw()';
+  const drawTitle = canDraw ? 'Draw a card from the pile' : 'Not your turn';
+  const bankTitle = canBank ? 'Bank your stash and end your turn'
+    : (myTurn ? 'Bank unlocks after three safe draws' : 'Not your turn');
+  return `<div class="sq-actions">
+      <button class="cg-btn ${canDraw ? '' : 'disabled'}"${canDraw ? ` onclick="${drawExpr}"` : ''} title="${_esc(drawTitle)}">🌰 Draw</button>
+      <button class="cg-btn secondary ${canBank ? '' : 'disabled'}"${canBank ? ' onclick="sqBank()"' : ''} title="${_esc(bankTitle)}">✋ Bank</button>
+    </div>`;
+}
+
+// ── Prompt for the active phase ── (action row always on top, §7.1)
 function _sqPrompt(s, me, myTurn) {
   const P = s.pending;
+  const row = _sqActionRow(s, me);
 
-  // Dare in progress: the victim draws from the pile, one at a time.
-  if (s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat) {
-    return `<div class="sq-question">🦊 You've been dared! Click the pile to draw — ${s.dare.remaining} more to go.</div>`;
-  }
+  // Dare in progress: the victim draws (via the action row's Draw).
+  if (s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat)
+    return row + `<div class="sq-question">🦊 You've been dared! Draw from the pile — ${s.dare.remaining} more to go.</div>`;
 
-  if (myTurn) {
-    const canStop = me.drawsThisTurn >= 3;
-    return `<div class="sq-actions">
-        <button class="cg-btn" onclick="sqDraw()">🌰 Draw</button>
-        <button class="cg-btn ${canStop ? '' : 'secondary disabled'}" onclick="${canStop ? 'sqBank()' : ''}">✋ Stop${canStop ? '' : ' (after 3 draws)'}</button>
-      </div>
-      ${canStop ? '<div class="sq-hint">Stopping leaves your cards on the table — they move to your hoard at your next turn, but rivals can steal them until then.</div>' : ''}`;
-  }
+  if (myTurn)
+    return row + (me.drawsThisTurn >= 3
+      ? '<div class="sq-hint">Bank now, or push your luck. Stopping leaves your cards on the table until your next turn — rivals can steal them until then.</div>'
+      : `<div class="sq-hint">🐿️ Safe draw ${me.drawsThisTurn + 1} of 3 — Bank unlocks after three.</div>`);
 
-  if (!P) return _sqWaiting(s);
-
-  // Squirrel — keep 1 of 2
-  if (s.phase === 'squirrel' && P.actorSeat === me.seat && P.choices) {
-    return `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
-  }
-  // Storm — everyone returns one
-  if (s.phase === 'storm' && me.stash.length && !(P.stormResolved || []).includes(me.seat)) {
-    return `<div class="sq-question">⛈ Storm! Click a card in <em>your stash</em> below to return that stack to the pile.</div>`;
-  }
-  // Magpie — steal one card. Targets are clickable directly on the players'
-  // stashes above (highlighted); the prompt is just the instruction.
-  if (s.phase === 'magpie' && P.actorSeat === me.seat) {
+  if (s.phase === 'squirrel' && P && P.actorSeat === me.seat && P.choices)
+    return row + `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
+  if (s.phase === 'storm' && me.stash.length && !((P && P.stormResolved) || []).includes(me.seat))
+    return row + `<div class="sq-question">⛈ Storm! Click a card in <em>your stash</em> below to return that stack to the pile.</div>`;
+  if (s.phase === 'magpie' && P && P.actorSeat === me.seat) {
     const any = s.players.some(p => p.seat !== me.seat && p.stash.some(c => c.kind !== 'lucky7'));
-    return `<div class="sq-question">🐦 Magpie — click a highlighted card above to steal it${any ? '' : ' (no stealable cards — drawing continues)'}.</div>`;
+    return row + `<div class="sq-question">🐦 Magpie — click a highlighted card above to steal it${any ? '' : ' (nothing to steal — drawing continues)'}.</div>`;
   }
-  // Fox's Dare — pick a victim by clicking a player (boxes highlight), or self
-  if (s.phase === 'foxdare' && P.actorSeat === me.seat) {
-    return `<div class="sq-question">🦊 Fox's Dare — click any player (or your own stash) to make them draw three.</div>`;
-  }
-  // Dare draw in progress — the dared player draws one at a time
+  if (s.phase === 'foxdare' && P && P.actorSeat === me.seat)
+    return row + `<div class="sq-question">🦊 Fox's Dare — click any player (or your own stash) to make them draw three.</div>`;
 
-
-  return _sqWaiting(s);
+  return row + _sqWaiting(s);
 }
 
 function _sqWaiting(s) {
