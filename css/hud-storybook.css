@@ -3773,11 +3773,14 @@
    your-stash scroll INSIDE their own boxes, and the action row stays pinned
    and visible at the bottom. */
 .sq-table { overflow: hidden; }
-.sq-roundbar, .sq-others, .sq-me, .sq-prompt { flex-shrink: 0; }
-.sq-center { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.sq-roundbar, .sq-prompt { flex-shrink: 0; }             /* header + action row: always visible */
+.sq-others, .sq-me { flex-shrink: 1; min-height: 0; }    /* shrink/scroll so the action row never clips */
+.sq-center { flex: 1 1 auto; min-height: 96px; overflow: hidden; }
 .sq-others { max-height: 210px; overflow-y: auto; align-content: flex-start; }
-.sq-player .sq-stash { height: 88px; overflow-y: auto; }  /* fixed so first card does not expand the panel */
-.sq-me .sq-my-stash { max-height: 104px; overflow-y: auto; }
+/* fixed height + top padding so the stack-count badge (top:-6px) isn't clipped */
+.sq-player .sq-stash { height: 92px; overflow-y: auto; padding-top: 12px; }
+.sq-me .sq-my-stash { min-height: 0; max-height: 86px; overflow-y: auto; padding-top: 12px; }
+.sq-me .sq-my-stash .sq-card { width: 46px !important; } /* compact mini-cards in the hoard shelf */
 /* §4.4 empty tableau = dashed slot (no placeholder text); §7.3 steal count in accent */
 .sq-player .sq-stash:empty { min-height: 44px; border: 1px dashed var(--kw-game-border-mid, #6e5a38); border-radius: 6px; opacity: .5; }
 .sq-player-stashval { color: var(--kw-gold, #d9b464); font-variant-numeric: tabular-nums; }
@@ -3814,3 +3817,6 @@
   font-variant-numeric: tabular-nums;
 }
 .sq-hoard-btn:hover { filter: brightness(1.08); }
+/* Keep the stack-count badge inside the card corner so the stash scroll boxes
+   (overflow-y:auto) can't clip it — happened in both your stash and AI seats. */
+.sq-stack-count { top: 1px !important; right: 1px !important; }
