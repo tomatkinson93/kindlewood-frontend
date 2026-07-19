@@ -3764,3 +3764,18 @@
   .kw-gs-crests { grid-template-columns: 1fr; }
   .kw-gs-tagline { min-height: 0; }
 }
+
+/* ── P3 fix: keep the Squirrel table inside the modal ──────────────────
+   A tall opponent stash (2+ rows) used to push the hoard + action row below
+   the shell's fold. Now the table fits (no whole-table scroll), the seats /
+   your-stash scroll INSIDE their own boxes, and the action row stays pinned
+   and visible at the bottom. */
+.sq-table { overflow: hidden; }
+.sq-roundbar, .sq-others, .sq-me, .sq-prompt { flex-shrink: 0; }
+.sq-center { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.sq-others { max-height: 210px; overflow-y: auto; align-content: flex-start; }
+.sq-player .sq-stash { max-height: 118px; overflow-y: auto; }
+.sq-me .sq-my-stash { max-height: 132px; overflow-y: auto; }
+/* §4.4 empty tableau = dashed slot (no placeholder text); §7.3 steal count in accent */
+.sq-player .sq-stash:empty { min-height: 44px; border: 1px dashed var(--kw-game-border-mid, #6e5a38); border-radius: 6px; opacity: .5; }
+.sq-player-stashval { color: var(--kw-gold, #d9b464); font-variant-numeric: tabular-nums; }

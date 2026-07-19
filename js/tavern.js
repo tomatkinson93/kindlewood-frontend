@@ -2004,8 +2004,8 @@ function _sqPlayerBox(p, s) {
       <span class="sq-player-name">${_esc(p.name)}${p.isAI ? ' <span class="lobby-ai-tag">AI</span>' : ''}</span>
       <span class="sq-player-score">${p.score}🌰 hoard</span>
     </div>
-    <div class="sq-stash" data-seat="${p.seat}">${stashCards || '<span class="sq-empty">no active cards</span>'}</div>
-    ${p.stash.length ? `<div class="sq-player-stashval">on table: ${stashVal}🌰 · stealable</div>` : ''}
+    <div class="sq-stash" data-seat="${p.seat}">${stashCards}</div>
+    ${p.stash.length ? `<div class="sq-player-stashval">🤏 ${stashVal}</div>` : ''}
   </div>`;
 }
 
