@@ -349,9 +349,12 @@ const _esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;
 // playSfx(); otherwise plays directly. Files live in /assets/audio/.
 function _bcSfx(file) {
   try {
-    if (typeof playSfx === 'function') { playSfx(file); return; }
+    // Follow the in-game volume slider (which drives getMusicVolume / mute), so
+    // muting silences SFX too — the draw sound used to ignore it.
+    const gv = (typeof getMusicVolume === 'function') ? getMusicVolume() : 0.55;
+    if (gv <= 0) return;
     const a = new Audio('/assets/audio/' + file);
-    a.volume = 0.55;
+    a.volume = Math.max(0, Math.min(1, gv * 1.4));
     a.play().catch(() => {});
   } catch (e) {}
 }
@@ -2108,10 +2111,10 @@ function _sqPrompt(s, me, myTurn) {
   if (s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat)
     return row + `<div class="sq-question">🦊 You've been dared! Draw from the pile — ${s.dare.remaining} more to go.</div>`;
 
-  if (myTurn)
-    return row + (me.drawsThisTurn >= 3
-      ? '<div class="sq-hint">Bank now, or push your luck. Stopping leaves your cards on the table until your next turn — rivals can steal them until then.</div>'
-      : `<div class="sq-hint">🐿️ Safe draw ${me.drawsThisTurn + 1} of 3 — Bank unlocks after three.</div>`);
+  // No hint here — the centre caption already shows draw progress, and a second
+  // line under the buttons pushed the row below the shell's fold once your
+  // stash had cards.
+  if (myTurn) return row;
 
   if (s.phase === 'squirrel' && P && P.actorSeat === me.seat && P.choices)
     return row + `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
