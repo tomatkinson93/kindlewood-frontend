@@ -2060,10 +2060,10 @@
   color: #c9b3dd;
 }
 
-/* On narrow screens, stack chat under the game */
+/* Narrow screens: shell shrinks; chat is now an overlay drawer (see P4 §6.1
+   block near the end of the file), so no stacked-column layout is needed. */
 @media (max-width: 760px) {
-  .bcmp-shell { flex-direction: column; height: 92vh; }
-  .bcmp-chat { width: auto; border-left: none; border-top: 1px solid var(--kw-gold-dim); height: 180px; }
+  .bcmp-shell { height: 92vh; }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -3831,4 +3831,223 @@
   top: auto !important; right: auto !important;
   bottom: 2px !important; left: 50% !important;
   transform: translateX(-50%);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Spec 19 P4 — Briarwood Court table overhaul
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── §6.6 Header turn timer ─────────────────────────────────────── */
+/* The title bar becomes a three-part row: crest/name on the left, the live
+   auto-resolve countdown as a centred chip, and the help/audio tools right. */
+.card-game.briar > .card-game-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.card-game.briar .bc-title-name { flex: 0 0 auto; white-space: nowrap; }
+.card-game.briar .bc-title-tools { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
+/* Countdown chip sits in the header (was a loose line below the hand). Reserves
+   its width so an empty/ticking state never nudges the layout. */
+.card-game.briar #bcmp-deadline.bcmp-deadline {
+  flex: 1 1 auto;
+  margin: 0;
+  min-height: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #cbb98a;
+  opacity: .9;
+}
+.card-game.briar #bcmp-deadline.bcmp-deadline:empty { visibility: hidden; }
+.card-game.briar #bcmp-deadline.bcmp-deadline::before { content: ''; }
+.card-game.briar #bcmp-deadline.urgent {
+  color: #f0a888;
+  font-weight: 600;
+  animation: bcTimerPulse 1s ease-in-out infinite;
+}
+@keyframes bcTimerPulse { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+
+/* ── §6.4 Influence legend ──────────────────────────────────────── */
+/* Pips now read "copies still hidden": filled = in play, hollow = revealed.
+   A tiny legend row underneath spells it out so the tracker is self-explaining. */
+.bc-tracker-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 10px 0 0; }
+.bc-tracker-wrap .bc-tracker { margin: 0; }
+.bc-pip.live { background: var(--kw-gold-deep); opacity: 1; }
+.bc-pip.spent {
+  background: transparent;
+  border: 1px solid #5c4a30;
+  opacity: .8;
+}
+.bc-tracker-role.gone { opacity: .4; }
+.bc-tracker-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--kw-muted);
+  text-transform: uppercase;
+}
+.bc-tracker-legend .bc-pip { display: inline-block; vertical-align: middle; }
+
+/* ── §6.3 Wax-seal PASSED stamp ─────────────────────────────────── */
+/* A passed seat gets a round crimson wax seal stamped on it instead of the flat
+   green pill. Slight rotation + inset shading sell the "pressed wax" look. */
+.bc-seat.react-passed { background: rgba(120, 160, 90, .10); border-color: #6f7a4a; }
+.bc-seat.react-passed .bc-seat-react {
+  position: absolute;
+  top: -10px; right: -8px;
+  width: 34px; height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #b23b34, #7c1f1c 72%);
+  border: 1px solid #5a1512;
+  box-shadow: 0 2px 5px rgba(0,0,0,.5), inset 0 1px 3px rgba(255,255,255,.28), inset 0 -3px 5px rgba(0,0,0,.4);
+  color: #f3d9c8;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 7.5px;
+  letter-spacing: .04em;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(-11deg);
+  z-index: 5;
+  animation: bcWaxStamp .28s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes bcWaxStamp {
+  0% { transform: rotate(-11deg) scale(1.9); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: rotate(-11deg) scale(1); opacity: 1; }
+}
+
+/* ── §6.5 Symmetric "You" seat ──────────────────────────────────── */
+/* The You panel mirrors an opponent seat (name / acorns / cards) so the table
+   reads as one consistent round of seats, with your hand shown face-up inside. */
+.bc-you-seat {
+  width: fit-content;
+  min-width: 200px;
+  max-width: 100%;
+  margin: 12px auto 0;
+  padding: 10px 16px 12px;
+  border-color: var(--kw-gold-dim);
+  position: relative;
+}
+.bc-you-seat.acting { border-color: var(--kw-gold-deep); box-shadow: 0 0 14px rgba(232,200,122,.2); }
+.bc-you-seat .bc-you-turn { color: var(--kw-gold); font-style: italic; font-weight: 600; font-size: 11px; }
+.bc-you-seat .bc-seat-acorns { margin-top: 2px; }
+.bc-you-seat .bc-hand {
+  position: static;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── §6.2 The Scribe's Ledger (parchment log) ───────────────────── */
+/* The event log becomes an aged parchment slip with a small-caps heading. */
+.bc-log-scribe {
+  margin: 12px 0;
+  border-radius: 7px;
+  border: 1px solid #6e5836;
+  background:
+    linear-gradient(rgba(28,20,11,.05), rgba(28,20,11,.05)),
+    radial-gradient(circle at 20% 0%, #efe2c4, #e3d2ac 60%, #d3bd90);
+  box-shadow: inset 0 0 22px rgba(120,90,45,.35), 0 3px 8px rgba(0,0,0,.4);
+  overflow: hidden;
+}
+.bc-log-scribe .bc-log-head {
+  font-family: 'Crimson Pro', serif;
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-size: 10px;
+  color: #6b4f2a;
+  text-align: center;
+  padding: 5px 0 2px;
+  border-bottom: 1px solid rgba(110,88,54,.35);
+}
+.bc-log-scribe .bc-log {
+  background: transparent;
+  border: none;
+  margin: 0;
+  border-radius: 0;
+  color: #4a3a22;
+  font-size: 13px;
+}
+.bc-log-scribe .bc-log div:last-child { color: #2c2011; font-weight: 600; }
+
+/* ── §6.1 Chat drawer ───────────────────────────────────────────── */
+/* Chat is a right-edge drawer, hidden by default so the table gets full width.
+   A floating 💬 button toggles it; an unread badge counts messages that land
+   while it's closed. */
+.bcmp-shell { overflow: visible; }
+.bcmp-chat {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 280px;
+  max-width: 82vw;
+  border-left: 1px solid var(--kw-gold-dim);
+  background: rgba(24, 17, 10, .99);
+  transform: translateX(100%);
+  transition: transform .24s ease;
+  z-index: 8;
+  box-shadow: -8px 0 24px rgba(0,0,0,.4);
+}
+.bcmp-shell.chat-open .bcmp-chat { transform: translateX(0); }
+.bcmp-chat-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  color: var(--kw-gold);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--kw-gold-dim);
+}
+.bcmp-chat-close {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--kw-muted); font-size: 20px; line-height: 1;
+  padding: 0 2px;
+}
+.bcmp-chat-close:hover { color: var(--kw-gold); }
+.bcmp-chat-toggle {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 9;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(24, 17, 10, .95);
+  border: 1px solid var(--kw-gold-dim);
+  color: var(--kw-gold);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s, transform .15s;
+}
+.bcmp-chat-toggle:hover { border-color: var(--kw-gold); transform: scale(1.06); }
+.bcmp-shell.chat-open .bcmp-chat-toggle { display: none; }
+.bcmp-chat-unread {
+  position: absolute;
+  top: -4px; right: -4px;
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #b23b34;
+  color: #fff;
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+/* On narrow screens the drawer covers most of the table — that's fine, it's a
+   temporary overlay the player dismisses. The old stacked layout no longer
+   applies since the drawer is absolutely positioned. */
+@media (max-width: 720px) {
+  .bcmp-chat { width: 88vw; }
 }

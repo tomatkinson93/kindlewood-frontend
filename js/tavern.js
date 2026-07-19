@@ -184,6 +184,11 @@ function startBriarCourt(seating) { _startBriarCourt(seating); }
 function _bcOpenTable() {
   const bd = document.getElementById('bcmp-backdrop');
   if (bd) bd.style.display = 'flex';
+  // Reset chat drawer state (a prior solo game may have hidden it).
+  const chatEl = document.getElementById('bcmp-chat'); if (chatEl) chatEl.style.display = '';
+  const chatToggleEl = document.getElementById('bcmp-chat-toggle'); if (chatToggleEl) chatToggleEl.style.display = '';
+  const shellEl = document.querySelector('.bcmp-shell'); if (shellEl) shellEl.classList.remove('chat-open');
+  _bcChatUnread = 0; _bcChatRenderUnread();
   if (typeof startBriarMusic === 'function') startBriarMusic();
   // Populate whisper targets from the human players in the room
   const sel = document.getElementById('bcmp-chat-to');
@@ -211,6 +216,8 @@ function bcLeaveTable() {
   clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
   _bc = null; _bcmp = null; _currentGame = null; _bcMultiplayer = null; _spGame = null;
   const chat = document.getElementById('bcmp-chat'); if (chat) chat.style.display = '';
+  const shell = document.querySelector('.bcmp-shell'); if (shell) shell.classList.remove('chat-open');
+  _bcChatUnread = 0; _bcChatRenderUnread();
   if (typeof LobbySystem !== 'undefined') LobbySystem.close();
 }
 
@@ -235,6 +242,36 @@ function bcSendChat() {
   m.channel.chat(text, to.value || null);
   input.value = '';
   _bcTyping(false);
+}
+
+// ── Chat drawer (§6.1) ── collapsible right drawer with an unread badge.
+// Closed by default so the table has the full width; opens over the right edge.
+let _bcChatUnread = 0;
+function bcToggleChatDrawer(force) {
+  const shell = document.querySelector('.bcmp-shell');
+  if (!shell) return;
+  const open = (force === true || force === false) ? force : !shell.classList.contains('chat-open');
+  shell.classList.toggle('chat-open', open);
+  if (open) {
+    _bcChatUnread = 0;
+    _bcChatRenderUnread();
+    const inp = document.getElementById('bcmp-chat-input');
+    if (inp) setTimeout(() => inp.focus(), 60);
+    const log = document.getElementById('bcmp-chat-log');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+function _bcChatBumpUnread() {
+  const shell = document.querySelector('.bcmp-shell');
+  if (shell && shell.classList.contains('chat-open')) return;  // already reading
+  _bcChatUnread++;
+  _bcChatRenderUnread();
+}
+function _bcChatRenderUnread() {
+  const b = document.getElementById('bcmp-chat-unread');
+  if (!b) return;
+  b.textContent = _bcChatUnread > 9 ? '9+' : String(_bcChatUnread);
+  b.style.display = _bcChatUnread ? '' : 'none';
 }
 
 // Inbound chat / typing events (routed from lobby.js onEvent)
@@ -270,6 +307,7 @@ function bcOnRoomEvent(msg) {
     line.innerHTML = `${tag}<b>${who}:</b> ${_esc(msg.text)}`;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
+    if (!mine) _bcChatBumpUnread();
   } else if (msg.type === 'typing') {
     _bc = _bc || {};
     _bc._typing = _bc._typing || {};
@@ -1020,19 +1058,26 @@ function _bcmpRender() {
 
   const absent = _bcmp.absent && Object.keys(_bcmp.absent).length ? Object.values(_bcmp.absent) : null;
   const absentBanner = absent ? `<div class="bcmp-absent">⚠ ${absent.map(_esc).join(', ')} disconnected — waiting for them to return…${_bcmp.isHost ? ' <button class="cg-btn secondary" onclick="bcmpEndGame()">End game</button>' : ''}</div>` : '';
+  const meActing = s.turnSeat === meSeat && s.phase === 'action';
   area.innerHTML = `
     <div class="card-game briar">
-      <div class="card-game-title">🌿 Briarwood Court <button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</div>
+      <div class="card-game-title">
+        <span class="bc-title-name">🌿 Briarwood Court</span>
+        <span id="bcmp-deadline" class="bcmp-deadline">${_bcmpDeadlineText(s)}</span>
+        <span class="bc-title-tools"><button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</span>
+      </div>
       ${absentBanner}
       <div class="bc-seats">${seatHtml}</div>
       ${_bcmpTracker(s)}
-      <div class="bc-log">${s.log.map(l => `<div>${l}</div>`).join('')}</div>
-      <div class="bc-you ${s.turnSeat === meSeat ? 'acting' : ''} ${!me.alive ? 'out' : ''}">
-        <span class="bc-seat-name">You</span>
-        <span class="bc-seat-acorns">🌰 ${me.acorns}</span>
+      <div class="bc-log-scribe">
+        <div class="bc-log-head">The Scribe's Ledger</div>
+        <div class="bc-log">${s.log.map(l => `<div>${l}</div>`).join('')}</div>
       </div>
-      <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
-      <div id="bcmp-deadline" class="bcmp-deadline">${_bcmpDeadlineText(s)}</div>
+      <div class="bc-you-seat bc-seat you ${meActing ? 'acting' : ''} ${!me.alive ? 'out' : ''}" data-seat="${meSeat}">
+        <div class="bc-seat-name">You${meActing ? ' <span class="bc-you-turn">— your move</span>' : ''}</div>
+        <div class="bc-seat-acorns">🌰 ${me.acorns}</div>
+        <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
+      </div>
       <div class="bc-prompt">${prompt}</div>
     </div>`;
   const lg = area.querySelector('.bc-log');
@@ -1073,7 +1118,9 @@ function _bcReactionClass(p) {
   return { passed: 'react-passed', challenging: 'react-challenge', blocking: 'react-block' }[p.reaction] || '';
 }
 function _bcReactionLabel(p) {
-  return { passed: '✓ Passed', challenging: '⚔ Challenging', blocking: '🛡 Blocking' }[p.reaction] || '';
+  // 'passed' renders as a wax-seal stamp (styled in CSS via .react-passed);
+  // the others stay as small status pills.
+  return { passed: 'PASSED', challenging: '⚔ Challenging', blocking: '🛡 Blocking' }[p.reaction] || '';
 }
 
 // After each render, scan the newest log line for a just-resolved challenge
@@ -1139,12 +1186,19 @@ function _bcmpHandCard(c) {
 function _bcmpTracker(s) {
   const dead = {};
   s.players.forEach(p => p.cards.forEach(c => { if (c.revealed && c.role) dead[c.role] = (dead[c.role] || 0) + 1; }));
-  return '<div class="bc-tracker" onclick="bcToggleLedger()" title="The Court ledger">'
-    + Object.entries(BC_ROLES).map(([k, r]) => {
-        const d = dead[k] || 0;
-        const pips = [0, 1, 2].map(i => `<span class="bc-pip ${i < d ? 'dead' : ''}"></span>`).join('');
-        return `<span class="bc-tracker-role">${r.icon}${pips}</span>`;
-      }).join('') + '</div>';
+  // Each role has three copies. Filled pips = copies still hidden somewhere in
+  // the Court; hollow pips = copies already revealed (cast out). So a role with
+  // three hollow pips can no longer be truthfully claimed by anyone.
+  const roles = Object.entries(BC_ROLES).map(([k, r]) => {
+    const d = dead[k] || 0;
+    const remain = 3 - d;
+    const pips = [0, 1, 2].map(i => `<span class="bc-pip ${i < remain ? 'live' : 'spent'}"></span>`).join('');
+    return `<span class="bc-tracker-role ${remain === 0 ? 'gone' : ''}" title="${r.name}: ${remain} of 3 still hidden">${r.icon}${pips}</span>`;
+  }).join('');
+  return `<div class="bc-tracker-wrap">
+    <div class="bc-tracker" onclick="bcToggleLedger()" title="The Court ledger — filled pips are copies still hidden">${roles}</div>
+    <div class="bc-tracker-legend"><span class="bc-pip live"></span> hidden <span class="bc-pip spent"></span> revealed</div>
+  </div>`;
 }
 
 // ── Decide what this player can do in the current phase ──
@@ -1385,6 +1439,8 @@ function startBriarCourtSolo(difficulty) {
   _bcOpenTable();
   const chat = document.getElementById('bcmp-chat');
   if (chat) chat.style.display = 'none';
+  const chatToggle = document.getElementById('bcmp-chat-toggle');
+  if (chatToggle) chatToggle.style.display = 'none';   // no table talk in solo
   _spPushLocal();          // first state → render + (maybe) start the AI tick
 }
 
