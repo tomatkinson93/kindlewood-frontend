@@ -2008,7 +2008,7 @@ function _sqPlayerBox(p, s) {
       <span class="sq-player-score">${p.score}🌰 hoard</span>
     </div>
     <div class="sq-stash" data-seat="${p.seat}">${stashCards}</div>
-    ${p.stash.length ? `<div class="sq-player-stashval">🤏 ${stashVal}</div>` : ''}
+    <div class="sq-player-stashval">${p.stash.length ? `🤏 ${stashVal}` : ''}</div>
   </div>`;
 }
 

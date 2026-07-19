@@ -3776,8 +3776,11 @@
 .sq-roundbar, .sq-others, .sq-me, .sq-prompt { flex-shrink: 0; }
 .sq-center { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .sq-others { max-height: 210px; overflow-y: auto; align-content: flex-start; }
-.sq-player .sq-stash { max-height: 118px; overflow-y: auto; }
+.sq-player .sq-stash { height: 88px; overflow-y: auto; }  /* fixed so first card does not expand the panel */
 .sq-me .sq-my-stash { max-height: 104px; overflow-y: auto; }
 /* §4.4 empty tableau = dashed slot (no placeholder text); §7.3 steal count in accent */
 .sq-player .sq-stash:empty { min-height: 44px; border: 1px dashed var(--kw-game-border-mid, #6e5a38); border-radius: 6px; opacity: .5; }
 .sq-player-stashval { color: var(--kw-gold, #d9b464); font-variant-numeric: tabular-nums; }
+/* Reserve the steal-count line's space even when empty, so a seat panel is the
+   same height whether the opponent holds cards or not (no table shift). */
+.sq-player-stashval { min-height: 1.15em; }
