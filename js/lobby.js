@@ -18,6 +18,12 @@ const LobbySystem = (() => {
 
   function register(def) { games[def.type] = def; }
 
+  // Live per-game activity for the tavern select screen (spec 19 §5.4).
+  // Resolves to { <gameType>: { openTables, waiting, playing } }.
+  function summary() {
+    return _api('/summary').then(d => d.summary || {}).catch(() => ({}));
+  }
+
   function _api(path, opts = {}) {
     return apiFetch('/api/rooms' + path, {
       method: opts.method || 'GET',
@@ -52,11 +58,22 @@ const LobbySystem = (() => {
     _closeStream();
     current = null;
   }
+  let _themeGame = null;    // game type currently driving the lobby accent
   function _show(html) {
     const el = _host();
     if (!el) return;
     _open();
     el.innerHTML = `<div class="lobby">${html}</div>`;
+    _applyLobbyTheme(_themeGame);
+  }
+  // Per-game accent (spec 19 §5): tints the lobby shell to match the game's
+  // crest card and in-game table (plum for the Court, gold for the Stash).
+  function _applyLobbyTheme(gameType) {
+    const shell = document.querySelector('#lobby-modal .lobby-card-shell');
+    if (!shell) return;
+    const accent = (window.KWGames && KWGames.META[gameType] && KWGames.META[gameType].accent) || '';
+    shell.classList.toggle('theme-court', accent === 'court');
+    shell.classList.toggle('theme-stash', accent === 'stash');
   }
   const _esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 
@@ -74,6 +91,7 @@ const LobbySystem = (() => {
 
   function soloChoose(gameType) {
     const g = games[gameType];
+    _themeGame = gameType;
     _open();
     _show(`
       <div class="lobby-title">${_esc(g.name)} — Single Player</div>
@@ -107,18 +125,25 @@ const LobbySystem = (() => {
   // ── Browser: public rooms + create/join ──
   async function browse(gameType) {
     const g = games[gameType];
+    _themeGame = gameType;
     _show(`<div class="lobby-title">${_esc(g.name)} \u2014 Tables</div><div class="lobby-sub">Loading open tables\u2026</div>`);
     let list = [];
     try { list = (await _api('/list?game=' + encodeURIComponent(gameType))).rooms; }
     catch (e) {}
-    const rows = list.length ? list.map(r => `
+    const rows = list.length ? list.map(r => {
+      const filled = r.players.length, cap = r.maxPlayers;
+      const pips = Array.from({ length: cap }, (_, i) =>
+        `<span class="lobby-pip ${i < filled ? 'on' : ''}"></span>`).join('');
+      const host = r.players[0] ? r.players[0].name : 'Host';
+      return `
       <div class="lobby-room-row">
-        <div>
-          <div class="lobby-room-host">${_esc(r.players[0] ? r.players[0].name : 'Host')}'s table</div>
-          <div class="lobby-room-meta">${r.players.length}/${r.maxPlayers} players \u00b7 code ${r.code}</div>
+        <div class="lobby-room-info">
+          <div class="lobby-room-host">${_esc(host)}'s table</div>
+          <div class="lobby-room-meta"><span class="lobby-pips">${pips}</span> ${filled}/${cap} \u00b7 code ${r.code}</div>
         </div>
         <button class="cg-btn" onclick="LobbySystem.join('${r.code}')">Join</button>
-      </div>`).join('') : '<div class="lobby-empty">No open tables right now. Host one!</div>';
+      </div>`;
+    }).join('') : '<div class="lobby-empty">No open tables right now \u2014 host one and courtiers will fill the empty seats.</div>';
     _show(`
       <div class="lobby-title">${_esc(g.name)} \u2014 Tables</div>
       <div class="lobby-rooms">${rows}</div>
@@ -136,6 +161,7 @@ const LobbySystem = (() => {
   // ── Create form ──
   function createForm(gameType) {
     const g = games[gameType];
+    _themeGame = gameType;
     const opts = [];
     for (let n = g.maxPlayers; n >= g.minPlayers; n--) opts.push(`<option value="${n}">${n} players</option>`);
     _show(`
@@ -237,6 +263,7 @@ const LobbySystem = (() => {
 
   function _renderRoom(code) {
     const r = current;
+    _themeGame = r.gameType;
     const isHost = (myId != null && r.hostId === myId);
     const canStart = r.players.length >= (games[r.gameType]?.minPlayers || 2);
     const seats = [];
@@ -401,7 +428,7 @@ const LobbySystem = (() => {
 
   return { register, choose, browse, createForm, create, join, joinByInput,
            invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, removeAI, close,
-           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier,
+           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary,
            get current() { return current; } };
 })();
 

@@ -3737,9 +3737,16 @@
   line-height: 1.35;
   min-height: 2.4em;
 }
-.kw-gs-meta { font-family: 'Crimson Pro', Georgia, serif; font-size: .8rem; color: var(--kw-game-text-dim); }
+.kw-gs-meta {
+  font-family: 'Crimson Pro', Georgia, serif; font-size: .8rem; color: var(--kw-game-text-dim);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
 .kw-gs-reward::before { content: '💰 '; }
-.kw-gs-counts:not(:empty)::before { content: ' · '; }
+/* Live activity line (§5.4). Reserve a line so the card doesn't jump when the
+   count arrives from the server. */
+.kw-gs-counts { min-height: 1.2em; font-size: .78rem; }
+.kw-gs-live { color: #86c06a; font-weight: 600; }
+.kw-gs-quiet { color: var(--kw-game-text-dim); opacity: .8; font-style: italic; }
 .kw-gs-actions { display: flex; gap: 8px; margin-top: 6px; }
 .kw-gs-btn {
   font-family: 'Crimson Pro', Georgia, serif;
@@ -3899,7 +3906,7 @@
 .bc-seat.react-passed { background: rgba(120, 160, 90, .10); border-color: #6f7a4a; }
 .bc-seat.react-passed .bc-seat-react {
   position: absolute;
-  top: -12px; left: -10px; right: auto;
+  top: -12px; right: -10px; left: auto;
   width: 34px; height: 34px;
   padding: 0;
   border-radius: 50%;
@@ -4070,3 +4077,25 @@
 @media (max-width: 720px) {
   .bcmp-chat { width: 88vw; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Spec 19 P5 — lobby per-game accent + polish
+   ════════════════════════════════════════════════════════════════ */
+/* The lobby shell carries accent tokens so its title, hovers and seat pips
+   match the game's crest card and in-game table. Default = Stash gold; the
+   Court gets plum via .theme-court (set by LobbySystem._applyLobbyTheme). */
+.lobby-card-shell { --kw-lobby-accent: var(--kw-gold); --kw-lobby-accent-dim: var(--kw-gold-dim); }
+.lobby-card-shell.theme-court { --kw-lobby-accent: #c79bd0; --kw-lobby-accent-dim: #5e4a63; }
+/* A thin accent bar along the top of the shell echoes the crest card. */
+.lobby-card-shell { border-top: 3px solid var(--kw-lobby-accent); }
+.lobby-card-shell .lobby-title { color: var(--kw-lobby-accent); }
+
+/* Room rows: hover lift + accent border, stacked info column. */
+.lobby-room-info { display: flex; flex-direction: column; gap: 3px; }
+.lobby-room-row { transition: border-color .15s, transform .15s, background .15s; }
+.lobby-room-row:hover { border-color: var(--kw-lobby-accent-dim); background: #352818; transform: translateY(-1px); }
+
+/* Seat-occupancy pips in each room row. */
+.lobby-pips { display: inline-flex; gap: 3px; vertical-align: middle; margin-right: 6px; }
+.lobby-pip { width: 7px; height: 7px; border-radius: 50%; background: transparent; border: 1px solid var(--kw-lobby-accent-dim); }
+.lobby-pip.on { background: var(--kw-lobby-accent); border-color: var(--kw-lobby-accent); }

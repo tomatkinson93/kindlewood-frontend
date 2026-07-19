@@ -88,6 +88,7 @@ function openCardGameMenu() {
   renderGameSelect(el);   // data-driven (KWGames.META) — overwrites any stale static markup
   el.style.display = 'flex';
   document.getElementById('tavern-game-area').style.display = 'none';
+  _kwStartCounts();       // live "open tables / in progress" badges (spec 19 §5.4)
 }
 
 // Two-crest game select (spec 19 §5). Built from KWGames.META so the game list
@@ -131,6 +132,44 @@ function renderGameSelect(el) {
 function closeCardGameMenu() {
   document.getElementById('tavern-card-menu').style.display = 'none';
   document.getElementById('tavern-menu').style.display = 'flex';
+  _kwStopCounts();
+}
+
+// ── Live table counts on the select screen (spec 19 §5.4) ──
+// Polls the server's /summary while the two-crest menu is open and fills the
+// per-game count badges. Fails silently (solo play still works with no server).
+let _kwCountsTimer = null;
+function _kwStartCounts() {
+  _kwLoadCounts();
+  clearInterval(_kwCountsTimer);
+  _kwCountsTimer = setInterval(_kwLoadCounts, 8000);
+}
+function _kwStopCounts() {
+  clearInterval(_kwCountsTimer);
+  _kwCountsTimer = null;
+}
+function _kwLoadCounts() {
+  if (typeof LobbySystem === 'undefined' || !LobbySystem.summary) return;
+  // Only fetch while the menu is actually visible.
+  const menu = document.getElementById('tavern-card-menu');
+  if (!menu || menu.style.display === 'none') { _kwStopCounts(); return; }
+  LobbySystem.summary().then(sum => {
+    document.querySelectorAll('.kw-gs-counts[data-game]').forEach(span => {
+      span.innerHTML = _kwCountsText(sum[span.getAttribute('data-game')]);
+    });
+  }).catch(() => {});
+}
+function _kwCountsText(c) {
+  if (!c) return '';
+  const parts = [];
+  if (c.openTables) {
+    let t = `<span class="kw-gs-live">● ${c.openTables} open</span>`;
+    if (c.waiting) t += ` · ${c.waiting} waiting`;
+    parts.push(t);
+  }
+  if (c.playing) parts.push(`🎲 ${c.playing} in progress`);
+  if (!parts.length) return '<span class="kw-gs-quiet">Quiet — host the first table</span>';
+  return parts.join(' · ');
 }
 
 // ══════════════════════════════════════════════
