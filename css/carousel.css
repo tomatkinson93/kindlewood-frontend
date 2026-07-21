@@ -17,11 +17,7 @@
   color: #C8941A;
   letter-spacing: .03em;
   display: inline-block;
-  animation: scalePulse 3.5s ease-in-out infinite;
-}
-@keyframes scalePulse {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50%       { transform: translateY(-5px) scale(1.06); }
+  /* scalePulse removed (spec 20 §D8) */
 }
 .label-deco-line {
   flex: 1; max-width: 100px; height: 1px;
@@ -63,20 +59,21 @@
   box-shadow: 0 0 24px rgba(239,159,39,.35), 0 10px 32px rgba(0,0,0,.15);
   z-index: 10; cursor: default;
 }
+/* Side-card widths +10% (spec 20 §D4) so the larger, floored type doesn't wrap. */
 .sp-card.pos-l1 {
-  width: 170px; transform: translate(calc(-50% - 220px), -50%) scale(0.88);
+  width: 187px; transform: translate(calc(-50% - 220px), -50%) scale(0.88);
   opacity: 0.55; filter: sepia(0.2) brightness(0.9); z-index: 7;
 }
 .sp-card.pos-r1 {
-  width: 170px; transform: translate(calc(-50% + 220px), -50%) scale(0.88);
+  width: 187px; transform: translate(calc(-50% + 220px), -50%) scale(0.88);
   opacity: 0.55; filter: sepia(0.2) brightness(0.9); z-index: 7;
 }
 .sp-card.pos-l2 {
-  width: 130px; transform: translate(calc(-50% - 390px), -50%) scale(0.72);
+  width: 143px; transform: translate(calc(-50% - 390px), -50%) scale(0.72);
   opacity: 0.28; filter: sepia(0.35) brightness(0.82); z-index: 4;
 }
 .sp-card.pos-r2 {
-  width: 130px; transform: translate(calc(-50% + 390px), -50%) scale(0.72);
+  width: 143px; transform: translate(calc(-50% + 390px), -50%) scale(0.72);
   opacity: 0.28; filter: sepia(0.35) brightness(0.82); z-index: 4;
 }
 .sp-card.pos-hidden {
@@ -93,6 +90,8 @@
   background: rgba(60,48,37,.04); padding: 12px;
   overflow: hidden;
 }
+/* WebP <picture> wrapper is layout-transparent so .sp-card-art stays the flex child. */
+.sp-card-art-wrap picture { display: contents; }
 
 /* Idle breathe on active card art */
 .sp-card-art {
@@ -108,13 +107,14 @@
   100% { transform: scale(1); }
 }
 
+/* Typography floor 12px (spec 20 §D4) */
 .sp-card-body { padding: 10px 12px 13px; border-top: 1px solid rgba(100,70,30,.12); }
 .sp-card-name { font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
-.sp-card-role { font-size: 9px; color: var(--moss); font-weight: 500; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
-.sp-card-flavor { font-family: 'Playfair Display', serif; font-style: italic; font-size: 9px; color: var(--ink2); opacity: .7; line-height: 1.4; }
-.sp-card.pos-active .sp-card-name { font-size: 17px; }
-.sp-card.pos-active .sp-card-role { font-size: 11px; }
-.sp-card.pos-active .sp-card-flavor { font-size: 10px; }
+.sp-card-role { font-size: 12px; color: var(--moss); font-weight: 500; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
+.sp-card-flavor { font-family: 'Playfair Display', serif; font-style: italic; font-size: 13px; color: var(--ink2); opacity: .7; line-height: 1.4; }
+.sp-card.pos-active .sp-card-name { font-size: 18px; }
+.sp-card.pos-active .sp-card-role { font-size: 12px; }
+.sp-card.pos-active .sp-card-flavor { font-size: 13px; }
 .sp-card.pos-active .sp-card-body { padding: 12px 16px 16px; }
 
 /* ── Dots centred above CTA ── */
@@ -178,7 +178,7 @@
   display: inline-block;
   margin-top: 7px;
   font-family: 'Crimson Pro', serif;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--moss);
   text-decoration: underline;
   text-underline-offset: 2px;

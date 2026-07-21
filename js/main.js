@@ -349,12 +349,21 @@ function switchTab(tab) {
 }
 
 /* ── Login background art cycler ── */
-const LOGIN_ARTS = [
-  '/assets/images/login_art1.png',
-  '/assets/images/login_art2.png',
-  '/assets/images/login_art3.png',
-  '/assets/images/login_art4.png',
-];
+/* Prefer WebP, fall back to PNG via a one-time Image() probe (spec 20 §A5).
+   Defaults to PNG so first paint is always safe; if the probe confirms WebP
+   support + asset presence, the array is swapped before the cycler needs it. */
+const LOGIN_ART_BASES = ['login_art1', 'login_art2', 'login_art3', 'login_art4'];
+let LOGIN_ARTS = LOGIN_ART_BASES.map(b => `/assets/images/${b}.png`);
+(function probeLoginArtWebp() {
+  const probe = new Image();
+  probe.onload = () => {
+    if (probe.naturalWidth > 0) {
+      LOGIN_ARTS = LOGIN_ART_BASES.map(b => `/assets/images/${b}.webp`);
+    }
+  };
+  probe.onerror = () => { /* keep PNG paths */ };
+  probe.src = `/assets/images/${LOGIN_ART_BASES[0]}.webp`;
+})();
 let _loginArtIndex = 0;
 let _loginArtTimer = null;
 let _loginArtActive = 'a'; // which layer is currently visible
@@ -1508,6 +1517,7 @@ const SPECIES_DATA = {
 function openModal(species) {
   const d = SPECIES_DATA[species];
   if (!d) return;
+  window._kwModalSpecies = species;   // remembered for the modal CTA (spec 20 §A7)
   document.getElementById('modal-art').src = d.art;
   document.getElementById('modal-name').textContent = d.name;
   document.getElementById('modal-role').textContent = d.role;
@@ -1522,6 +1532,18 @@ function openModal(species) {
 function closeModal() {
   document.getElementById('modal-backdrop').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// "Begin As This Species" in the species modal — carry the choice through
+// to registration / Arrival (spec 20 §A7 / §D7).
+function beginAsThisSpecies() {
+  const sp = window._kwModalSpecies;
+  if (sp) {
+    window.KW_PENDING_SPECIES = sp;
+    try { sessionStorage.setItem('kw_pending_species', sp); } catch (e) {}
+  }
+  closeModal();
+  showScreen('register');
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
