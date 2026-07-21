@@ -65,6 +65,13 @@ function updateSeasonProgress() {
   const changed = updated.index !== currentSeason?.index;
   currentSeason = updated;
   if (changed && typeof refreshResources === 'function') refreshResources();
+  // Map renderer hook (Phase 5): on a season flip, invalidate the season-
+  // dependent map layers (decor variants, palettes). Guarded — the KWMap
+  // controller may not exist on older deploys. renderSeasonBadge below also
+  // swaps the season CSS class, which the iso renderer reads for grading.
+  if (changed && window.KWMap && KWMap.controller && KWMap.controller.invalidate) {
+    try { KWMap.controller.invalidate('season'); } catch (e) {}
+  }
   renderSeasonBadge();
   renderSeasonPanel();
 }
@@ -166,12 +173,23 @@ function renderSeasonPanel() {
       </div>
 
       <div class="sp-settings">
-        <div class="sp-settings-label">✦ Atmosphere</div>
-        <label class="sp-toggle">
+        <div class="sp-settings-label">✦ Map &amp; Atmosphere</div>
+        <label class="sp-toggle sp-select-row" data-kwmap-row>
+          <span>Map view</span>
+          <select class="sp-select" data-kwmap-view>
+            <option value="topdown">Top-Down</option>
+            <option value="iso">Isometric</option>
+          </select>
+        </label>
+        <label class="sp-toggle" data-kwmap-row>
+          <input type="checkbox" data-kwmap-setting="lowdetail">
+          <span>Reduce map detail</span>
+        </label>
+        <label class="sp-toggle" data-atmo-row>
           <input type="checkbox" data-atmo-setting="atmosphere">
           <span>Seasonal colour grading</span>
         </label>
-        <label class="sp-toggle">
+        <label class="sp-toggle" data-atmo-row>
           <input type="checkbox" data-atmo-setting="particles">
           <span>Seasonal particles</span>
         </label>
@@ -179,9 +197,31 @@ function renderSeasonPanel() {
     </div>
   `;
 
-  // Wire the atmosphere toggles (data-* + listeners; panel HTML is
-  // regenerated on every render, so re-wire each time). Guarded — the
-  // SeasonAtmosphere module may not be loaded on older deploys.
+  // ── Map view + performance (KWMap) — data-* + re-wire-on-render, guarded ──
+  // Same pattern as the atmosphere toggles: the panel HTML is regenerated every
+  // render, so read current state and attach fresh listeners each time.
+  if (window.KWMap && window.KWMap.controller) {
+    const sel = panel.querySelector('[data-kwmap-view]');
+    if (sel) {
+      sel.value = window.KWMap.controller.activeId || 'topdown';
+      sel.addEventListener('change', () => {
+        // setRenderer keeps the shared camera {q,r} → focus preserved (§12.9),
+        // persists kw_map_view, invalidates + renders one frame.
+        window.KWMap.controller.setRenderer(sel.value);
+      });
+    }
+    const low = panel.querySelector('[data-kwmap-setting="lowdetail"]');
+    if (low && window.KWMap.perf) {
+      low.checked = !!window.KWMap.perf.lowDetail;
+      low.addEventListener('change', () => window.KWMap.perf.setLowDetail(low.checked));
+    } else if (low) {
+      const row = low.closest('.sp-toggle'); if (row) row.style.display = 'none';
+    }
+  } else {
+    panel.querySelectorAll('[data-kwmap-row]').forEach(el => { el.style.display = 'none'; });
+  }
+
+  // ── Atmosphere toggles (existing) ─────────────────────────────────────────
   if (window.SeasonAtmosphere) {
     const st = window.SeasonAtmosphere.settings;
     panel.querySelectorAll('[data-atmo-setting]').forEach(input => {
@@ -193,8 +233,7 @@ function renderSeasonPanel() {
       });
     });
   } else {
-    const block = panel.querySelector('.sp-settings');
-    if (block) block.style.display = 'none';
+    panel.querySelectorAll('[data-atmo-row]').forEach(el => { el.style.display = 'none'; });
   }
 }
 

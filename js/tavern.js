@@ -84,13 +84,92 @@ function _renderTavernkeep() {
 
 function openCardGameMenu() {
   document.getElementById('tavern-menu').style.display = 'none';
-  document.getElementById('tavern-card-menu').style.display = 'flex';
+  const el = document.getElementById('tavern-card-menu');
+  renderGameSelect(el);   // data-driven (KWGames.META) — overwrites any stale static markup
+  el.style.display = 'flex';
   document.getElementById('tavern-game-area').style.display = 'none';
+  _kwStartCounts();       // live "open tables / in progress" badges (spec 19 §5.4)
+}
+
+// Two-crest game select (spec 19 §5). Built from KWGames.META so the game list
+// is the single source of truth and can't drift with a stale index.html. Crest
+// images fall back to the game's emoji when the asset isn't uploaded yet.
+function renderGameSelect(el) {
+  if (!el) return;
+  const meta = (window.KWGames && KWGames.META) || {};
+  const order = ['briar', 'squirrel'];
+  const cards = order.filter(k => meta[k]).map(k => {
+    const m = meta[k];
+    const themeCls = m.accent === 'court' ? ' theme-court' : '';
+    return `
+      <div class="kw-gs-card${themeCls}">
+        <div class="kw-gs-crest">
+          <img src="${m.crest}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+          <span class="kw-gs-crest-fallback">${m.icon || '🎴'}</span>
+        </div>
+        <div class="kw-gs-name">${_esc(m.displayName)}</div>
+        <div class="kw-gs-tagline">${_esc(m.tagline)}</div>
+        <div class="kw-gs-meta"><span class="kw-gs-reward">Reward: ${_esc(m.reward)}</span><span class="kw-gs-counts" data-game="${k}"></span></div>
+        <div class="kw-gs-actions">
+          <button class="kw-gs-btn host" onclick="LobbySystem.createForm('${k}')">Host a table</button>
+          <button class="kw-gs-btn join" onclick="LobbySystem.browse('${k}')">Join</button>
+        </div>
+      </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="kw-game-select">
+      <div class="kw-gs-eyebrow">Card Table</div>
+      <h2 class="kw-gs-heading">The Woodland Tavern</h2>
+      <div class="kw-gs-bramble">
+        <div class="kw-gs-bramble-av">🦔</div>
+        <div class="kw-gs-bramble-line">Fancy a game, friend? Pull up a stool and try your luck.</div>
+      </div>
+      <div class="kw-gs-crests">${cards}</div>
+      <button class="kw-gs-back" onclick="closeCardGameMenu()">← Back to the Tavern</button>
+    </div>`;
 }
 
 function closeCardGameMenu() {
   document.getElementById('tavern-card-menu').style.display = 'none';
   document.getElementById('tavern-menu').style.display = 'flex';
+  _kwStopCounts();
+}
+
+// ── Live table counts on the select screen (spec 19 §5.4) ──
+// Polls the server's /summary while the two-crest menu is open and fills the
+// per-game count badges. Fails silently (solo play still works with no server).
+let _kwCountsTimer = null;
+function _kwStartCounts() {
+  _kwLoadCounts();
+  clearInterval(_kwCountsTimer);
+  _kwCountsTimer = setInterval(_kwLoadCounts, 8000);
+}
+function _kwStopCounts() {
+  clearInterval(_kwCountsTimer);
+  _kwCountsTimer = null;
+}
+function _kwLoadCounts() {
+  if (typeof LobbySystem === 'undefined' || !LobbySystem.summary) return;
+  // Only fetch while the menu is actually visible.
+  const menu = document.getElementById('tavern-card-menu');
+  if (!menu || menu.style.display === 'none') { _kwStopCounts(); return; }
+  LobbySystem.summary().then(sum => {
+    document.querySelectorAll('.kw-gs-counts[data-game]').forEach(span => {
+      span.innerHTML = _kwCountsText(sum[span.getAttribute('data-game')]);
+    });
+  }).catch(() => {});
+}
+function _kwCountsText(c) {
+  if (!c) return '';
+  const parts = [];
+  if (c.openTables) {
+    let t = `<span class="kw-gs-live">● ${c.openTables} open</span>`;
+    if (c.waiting) t += ` · ${c.waiting} waiting`;
+    parts.push(t);
+  }
+  if (c.playing) parts.push(`🎲 ${c.playing} in progress`);
+  if (!parts.length) return '<span class="kw-gs-quiet">Quiet — host the first table</span>';
+  return parts.join(' · ');
 }
 
 // ══════════════════════════════════════════════
@@ -99,39 +178,6 @@ function closeCardGameMenu() {
 
 let _currentGame = null;
 
-const SUITS = ['🍃','🌰','🍄','🌿'];
-const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-
-function _buildDeck() {
-  const deck = [];
-  for (const s of SUITS) for (const v of VALUES) deck.push({ suit: s, value: v });
-  // Shuffle
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
-}
-
-function _cardValue(card) {
-  if (['J','Q','K'].includes(card.value)) return 10;
-  if (card.value === 'A') return 11;
-  return parseInt(card.value);
-}
-
-function _cardTotal(hand) {
-  let total = hand.reduce((s, c) => s + _cardValue(c), 0);
-  // Ace adjustment
-  let aces = hand.filter(c => c.value === 'A').length;
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
-  return total;
-}
-
-function _cardHtml(card, hidden = false) {
-  if (hidden) return `<div class="playing-card card-back">🂠</div>`;
-  const color = (card.suit === '🍄' || card.suit === '🌰') ? 'card-red' : 'card-green';
-  return `<div class="playing-card ${color}">${card.suit}<br>${card.value}</div>`;
-}
 
 // ── Award gold ────────────────────────────────
 
@@ -142,264 +188,6 @@ async function _awardGold(amount) {
     if (gameData?.settlement?.resources) gameData.settlement.resources.wealth += amount;
     updateTopbarDisplay?.();
   } catch(e) { console.warn('Gold award failed', e); }
-}
-
-// ══════════════════════════════════════════════
-//  GAME 1: HIGHLEAF DRAW (Blackjack-lite)
-// ══════════════════════════════════════════════
-
-function _startHighleaf() {
-  const deck = _buildDeck();
-  const hand = [deck.pop(), deck.pop()];
-  _currentGame = { type: 'highleaf', deck, hand, over: false };
-  _renderHighleaf();
-}
-
-function _renderHighleaf(message = '') {
-  const g = _currentGame;
-  const total = _cardTotal(g.hand);
-  const bust = total > 21;
-  const area = document.getElementById('tavern-game-area');
-
-  area.innerHTML = `
-    <div class="card-game highleaf">
-      <div class="card-game-title">🍃 Highleaf Draw</div>
-      <div class="card-game-sub">Draw cards. Get as close to 21 as you can without going over.</div>
-      <div class="card-game-hand">
-        ${g.hand.map(c => _cardHtml(c)).join('')}
-      </div>
-      <div class="card-game-total ${bust ? 'bust' : total === 21 ? 'blackjack' : ''}">
-        Total: <strong>${total}</strong>${bust ? ' — Bust!' : total === 21 ? ' — Highleaf!' : ''}
-      </div>
-      ${message ? `<div class="card-game-message">${message}</div>` : ''}
-      <div class="card-game-actions">
-        ${!g.over ? `
-          <button class="cg-btn" onclick="highleafHit()">Draw Card</button>
-          <button class="cg-btn secondary" onclick="highleafStand()">Stand</button>
-        ` : `
-          <button class="cg-btn" onclick="startCardGame('highleaf')">Play Again</button>
-          <button class="cg-btn secondary" onclick="openCardGameMenu()">← Games</button>
-        `}
-      </div>
-    </div>`;
-}
-
-function highleafHit() {
-  const g = _currentGame;
-  g.hand.push(g.deck.pop());
-  const total = _cardTotal(g.hand);
-  if (total > 21) {
-    g.over = true;
-    _renderHighleaf('💨 Bust! Better luck next time.');
-  } else if (total === 21) {
-    g.over = true;
-    const reward = 3;
-    _awardGold(reward);
-    _renderHighleaf(`🍃 Highleaf! Perfect 21! You win <strong>${reward} gold</strong>!`);
-  } else {
-    _renderHighleaf();
-  }
-}
-
-function highleafStand() {
-  const g = _currentGame;
-  const total = _cardTotal(g.hand);
-  g.over = true;
-
-  // House draws to 16
-  const houseHand = [g.deck.pop(), g.deck.pop()];
-  while (_cardTotal(houseHand) < 16) houseHand.push(g.deck.pop());
-  const houseTotal = _cardTotal(houseHand);
-
-  let reward = 0, msg = '';
-  const houseBust = houseTotal > 21;
-
-  if (houseBust || total > houseTotal) {
-    reward = total >= 18 ? 3 : total >= 15 ? 2 : 1;
-    msg = `${houseBust ? '🏠 House busts!' : '🎉 You win!'} You earn <strong>${reward} gold</strong>.`;
-  } else if (total === houseTotal) {
-    reward = 1;
-    msg = `🤝 A draw! You keep your stake — <strong>1 gold</strong>.`;
-  } else {
-    msg = `🏠 House wins with ${houseTotal}. Better luck next time.`;
-  }
-
-  if (reward > 0) _awardGold(reward);
-
-  const area = document.getElementById('tavern-game-area');
-  const houseCardsHtml = houseHand.map(c => _cardHtml(c)).join('');
-  area.innerHTML = `
-    <div class="card-game highleaf">
-      <div class="card-game-title">🍃 Highleaf Draw — Result</div>
-      <div class="card-game-hands-row">
-        <div class="card-game-hand-col">
-          <div class="cg-label">Your hand (${total})</div>
-          <div class="card-game-hand">${g.hand.map(c => _cardHtml(c)).join('')}</div>
-        </div>
-        <div class="card-game-hand-col">
-          <div class="cg-label">House (${houseTotal})</div>
-          <div class="card-game-hand">${houseCardsHtml}</div>
-        </div>
-      </div>
-      <div class="card-game-message">${msg}</div>
-      <div class="card-game-actions">
-        <button class="cg-btn" onclick="startCardGame('highleaf')">Play Again</button>
-        <button class="cg-btn secondary" onclick="openCardGameMenu()">← Games</button>
-      </div>
-    </div>`;
-}
-
-// ══════════════════════════════════════════════
-//  GAME 2: MOUSE & GRAIN (3-card high card)
-// ══════════════════════════════════════════════
-
-function _startMouseGrain() {
-  const deck = _buildDeck();
-  const playerHand = [deck.pop(), deck.pop(), deck.pop()];
-  const houseHand  = [deck.pop(), deck.pop(), deck.pop()];
-  _currentGame = { type: 'mouse_grain', playerHand, houseHand, over: false, revealed: false };
-  _renderMouseGrain();
-}
-
-function _renderMouseGrain(message = '') {
-  const g = _currentGame;
-  const area = document.getElementById('tavern-game-area');
-  const playerTotal = g.playerHand.reduce((s, c) => s + _cardValue(c), 0);
-
-  area.innerHTML = `
-    <div class="card-game mouse-grain">
-      <div class="card-game-title">🌾 Mouse &amp; Grain</div>
-      <div class="card-game-sub">3 cards each. Highest total wins. You may bluff once.</div>
-      <div class="card-game-hands-row">
-        <div class="card-game-hand-col">
-          <div class="cg-label">Your hand</div>
-          <div class="card-game-hand">${g.playerHand.map(c => _cardHtml(c)).join('')}</div>
-          <div class="card-game-total">Total: <strong>${playerTotal}</strong></div>
-        </div>
-        <div class="card-game-hand-col">
-          <div class="cg-label">Opponent</div>
-          <div class="card-game-hand">
-            ${g.revealed
-              ? g.houseHand.map(c => _cardHtml(c)).join('')
-              : g.houseHand.map(() => _cardHtml(null, true)).join('')
-            }
-          </div>
-          ${g.revealed ? `<div class="card-game-total">Total: <strong>${g.houseHand.reduce((s,c)=>s+_cardValue(c),0)}</strong></div>` : ''}
-        </div>
-      </div>
-      ${message ? `<div class="card-game-message">${message}</div>` : ''}
-      <div class="card-game-actions">
-        ${!g.over ? `
-          <button class="cg-btn" onclick="mouseGrainReveal()">Reveal &amp; Settle</button>
-          <button class="cg-btn bluff" onclick="mouseGrainBluff()">🎭 Bluff (+2 to your total)</button>
-        ` : `
-          <button class="cg-btn" onclick="startCardGame('mouse_grain')">Play Again</button>
-          <button class="cg-btn secondary" onclick="openCardGameMenu()">← Games</button>
-        `}
-      </div>
-    </div>`;
-}
-
-function mouseGrainReveal(bluffBonus = 0) {
-  const g = _currentGame;
-  g.revealed = true;
-  g.over = true;
-
-  const playerTotal = g.playerHand.reduce((s,c) => s + _cardValue(c), 0) + bluffBonus;
-  const houseTotal  = g.houseHand.reduce((s,c) => s + _cardValue(c), 0);
-
-  let reward = 0, msg = '';
-  if (playerTotal > houseTotal) {
-    reward = playerTotal >= 20 ? 2 : 1;
-    msg = `🌾 You win! Your ${playerTotal} beats their ${houseTotal}. <strong>+${reward} gold!</strong>`;
-  } else if (playerTotal === houseTotal) {
-    reward = 1;
-    msg = `🤝 A tie at ${playerTotal}! You each keep a grain. <strong>+1 gold</strong>.`;
-  } else {
-    msg = `🐭 Their ${houseTotal} beats your ${playerTotal}. The grain goes to the house.`;
-  }
-
-  if (reward > 0) _awardGold(reward);
-  _renderMouseGrain(msg);
-}
-
-function mouseGrainBluff() {
-  // Bluff: add 2 to your total but risk being caught (30% chance)
-  const caught = Math.random() < 0.3;
-  if (caught) {
-    _currentGame.over = true;
-    _currentGame.revealed = true;
-    _renderMouseGrain(`🎭 Caught bluffing! The tavernkeep shakes their head. No gold for you.`);
-  } else {
-    mouseGrainReveal(2);
-  }
-}
-
-// ══════════════════════════════════════════════
-//  GAME 3: FORAGER'S GAMBLE (push your luck)
-// ══════════════════════════════════════════════
-//  Draw cards one at a time, banking their value into the basket.
-//  Draw a 🍄 and the basket spoils — you lose everything.
-//  Bank any time: ≥6 → 1g, ≥16 → 2g, ≥28 → 3g.
-
-function _startForagers() {
-  _currentGame = { type: 'foragers', deck: _buildDeck(), drawn: [], pot: 0, over: false };
-  _renderForagers();
-}
-
-function _foragersReward(pot) {
-  return pot >= 28 ? 3 : pot >= 16 ? 2 : pot >= 6 ? 1 : 0;
-}
-
-function _renderForagers(message = '') {
-  const g = _currentGame;
-  const area = document.getElementById('tavern-game-area');
-  const reward = _foragersReward(g.pot);
-  area.innerHTML = `
-    <div class="card-game foragers">
-      <div class="card-game-title">🍄 Forager's Gamble</div>
-      <div class="card-game-sub">Each draw adds to your basket — but a mushroom spoils the lot.</div>
-      <div class="card-game-hand">
-        ${g.drawn.length ? g.drawn.map(c => _cardHtml(c)).join('') : '<div class="cg-label">The basket is empty. Draw your first card.</div>'}
-      </div>
-      <div class="card-game-total ${g.spoiled ? 'bust' : ''}">
-        Basket: <strong>${g.pot}</strong>${g.spoiled ? ' — Spoiled!' : reward > 0 ? ` — worth ${reward} gold` : ''}
-      </div>
-      ${message ? `<div class="card-game-message">${message}</div>` : ''}
-      <div class="card-game-actions">
-        ${!g.over ? `
-          <button class="cg-btn" onclick="foragersDraw()">Draw Card</button>
-          <button class="cg-btn secondary" onclick="foragersBank()" ${reward === 0 ? 'disabled' : ''}>Bank ${reward > 0 ? reward + ' gold' : 'winnings'}</button>
-        ` : `
-          <button class="cg-btn" onclick="startCardGame('foragers')">Play Again</button>
-          <button class="cg-btn secondary" onclick="openCardGameMenu()">← Games</button>
-        `}
-      </div>
-    </div>`;
-}
-
-function foragersDraw() {
-  const g = _currentGame;
-  const card = g.deck.pop();
-  g.drawn.push(card);
-  if (card.suit === '🍄') {
-    g.over = true;
-    g.spoiled = true;
-    g.pot = 0;
-    _renderForagers('🍄 A bad mushroom! The whole basket is spoiled.');
-  } else {
-    g.pot += _cardValue(card);
-    _renderForagers();
-  }
-}
-
-function foragersBank() {
-  const g = _currentGame;
-  const reward = _foragersReward(g.pot);
-  if (reward <= 0 || g.over) return;
-  g.over = true;
-  _awardGold(reward);
-  _renderForagers(`🧺 A fine haul! You bank <strong>${reward} gold</strong>.`);
 }
 
 // ══════════════════════════════════════════════
@@ -435,6 +223,11 @@ function startBriarCourt(seating) { _startBriarCourt(seating); }
 function _bcOpenTable() {
   const bd = document.getElementById('bcmp-backdrop');
   if (bd) bd.style.display = 'flex';
+  // Reset chat drawer state (a prior solo game may have hidden it).
+  const chatEl = document.getElementById('bcmp-chat'); if (chatEl) chatEl.style.display = '';
+  const chatToggleEl = document.getElementById('bcmp-chat-toggle'); if (chatToggleEl) chatToggleEl.style.display = '';
+  const shellEl = document.querySelector('.bcmp-shell'); if (shellEl) shellEl.classList.remove('chat-open');
+  _bcChatUnread = 0; _bcChatRenderUnread();
   if (typeof startBriarMusic === 'function') startBriarMusic();
   // Populate whisper targets from the human players in the room
   const sel = document.getElementById('bcmp-chat-to');
@@ -462,6 +255,8 @@ function bcLeaveTable() {
   clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
   _bc = null; _bcmp = null; _currentGame = null; _bcMultiplayer = null; _spGame = null;
   const chat = document.getElementById('bcmp-chat'); if (chat) chat.style.display = '';
+  const shell = document.querySelector('.bcmp-shell'); if (shell) shell.classList.remove('chat-open');
+  _bcChatUnread = 0; _bcChatRenderUnread();
   if (typeof LobbySystem !== 'undefined') LobbySystem.close();
 }
 
@@ -488,12 +283,56 @@ function bcSendChat() {
   _bcTyping(false);
 }
 
+// ── Chat drawer (§6.1) ── collapsible right drawer with an unread badge.
+// Closed by default so the table has the full width; opens over the right edge.
+let _bcChatUnread = 0;
+function bcToggleChatDrawer(force) {
+  const shell = document.querySelector('.bcmp-shell');
+  if (!shell) return;
+  const open = (force === true || force === false) ? force : !shell.classList.contains('chat-open');
+  shell.classList.toggle('chat-open', open);
+  if (open) {
+    _bcChatUnread = 0;
+    _bcChatRenderUnread();
+    const inp = document.getElementById('bcmp-chat-input');
+    if (inp) setTimeout(() => inp.focus(), 60);
+    const log = document.getElementById('bcmp-chat-log');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+}
+function _bcChatBumpUnread() {
+  const shell = document.querySelector('.bcmp-shell');
+  if (shell && shell.classList.contains('chat-open')) return;  // already reading
+  _bcChatUnread++;
+  _bcChatRenderUnread();
+}
+function _bcChatRenderUnread() {
+  const b = document.getElementById('bcmp-chat-unread');
+  if (!b) return;
+  b.textContent = _bcChatUnread > 9 ? '9+' : String(_bcChatUnread);
+  b.style.display = _bcChatUnread ? '' : 'none';
+}
+
 // Inbound chat / typing events (routed from lobby.js onEvent)
 function bcOnRoomEvent(msg) {
   // Networked game state takes priority (these arrive even before _bc exists)
   if (msg.type === 'game_state') { if (typeof bcmpOnState === 'function') bcmpOnState(msg.state); return; }
   if (msg.type === 'match_over') { if (typeof bcmpOnOver === 'function') bcmpOnOver(msg); return; }
   if (msg.type === 'presence') { if (typeof bcmpOnPresence === 'function') bcmpOnPresence(msg); return; }
+  // Host migrated mid-match (§3.3) — recompute our host status so the End /
+  // Run-it-back controls appear for the new host.
+  if (msg.type === 'host_changed') {
+    if (_bcmp) { _bcmp.isHost = String(msg.hostId) === String(_bcmpMyUserId()); _bcmpRender(); }
+    return;
+  }
+  // A disconnected seat was handed to (or reclaimed from) the AI (§3.3). The
+  // pushed game_state already carries the new isAI flag; just clear any stale
+  // "waiting for them" banner and re-render.
+  if (msg.type === 'seat_converted') {
+    if (_bcmp) { if (_bcmp.absent) delete _bcmp.absent[msg.seat]; _bcmpRender(); }
+    return;
+  }
+  if (msg.type === 'seat_restored') { if (_bcmp) _bcmpRender(); return; }
   if (!_bc && !_bcmp) return;
   if (msg.type === 'chat') {
     const log = document.getElementById('bcmp-chat-log');
@@ -507,6 +346,7 @@ function bcOnRoomEvent(msg) {
     line.innerHTML = `${tag}<b>${who}:</b> ${_esc(msg.text)}`;
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
+    if (!mine) _bcChatBumpUnread();
   } else if (msg.type === 'typing') {
     _bc = _bc || {};
     _bc._typing = _bc._typing || {};
@@ -551,7 +391,7 @@ function _startBriarCourt(seating) {
     });
     if (!players.some(p => p.isYou)) {
       // Couldn't match (shouldn't happen) — don't silently mislabel; warn.
-      console.warn('Briar Court: could not match your seat; defaulting to seat 0');
+      console.warn('Briarwood Court: could not match your seat; defaulting to seat 0');
       players[0].isHuman = true; players[0].isYou = true;
     }
     _bcMultiplayer = { code: seating.code, channel: seating.channel,
@@ -569,7 +409,7 @@ function _startBriarCourt(seating) {
     turn: 0, over: false, log: [], help: false, promptHtml: '',
   };
   _currentGame = { type: 'briar' };  // the turn loop's guard checks this
-  _bcLog('The Briar Court convenes. Two acorns each \u2014 and two secrets.');
+  _bcLog('Briarwood Court convenes. Two acorns each \u2014 and two secrets.');
   _bcRender();
   _bcTurnLoop();
 }
@@ -586,9 +426,12 @@ const _esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;
 // playSfx(); otherwise plays directly. Files live in /assets/audio/.
 function _bcSfx(file) {
   try {
-    if (typeof playSfx === 'function') { playSfx(file); return; }
+    // Follow the in-game volume slider (which drives getMusicVolume / mute), so
+    // muting silences SFX too — the draw sound used to ignore it.
+    const gv = (typeof getMusicVolume === 'function') ? getMusicVolume() : 0.55;
+    if (gv <= 0) return;
     const a = new Audio('/assets/audio/' + file);
-    a.volume = 0.55;
+    a.volume = Math.max(0, Math.min(1, gv * 1.4));
     a.play().catch(() => {});
   } catch (e) {}
 }
@@ -694,7 +537,7 @@ function _bcRender(promptHtml) {
 
   area.innerHTML = `
     <div class="card-game briar">
-      <div class="card-game-title">\u{1F33F} The Briar Court <button class="bc-help-btn" onclick="bcToggleHelp()" title="Rules &amp; roles">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</div>
+      <div class="card-game-title">\u{1F33F} Briarwood Court <button class="bc-help-btn" onclick="bcToggleHelp()" title="Rules &amp; roles">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</div>
       ${helpHtml}
       ${ledgerHtml}
       ${inspectHtml}
@@ -1076,7 +919,7 @@ async function _bcTurnLoop() {
         if (w.isHuman) {
           _awardGold(4);
           _bcSfx('success.mp3');
-          _bcLog('\u{1F451} You hold the last seat at the Briar Court! <strong>+4 gold</strong>');
+          _bcLog('\u{1F451} You hold the last seat at the Briarwood Court! <strong>+4 gold</strong>');
         } else {
           _bcLog(`\u{1F451} ${w.name} holds the last seat. The Court adjourns.`);
         }
@@ -1099,10 +942,7 @@ function startCardGame(type) {
   const area = document.getElementById('tavern-game-area');
   area.style.display = 'flex';
 
-  if (type === 'highleaf') _startHighleaf();
-  else if (type === 'mouse_grain') _startMouseGrain();
-  else if (type === 'foragers') _startForagers();
-  else if (type === 'briar') _startBriarCourt();
+  if (type === 'briar') _startBriarCourt();
 }
 
 // ── Tavern celebration modal ──────────────────
@@ -1134,6 +974,8 @@ function startBriarCourtMultiplayerNet({ code, channel, seats, isHost }) {
   const mySeat = _bcmpMySeat(seats);
   _bcmp = { code, channel, seats, mySeat, isHost, state: null, lastPhaseSig: '', _seenLog: 0 };
   _bcMultiplayer = { code, channel, players: seats };  // chat/typing reuse this
+  // Let the lobby close this modal when a rematch drops us back to the room view.
+  window.__closeActiveGameModal = _bcmpCloseGameOnly;
   _bcOpenTable();   // big modal + chat dock (from single-player MP path)
   const g = document.getElementById('bcmp-game');
   if (g) g.innerHTML = '<div class="bc-wait">Dealing the Court…</div>';
@@ -1170,12 +1012,19 @@ function bcmpOnState(state) {
   if (_bcmp.isHost) _bcmpMaybeDriveAI(state);
 }
 
+// Host-only "Run it back" button (§3.4), plus the always-present Leave.
+function _bcmpEndOptions() {
+  const rematch = _bcmp && _bcmp.isHost
+    ? `<button class="cg-btn" onclick="bcmpRematch()">↻ Run it back</button>` : '';
+  return `<div class="bc-options">${rematch}<button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave table</button></div>`;
+}
+
 function bcmpOnOver(msg) {
   if (!_bcmp) return;
   if (msg.ended) {
     const g = document.getElementById('bcmp-game');
     if (g) g.innerHTML = '<div class="bc-wait">The host ended the game.</div>'
-      + '<div class="bc-options" style="justify-content:center;margin-top:12px"><button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave table</button></div>';
+      + `<div style="justify-content:center;margin-top:12px">${_bcmpEndOptions()}</div>`;
     return;
   }
   const mineWon = msg.winnerSeat === _bcmp.mySeat;
@@ -1183,12 +1032,40 @@ function bcmpOnOver(msg) {
   const g = document.getElementById('bcmp-game');
   if (g) {
     const banner = mineWon
-      ? '👑 You hold the last seat at the Briar Court! <strong>+4 gold</strong>'
+      ? '👑 You hold the last seat at the Briarwood Court! <strong>+4 gold</strong>'
       : `👑 ${_esc(msg.winnerName || 'A rival')} holds the last seat.`;
     g.querySelector('.bc-prompt')?.insertAdjacentHTML('beforeend',
-      `<div class="card-game-message">${banner}</div>
-       <div class="bc-options"><button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave table</button></div>`);
+      `<div class="card-game-message">${banner}</div>${_bcmpEndOptions()}`);
   }
+}
+
+function _bcmpMyUserId() {
+  return (window._authUser && window._authUser.userId != null)
+    ? window._authUser.userId
+    : (typeof _bcMyUserId === 'function' ? _bcMyUserId() : null);
+}
+
+// Host runs it back (§3.4): the server resets the room to the lobby and
+// broadcasts lobby_update, which reopens the lobby room view. We only close the
+// game modal here — the SSE stays open (LobbySystem owns it) so that update
+// arrives.
+function bcmpRematch() {
+  if (!_bcmp || !_bcmp.code) return;
+  const code = _bcmp.code;
+  apiFetch('/api/rooms/' + code + '/rematch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  }).then(r => { if (r && r.ok) _bcmpCloseGameOnly(); }).catch(() => {});
+}
+
+// Close the game modal WITHOUT tearing down the lobby SSE (unlike bcLeaveTable,
+// which calls LobbySystem.close()). Used on rematch so the lobby can reopen.
+function _bcmpCloseGameOnly() {
+  const bd = document.getElementById('bcmp-backdrop');
+  if (bd) bd.style.display = 'none';
+  if (typeof stopBriarMusic === 'function') stopBriarMusic();
+  clearTimeout(_bcmpAiTimer); _bcmpAiTimer = null;
+  clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
+  _bcmp = null; _spGame = null;
 }
 
 // ── Render the server's redacted view ──
@@ -1220,19 +1097,26 @@ function _bcmpRender() {
 
   const absent = _bcmp.absent && Object.keys(_bcmp.absent).length ? Object.values(_bcmp.absent) : null;
   const absentBanner = absent ? `<div class="bcmp-absent">⚠ ${absent.map(_esc).join(', ')} disconnected — waiting for them to return…${_bcmp.isHost ? ' <button class="cg-btn secondary" onclick="bcmpEndGame()">End game</button>' : ''}</div>` : '';
+  const meActing = s.turnSeat === meSeat && s.phase === 'action';
   area.innerHTML = `
     <div class="card-game briar">
-      <div class="card-game-title">🌿 The Briar Court <button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</div>
+      <div class="card-game-title">
+        <span class="bc-title-name">🌿 Briarwood Court</span>
+        <span id="bcmp-deadline" class="bcmp-deadline">${_bcmpDeadlineText(s)}</span>
+        <span class="bc-title-tools"><button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</span>
+      </div>
       ${absentBanner}
       <div class="bc-seats">${seatHtml}</div>
       ${_bcmpTracker(s)}
-      <div class="bc-log">${s.log.map(l => `<div>${l}</div>`).join('')}</div>
-      <div class="bc-you ${s.turnSeat === meSeat ? 'acting' : ''} ${!me.alive ? 'out' : ''}">
-        <span class="bc-seat-name">You</span>
-        <span class="bc-seat-acorns">🌰 ${me.acorns}</span>
+      <div class="bc-log-scribe">
+        <div class="bc-log-head">The Scribe's Ledger</div>
+        <div class="bc-log">${s.log.map(l => `<div>${l}</div>`).join('')}</div>
       </div>
-      <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
-      <div id="bcmp-deadline" class="bcmp-deadline" style="display:none"></div>
+      <div class="bc-you-seat bc-seat you ${meActing ? 'acting' : ''} ${!me.alive ? 'out' : ''}" data-seat="${meSeat}">
+        <div class="bc-seat-name">You${meActing ? ' <span class="bc-you-turn">— your move</span>' : ''}</div>
+        <div class="bc-seat-acorns">🌰 ${me.acorns}</div>
+        <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
+      </div>
       <div class="bc-prompt">${prompt}</div>
     </div>`;
   const lg = area.querySelector('.bc-log');
@@ -1245,23 +1129,27 @@ function _bcmpRender() {
 // ── Decision-timer countdown (§3.2) ──
 // The server stamps deadlineAt onto each pushed multiplayer state (solo has no
 // server clock, so deadlineAt is absent and no countdown shows). A single 500ms
-// interval refreshes just the countdown text — no full re-render — and clears
-// itself once the table closes.
+// interval refreshes just the countdown text IN PLACE — the element is always
+// present and keeps a reserved height (CSS min-height), never toggling display,
+// so the modal doesn't expand/contract as it ticks or re-renders.
 let _bcmpDeadlineTimer = null;
+function _bcmpDeadlineText(s) {
+  if (!s || s.phase === 'gameover' || !s.deadlineAt) return '';
+  const remain = Math.max(0, Math.ceil((s.deadlineAt - Date.now()) / 1000));
+  return `⏳ auto-resolves in ${remain}s`;
+}
 function _bcmpEnsureDeadlineTimer() {
   if (_bcmpDeadlineTimer) return;
   _bcmpDeadlineTimer = setInterval(_bcmpUpdateDeadline, 500);
-  _bcmpUpdateDeadline();
 }
 function _bcmpUpdateDeadline() {
   const el = document.getElementById('bcmp-deadline');
   if (!el) { clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null; return; }
   const s = _bcmp && _bcmp.state;
-  if (!s || s.phase === 'gameover' || !s.deadlineAt) { el.style.display = 'none'; return; }
-  const remain = Math.max(0, Math.ceil((s.deadlineAt - Date.now()) / 1000));
-  el.style.display = '';
-  el.className = 'bcmp-deadline' + (remain <= 5 ? ' urgent' : '');
-  el.textContent = `⏳ auto-resolves in ${remain}s`;
+  const text = _bcmpDeadlineText(s);
+  if (el.textContent !== text) el.textContent = text;   // update in place, no reflow of the whole modal
+  const remain = (s && s.deadlineAt) ? Math.ceil((s.deadlineAt - Date.now()) / 1000) : 999;
+  el.className = 'bcmp-deadline' + (text && remain <= 5 ? ' urgent' : '');
 }
 
 function _bcReactionClass(p) {
@@ -1269,7 +1157,9 @@ function _bcReactionClass(p) {
   return { passed: 'react-passed', challenging: 'react-challenge', blocking: 'react-block' }[p.reaction] || '';
 }
 function _bcReactionLabel(p) {
-  return { passed: '✓ Passed', challenging: '⚔ Challenging', blocking: '🛡 Blocking' }[p.reaction] || '';
+  // 'passed' renders as a wax-seal stamp (styled in CSS via .react-passed);
+  // the others stay as small status pills.
+  return { passed: 'PASSED', challenging: '⚔ Challenging', blocking: '🛡 Blocking' }[p.reaction] || '';
 }
 
 // After each render, scan the newest log line for a just-resolved challenge
@@ -1335,12 +1225,19 @@ function _bcmpHandCard(c) {
 function _bcmpTracker(s) {
   const dead = {};
   s.players.forEach(p => p.cards.forEach(c => { if (c.revealed && c.role) dead[c.role] = (dead[c.role] || 0) + 1; }));
-  return '<div class="bc-tracker" onclick="bcToggleLedger()" title="The Court ledger">'
-    + Object.entries(BC_ROLES).map(([k, r]) => {
-        const d = dead[k] || 0;
-        const pips = [0, 1, 2].map(i => `<span class="bc-pip ${i < d ? 'dead' : ''}"></span>`).join('');
-        return `<span class="bc-tracker-role">${r.icon}${pips}</span>`;
-      }).join('') + '</div>';
+  // Each role has three copies. Filled pips = copies still hidden somewhere in
+  // the Court; hollow pips = copies already revealed (cast out). So a role with
+  // three hollow pips can no longer be truthfully claimed by anyone.
+  const roles = Object.entries(BC_ROLES).map(([k, r]) => {
+    const d = dead[k] || 0;
+    const remain = 3 - d;
+    const pips = [0, 1, 2].map(i => `<span class="bc-pip ${i < remain ? 'live' : 'spent'}"></span>`).join('');
+    return `<span class="bc-tracker-role ${remain === 0 ? 'gone' : ''}" title="${r.name}: ${remain} of 3 still hidden">${r.icon}${pips}</span>`;
+  }).join('');
+  return `<div class="bc-tracker-wrap">
+    <div class="bc-tracker" onclick="bcToggleLedger()" title="The Court ledger — filled pips are copies still hidden">${roles}</div>
+    <div class="bc-tracker-legend"><span class="bc-pip live"></span> hidden <span class="bc-pip spent"></span> revealed</div>
+  </div>`;
 }
 
 // ── Decide what this player can do in the current phase ──
@@ -1581,6 +1478,8 @@ function startBriarCourtSolo(difficulty) {
   _bcOpenTable();
   const chat = document.getElementById('bcmp-chat');
   if (chat) chat.style.display = 'none';
+  const chatToggle = document.getElementById('bcmp-chat-toggle');
+  if (chatToggle) chatToggle.style.display = 'none';   // no table talk in solo
   _spPushLocal();          // first state → render + (maybe) start the AI tick
 }
 
@@ -1628,7 +1527,7 @@ function _spOver() {
   const area = document.getElementById('bcmp-game');
   if (area) {
     const banner = won
-      ? '👑 You hold the last seat at the Briar Court! <strong>+4 gold</strong>'
+      ? '👑 You hold the last seat at the Briarwood Court! <strong>+4 gold</strong>'
       : `👑 ${_esc((g.players.find(p=>p.seat===g.winner)||{}).name || 'A rival')} holds the last seat.`;
     const p = area.querySelector('.bc-prompt');
     if (p) p.innerHTML = `<div class="card-game-message">${banner}</div>
@@ -2099,31 +1998,33 @@ function _sqRender() {
     <div class="sq-table">
       <div class="sq-roundbar">
         <span>Round ${s.round}</span>
-        <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in the pile ▾</button>
+        <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in pile ▾</button>
         <button class="bc-help-btn" onclick="sqToggleHelp()" title="Rules">?</button>
         ${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}
       </div>
 
-      <div class="sq-others">${others}</div>
+      <div class="sq-scroll">
+        <div class="sq-others">${others}</div>
 
-      <div class="sq-center">
-        <div class="sq-hoard ${canDrawHoard ? 'drawable' : ''}">${pile}</div>
-        ${_sqActionBanner(s, me)}
-        ${_sqCenterChoices(s, me)}
-        <div class="sq-center-caption">${myTurn ? (me.drawsThisTurn < 3 ? '🐿️ Grab a card — safe draw ' + (me.drawsThisTurn + 1) + ' of 3' : 'Grab another, or stop to leave your stash on the table') : 'Waiting for ' + _esc(turnName) + '…'}</div>
-      </div>
-
-      <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
-        ${badgerCount ? `<div class="sq-shield-label">🛡 BADGER'S PROTECTION${badgerCount > 1 ? ' ×' + badgerCount : ''}</div>` : ''}
-        <div class="sq-me-header">
-          <span class="sq-me-name">Your stash</span>
-          ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
-          <span class="sq-me-score">Hoard ${me.score} 🌰</span>
+        <div class="sq-center">
+          <div class="sq-hoard ${canDrawHoard ? 'drawable' : ''}">${pile}</div>
+          ${_sqActionBanner(s, me)}
+          ${_sqCenterChoices(s, me)}
+          <div class="sq-center-caption">${myTurn ? (me.drawsThisTurn < 3 ? '🐿️ Grab a card — safe draw ' + (me.drawsThisTurn + 1) + ' of 3' : 'Grab another, or stop to leave your stash on the table') : 'Waiting for ' + _esc(turnName) + '…'}</div>
         </div>
-        <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
-          cardClass: stormMine ? () => 'storm-target' : null,
-          wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
-        }) : '<span class="sq-empty">No cards yet — draw to begin.</span>'}</div>
+
+        <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
+          ${badgerCount ? `<div class="sq-shield-label">🛡 BADGER'S PROTECTION${badgerCount > 1 ? ' ×' + badgerCount : ''}</div>` : ''}
+          <div class="sq-me-header">
+            <span class="sq-me-name">Your stash</span>
+            ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
+            <span class="sq-me-hoard"><span class="sq-hoard-lbl">Hoard</span><span class="sq-hoard-val">${me.score}</span><span class="sq-hoard-ac">🌰</span></span>
+          </div>
+          <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
+            cardClass: stormMine ? () => 'storm-target' : null,
+            wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
+          }) : ''}</div>
+        </div>
       </div>
 
       <div class="sq-prompt">${prompt}</div>
@@ -2203,8 +2104,8 @@ function _sqPlayerBox(p, s) {
       <span class="sq-player-name">${_esc(p.name)}${p.isAI ? ' <span class="lobby-ai-tag">AI</span>' : ''}</span>
       <span class="sq-player-score">${p.score}🌰 hoard</span>
     </div>
-    <div class="sq-stash" data-seat="${p.seat}">${stashCards || '<span class="sq-empty">no active cards</span>'}</div>
-    ${p.stash.length ? `<div class="sq-player-stashval">on table: ${stashVal}🌰 · stealable</div>` : ''}
+    <div class="sq-stash" data-seat="${p.seat}">${stashCards}</div>
+    <div class="sq-player-stashval">${p.stash.length ? `🤏 ${stashVal}` : ''}</div>
   </div>`;
 }
 
@@ -2278,48 +2179,52 @@ function _sqCenterChoices(s, me) {
   </div>`;
 }
 
-// ── Prompt for the active phase ──
+// Persistent action row (spec 19 §7.1). Draw + Bank are ALWAYS rendered so the
+// player sees the full decision space; they enable/disable by state instead of
+// mounting/unmounting, and carry a disabled-reason title. (Steal is NOT a turn
+// action in this game — it's the Magpie card's effect, resolved by clicking a
+// target's stash during the magpie phase — so it is not a button here.)
+function _sqActionRow(s, me) {
+  const myTurn = s.turnSeat === me.seat && s.phase === 'turn' && !s.dare;
+  const myDare = s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat;
+  const canDraw = myTurn || myDare;
+  const canBank = myTurn && me.drawsThisTurn >= 3;
+  const drawExpr = myDare ? 'sqDareDraw()' : 'sqDraw()';
+  const drawTitle = canDraw ? 'Draw a card from the pile' : 'Not your turn';
+  const bankTitle = canBank ? 'Bank your stash and end your turn'
+    : (myTurn ? 'Bank unlocks after three safe draws' : 'Not your turn');
+  return `<div class="sq-actions">
+      <button class="cg-btn ${canDraw ? '' : 'disabled'}"${canDraw ? ` onclick="${drawExpr}"` : ''} title="${_esc(drawTitle)}">🌰 Draw</button>
+      <button class="cg-btn secondary ${canBank ? '' : 'disabled'}"${canBank ? ' onclick="sqBank()"' : ''} title="${_esc(bankTitle)}">✋ Bank</button>
+    </div>`;
+}
+
+// ── Prompt for the active phase ── (action row always on top, §7.1)
 function _sqPrompt(s, me, myTurn) {
   const P = s.pending;
+  const row = _sqActionRow(s, me);
 
-  // Dare in progress: the victim draws from the pile, one at a time.
-  if (s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat) {
-    return `<div class="sq-question">🦊 You've been dared! Click the pile to draw — ${s.dare.remaining} more to go.</div>`;
-  }
+  // Dare in progress: the victim draws (via the action row's Draw).
+  if (s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat)
+    return row + `<div class="sq-question">🦊 You've been dared! Draw from the pile — ${s.dare.remaining} more to go.</div>`;
 
-  if (myTurn) {
-    const canStop = me.drawsThisTurn >= 3;
-    return `<div class="sq-actions">
-        <button class="cg-btn" onclick="sqDraw()">🌰 Draw</button>
-        <button class="cg-btn ${canStop ? '' : 'secondary disabled'}" onclick="${canStop ? 'sqBank()' : ''}">✋ Stop${canStop ? '' : ' (after 3 draws)'}</button>
-      </div>
-      ${canStop ? '<div class="sq-hint">Stopping leaves your cards on the table — they move to your hoard at your next turn, but rivals can steal them until then.</div>' : ''}`;
-  }
+  // No hint here — the centre caption already shows draw progress, and a second
+  // line under the buttons pushed the row below the shell's fold once your
+  // stash had cards.
+  if (myTurn) return row;
 
-  if (!P) return _sqWaiting(s);
-
-  // Squirrel — keep 1 of 2
-  if (s.phase === 'squirrel' && P.actorSeat === me.seat && P.choices) {
-    return `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
-  }
-  // Storm — everyone returns one
-  if (s.phase === 'storm' && me.stash.length && !(P.stormResolved || []).includes(me.seat)) {
-    return `<div class="sq-question">⛈ Storm! Click a card in <em>your stash</em> below to return that stack to the pile.</div>`;
-  }
-  // Magpie — steal one card. Targets are clickable directly on the players'
-  // stashes above (highlighted); the prompt is just the instruction.
-  if (s.phase === 'magpie' && P.actorSeat === me.seat) {
+  if (s.phase === 'squirrel' && P && P.actorSeat === me.seat && P.choices)
+    return row + `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
+  if (s.phase === 'storm' && me.stash.length && !((P && P.stormResolved) || []).includes(me.seat))
+    return row + `<div class="sq-question">⛈ Storm! Click a card in <em>your stash</em> below to return that stack to the pile.</div>`;
+  if (s.phase === 'magpie' && P && P.actorSeat === me.seat) {
     const any = s.players.some(p => p.seat !== me.seat && p.stash.some(c => c.kind !== 'lucky7'));
-    return `<div class="sq-question">🐦 Magpie — click a highlighted card above to steal it${any ? '' : ' (no stealable cards — drawing continues)'}.</div>`;
+    return row + `<div class="sq-question">🐦 Magpie — click a highlighted card above to steal it${any ? '' : ' (nothing to steal — drawing continues)'}.</div>`;
   }
-  // Fox's Dare — pick a victim by clicking a player (boxes highlight), or self
-  if (s.phase === 'foxdare' && P.actorSeat === me.seat) {
-    return `<div class="sq-question">🦊 Fox's Dare — click any player (or your own stash) to make them draw three.</div>`;
-  }
-  // Dare draw in progress — the dared player draws one at a time
+  if (s.phase === 'foxdare' && P && P.actorSeat === me.seat)
+    return row + `<div class="sq-question">🦊 Fox's Dare — click any player (or your own stash) to make them draw three.</div>`;
 
-
-  return _sqWaiting(s);
+  return row + _sqWaiting(s);
 }
 
 function _sqWaiting(s) {

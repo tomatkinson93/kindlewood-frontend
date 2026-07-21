@@ -18,6 +18,12 @@ const LobbySystem = (() => {
 
   function register(def) { games[def.type] = def; }
 
+  // Live per-game activity for the tavern select screen (spec 19 §5.4).
+  // Resolves to { <gameType>: { openTables, waiting, playing } }.
+  function summary() {
+    return _api('/summary').then(d => d.summary || {}).catch(() => ({}));
+  }
+
   function _api(path, opts = {}) {
     return apiFetch('/api/rooms' + path, {
       method: opts.method || 'GET',
@@ -52,11 +58,22 @@ const LobbySystem = (() => {
     _closeStream();
     current = null;
   }
+  let _themeGame = null;    // game type currently driving the lobby accent
   function _show(html) {
     const el = _host();
     if (!el) return;
     _open();
     el.innerHTML = `<div class="lobby">${html}</div>`;
+    _applyLobbyTheme(_themeGame);
+  }
+  // Per-game accent (spec 19 §5): tints the lobby shell to match the game's
+  // crest card and in-game table (plum for the Court, gold for the Stash).
+  function _applyLobbyTheme(gameType) {
+    const shell = document.querySelector('#lobby-modal .lobby-card-shell');
+    if (!shell) return;
+    const accent = (window.KWGames && KWGames.META[gameType] && KWGames.META[gameType].accent) || '';
+    shell.classList.toggle('theme-court', accent === 'court');
+    shell.classList.toggle('theme-stash', accent === 'stash');
   }
   const _esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 
@@ -74,6 +91,7 @@ const LobbySystem = (() => {
 
   function soloChoose(gameType) {
     const g = games[gameType];
+    _themeGame = gameType;
     _open();
     _show(`
       <div class="lobby-title">${_esc(g.name)} — Single Player</div>
@@ -107,18 +125,25 @@ const LobbySystem = (() => {
   // ── Browser: public rooms + create/join ──
   async function browse(gameType) {
     const g = games[gameType];
+    _themeGame = gameType;
     _show(`<div class="lobby-title">${_esc(g.name)} \u2014 Tables</div><div class="lobby-sub">Loading open tables\u2026</div>`);
     let list = [];
     try { list = (await _api('/list?game=' + encodeURIComponent(gameType))).rooms; }
     catch (e) {}
-    const rows = list.length ? list.map(r => `
+    const rows = list.length ? list.map(r => {
+      const filled = r.players.length, cap = r.maxPlayers;
+      const pips = Array.from({ length: cap }, (_, i) =>
+        `<span class="lobby-pip ${i < filled ? 'on' : ''}"></span>`).join('');
+      const host = r.players[0] ? r.players[0].name : 'Host';
+      return `
       <div class="lobby-room-row">
-        <div>
-          <div class="lobby-room-host">${_esc(r.players[0] ? r.players[0].name : 'Host')}'s table</div>
-          <div class="lobby-room-meta">${r.players.length}/${r.maxPlayers} players \u00b7 code ${r.code}</div>
+        <div class="lobby-room-info">
+          <div class="lobby-room-host">${_esc(host)}'s table</div>
+          <div class="lobby-room-meta"><span class="lobby-pips">${pips}</span> ${filled}/${cap} \u00b7 code ${r.code}</div>
         </div>
         <button class="cg-btn" onclick="LobbySystem.join('${r.code}')">Join</button>
-      </div>`).join('') : '<div class="lobby-empty">No open tables right now. Host one!</div>';
+      </div>`;
+    }).join('') : '<div class="lobby-empty">No open tables right now \u2014 host one and courtiers will fill the empty seats.</div>';
     _show(`
       <div class="lobby-title">${_esc(g.name)} \u2014 Tables</div>
       <div class="lobby-rooms">${rows}</div>
@@ -130,13 +155,13 @@ const LobbySystem = (() => {
       <div class="lobby-actions">
         <button class="cg-btn" onclick="LobbySystem.createForm('${gameType}')">+ Host a table</button>
         <button class="cg-btn secondary" onclick="LobbySystem.browse('${gameType}')">\u21BB Refresh</button>
-        <button class="cg-btn secondary" onclick="LobbySystem.choose('${gameType}')">\u2190 Back</button>
       </div>`);
   }
 
   // ── Create form ──
   function createForm(gameType) {
     const g = games[gameType];
+    _themeGame = gameType;
     const opts = [];
     for (let n = g.maxPlayers; n >= g.minPlayers; n--) opts.push(`<option value="${n}">${n} players</option>`);
     _show(`
@@ -203,7 +228,11 @@ const LobbySystem = (() => {
       if (msg.room.youId != null) myId = msg.room.youId;     // authoritative
       current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
     } else if (msg.type === 'lobby_update') {
+      // A rematch drops a finished match back to the lobby room view; close any
+      // open game modal so the room shows through (no-op outside a match).
+      if (typeof window.__closeActiveGameModal === 'function') window.__closeActiveGameModal();
       current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
+      if (_pickerCode) _renderCourtierPicker();   // keep the courtier grid in sync
     } else if (msg.type === 'match_started') {
       const g = games[current.gameType];
       const m = document.getElementById('lobby-modal');
@@ -213,8 +242,11 @@ const LobbySystem = (() => {
       g.onStart({ seats: msg.seats, code, myId, isHost: amHost, players: current.players, channel: _channel(code) });
     } else if (msg.type === 'room_closed') {
       _closeStream(); _error('The host closed the room.', () => browse(_lastGame));
-    } else if (msg.type === 'game_event' || msg.type === 'game_state' || msg.type === 'match_over' || msg.type === 'chat' || msg.type === 'typing' || msg.type === 'cursor') {
-      // current may be null on a late reconnect; fall back to last known game
+    } else {
+      // Any other event (game_state, match_over, chat, typing, cursor,
+      // presence, host_changed, seat_converted/restored, …) is game-level —
+      // hand it to the active game. current may be null on a late reconnect, so
+      // fall back to the last known game. Unknown types are ignored downstream.
       const gt = (current && current.gameType) || _lastGame;
       if (gt && games[gt]?.onEvent) games[gt].onEvent(msg);
     }
@@ -231,6 +263,7 @@ const LobbySystem = (() => {
 
   function _renderRoom(code) {
     const r = current;
+    _themeGame = r.gameType;
     const isHost = (myId != null && r.hostId === myId);
     const canStart = r.players.length >= (games[r.gameType]?.minPlayers || 2);
     const seats = [];
@@ -243,7 +276,7 @@ const LobbySystem = (() => {
           ? ` <button class="lobby-seat-x" onclick="LobbySystem.removeAI('${code}','${p.id}')" title="Remove">\u2715</button>` : '';
         seats.push(`<div class="lobby-seat filled">${_esc(p.name)}${crown}${aiTag}${kick}</div>`);
       } else if (isHost) {
-        seats.push(`<button class="lobby-seat add-ai" onclick="LobbySystem.addAI('${code}')" title="Add an AI courtier">+ Add AI</button>`);
+        seats.push(`<button class="lobby-seat add-ai" onclick="LobbySystem.openCourtierPicker('${code}')" title="Add an AI courtier">+ Add AI</button>`);
       } else {
         seats.push(`<div class="lobby-seat empty">Waiting\u2026</div>`);
       }
@@ -273,8 +306,90 @@ const LobbySystem = (() => {
       () => _flash('Code: ' + current.code));
   }
 
-  async function addAI(code) { try { await _api('/' + code + '/ai/add', { method: 'POST', body: {} }); } catch (e) { _flash(e.message); } }
+  async function addAI(code, name) {
+    try { await _api('/' + code + '/ai/add', { method: 'POST', body: name ? { name } : {} }); }
+    catch (e) { _flash(e.message); }
+  }
   async function removeAI(code, id) { try { await _api('/' + code + '/ai/remove', { method: 'POST', body: { id } }); } catch (e) { _flash(e.message); } }
+
+  // ── Courtier picker (AI select) ──────────────────────────────────────
+  // Flavour for each AI courtier, keyed by the server's roster name. Drop a
+  // /assets/images/courtier_<slug>.png in later and the card uses it; until
+  // then it falls back to the emoji.
+  const COURTIER_META = {
+    'Old Bracken': { color: '#8a9a5b', emoji: '🦡', title: 'The Wary Elder',
+      blurb: 'Slow and calculated. He watches the table and calls out the bold. Cross him and he remembers.' },
+    'Sly Whisper': { color: '#b06fc9', emoji: '🦊', title: 'The Silver Tongue',
+      blurb: 'Spins a bluff at every turn and spreads his mischief wide. Trust nothing he claims.' },
+    'Marigold':    { color: '#e0a93b', emoji: '🐇', title: 'The Hoarder',
+      blurb: 'Greedy and patient. She plays it safe, striking only when the odds are hers.' },
+    'Thorn':       { color: '#c0503f', emoji: '🐍', title: 'The Ferocious',
+      blurb: 'She is aggresive and holds a grudge. Not afraid of swinging first either.' },
+  };
+  const COURTIER_DEFAULT = { color: '#7a6a52', emoji: '🌿', title: 'Courtier', blurb: 'A courtier of unknown temperament.' };
+  const _courtierMeta = name => COURTIER_META[name] || Object.assign({}, COURTIER_DEFAULT, { title: name });
+
+  let _pickerCode = null;
+  function _pickerHost() {
+    let m = document.getElementById('courtier-picker');
+    if (!m) { m = document.createElement('div'); m.id = 'courtier-picker'; m.className = 'courtier-picker-backdrop';
+      m.addEventListener('click', e => { if (e.target === m) closeCourtierPicker(); });   // click backdrop to dismiss
+      document.body.appendChild(m); }
+    return m;
+  }
+  function openCourtierPicker(code) { _pickerCode = code; _renderCourtierPicker(); }
+  function closeCourtierPicker() { _pickerCode = null; const m = document.getElementById('courtier-picker'); if (m) m.classList.remove('open'); }
+
+  function _renderCourtierPicker() {
+    if (!_pickerCode) return;
+    const room = current;
+    if (!room) { closeCourtierPicker(); return; }
+    const m = _pickerHost();
+    const roster = room.aiRoster || Object.keys(COURTIER_META);
+    const seated = new Map();                       // name -> ai player id
+    for (const p of room.players) if (p.isAI) seated.set(p.name, p.id);
+    const full = room.players.length >= room.maxPlayers;
+
+    const cards = roster.map(name => {
+      const meta = _courtierMeta(name);
+      const slug = name.toLowerCase().replace(/\s+/g, '_');
+      const isSeated = seated.has(name);
+      const cls = 'courtier-card' + (isSeated ? ' seated' : (full ? ' disabled' : ''));
+      const onclick = (!isSeated && !full) ? ` onclick="LobbySystem.pickCourtier('${_pickerCode}','${_esc(name)}')"` : '';
+      const removeBtn = isSeated
+        ? `<button class="courtier-remove" title="Remove from the table" onclick="event.stopPropagation();LobbySystem.unpickCourtier('${_pickerCode}','${_esc(name)}')">✕</button>` : '';
+      const footer = isSeated ? `<div class="courtier-status seated">Already at the table</div>`
+        : full ? `<div class="courtier-status">Table is full</div>`
+               : `<div class="courtier-status add">+ Seat this courtier</div>`;
+      return `<div class="${cls}" style="--accent:${meta.color}"${onclick}>
+          ${removeBtn}
+          <div class="courtier-avatar">
+            <img src="/assets/images/courtier_${slug}.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+            <span class="courtier-emoji">${meta.emoji}</span>
+          </div>
+          <div class="courtier-name">${_esc(name)}</div>
+          <div class="courtier-title">${_esc(meta.title)}</div>
+          <div class="courtier-blurb">${_esc(meta.blurb)}</div>
+          ${footer}
+        </div>`;
+    }).join('');
+
+    m.innerHTML = `<div class="courtier-picker-shell">
+        <button class="lobby-x" onclick="LobbySystem.closeCourtierPicker()">✕</button>
+        <div class="courtier-picker-title">Select a Courtier</div>
+        <div class="courtier-picker-sub">Seat an AI rival — each plays a different game.</div>
+        <div class="courtier-grid">${cards}</div>
+        <div class="courtier-picker-actions"><button class="cg-btn secondary" onclick="LobbySystem.closeCourtierPicker()">Done</button></div>
+      </div>`;
+    m.classList.add('open');
+  }
+  // Add / remove flow the room-state refresh through the SSE lobby_update, which
+  // re-renders the picker in place (see _handle) — so the grid updates itself.
+  function pickCourtier(code, name) { addAI(code, name); }
+  function unpickCourtier(code, name) {
+    const p = current && current.players.find(x => x.isAI && x.name === name);
+    if (p) removeAI(code, p.id);
+  }
   async function start(code) { try { await _api('/' + code + '/start', { method: 'POST' }); } catch (e) { _flash(e.message); } }
   async function leave(code) {
     _closeStream();
@@ -313,13 +428,14 @@ const LobbySystem = (() => {
 
   return { register, choose, browse, createForm, create, join, joinByInput,
            invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, removeAI, close,
+           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary,
            get current() { return current; } };
 })();
 
 // Register Squirrel's Stash with the lobby
 LobbySystem.register({
   type: 'squirrel',
-  name: "Squirrel's Stash",
+  name: (window.KWGames && KWGames.name('squirrel')) || "Squirrel's Stash",
   minPlayers: 2,
   maxPlayers: 6,
   onSingle: (difficulty) => { if (typeof startSquirrelSolo === 'function') startSquirrelSolo(difficulty || 'smart'); },
@@ -330,10 +446,10 @@ LobbySystem.register({
   onEvent: (msg) => { if (typeof sqOnRoomEvent === 'function') sqOnRoomEvent(msg); },
 });
 
-// Register the Briar Court with the lobby
+// Register Briarwood Court with the lobby
 LobbySystem.register({
   type: 'briar',
-  name: 'The Briar Court',
+  name: (window.KWGames && KWGames.name('briar')) || 'Briarwood Court',
   minPlayers: 2,
   maxPlayers: 6,
   onSingle: (difficulty) => { if (typeof startBriarCourtSolo === 'function') startBriarCourtSolo(difficulty || 'smart'); else startCardGame('briar'); },

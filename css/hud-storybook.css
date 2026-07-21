@@ -1347,17 +1347,19 @@
 }
 
 .bc-prompt { margin-top: 12px; min-height: 64px; }
-/* Decision-timer countdown (§3.2) — server-enforced per-phase deadline. */
+/* Decision-timer countdown (§3.2) — server-enforced per-phase deadline.
+   Fixed min-height reserves its line so ticking/empty states never shift the
+   modal's height. */
 .bcmp-deadline {
+  min-height: 1.4em;
   margin-top: 10px;
   text-align: center;
   font-family: 'Crimson Pro', serif;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   letter-spacing: 0.02em;
-  color: #b9a487;
-  opacity: 0.8;
+  color: #e6d6ad;
 }
-.bcmp-deadline.urgent { color: #e07a5f; opacity: 1; font-weight: 600; }
+.bcmp-deadline.urgent { color: #f0a888; font-weight: 600; }
 .bc-question {
   font-family: 'Crimson Pro', serif;
   font-size: 14px;
@@ -1818,6 +1820,130 @@
 }
 .lobby-seat-x:hover { color: #d98a6a; }
 
+/* ── Courtier picker (AI select) — "select your fighter" style ── */
+.courtier-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100010;                 /* above the lobby modal (100000) */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 5, 2, .78);
+  backdrop-filter: blur(3px);
+  padding: 20px;
+}
+.courtier-picker-backdrop.open { display: flex; animation: bcBubbleIn .18s ease-out; }
+.courtier-picker-shell {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px 22px 18px;
+  background: linear-gradient(180deg, #2a2018, #1c1712);
+  border: 1px solid var(--kw-gold-dim, rgba(210,180,130,.3));
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+}
+.courtier-picker-shell .lobby-x { position: absolute; top: 12px; right: 14px; }
+.courtier-picker-title {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.5rem;
+  text-align: center;
+  color: var(--kw-cream, #e9d9b3);
+  letter-spacing: .03em;
+}
+.courtier-picker-sub { text-align: center; color: var(--kw-muted, #b9a487); font-size: .9rem; margin: 4px 0 16px; }
+.courtier-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+.courtier-card {
+  position: relative;
+  cursor: pointer;
+  padding: 16px 14px 14px;
+  text-align: center;
+  background: #241c15;
+  border: 1px solid rgba(210, 180, 130, .18);
+  border-top: 4px solid var(--accent, #7a6a52);
+  border-radius: 12px;
+  transition: transform .13s ease, box-shadow .13s ease, border-color .13s ease;
+}
+.courtier-card:not(.seated):not(.disabled):hover {
+  transform: translateY(-8px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, .5), 0 0 0 1px var(--accent);
+  border-color: var(--accent);
+}
+.courtier-avatar {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 34%, rgba(255, 255, 255, .1), #1a140f 70%);
+  border: 2px solid var(--accent, #7a6a52);
+}
+.courtier-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.courtier-emoji { font-size: 40px; line-height: 1; }
+.courtier-name { font-family: 'Crimson Pro', Georgia, serif; font-size: 1.05rem; color: #f0e2c0; }
+.courtier-title {
+  font-size: .74rem;
+  color: var(--accent, #caa);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 8px;
+  filter: brightness(1.3);
+}
+.courtier-blurb {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .84rem;
+  color: #c7b493;
+  line-height: 1.35;
+  min-height: 4.2em;
+}
+.courtier-status { margin-top: 10px; font-size: .8rem; font-weight: 600; }
+.courtier-status.add { color: #b7d38a; }
+.courtier-status.seated { color: #9a8c73; }
+/* Grey the CONTENT (not the whole card) so the red remove button stays vivid —
+   parent opacity/filter can't be undone by a child. */
+.courtier-card.seated { cursor: default; background: #1e1811; border-color: rgba(210, 180, 130, .1); }
+.courtier-card.seated .courtier-avatar,
+.courtier-card.seated .courtier-name,
+.courtier-card.seated .courtier-title,
+.courtier-card.seated .courtier-blurb,
+.courtier-card.seated .courtier-status { opacity: .48; filter: grayscale(.8); }
+.courtier-card.disabled { cursor: not-allowed; opacity: .4; }
+.courtier-remove {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #c0392b;
+  color: #fff;
+  border: 2px solid #241c15;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
+  filter: grayscale(0);                 /* stay red even though the card is greyed */
+  opacity: 1;
+}
+.courtier-card.seated .courtier-remove { opacity: 1; }
+.courtier-remove:hover { background: #e04b3a; transform: scale(1.1); }
+.courtier-picker-actions { text-align: center; margin-top: 16px; }
+@media (max-width: 520px) {
+  .courtier-grid { grid-template-columns: repeat(2, 1fr); }
+  .courtier-blurb { min-height: 0; }
+}
+
 /* ════════════════════════════════════════════════════════════════
    Part 18 — large multiplayer game modal + in-game chat / whispers
    ════════════════════════════════════════════════════════════════ */
@@ -1934,10 +2060,10 @@
   color: #c9b3dd;
 }
 
-/* On narrow screens, stack chat under the game */
+/* Narrow screens: shell shrinks; chat is now an overlay drawer (see P4 §6.1
+   block near the end of the file), so no stacked-column layout is needed. */
 @media (max-width: 760px) {
-  .bcmp-shell { flex-direction: column; height: 92vh; }
-  .bcmp-chat { width: auto; border-left: none; border-top: 1px solid var(--kw-gold-dim); height: 180px; }
+  .bcmp-shell { height: 92vh; }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2696,9 +2822,13 @@
 .sq-my-stash { min-height: 70px; }
 .sq-player { min-height: 96px; max-height: 180px !important; }
 
-/* Hover magnify on revealed/zoomable cards */
-.sq-card.zoomable { cursor: zoom-in; transition: transform .12s ease-out; }
-.sq-card.zoomable:hover { transform: scale(1.35) translateY(-6px); z-index: 60; box-shadow: 0 8px 20px rgba(0,0,0,.6); }
+/* Hover highlight on zoomable cards. NO transform/scale — the in-place magnify
+   overflowed the capped stash boxes and made the panel jitter near the 2-row
+   edge. Click still opens the full zoom modal (sqZoomCard). */
+.sq-card.zoomable { cursor: zoom-in; transition: filter .12s ease-out; }
+/* Brightness-only hover — an outer glow/outline got clipped by the stash
+   scroll boxes' edges. Click still opens the full zoom modal. */
+.sq-card.zoomable:hover { z-index: 60; filter: brightness(1.22); }
 
 /* Full zoom modal */
 .sq-zoom-backdrop {
@@ -3381,3 +3511,591 @@
   .pm-honor-key { font-size: 9px; }
 }
 
+
+
+/* ===== KWMap Phase 7 + Tile Actions styles (appended) ===== */
+/* Map View select row (Phase 7 — "✦ Map & Atmosphere" block) */
+.sp-select-row {
+  justify-content: space-between;
+  cursor: default;
+}
+.sp-select {
+  background: rgba(20, 26, 16, 0.85);
+  color: #c0dd97;
+  border: 1px solid rgba(192, 221, 151, 0.28);
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+  outline: none;
+}
+.sp-select:focus { border-color: #d4af50; }
+.sp-select option { background: #1a2412; color: #c0dd97; }
+
+/* ════════════════════════════════════════════════════════════════
+   Tile actions overlay + Tile Detail modal (spec 11 — increment 1)
+   ════════════════════════════════════════════════════════════════ */
+#map-tile-actions {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 7;
+}
+.tile-action-btn {
+  pointer-events: auto;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(212, 175, 80, 0.85);
+  background: rgba(26, 20, 12, 0.92);
+  color: #f0e2c0;
+  font-size: 15px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.tile-action-btn:hover {
+  transform: scale(1.12);
+  background: rgba(48, 38, 20, 0.96);
+  border-color: #f0cf6a;
+}
+
+.tile-detail-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(6, 4, 2, 0.72);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1200;
+}
+.tile-detail-backdrop.open { display: flex; }
+.tile-detail-card {
+  width: min(420px, 92vw);
+  background: #14100a;
+  border: 1px solid rgba(192, 221, 151, 0.16);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+.tile-detail-close {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: none; background: rgba(0, 0, 0, 0.45); color: #c9b78c;
+  font-size: 14px; cursor: pointer;
+}
+.tile-detail-close:hover { background: rgba(0, 0, 0, 0.7); color: #f0e2c0; }
+.td-scene-bg {
+  height: 150px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+}
+.td-scene-glyph { font-size: 64px; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); }
+.td-scene-badges { position: absolute; bottom: 8px; right: 10px; display: flex; gap: 6px; }
+.td-scene-badge {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(20, 16, 10, 0.85); border: 1px solid rgba(212, 175, 80, 0.7);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.tile-detail-body { padding: 14px 16px 16px; }
+.td-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.td-header-glyph { font-size: 24px; }
+.td-title { font-size: 16px; color: #e8d9a8; font-weight: 600; }
+.td-sub { font-size: 11px; color: rgba(192, 221, 151, 0.5); }
+.td-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 12px; padding: 5px 0;
+  border-top: 1px solid rgba(192, 221, 151, 0.08);
+}
+.td-row-k { color: rgba(192, 221, 151, 0.6); }
+.td-row-v { color: #c0dd97; text-align: right; }
+.td-mine { color: #e8c76a; }
+.td-soon {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px dashed rgba(192, 221, 151, 0.14);
+  font-size: 10.5px; color: rgba(192, 221, 151, 0.4); font-style: italic;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Spec 19 — Tavern card-games overhaul
+   ──────────────────────────────────────────────────────────────
+   §4.2 per-game theme tokens. Shared by the game-table shell
+   (.kw-game-modal, P3/P4) and the select-screen cards (.kw-gs-card),
+   so a future game is a variable block, not a fork. Stash = default
+   gold; Court = plum via the .theme-court class.
+   ════════════════════════════════════════════════════════════════ */
+.kw-game-modal, .kw-gs-card {
+  --kw-game-accent:      #d9b464;
+  --kw-game-accent-deep: #a0865c;
+  --kw-game-panel:       #241c13;
+  --kw-game-panel-hot:   #2a2115;
+  --kw-game-border:      #3d3223;
+  --kw-game-border-mid:  #6e5a38;
+  --kw-game-text:        #e8cf9a;
+  --kw-game-text-dim:    #a89372;
+}
+.kw-game-modal.theme-court, .kw-gs-card.theme-court {
+  --kw-game-accent:      #b48fbc;
+  --kw-game-accent-deep: #8f7396;
+  --kw-game-panel:       #241d26;
+  --kw-game-panel-hot:   #2b2230;
+  --kw-game-border:      #382d3b;
+  --kw-game-border-mid:  #5e4a63;
+  --kw-game-text:        #dcc4e0;
+  --kw-game-text-dim:    #a08fa5;
+}
+
+/* §5 — two-crest game select */
+.kw-game-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  flex: 1 1 auto;      /* fill the flex-row #tavern-card-menu, not content-size */
+  min-width: 0;
+  padding: 6px 4px 8px;
+}
+.kw-gs-eyebrow {
+  font-family: 'Crimson Pro', Georgia, serif;
+  text-transform: uppercase;
+  letter-spacing: .28em;
+  font-size: .72rem;
+  color: var(--kw-gold-dim, #a89372);
+}
+.kw-gs-heading {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.7rem;
+  color: var(--kw-cream, #e8cf9a);
+  text-align: center;
+}
+.kw-gs-bramble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  padding: 8px 14px;
+  background: #efe4cd;
+  color: #3a2c1c;
+  border: 1px solid #c9b48c;
+  border-radius: 10px;
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: .92rem;
+}
+.kw-gs-bramble-av {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d9c39a;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+.kw-gs-crests {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 240px));   /* always two, side by side */
+  gap: 18px;
+  justify-content: center;
+  width: 100%;
+}
+.kw-gs-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 16px 16px;
+  background: var(--kw-game-panel);
+  border: 1px solid var(--kw-game-border);
+  border-top: 4px solid var(--kw-game-accent);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+}
+.kw-gs-crest {
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5));
+}
+.kw-gs-crest img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.kw-gs-crest-fallback { display: none; font-size: 84px; line-height: 1; }
+.kw-gs-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.2rem;
+  color: var(--kw-game-text);
+}
+.kw-gs-tagline {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-style: italic;
+  font-size: .86rem;
+  color: var(--kw-game-text-dim);
+  line-height: 1.35;
+  min-height: 2.4em;
+}
+.kw-gs-meta {
+  font-family: 'Crimson Pro', Georgia, serif; font-size: .8rem; color: var(--kw-game-text-dim);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.kw-gs-reward::before { content: '💰 '; }
+/* Live activity line (§5.4). Reserve a line so the card doesn't jump when the
+   count arrives from the server. */
+.kw-gs-counts { min-height: 1.2em; font-size: .78rem; }
+.kw-gs-live { color: #86c06a; font-weight: 600; }
+.kw-gs-quiet { color: var(--kw-game-text-dim); opacity: .8; font-style: italic; }
+.kw-gs-actions { display: flex; gap: 8px; margin-top: 6px; }
+.kw-gs-btn {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .9rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--kw-game-accent);
+  transition: filter .12s ease, background .12s ease;
+}
+.kw-gs-btn.host { background: var(--kw-game-accent); color: #241c13; font-weight: 600; }
+.kw-gs-btn.host:hover { filter: brightness(1.09); }
+.kw-gs-btn.join { background: transparent; color: var(--kw-game-accent); }
+.kw-gs-btn.join:hover { background: rgba(255, 255, 255, .06); }
+.kw-gs-back {
+  margin-top: 4px;
+  background: transparent;
+  border: none;
+  color: var(--kw-muted, #a89372);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.kw-gs-back:hover { color: var(--kw-cream, #e8cf9a); }
+@media (max-width: 520px) {
+  .kw-gs-crests { grid-template-columns: 1fr; }
+  .kw-gs-tagline { min-height: 0; }
+}
+
+/* ── P3 fix: keep the Squirrel table inside the modal ──────────────────
+   A tall opponent stash (2+ rows) used to push the hoard + action row below
+   the shell's fold. Now the table fits (no whole-table scroll), the seats /
+   your-stash scroll INSIDE their own boxes, and the action row stays pinned
+   and visible at the bottom. */
+.sq-table { overflow: hidden; }
+/* Only the round bar (top) and the Draw/Bank prompt (bottom) are pinned. The
+   seats, hoard AND your-stash all live in the scroll region between them, so
+   the action row is ALWAYS visible no matter how tall the table gets or how
+   short the browser window is — the your-stash bar was previously pinned too,
+   and on short viewports that pushed the buttons below the fold. */
+.sq-roundbar, .sq-prompt { flex-shrink: 0; }
+.sq-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.sq-others, .sq-me { flex-shrink: 0; }
+.sq-center { flex: 1 1 auto; min-height: 160px; }
+/* fixed-height opponent stash; horizontal+vertical padding so the count badge
+   and the cards sit clear of the scroll box edges */
+.sq-player .sq-stash { height: 92px; overflow-y: auto; padding: 10px 6px 4px; }
+.sq-me .sq-my-stash { min-height: 0; max-height: 86px; overflow-y: auto; padding: 10px 6px 4px; }
+.sq-me .sq-my-stash .sq-card { width: 46px !important; } /* compact mini-cards in the hoard shelf */
+/* §4.4 empty tableau = dashed slot (no placeholder text); §7.3 steal count in accent */
+.sq-player .sq-stash:empty { min-height: 44px; border: 1px dashed var(--kw-game-border-mid, #6e5a38); border-radius: 6px; opacity: .5; }
+.sq-player-stashval { color: var(--kw-gold, #d9b464); font-variant-numeric: tabular-nums; }
+/* Reserve the steal-count line's space even when empty, so a seat panel is the
+   same height whether the opponent holds cards or not (no table shift). */
+.sq-player-stashval { min-height: 1.15em; }
+
+/* ── P3 §7.2 hoard shelf + §7.4 pile badge ────────────────────────────── */
+/* Right-aligned HOARD total: small-caps eyebrow + big Playfair accent numeral. */
+.sq-me-hoard { margin-left: auto; display: inline-flex; align-items: baseline; gap: 5px; }
+.sq-hoard-lbl {
+  font-family: 'Crimson Pro', serif; text-transform: uppercase; letter-spacing: .14em;
+  font-size: 9px; color: var(--kw-game-text-dim, #a89372); align-self: center;
+}
+.sq-hoard-val {
+  font-family: 'Playfair Display', Georgia, serif; font-weight: 700;
+  font-size: 22px; line-height: 1; color: var(--kw-gold, #d9b464);
+  font-variant-numeric: tabular-nums;
+}
+.sq-hoard-ac { font-size: 13px; align-self: center; }
+/* Empty your-stash = dashed slot outline (no placeholder sentence). */
+.sq-my-stash:empty {
+  min-height: 60px; border: 1px dashed var(--kw-game-border-mid, #6e5a38);
+  border-radius: 8px; opacity: .5;
+}
+/* §7.4 pile counter → accent pill badge (still opens the "what's left" breakdown). */
+.sq-hoard-btn {
+  background: var(--kw-gold, #d9b464) !important;
+  color: #241c13 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  padding: 3px 12px !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sq-hoard-btn:hover { filter: brightness(1.08); }
+/* Stack-count badge: bottom-centre of the card, so it doesn't cover the card's
+   own number, and sits inside the scroll box (no clipping) in stash & AI seats. */
+.sq-stack-count {
+  top: auto !important; right: auto !important;
+  bottom: 2px !important; left: 50% !important;
+  transform: translateX(-50%);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Spec 19 P4 — Briarwood Court table overhaul
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── §6.6 Header turn timer ─────────────────────────────────────── */
+/* The title bar becomes a three-part row: crest/name on the left, the live
+   auto-resolve countdown as a centred chip, and the help/audio tools right. */
+.card-game.briar > .card-game-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.card-game.briar .bc-title-name { flex: 0 0 auto; white-space: nowrap; }
+.card-game.briar .bc-title-tools { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
+/* Countdown chip sits in the header (was a loose line below the hand). Reserves
+   its width so an empty/ticking state never nudges the layout. */
+.card-game.briar #bcmp-deadline.bcmp-deadline {
+  flex: 1 1 auto;
+  margin: 0;
+  min-height: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #cbb98a;
+  opacity: .9;
+}
+.card-game.briar #bcmp-deadline.bcmp-deadline:empty { visibility: hidden; }
+.card-game.briar #bcmp-deadline.bcmp-deadline::before { content: ''; }
+.card-game.briar #bcmp-deadline.urgent {
+  color: #f0a888;
+  font-weight: 600;
+  animation: bcTimerPulse 1s ease-in-out infinite;
+}
+@keyframes bcTimerPulse { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+
+/* ── §6.4 Influence legend ──────────────────────────────────────── */
+/* Pips now read "copies still hidden": filled = in play, hollow = revealed.
+   A tiny legend row underneath spells it out so the tracker is self-explaining. */
+.bc-tracker-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 10px 0 0; }
+.bc-tracker-wrap .bc-tracker { margin: 0; }
+.bc-pip.live { background: var(--kw-gold-deep); opacity: 1; }
+.bc-pip.spent {
+  background: transparent;
+  border: 1px solid #5c4a30;
+  opacity: .8;
+}
+.bc-tracker-role.gone { opacity: .4; }
+.bc-tracker-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--kw-muted);
+  text-transform: uppercase;
+}
+.bc-tracker-legend .bc-pip { display: inline-block; vertical-align: middle; }
+
+/* ── §6.3 Wax-seal PASSED stamp ─────────────────────────────────── */
+/* A passed seat gets a round crimson wax seal stamped on it instead of the flat
+   green pill. Slight rotation + inset shading sell the "pressed wax" look. */
+.bc-seat.react-passed { background: rgba(120, 160, 90, .10); border-color: #6f7a4a; }
+.bc-seat.react-passed .bc-seat-react {
+  position: absolute;
+  top: -12px; right: -10px; left: auto;
+  width: 34px; height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #b23b34, #7c1f1c 72%);
+  border: 1px solid #5a1512;
+  box-shadow: 0 2px 5px rgba(0,0,0,.5), inset 0 1px 3px rgba(255,255,255,.28), inset 0 -3px 5px rgba(0,0,0,.4);
+  color: #f3d9c8;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 7.5px;
+  letter-spacing: .04em;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(-11deg);
+  z-index: 5;
+  animation: bcWaxStamp .28s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes bcWaxStamp {
+  0% { transform: rotate(-11deg) scale(1.9); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: rotate(-11deg) scale(1); opacity: 1; }
+}
+
+/* ── §6.5 Symmetric "You" seat ──────────────────────────────────── */
+/* The You panel mirrors an opponent seat (name / acorns / cards) so the table
+   reads as one consistent round of seats, with your hand shown face-up inside. */
+.bc-you-seat {
+  width: fit-content;
+  min-width: 200px;
+  max-width: 100%;
+  margin: 12px auto 0;
+  padding: 10px 16px 12px;
+  border-color: var(--kw-gold-dim);
+  position: relative;
+}
+.bc-you-seat.acting { border-color: var(--kw-gold-deep); box-shadow: 0 0 14px rgba(232,200,122,.2); }
+.bc-you-seat .bc-you-turn { color: var(--kw-gold); font-style: italic; font-weight: 600; font-size: 11px; }
+.bc-you-seat .bc-seat-acorns { margin-top: 2px; }
+.bc-you-seat .bc-hand {
+  position: static;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── §6.2 The Scribe's Ledger (parchment log) ───────────────────── */
+/* The event log becomes an aged parchment slip with a small-caps heading. */
+.bc-log-scribe {
+  margin: 12px 0;
+  border-radius: 7px;
+  border: 1px solid #6e5836;
+  background:
+    linear-gradient(rgba(28,20,11,.05), rgba(28,20,11,.05)),
+    radial-gradient(circle at 20% 0%, #efe2c4, #e3d2ac 60%, #d3bd90);
+  box-shadow: inset 0 0 22px rgba(120,90,45,.35), 0 3px 8px rgba(0,0,0,.4);
+  overflow: hidden;
+}
+.bc-log-scribe .bc-log-head {
+  font-family: 'Crimson Pro', serif;
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-size: 10px;
+  color: #6b4f2a;
+  text-align: center;
+  padding: 5px 0 2px;
+  border-bottom: 1px solid rgba(110,88,54,.35);
+}
+.bc-log-scribe .bc-log {
+  background: transparent;
+  border: none;
+  margin: 0;
+  border-radius: 0;
+  color: #4a3a22;
+  font-size: 13px;
+  /* Fixed height so the ledger never grows/shrinks as log lines accumulate —
+     it scrolls internally and the render pins it to the latest entry. */
+  height: 150px;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Slim parchment-toned scrollbar for the ledger. */
+.bc-log-scribe .bc-log::-webkit-scrollbar { width: 7px; }
+.bc-log-scribe .bc-log::-webkit-scrollbar-thumb { background: rgba(110,88,54,.5); border-radius: 4px; }
+.bc-log-scribe .bc-log::-webkit-scrollbar-track { background: transparent; }
+.bc-log-scribe .bc-log div:last-child { color: #2c2011; font-weight: 600; }
+
+/* ── §6.1 Chat drawer ───────────────────────────────────────────── */
+/* Chat is a right-edge drawer, hidden by default so the table gets full width.
+   A floating 💬 button toggles it; an unread badge counts messages that land
+   while it's closed. */
+.bcmp-shell { overflow: visible; }
+.bcmp-chat {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 280px;
+  max-width: 82vw;
+  border-left: 1px solid var(--kw-gold-dim);
+  background: rgba(24, 17, 10, .99);
+  transform: translateX(100%);
+  /* visibility (not just transform) actually hides it: the shell is overflow:
+     visible, so a translated-out drawer would otherwise still show in the dark
+     space beside the modal. Delay hiding until the slide-out finishes. */
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform .24s ease, visibility 0s linear .24s;
+  z-index: 8;
+  box-shadow: -8px 0 24px rgba(0,0,0,.4);
+}
+.bcmp-shell.chat-open .bcmp-chat {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform .24s ease;
+}
+.bcmp-chat-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  color: var(--kw-gold);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--kw-gold-dim);
+}
+.bcmp-chat-close {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--kw-muted); font-size: 20px; line-height: 1;
+  padding: 0 2px;
+}
+.bcmp-chat-close:hover { color: var(--kw-gold); }
+.bcmp-chat-toggle {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 9;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(24, 17, 10, .95);
+  border: 1px solid var(--kw-gold-dim);
+  color: var(--kw-gold);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s, transform .15s;
+}
+.bcmp-chat-toggle:hover { border-color: var(--kw-gold); transform: scale(1.06); }
+.bcmp-shell.chat-open .bcmp-chat-toggle { display: none; }
+.bcmp-chat-unread {
+  position: absolute;
+  top: -4px; right: -4px;
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #b23b34;
+  color: #fff;
+  font-family: 'Crimson Pro', serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+/* On narrow screens the drawer covers most of the table — that's fine, it's a
+   temporary overlay the player dismisses. The old stacked layout no longer
+   applies since the drawer is absolutely positioned. */
+@media (max-width: 720px) {
+  .bcmp-chat { width: 88vw; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Spec 19 P5 — lobby per-game accent + polish
+   ════════════════════════════════════════════════════════════════ */
+/* The lobby shell carries accent tokens so its title, hovers and seat pips
+   match the game's crest card and in-game table. Default = Stash gold; the
+   Court gets plum via .theme-court (set by LobbySystem._applyLobbyTheme). */
+.lobby-card-shell { --kw-lobby-accent: var(--kw-gold); --kw-lobby-accent-dim: var(--kw-gold-dim); }
+.lobby-card-shell.theme-court { --kw-lobby-accent: #c79bd0; --kw-lobby-accent-dim: #5e4a63; }
+/* A thin accent bar along the top of the shell echoes the crest card. */
+.lobby-card-shell { border-top: 3px solid var(--kw-lobby-accent); }
+.lobby-card-shell .lobby-title { color: var(--kw-lobby-accent); }
+
+/* Room rows: hover lift + accent border, stacked info column. */
+.lobby-room-info { display: flex; flex-direction: column; gap: 3px; }
+.lobby-room-row { transition: border-color .15s, transform .15s, background .15s; }
+.lobby-room-row:hover { border-color: var(--kw-lobby-accent-dim); background: #352818; transform: translateY(-1px); }
+
+/* Seat-occupancy pips in each room row. */
+.lobby-pips { display: inline-flex; gap: 3px; vertical-align: middle; margin-right: 6px; }
+.lobby-pip { width: 7px; height: 7px; border-radius: 50%; background: transparent; border: 1px solid var(--kw-lobby-accent-dim); }
+.lobby-pip.on { background: var(--kw-lobby-accent); border-color: var(--kw-lobby-accent); }

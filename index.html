@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=1778502800">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=1778500800">
-  <link rel="stylesheet" href="/css/hud-storybook.css?v=43">
+  <link rel="stylesheet" href="/css/hud-storybook.css?v=57">
   <link rel="stylesheet" href="/css/carousel.css">
   <link rel="stylesheet" href="/css/hero.css">
   <link rel="stylesheet" href="/css/mobile.css">
@@ -486,50 +486,8 @@
                 </div>
               </div>
 
-                <div class="tavern-card-menu" id="tavern-card-menu" style="display:none">
-                  <div class="tavern-card-menu-title">— Choose Your Game —</div>
-                  <button class="tavern-game-btn" onclick="startCardGame('highleaf')">
-                    <span class="tgb-icon">🍃</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">Highleaf Draw</div>
-                      <div class="tgb-desc">Draw cards, get close to 21. Risk &amp; reward.</div>
-                      <div class="tgb-reward">💰 Reward: 1–3 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-game-btn" onclick="startCardGame('mouse_grain')">
-                    <span class="tgb-icon">🌾</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">Mouse &amp; Grain</div>
-                      <div class="tgb-desc">3 cards each. Highest total wins.</div>
-                      <div class="tgb-reward">💰 Reward: 1–2 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-game-btn" onclick="startCardGame('foragers')">
-                    <span class="tgb-icon">🍄</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">Forager's Gamble</div>
-                      <div class="tgb-desc">Draw and bank — but one mushroom spoils the basket.</div>
-                      <div class="tgb-reward">💰 Reward: 1–3 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-game-btn" onclick="LobbySystem.choose('briar')">
-                    <span class="tgb-icon">🌿</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">The Briar Court <span class="tgb-mp-pill">👥 Multiplayer</span></div>
-                      <div class="tgb-desc">Bluff, challenge and banish — last courtier standing wins.</div>
-                      <div class="tgb-reward">💰 Reward: 4 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-game-btn" onclick="LobbySystem.choose('squirrel')">
-                    <span class="tgb-icon">🐿️</span>
-                    <div class="tgb-info">
-                      <div class="tgb-name">Squirrel's Stash <span class="tgb-mp-pill">👥 Multiplayer</span></div>
-                      <div class="tgb-desc">Push your luck drawing acorns — bank before you bust.</div>
-                      <div class="tgb-reward">💰 Reward: 4 gold</div>
-                    </div>
-                  </button>
-                  <button class="tavern-menu-btn secondary" onclick="closeCardGameMenu()">← Back</button>
-                </div>
+                <!-- Populated by renderGameSelect() from KWGames.META (spec 19 §5) -->
+                <div class="tavern-card-menu" id="tavern-card-menu" style="display:none"></div>
                 <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
               <div class="sq-backdrop" id="sq-backdrop" style="display:none">
                 <div class="sq-shell">
@@ -541,7 +499,9 @@
                 <div class="bcmp-shell">
                   <button class="bcmp-x" onclick="bcLeaveTable()" title="Leave table">✕</button>
                   <div class="bcmp-game" id="bcmp-game"></div>
+                  <button class="bcmp-chat-toggle" id="bcmp-chat-toggle" onclick="bcToggleChatDrawer()" title="Table talk">💬<span class="bcmp-chat-unread" id="bcmp-chat-unread" style="display:none">0</span></button>
                   <div class="bcmp-chat" id="bcmp-chat">
+                    <div class="bcmp-chat-title">Table Talk<button class="bcmp-chat-close" onclick="bcToggleChatDrawer(false)" title="Hide">›</button></div>
                     <div class="bcmp-chat-log" id="bcmp-chat-log"></div>
                     <div class="bcmp-chat-row">
                       <select class="bcmp-chat-to" id="bcmp-chat-to"><option value="">All</option></select>
@@ -718,23 +678,29 @@
   <script src="/js/citizens.js?v=1776929386"></script>
   <script src="/js/buildings.js?v=1778441000"></script>
   <script src="/js/expeditions.js"></script>
-  <script src="/js/seasons.js"></script>
+  <script src="/js/seasons.js?v=3"></script>
   <script src="/js/season-atmosphere.js?v=1"></script>
   <script src="/js/tier.js"></script>
   <script src="/js/profile.js?v=2"></script>
   <script src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script src="/js/kwmap-core.js?v=1"></script>
+  <script src="/js/kwmap-core.js?v=2"></script>
   <script src="/js/kwmap-topdown.js?v=1"></script>
+  <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
+  <script src="/js/kwmap-assets.js?v=1"></script>
+  <script src="/js/kwmap-iso.js?v=8"></script>
+  <script src="/js/kwmap-decor.js?v=4"></script>
+  <script src="/js/kwmap-tileactions.js?v=1"></script>
   <script src="/js/audio.js?v=4"></script>
   <script src="/js/main.js?v=1781334901"></script>
   <script src="/js/welcome-music-guard.js?v=1778501500"></script>
   <script src="/js/online.js?v=1"></script>
-  <script src="/js/leaderboard.js?v=2"></script>
-  <script src="/js/briar_engine.js?v=5"></script>
+  <script src="/js/leaderboard.js?v=3"></script>
+  <script src="/js/briar_engine.js?v=6"></script>
   <script src="/js/squirrel_engine.js?v=14"></script>
-  <script src="/js/lobby.js?v=12"></script>
-  <script src="/js/tavern.js?v=27"></script>
+  <script src="/js/games-meta.js?v=1"></script>
+  <script src="/js/lobby.js?v=14"></script>
+  <script src="/js/tavern.js?v=37"></script>
   <script src="/js/quests.js?v=1778441000"></script>
   <script src="/js/fishing.js"></script>
   <script src="/js/housing.js"></script>

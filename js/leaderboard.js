@@ -114,7 +114,7 @@
       content.innerHTML = `<div class="lb-soon">
         <div class="lb-soon-icon">🃏</div>
         <div class="lb-soon-title">No champions yet</div>
-        <div class="lb-soon-text">Be the first to win at the Briar Court and claim this throne.</div>
+        <div class="lb-soon-text">Be the first to win at the Briarwood Court and claim this throne.</div>
       </div>`;
       return;
     }
