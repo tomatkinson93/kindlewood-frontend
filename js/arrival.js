@@ -80,6 +80,16 @@ function showArrivalScreen(settlementName) {
     });
   }
 
+  // Pre-select the species chosen on the welcome screen (spec 20 §A7 / §D7).
+  let pendingSpecies = window.KW_PENDING_SPECIES || null;
+  if (!pendingSpecies) {
+    try { pendingSpecies = sessionStorage.getItem('kw_pending_species'); } catch (e) {}
+  }
+  if (pendingSpecies) {
+    const idx = SPECIES_LIST.indexOf(pendingSpecies);
+    if (idx >= 0) arrivalSpeciesIdx = idx;
+  }
+
   renderArrivalSpecies();
   renderArrivalZone(true);
 }

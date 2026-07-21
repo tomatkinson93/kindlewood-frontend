@@ -13,11 +13,15 @@
   .celtic-corner { width: 14px; height: 14px; }
 
   .hero-text { padding: 10px 24px 0 !important; }
-  .eyebrow { font-size: 10px; padding: 3px 12px; }
+  /* Shorter hero on tablet — trim the desktop clamp so the CTA stays in-frame. */
+  .hero-text-welcome { padding: clamp(28px, 7vh, 56px) 24px 0; }
+  .eyebrow { font-size: 10px; padding: 3px 12px; margin-bottom: 12px; }
   .game-title { font-size: 42px; }
   .game-subtitle { font-size: 16px; }
-  .hero-tagline { font-size: 14px; }
-  .hero-divider { margin-top: 2px !important; margin-bottom: 4px !important; }
+  .hero-tagline { font-size: 14px; margin-bottom: 18px; }
+  .hero-divider { margin-top: 0; margin-bottom: 10px; }
+  .kw-btn-hero { font-size: 16px; }
+  .kw-btn-hero .celtic-btn-wrap { padding: 13px 30px; }
 
   /* Species section */
   .species-section { padding: 20px 0 28px; }
@@ -26,14 +30,14 @@
 
   .carousel-wrap { height: 300px; }
   .sp-card.pos-active { width: 180px; }
-  .sp-card.pos-l1, .sp-card.pos-r1 { width: 130px; }
+  .sp-card.pos-l1, .sp-card.pos-r1 { width: 143px; }
   .sp-card.pos-l1 { transform: translate(calc(-50% - 175px), -50%) scale(0.85); }
   .sp-card.pos-r1 { transform: translate(calc(-50% + 175px), -50%) scale(0.85); }
-  .sp-card.pos-l2 { width: 100px; transform: translate(calc(-50% - 305px), -50%) scale(0.68); opacity: 0.2; }
-  .sp-card.pos-r2 { width: 100px; transform: translate(calc(-50% + 305px), -50%) scale(0.68); opacity: 0.2; }
-  .sp-card.pos-active .sp-card-name { font-size: 15px; }
-  .sp-card.pos-active .sp-card-role { font-size: 10px; }
-  .sp-card.pos-active .sp-card-flavor { font-size: 9px; }
+  .sp-card.pos-l2 { width: 110px; transform: translate(calc(-50% - 305px), -50%) scale(0.68); opacity: 0.2; }
+  .sp-card.pos-r2 { width: 110px; transform: translate(calc(-50% + 305px), -50%) scale(0.68); opacity: 0.2; }
+  .sp-card.pos-active .sp-card-name { font-size: 16px; }
+  .sp-card.pos-active .sp-card-role { font-size: 12px; }
+  .sp-card.pos-active .sp-card-flavor { font-size: 12px; }
 
   .carousel-arrow.left { left: 4px; }
   .carousel-arrow.right { right: 4px; }
@@ -76,19 +80,20 @@
   .hero-nav { padding: 10px 14px; }
 
   .game-title { font-size: 34px; }
-  .game-subtitle { font-size: 14px; }
-  .eyebrow { font-size: 9px; letter-spacing: .14em; }
+  .game-subtitle { font-size: 14px; margin-bottom: 14px; }
+  .eyebrow { font-size: 9px; letter-spacing: .14em; margin-bottom: 10px; }
   .hero-tagline { font-size: 13px; display: none; }
   .hero-divider { display: none; }
   .hero-text { padding: 8px 16px 0 !important; }
+  .hero-text-welcome { padding: 22px 16px 0; }
 
   /* Carousel tighter on phones */
   .carousel-wrap { height: 260px; }
   .sp-card.pos-active { width: 155px; }
-  .sp-card.pos-l1 { width: 110px; transform: translate(calc(-50% - 148px), -50%) scale(0.82); }
-  .sp-card.pos-r1 { width: 110px; transform: translate(calc(-50% + 148px), -50%) scale(0.82); }
+  .sp-card.pos-l1 { width: 121px; transform: translate(calc(-50% - 148px), -50%) scale(0.82); }
+  .sp-card.pos-r1 { width: 121px; transform: translate(calc(-50% + 148px), -50%) scale(0.82); }
   .sp-card.pos-l2, .sp-card.pos-r2 { opacity: 0; pointer-events: none; }
-  .sp-card.pos-active .sp-card-name { font-size: 13px; }
+  .sp-card.pos-active .sp-card-name { font-size: 14px; }
 
   .species-section-label { font-size: 18px; }
   .label-deco-line { max-width: 40px; }

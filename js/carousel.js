@@ -64,13 +64,13 @@ function carouselPrev() { carouselGo(carouselIdx - 1); }
 function openModalCurrent() { openModal(CAROUSEL_SPECIES[carouselIdx]); }
 
 function selectCurrentSpecies() {
+  // Carry the welcome-screen choice through to registration / Arrival.
+  // (spec 20 §A7 / §D7). The old `.sp-option` query was dead — the register
+  // screen no longer has an inline species picker.
+  const sp = CAROUSEL_SPECIES[carouselIdx];
+  window.KW_PENDING_SPECIES = sp;
+  try { sessionStorage.setItem('kw_pending_species', sp); } catch (e) {}
   showScreen('register');
-  setTimeout(() => {
-    const spName = SPECIES_DATA[CAROUSEL_SPECIES[carouselIdx]].name;
-    document.querySelectorAll('.sp-option').forEach(o => {
-      if (o.dataset.sp === spName) pickSpecies(o);
-    });
-  }, 80);
 }
 
 document.addEventListener('keydown', e => {

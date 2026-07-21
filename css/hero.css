@@ -27,14 +27,30 @@
   pointer-events: none; z-index: 2;
 }
 
-/* Tighten text block vertical spacing */
-.hero-text {
-  gap: 0;
+/* ── Title-block re-spacing (spec 20 §D3) ──
+   The old !important gap-crushers are removed; spacing is now generous and
+   deliberate. hero.css loads after main.css so these plain rules win. */
+.hero-text-welcome {
+  /* Anchor the block in the sky band, ~12% from the hero top. Replaces the
+     old 10px padding-top. Side/bottom padding inherited from main.css. */
+  padding-top: clamp(48px, 12vh, 96px);
 }
-.game-title { margin-bottom: 2px !important; }
-.game-subtitle { margin-bottom: 4px !important; }
-.hero-divider { margin-top: 4px !important; margin-bottom: 6px !important; }
-.hero-tagline { margin-bottom: 0 !important; }
+.eyebrow {
+  /* Pill retained in shape but border/background removed — text + glow only. */
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  margin-bottom: 14px;   /* eyebrow → title */
+}
+.game-title    { margin-bottom: 8px; }   /* title → subtitle */
+.game-subtitle { margin-bottom: 12px; }  /* subtitle → divider */
+.hero-divider  { margin-top: 0; margin-bottom: 12px; }  /* divider → tagline */
+.hero-tagline  { margin-bottom: 24px; }  /* tagline → CTA */
+
+/* <picture> wrappers (spec 20 §A5) must not alter layout — the <img> stays
+   the effective child so existing .hero img / .sp-card-art rules keep working. */
+.hero picture { display: contents; }
 
 /* Bottom fade from hero into parchment */
 .hero-bottom-fade {
@@ -129,4 +145,63 @@
 .hero-text {
   padding-top: 10px !important;
   padding-bottom: 0 !important;
+}
+
+/* ══════════════════════════════════════════════
+   Shared gold button — .kw-cta-gold (spec 20 §D2)
+   Canonical primary/gold treatment. The relocated hero CTA uses the
+   .kw-btn-hero size variant on top of this base. Legacy button classes
+   (.btn-nav-primary, .btn-carousel-select, etc.) remain for now.
+   ══════════════════════════════════════════════ */
+.kw-cta-gold {
+  font-family: 'Playfair Display', serif; font-weight: 700; color: #1C1812;
+  background: linear-gradient(135deg, #B8841A 0%, #EF9F27 45%, #F5B942 70%, #C8941A 100%);
+  border: none; border-radius: 6px; padding: 0;
+  cursor: pointer; transition: transform .22s, box-shadow .22s, filter .22s, opacity .45s ease;
+  box-shadow: 0 0 16px rgba(239,159,39,.35), 0 3px 10px rgba(0,0,0,.12);
+  position: relative; overflow: hidden;
+}
+.kw-cta-gold::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 60%);
+  pointer-events: none;
+}
+.kw-cta-gold:hover  { transform: scale(1.04); box-shadow: 0 0 24px rgba(239,159,39,.55); filter: brightness(1.06); }
+.kw-cta-gold:active { transform: scale(0.97); }
+.kw-cta-gold .celtic-btn-wrap { padding: 12px 24px; gap: 6px; }
+.kw-cta-gold .celtic-corner { color: rgba(60,30,0,.45); width: 18px; height: 18px; }
+.kw-cta-gold .celtic-btn-wrap::before,
+.kw-cta-gold .celtic-btn-wrap::after {
+  content: ''; position: absolute; left: 16px; right: 16px; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(60,30,0,.22) 30%, rgba(60,30,0,.22) 70%, transparent);
+}
+.kw-cta-gold .celtic-btn-wrap::before { top: 5px; }
+.kw-cta-gold .celtic-btn-wrap::after  { bottom: 5px; }
+
+/* Inline sprig glyph that replaced the 🌿 emoji in button labels (spec 20 §D6). */
+.kw-sprig { display: inline-block; margin-right: 7px; vertical-align: -2px; }
+
+/* Hero size variant — larger, sits in the hero text block (spec 20 §D1). */
+.kw-btn-hero {
+  font-size: 18px;
+  pointer-events: auto;   /* .hero-text-welcome is pointer-events:none */
+}
+.kw-btn-hero .celtic-btn-wrap { padding: 16px 40px; gap: 8px; }
+.kw-btn-hero .celtic-corner { width: 22px; height: 22px; }
+
+/* The relocated CTA lives inside .hero-text-welcome, which is intentionally
+   kept visible during the welcome→login cinematic. The re-spaced title block
+   now sits lower, so the button, divider and tagline would overlap the login
+   card — fade those out during to-login while the "Kindlewood" branding
+   (eyebrow / title / subtitle) persists, keeping the cinematic clean. */
+#screen-welcome .kw-btn-hero,
+#screen-welcome .hero-divider,
+#screen-welcome .hero-tagline {
+  transition: opacity 0.45s ease;
+}
+#screen-welcome.to-login .kw-btn-hero,
+#screen-welcome.to-login .hero-divider,
+#screen-welcome.to-login .hero-tagline {
+  opacity: 0;
+  pointer-events: none;
 }

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Crimson+Pro:wght@300;400;500&display=swap');
+/* Fonts moved to a <link> in <head> (spec 20 §A5) — render-blocking @import
+   replaced with preconnect + stylesheet link so faces load in parallel. */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -6511,6 +6512,16 @@ body.login-mode .hero-text-welcome {
   letter-spacing: .12em;
   text-transform: uppercase;
   margin-top: -6px;
+}
+
+/* Loading-logo fallback (spec 20 §A8 / Veto-6): when kindlewood-logo.png is
+   missing, .ls-title is promoted to a typed wordmark that stands in for the
+   logo — Playfair 700, leaf-green, glow — so no broken image and no duplicate. */
+.ls-content.ls-logo-missing .ls-title {
+  font-size: 44px;
+  color: var(--leaf, #C0DD97);
+  text-shadow: 0 0 30px rgba(192,221,151,.45);
+  margin-bottom: 2px;
 }
 
 .ls-bar-wrap {
