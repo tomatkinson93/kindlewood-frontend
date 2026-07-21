@@ -6,6 +6,11 @@ const pageTurnAudio = new Audio('/assets/pageturn.wav');
 pageTurnAudio.volume = 0.5;
 
 function playPageTurn() {
+  // Route the carousel page-turn through the SFX system so it honors the user's
+  // SFX volume (spec 20 §B5 / Veto-5). The spec calls this sound "paper_slide";
+  // the bundled asset is pageturn.wav. Falls back to the preloaded element if
+  // audio.js hasn't defined playSfx yet.
+  if (typeof playSfx === 'function') { playSfx('pageturn.wav'); return; }
   pageTurnAudio.currentTime = 0;
   pageTurnAudio.play().catch(() => {});
 }

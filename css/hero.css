@@ -181,6 +181,16 @@
 /* Inline sprig glyph that replaced the 🌿 emoji in button labels (spec 20 §D6). */
 .kw-sprig { display: inline-block; margin-right: 7px; vertical-align: -2px; }
 
+/* Hero logotype slot (spec 20 §B6). Hidden until the artwork loads; the typed
+   .game-title becomes sr-only (accessible name + fallback) once it does. */
+.game-logotype { display: none; max-width: min(560px, 82%); height: auto; margin: 0 auto 8px; }
+.game-logotype.loaded { display: block; }
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
 /* Hero size variant — larger, sits in the hero text block (spec 20 §D1). */
 .kw-btn-hero {
   font-size: 18px;
@@ -204,4 +214,49 @@
 #screen-welcome.to-login .hero-tagline {
   opacity: 0;
   pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════
+   Motion pass (spec 20 §B4)
+   ══════════════════════════════════════════════ */
+
+/* Lantern flicker glow — positioned + animated by particles.js via the seeded
+   PRNG (opacity/scale set inline each frame; no CSS animation here). */
+.hero-lantern-flicker {
+  position: absolute; z-index: 2; pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,196,96,.5) 0%, rgba(255,166,64,.26) 38%, rgba(255,150,50,0) 72%);
+  mix-blend-mode: screen;
+  will-change: opacity, transform;
+  opacity: .65;
+}
+
+/* One-time entrance stagger for the title block. The .kw-entrance class is
+   added on load by particles.js (skipped under reduced motion) and removed
+   once the sequence completes. */
+@keyframes kwEntrance {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.kw-entrance > * { animation: kwEntrance .42s ease both; }
+.kw-entrance .eyebrow       { animation-delay: 0ms; }
+.kw-entrance .game-logotype,
+.kw-entrance .game-title    { animation-delay: 120ms; }
+.kw-entrance .game-subtitle { animation-delay: 240ms; }
+.kw-entrance .hero-divider  { animation-delay: 360ms; }
+.kw-entrance .hero-tagline  { animation-delay: 480ms; }
+.kw-entrance .kw-btn-hero   { animation-delay: 600ms; }
+
+/* §3.7 — reduced motion means zero movement pre-login. The particle canvas,
+   flicker and entrance are JS-gated in particles.js; this disables the pure-CSS
+   pre-login animations too (species-card breathe, music waves, login bg zoom). */
+@media (prefers-reduced-motion: reduce) {
+  .sp-card.pos-active .sp-card-art,
+  .mp-waves span,
+  .music-player .wave-bar,
+  .login-bg-layer,
+  .hero-lantern-flicker,
+  .kw-entrance > * {
+    animation: none !important;
+  }
 }

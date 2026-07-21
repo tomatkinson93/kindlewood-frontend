@@ -364,6 +364,111 @@ body.login-mode #screen-login .login-back-btn {
 .divider-line { border: none; border-top: 1px solid var(--parchment2); margin: 20px 0; }
 .auth-switch { text-align: center; font-size: 13px; color: var(--ink2); opacity: .7; margin-top: 16px; }
 .auth-switch a { color: var(--moss); cursor: pointer; text-decoration: underline; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Landing auth polish — forms, centering, chip, theming (spec 20 §B1–B3)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* §B1 — flexible centering. Register centers in a scrollable column; login
+   uses an inner scroll container so short viewports scroll without disturbing
+   the fixed background layers / cinematic. */
+#screen-register {
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  padding: 40px 16px;
+}
+#screen-register .auth-card { margin-top: 0; }
+
+.login-scroll {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto; overflow-x: hidden;
+  padding: clamp(176px, 27vh, 256px) 16px 40px;
+}
+#screen-login .auth-card { margin-top: 0; }
+
+/* §B3 — input restyle (both cards): parchment inset, ink caret, amber focus glow */
+.auth-card .field input {
+  background: var(--parchment2);
+  border: 1.5px solid rgba(100,70,30,.18);
+  box-shadow: inset 0 1px 2px rgba(60,40,15,.10);
+  caret-color: var(--ink);
+}
+.auth-card .field input:focus {
+  border-color: var(--amber-glow);
+  box-shadow: inset 0 1px 2px rgba(60,40,15,.10), 0 0 8px rgba(239,159,39,.25);
+}
+
+/* §B1 — show/hide password toggle */
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 44px; }
+.pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; cursor: pointer;
+  color: var(--ink2); opacity: .5; padding: 6px; line-height: 0;
+  transition: opacity .15s;
+}
+.pw-toggle:hover { opacity: 1; }
+
+/* §B2 — species carry-through chip (register) */
+.kw-species-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 7px 16px 7px 7px; margin-bottom: 20px;
+  background: var(--parchment2);
+  border: 1px solid rgba(100,70,30,.16);
+  border-radius: 999px;
+}
+.kw-species-chip-img {
+  width: 34px; height: 34px; border-radius: 50%;
+  object-fit: cover; background: rgba(60,48,37,.06);
+  flex-shrink: 0;
+}
+.kw-species-chip-label { font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--ink2); }
+.kw-species-chip-label strong { color: var(--gold); font-weight: 600; }
+/* .kw-crest-slot reserved for the future heraldry asset set (spec 20 §B2) */
+
+/* §B3 — parchment texture on both auth cards (reuses the species-section noise) */
+.auth-card { position: relative; overflow: hidden; }
+.auth-card::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  border-radius: inherit; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='an'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23an)' opacity='0.05'/%3E%3C/svg%3E");
+}
+.auth-card > * { position: relative; z-index: 1; }
+
+/* §B3 — LOGIN card: full theme (celtic corner ornaments) */
+.auth-celtic-corner {
+  position: absolute; width: 40px; height: 40px;
+  color: rgba(90,60,25,.9); opacity: .35; z-index: 1; pointer-events: none;
+}
+.auth-celtic-corner.tl { top: 12px; left: 12px; }
+.auth-celtic-corner.tr { top: 12px; right: 12px; transform: scaleX(-1); }
+.auth-celtic-corner.bl { bottom: 12px; left: 12px; transform: scaleY(-1); }
+.auth-celtic-corner.br { bottom: 12px; right: 12px; transform: scale(-1); }
+
+/* §B3 — REGISTER card: clean / modern (Veto-7). Texture yes, ornaments no,
+   generous whitespace. Register has no .auth-celtic-corner markup. */
+#screen-register .field { margin-bottom: 20px; }
+@media (min-width: 769px) {
+  #screen-register .auth-card { padding: 44px 48px 40px; }
+}
+
+/* Register background art behind the UI (user request). Fixed layers so the
+   card scrolls over a steady backdrop; solid fallback if register.webp is
+   missing. Pseudo-elements only render while the screen is active (display). */
+#screen-register::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: #0e0a06 url("/assets/register.webp") center / cover no-repeat;
+}
+#screen-register::after {
+  content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(20,14,8,.55) 0%, rgba(14,10,6,.72) 100%),
+    radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.5) 100%);
+}
+#screen-register .auth-card { z-index: 2; }
 .msg { font-size: 13px; border-radius: 5px; padding: 9px 12px; margin-bottom: 14px; display: none; font-family: 'Crimson Pro', serif; }
 .msg.error { background: #FAECE7; color: #712B13; }
 .msg.success { background: #EAF3DE; color: #27500A; }
@@ -3645,7 +3750,7 @@ body.login-mode .hero-text-welcome {
 
 .music-player {
   position: fixed !important;
-  top: 14px;
+  bottom: 14px;   /* relocated top-left → bottom-left (spec 20 §D9) */
   left: 16px;
   z-index: 300;
   display: none; /* shown via JS on welcome + login */

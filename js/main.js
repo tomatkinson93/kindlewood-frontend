@@ -62,6 +62,10 @@ function hideLoadingScreen() {
 function showScreen(id) {
   console.log('showScreen called with:', id);
 
+  // Page-turn UI sound on screen transitions (spec 20 §B5). Silent no-op until
+  // the asset ships (audio.js swallows missing-file errors).
+  if (typeof playSfx === 'function') playSfx('page_turn.mp3');
+
   // Cinematic transition for welcome → login
   if (id === 'login') {
     const welcome = document.getElementById('screen-welcome');
@@ -80,6 +84,8 @@ function showScreen(id) {
   }
 
   target.classList.add('active');
+
+  if (id === 'register') populateRegisterChip();
 
   if (id === 'login') { stopLoginArtCycle(); startLoginArtCycle(); }
 
@@ -108,6 +114,45 @@ function showMsg(id, text) {
   el.textContent = text;
   el.style.display = 'block';
 }
+
+// Register species carry-through chip (spec 20 §B2 / §D7). Populated from the
+// welcome-screen choice; hidden when none was made.
+function populateRegisterChip() {
+  const chip = document.getElementById('reg-species-chip');
+  if (!chip) return;
+  let sp = window.KW_PENDING_SPECIES || null;
+  if (!sp) { try { sp = sessionStorage.getItem('kw_pending_species'); } catch (e) {} }
+  const data = (sp && typeof SPECIES_DATA !== 'undefined') ? SPECIES_DATA[sp] : null;
+  if (!sp || !data) { chip.style.display = 'none'; return; }
+  const img = document.getElementById('reg-species-chip-img');
+  const label = document.getElementById('reg-species-chip-label');
+  if (img) { img.src = `/assets/${sp}.png`; img.alt = data.name; }
+  if (label) label.innerHTML = `Leading the <strong>${data.name}</strong>`;
+  chip.style.display = 'inline-flex';
+}
+
+// Show/hide password toggle (spec 20 §B1).
+function togglePassword(btn) {
+  const wrap = btn.closest('.pw-wrap');
+  const input = wrap && wrap.querySelector('input');
+  if (!input) return;
+  const reveal = input.type === 'password';
+  input.type = reveal ? 'text' : 'password';
+  const eye = btn.querySelector('.pw-eye');
+  const eyeOff = btn.querySelector('.pw-eye-off');
+  if (eye) eye.style.display = reveal ? 'none' : '';
+  if (eyeOff) eyeOff.style.display = reveal ? '' : 'none';
+  btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+}
+
+// Wood-tap UI sound on primary gold buttons (spec 20 §B5). Delegated so it
+// covers the hero CTA and any future .kw-cta-gold buttons. Silent until asset.
+document.addEventListener('mousedown', (e) => {
+  const t = e.target;
+  if (t && t.closest && t.closest('.kw-cta-gold') && typeof playSfx === 'function') {
+    playSfx('wood_tap.mp3');
+  }
+});
 
 function pickSpecies(el) {
   document.querySelectorAll('.sp-option').forEach(o => o.classList.remove('picked'));
@@ -451,8 +496,29 @@ function stopLoginArtCycle() {
     }
   };
 
+  // First-gesture music start ramps 0 → volume over 2s (spec 20 §B5). The menu
+  // track is #bg-music (owned by welcome-music-guard.js), so the fade lives here
+  // rather than in audio.js. Fires once, on the first time the track plays;
+  // re-reads the slider each frame so a live volume drag is respected.
+  let _bgFadedIn = false;
+  function _bgFadeIn(audio) {
+    if (_bgFadedIn) return;
+    _bgFadedIn = true;
+    const dur = 2000, start = performance.now();
+    audio.volume = 0;
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / dur);
+      const target = parseFloat(document.getElementById('music-volume')?.value || 0.4);
+      audio.volume = target * t;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
   // Init on page load
   document.addEventListener('DOMContentLoaded', () => {
+    const audio = getAudio();
+    if (audio) audio.addEventListener('play', () => _bgFadeIn(audio));
     const welcomeActive = document.getElementById('screen-welcome')?.classList.contains('active');
     if (welcomeActive) {
       updatePlayerVisibility('welcome');
