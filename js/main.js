@@ -450,7 +450,9 @@ function stopLoginArtCycle() {
 
 /* ── Ambient music player ── */
 (function initMusicPlayer() {
-  const MENU_SCREENS = ['screen-welcome', 'screen-login'];
+  // Register is a pre-login screen too — keep the menu music playing and the
+  // pill visible there (bug fix: register used to pause the track).
+  const MENU_SCREENS = ['screen-welcome', 'screen-login', 'screen-register'];
 
   function getAudio()  { return document.getElementById('bg-music'); }
   function getPlayer() { return document.getElementById('music-player'); }
@@ -595,6 +597,36 @@ function loginTransitionBack() {
   setTimeout(() => {
     login.classList.remove('active');
   }, 450);
+}
+
+// Back from login. If we arrived via the welcome→login cinematic, reverse it;
+// otherwise (e.g. reached login from register) just return to welcome. This
+// keeps the login back button working regardless of how login was entered.
+function loginBack() {
+  const welcome = document.getElementById('screen-welcome');
+  const cinematic = document.body.classList.contains('login-mode')
+                 && welcome && welcome.classList.contains('active');
+  if (cinematic) {
+    loginTransitionBack();
+  } else {
+    stopLoginArtCycle();
+    const login = document.getElementById('screen-login');
+    if (login) login.classList.remove('login-visible');
+    document.body.classList.remove('login-mode');
+    showScreen('welcome');
+  }
+}
+
+// Register chip: (?) opens the species detail modal; "Change" returns to the
+// welcome carousel to re-pick (spec 20 §B2 follow-up).
+function openPendingSpeciesInfo() {
+  let sp = window.KW_PENDING_SPECIES || null;
+  if (!sp) { try { sp = sessionStorage.getItem('kw_pending_species'); } catch (e) {} }
+  if (sp && typeof openModal === 'function') openModal(sp);
+}
+function changePendingSpecies() {
+  showScreen('welcome');
+  setTimeout(() => { if (typeof scrollToSpecies === 'function') scrollToSpecies(); }, 60);
 }
 
 

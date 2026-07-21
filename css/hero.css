@@ -31,9 +31,9 @@
    The old !important gap-crushers are removed; spacing is now generous and
    deliberate. hero.css loads after main.css so these plain rules win. */
 .hero-text-welcome {
-  /* Anchor the block in the sky band, ~12% from the hero top. Replaces the
-     old 10px padding-top. Side/bottom padding inherited from main.css. */
-  padding-top: clamp(48px, 12vh, 96px);
+  /* Anchor the block high in the sky band so the CTA clears the characters.
+     Replaces the old 10px padding-top. Side/bottom padding from main.css. */
+  padding-top: clamp(24px, 7vh, 64px);
 }
 .eyebrow {
   /* Pill retained in shape but border/background removed — text + glow only. */
