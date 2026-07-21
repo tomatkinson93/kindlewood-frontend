@@ -221,24 +221,14 @@
   global.onMusicVolumeSlide   = onMusicVolumeSlide;
   global.onSfxVolumeSlide     = onSfxVolumeSlide;
 
-  // ── Menu music: start on the first user gesture while on a menu screen ──
-  // (Browsers block autoplay until a gesture; a single click suffices.)
-  function _maybeStartMenuMusic() {
-    try {
-      // Never start menu music if we're actually in the game (e.g. auto-logged
-      // in via cookie). Only on the genuine pre-login screens.
-      const inGame = document.getElementById('screen-game')?.classList.contains('active');
-      if (inGame) return;
-      const onMenu = document.getElementById('screen-welcome')?.classList.contains('active')
-                  || document.getElementById('screen-login')?.classList.contains('active');
-      if (onMenu && !_activeAudio) playMenuMusic();
-    } catch (e) {}
-  }
-  if (typeof document !== 'undefined') {
-    document.addEventListener('click', function _menuKick() {
-      _maybeStartMenuMusic();
-      // keep listening — menu music will no-op if something else is playing
-    });
-  }
+  // ── Menu music ──────────────────────────────────────────────────────────
+  // NOTE (spec 20 §B5 / audio bug fix): audio.js used to auto-start a SEPARATE
+  // welcome.mp3 Audio on every document click. That duplicated the #bg-music
+  // element that welcome-music-guard.js already owns — the two overlapped with
+  // independent volumes, and the on-screen pill only controlled one of them.
+  // Menu music is now driven solely by #bg-music + welcome-music-guard.js, so
+  // that click auto-start has been removed. playMenuMusic / stopMenuMusic remain
+  // exported for API compatibility (tavern.js calls stopMenuMusic); with nothing
+  // starting the MENU track here, stopMenuMusic is simply a no-op.
 
 })(typeof window !== 'undefined' ? window : globalThis);
