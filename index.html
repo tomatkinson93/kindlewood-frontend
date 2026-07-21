@@ -30,13 +30,13 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=spec20b">
+  <link rel="stylesheet" href="/css/main.css?v=spec20c">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=1778502800">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=1778500800">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=57">
   <link rel="stylesheet" href="/css/carousel.css?v=spec20a">
-  <link rel="stylesheet" href="/css/hero.css?v=spec20b">
+  <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=spec20a">
   <script>
     // Capture the settlement species from any API response that includes it, so
@@ -101,6 +101,7 @@
           <hr class="modal-divider">
           <div class="modal-stats" id="modal-stats"></div>
           <div class="modal-lore" id="modal-lore"></div>
+          <div class="modal-citizen-note">This sets your <strong>starting 10 citizens</strong>. You can recruit other species as your settlement grows.</div>
           <button class="btn-primary modal-cta" onclick="beginAsThisSpecies()"><svg class="kw-sprig" viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M12 21 V4 M12 12 C9 12 7 10 6.5 7 M12 12 C15 12 17 10 17.5 7 M12 16.5 C10.2 16.5 8.7 15 8.2 13 M12 16.5 C13.8 16.5 15.3 15 15.8 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Begin As This Species</button>
         </div>
       </div>
@@ -259,6 +260,8 @@
       <div class="auth-logo">Kindlewood <span>Woodland Realms</span></div>
       <div class="back-link" onclick="showScreen('welcome')">← Back</div>
     </div>
+    <!-- Floating back button — always visible on register -->
+    <button class="login-back-btn" onclick="showScreen('welcome')">← Back</button>
     <form class="auth-card" onsubmit="event.preventDefault(); submitRegister();">
       <!-- Species carry-through chip (spec 20 §B2 / §D7). Populated from
            KW_PENDING_SPECIES; hidden when unset. Crest slot reserved. -->
@@ -266,6 +269,8 @@
         <img class="kw-species-chip-img" id="reg-species-chip-img" src="" alt="">
         <span class="kw-crest-slot" id="reg-species-crest" style="display:none"></span>
         <span class="kw-species-chip-label" id="reg-species-chip-label"></span>
+        <button type="button" class="kw-chip-info" aria-label="Species details" onclick="openPendingSpeciesInfo()">?</button>
+        <button type="button" class="kw-chip-change" onclick="changePendingSpecies()">Change</button>
       </div>
       <h2 class="auth-heading">Found your settlement</h2>
       <div class="auth-desc">Create your account and choose your species to begin.</div>
@@ -295,7 +300,7 @@
     <div class="login-bg-layer" id="login-bg-a" style="background-image:url('/assets/images/login_art1.png')"></div>
     <div class="login-bg-layer" id="login-bg-b"></div>
     <!-- Floating back button — visible over login art -->
-    <button class="login-back-btn" onclick="loginTransitionBack()">← Back</button>
+    <button class="login-back-btn" onclick="loginBack()">← Back</button>
     <!-- Inner scroll container so short viewports scroll without disturbing the
          fixed bg layers / cinematic (spec 20 §B1). -->
     <div class="login-scroll">
@@ -791,7 +796,7 @@
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=1"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
-  <script defer src="/js/main.js?v=spec20b"></script>
+  <script defer src="/js/main.js?v=spec20c"></script>
   <script defer src="/js/welcome-music-guard.js?v=1778501500"></script>
   <script defer src="/js/online.js?v=1"></script>
   <script defer src="/js/leaderboard.js?v=3"></script>
