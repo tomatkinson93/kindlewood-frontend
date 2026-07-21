@@ -318,13 +318,13 @@ const LobbySystem = (() => {
   // then it falls back to the emoji.
   const COURTIER_META = {
     'Old Bracken': { color: '#8a9a5b', emoji: '🦡', title: 'The Wary Elder',
-      blurb: 'Rarely bluffs and slow to trust. He watches the table and calls out the bold — but cross him and he remembers.' },
+      blurb: 'Slow and calculated. He watches the table and calls out the bold. Cross him and he remembers.' },
     'Sly Whisper': { color: '#b06fc9', emoji: '🦊', title: 'The Silver Tongue',
-      blurb: 'Spins a bluff at every turn and spreads her mischief wide. Trust nothing she claims — yet she seldom challenges yours.' },
+      blurb: 'Spins a bluff at every turn and spreads his mischief wide. Trust nothing he claims.' },
     'Marigold':    { color: '#e0a93b', emoji: '🐇', title: 'The Hoarder',
-      blurb: 'Greedy and patient. She piles up acorns and plays it safe, striking only when the odds are hers.' },
-    'Thorn':       { color: '#c0503f', emoji: '🐍', title: 'The Vengeful',
-      blurb: 'Quick to the dagger and slow to forgive. Strike her once and she will come back for you.' },
+      blurb: 'Greedy and patient. She plays it safe, striking only when the odds are hers.' },
+    'Thorn':       { color: '#c0503f', emoji: '🐍', title: 'The Ferocious',
+      blurb: 'She is aggresive and holds a grudge. Not afraid of swinging first either.' },
   };
   const COURTIER_DEFAULT = { color: '#7a6a52', emoji: '🌿', title: 'Courtier', blurb: 'A courtier of unknown temperament.' };
   const _courtierMeta = name => COURTIER_META[name] || Object.assign({}, COURTIER_DEFAULT, { title: name });

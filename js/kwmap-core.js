@@ -169,6 +169,11 @@ window.KWMap = (() => {
     get active() { return this._renderers[this.activeId]; },
 
     register,                 // provider registry (layer stack)
+    // Phase 2 (additive): read access to the registered providers so the
+    // active renderer can consume them (§3.0). Returns a layer-sorted copy;
+    // the registry array itself stays private. Top-down ignores this until
+    // Phase 4a — zero behavior change to the deployed renderer.
+    listProviders() { return providers.slice(); },
     invalidateLayer(idOrLayer) {
       // Phase 1: providers aren't consumed yet — an invalidation is a redraw.
       this.requestRender();
@@ -329,6 +334,21 @@ window.KWMap = (() => {
     _renderUiFx(W, H) {
       const ctx = this._uifxCtx;
       if (!ctx) return;
+      // Phase 2 (additive): let the active renderer own its uifx strokes when
+      // it defines renderUiFx — iso needs iso-projected hover/selection, which
+      // firstVisibleCopyXY (top-down geometry, frozen) cannot provide. The
+      // top-down renderer defines NO renderUiFx, so the verbatim Phase-1 block
+      // below runs unchanged and its uifx output stays byte-identical.
+      const activeR = this.active;
+      if (activeR && typeof activeR.renderUiFx === 'function') {
+        ctx.clearRect(0, 0, W, H);
+        if (worldMapData && worldMapData.tiles) {
+          activeR.renderUiFx(ctx, W, H,
+            { hovered: _hoveredTile, selected: _selectedTile, selectedFog: _selectedFogTile },
+            camera);
+        }
+        return;
+      }
       ctx.clearRect(0, 0, W, H);
       if (!worldMapData || !worldMapData.tiles) return;
 

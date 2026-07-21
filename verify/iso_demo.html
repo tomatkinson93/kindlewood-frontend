@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KWMap iso demo (dev harness)</title>
+<link rel="stylesheet" href="/css/hud-storybook.css">
+<style>
+  html,body{margin:0;background:#241c14;}
+  #screen-game{position:relative;}
+  .map-frame{position:relative;width:1000px;height:640px;margin:16px auto;border:2px solid #5a4830;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  #map-canvas{display:block;position:absolute;inset:0;width:100%;height:100%;}
+  #cap{color:#c9b78c;font:13px/1.5 system-ui;text-align:center;}
+</style>
+</head>
+<body>
+<!-- season class drives seasonId; iso reads it off #screen-game -->
+<div id="screen-game" class="season-summer">
+  <div class="map-frame" id="map-frame">
+    <canvas id="map-canvas"></canvas>
+  </div>
+  <div id="cap">iso view — placeholder diorama (procedural faces + skirts, claim borders, settlement/outpost markers)</div>
+</div>
+
+<!-- Production scripts, exact load order from index.html -->
+<script src="/js/pixelart.js"></script>
+<script src="/js/kwmap-core.js"></script>
+<script src="/js/kwmap-topdown.js"></script>
+<script src="/js/kwmap-assets.js"></script>
+<script src="/js/kwmap-iso.js"></script>
+<script src="/js/kwmap-decor.js"></script>
+<script src="/js/main.js"></script>
+<script src="/js/kwmap-tileactions.js"></script>
+
+<script>
+// Minimal bootstrap: build a fixture world with terrain clusters + features,
+// then drive the real controller into the iso view and render. No backend.
+(function () {
+  HEX_MAP_W = 30; HEX_MAP_H = 30;
+  const terr = ['plains','forest','hills','mountain','river','marsh','ruins'];
+  const tiles = [];
+  for (let q = 0; q < 30; q++) for (let r = 0; r < 30; r++) {
+    // coarse clusters so terrain reads as regions, not noise
+    const t = { q, r, terrain: terr[(Math.floor(q/3)*2 + Math.floor(r/3)*3) % 7], revealed: true };
+    // a river running diagonally
+    if (Math.abs((q - r) - 4) <= 0) t.terrain = 'river';
+    // some fog at the edges
+    if (q < 2 || r < 2 || q > 27 || r > 27) t.terrain = 'fog';
+    tiles.push(t);
+  }
+  const put = (q,r,f)=>{ const x=tiles.find(z=>z.q===q&&z.r===r); if(x) Object.assign(x,f); };
+  put(15,14,{ terrain:'plains', settlement:{ isOwn:true, name:'Home', tier:'village' } });
+  put(18,15,{ terrain:'plains', settlement:{ settlement_type:'npc', disposition:'friendly', name:'Otterby' } });
+  put(12,17,{ terrain:'hills',  settlement:{ settlement_type:'kingdom', is_kingdom:true, name:'Ironhaven' } });
+  put(16,16,{ terrain:'forest', outpost:{ id:1, terrain:'forest', level:1, mine:true, owner:'Home' }, claimed_by_me:true });
+  put(14,13,{ claimed_by_me:true });
+  put(15,13,{ claimed_by_me:true });
+  put(20,20,{ claim_owner:'Rival' });
+  put(10,10,{ terrain:'mountain' });
+  put(11,10,{ terrain:'mountain' });
+  put(10,11,{ terrain:'mountain' });
+
+  const season = new URLSearchParams(location.search).get('season');
+  if (season) {
+    const sg = document.getElementById('screen-game');
+    sg.className = sg.className.replace(/season-\w+/, 'season-' + season);
+  }
+  worldMapData = { tiles, mapW:30, mapH:30, playerSettlement:{ q:15, r:14 }, seasonId: season || 'summer' };
+  camera.q = 15; camera.r = 14;
+
+  if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
+
+  const qs = new URLSearchParams(location.search);
+  const view = qs.get('view') === 'topdown' ? 'topdown' : 'iso';
+  KWMap.controller.setRenderer(view);
+  // Optional selection/hover injection for verifying uifx placement:
+  //   ?sel=q,r   ?hov=q,r
+  const parseQR = (s) => { if (!s) return null; const [q, r] = s.split(',').map(Number); return { wq: q, wr: r }; };
+  if (qs.get('sel')) _selectedTile = parseQR(qs.get('sel'));
+  if (qs.get('hov')) _hoveredTile = parseQR(qs.get('hov'));
+  // Tile Detail modal auto-open for screenshots: ?detail=q,r
+  if (qs.get('detail')) {
+    const d = parseQR(qs.get('detail'));
+    setTimeout(() => { const t = tiles.find(z => z.q === d.wq && z.r === d.wr); if (t && window.openTileDetail) window.openTileDetail(t); }, 300);
+  }
+  const cap = document.getElementById('cap');
+  if (cap) cap.textContent = view === 'iso'
+    ? 'iso view — placeholder diorama (procedural faces + skirts, claim borders, settlement/outpost markers)'
+    : 'top-down view — the frozen Phase-1 renderer (full water treatment)';
+  // Render a few frames as variant art streams in.
+  let n = 0;
+  const draw = () => { KWMap.controller.renderFrame(1000 + n * 16); if (++n < 40) requestAnimationFrame(draw); };
+  draw();
+  window.__isoReady = true;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "note": "Kindlewood iso map manifest. Placeholder-only for now: no atlases are listed, so kwmap-assets.js renders every terrain face from the pixelart.js procedural painters (spec §8.2). Drop real art under /assets/iso/ and add atlas+sprite entries here to progressively replace placeholders — no code change needed (the loader re-resolves per key). Assets under /assets/iso/ are uploaded manually, never zipped.",
+    "tilePx": 48,
+    "isoK": 0.60,
+    "elevPx": 14,
+    "skirtPx": 6,
+    "light": "top-left"
+  },
+  "atlases": {},
+  "sprites": {}
+}
