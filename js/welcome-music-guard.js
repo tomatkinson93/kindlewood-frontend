@@ -140,11 +140,13 @@
       }
     } catch (e) { /* prototype patch best-effort */ }
 
-    var gestureEvents = ['click', 'keydown', 'touchstart'];
-    function onGesture() { tryStartOnGesture(); }
-    gestureEvents.forEach(function (ev) {
-      document.addEventListener(ev, onGesture, { passive: true });
-    });
+    // NOTE: the guard used to start the track on ANY page gesture (click /
+    // keydown / touchstart). That made music resume on every stray click even
+    // after the user paused it, and left the pill state out of sync. Menu music
+    // is now started deliberately by main.js (on navigating to login/register,
+    // or via the play button) — the guard no longer auto-starts on gestures. It
+    // still hardens the element, dedupes welcome.mp3, and hard-stops off
+    // pre-login screens. (tryStartOnGesture is retained but unused.)
 
     var screens = document.querySelectorAll('.screen');
     if (screens.length) {

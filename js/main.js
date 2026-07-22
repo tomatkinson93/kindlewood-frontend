@@ -75,6 +75,18 @@ function showScreen(id) {
     }
   }
 
+  // Clean up leftover login-cinematic state whenever we're NOT going to login.
+  // Otherwise the welcome screen keeps its `to-login` class (hero faded to 0) and
+  // renders "blank" — e.g. after logout, or after register↔login↔back hops.
+  if (id !== 'login') {
+    document.body.classList.remove('login-mode');
+    const w = document.getElementById('screen-welcome');
+    if (w) w.classList.remove('to-login');
+    const l = document.getElementById('screen-login');
+    if (l) l.classList.remove('login-visible');
+    stopLoginArtCycle();
+  }
+
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
 
   const target = document.getElementById('screen-' + id);
@@ -87,7 +99,14 @@ function showScreen(id) {
 
   if (id === 'register') populateRegisterChip();
 
-  if (id === 'login') { stopLoginArtCycle(); startLoginArtCycle(); }
+  // Non-cinematic login entry (e.g. from register): the cinematic sets
+  // `login-visible`; here we must add it ourselves or the fixed login screen
+  // stays at opacity 0 and looks blank.
+  if (id === 'login') {
+    stopLoginArtCycle(); startLoginArtCycle();
+    const l = document.getElementById('screen-login');
+    if (l) requestAnimationFrame(() => l.classList.add('login-visible'));
+  }
 
   console.log(
     'now active:',
@@ -464,38 +483,33 @@ function stopLoginArtCycle() {
     player.style.display = show ? 'flex' : 'none';
   }
 
-  function tryAutoplay() {
-    const audio = getAudio();
-    if (!audio || audio._attempted) return;
-    audio._attempted = true;
-    audio.volume = parseFloat(document.getElementById('music-volume')?.value || 0.4);
-    audio.play().then(() => {
-      setMusicPlaying(true);
-    }).catch(() => {
-      // Autoplay blocked — wait for first user interaction
-      const resume = () => {
-        audio.play().then(() => setMusicPlaying(true)).catch(()=>{});
-        document.removeEventListener('click', resume);
-        document.removeEventListener('keydown', resume);
-      };
-      document.addEventListener('click', resume);
-      document.addEventListener('keydown', resume);
-    });
-  }
+  // Music starts here (a user gesture: navigating to login/register, or the
+  // play button). It never auto-starts on arbitrary page clicks.
+  const AUTOSTART_SCREENS = ['screen-login', 'screen-register'];
 
-  // Patch showScreen to update player visibility
+  // Begin the menu track. No-op if already playing; the guard blocks it off
+  // pre-login screens. Called from within a click handler so autoplay is allowed.
+  function startMenuMusic() {
+    const audio = getAudio();
+    if (!audio || !audio.paused) return;
+    const p = audio.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  window.startMenuMusic = startMenuMusic;
+
+  // Patch showScreen to update pill visibility + drive playback.
   const _origShowScreen = window.showScreen;
   window.showScreen = function(id) {
     _origShowScreen(id);
     updatePlayerVisibility(id);
-    if (MENU_SCREENS.includes('screen-' + id)) {
-      tryAutoplay();
-    } else {
-      // Pause when entering game
-      const audio = getAudio();
+    if (AUTOSTART_SCREENS.includes('screen-' + id)) {
+      startMenuMusic();                       // begin on login / register
+    } else if (!MENU_SCREENS.includes('screen-' + id)) {
+      const audio = getAudio();               // stop when leaving pre-login (game)
       if (audio && !audio.paused) audio.pause();
-      setMusicPlaying(false);
     }
+    // Welcome: leave playback untouched — stays silent on first landing, keeps
+    // playing if the user already started it.
   };
 
   // First-gesture music start ramps 0 → volume over 2s (spec 20 §B5). The menu
@@ -517,15 +531,16 @@ function stopLoginArtCycle() {
     requestAnimationFrame(step);
   }
 
-  // Init on page load
+  // Init on page load. Drive the pill icon from the ACTUAL audio state so it can
+  // never disagree with what's playing (whoever calls play/pause).
   document.addEventListener('DOMContentLoaded', () => {
     const audio = getAudio();
-    if (audio) audio.addEventListener('play', () => _bgFadeIn(audio));
-    const welcomeActive = document.getElementById('screen-welcome')?.classList.contains('active');
-    if (welcomeActive) {
-      updatePlayerVisibility('welcome');
-      tryAutoplay();
+    if (audio) {
+      audio.addEventListener('play',  () => { _bgFadeIn(audio); setMusicPlaying(true); });
+      audio.addEventListener('pause', () => setMusicPlaying(false));
     }
+    const active = document.querySelector('.screen.active');
+    updatePlayerVisibility(active ? active.id.replace('screen-', '') : 'welcome');
   });
 })();
 
@@ -551,12 +566,10 @@ function setMusicPlaying(playing) {
 function toggleMusic() {
   const audio = document.getElementById('bg-music');
   if (!audio) return;
-  if (audio.paused) {
-    audio.play().then(() => setMusicPlaying(true)).catch(()=>{});
-  } else {
-    audio.pause();
-    setMusicPlaying(false);
-  }
+  // Play/pause only — the 'play'/'pause' event listeners update the pill icon,
+  // so the button state always matches reality.
+  if (audio.paused) audio.play().catch(() => {});
+  else audio.pause();
 }
 
 function setMusicVolume(val) {
