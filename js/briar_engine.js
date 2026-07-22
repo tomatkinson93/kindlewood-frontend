@@ -1,3 +1,10 @@
+// Wrapped in an IIFE (browser only). Every classic <script> shares one global
+// lexical scope, so this engine's top-level helpers (cur, shuffle, view, log,
+// create, …) would collide with squirrel_engine.js's same-named helpers and
+// throw "Identifier 'cur' has already been declared". The IIFE keeps them
+// private; only window.BriarEngine escapes. The server copy needs no wrapper —
+// CommonJS already gives each module its own scope.
+(function () {
 // lib/briar_engine.js — server-authoritative Briarwood Court.
 //
 // WHY THIS EXISTS: multiplayer Coup cannot be client-authoritative. The
@@ -878,3 +885,4 @@ function aiResolve(g, seat) {
 const BriarEngine = { create, doAction, challengeAction, block, challengeBlock, aiResolve, resolveLoss, resolveConsult, view, aiDecide, aiReact, cur, living, ACTIONS, mulberry32, shuffle, pendingSeats, pendingSeat, threatOf: _threatOf, PERSONALITIES, DIFFICULTY };
 if (typeof module !== 'undefined' && module.exports) module.exports = BriarEngine;
 if (typeof window !== 'undefined') window.BriarEngine = BriarEngine;
+})();
