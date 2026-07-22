@@ -82,6 +82,63 @@ function _renderTavernkeep() {
 
 // ── Card game menu ────────────────────────────
 
+// ══ Single active Tavern game across tabs ══════════════════════════════
+// A player could open Kindlewood in several tabs and run a game in each. That
+// desyncs multiplayer and lets someone play two hands at once. We enforce ONE
+// active game per browser with a heartbeat lock in localStorage: whichever tab
+// holds a fresh lock owns "the game"; other tabs are refused until it's
+// released (on leave) or goes stale (tab closed without releasing).
+const _KW_LOCK_KEY = 'kw_active_game';
+const _kwTabId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+let _kwLockHeartbeat = null;
+function _kwReadLock() { try { return JSON.parse(localStorage.getItem(_KW_LOCK_KEY) || 'null'); } catch (e) { return null; } }
+function _kwGameActiveElsewhere() {
+  const l = _kwReadLock();
+  if (!l || l.tabId === _kwTabId) return false;
+  // 30s window: long enough that a backgrounded game tab (whose heartbeat gets
+  // throttled) still counts as active, short enough that a hard-crashed tab's
+  // lock frees up quickly. Clean closes release immediately via beforeunload.
+  return (Date.now() - (l.ts || 0)) < 30000;
+}
+function _kwAcquireGameLock() {
+  const write = () => { try { localStorage.setItem(_KW_LOCK_KEY, JSON.stringify({ tabId: _kwTabId, ts: Date.now() })); } catch (e) {} };
+  write();
+  clearInterval(_kwLockHeartbeat);
+  _kwLockHeartbeat = setInterval(write, 4000);
+}
+function _kwReleaseGameLock() {
+  clearInterval(_kwLockHeartbeat); _kwLockHeartbeat = null;
+  const l = _kwReadLock();
+  if (l && l.tabId === _kwTabId) { try { localStorage.removeItem(_KW_LOCK_KEY); } catch (e) {} }
+}
+// Returns true (and shows a notice) if another tab already holds a live game.
+// Call before hosting / joining / starting any Tavern game.
+function _kwBlockedByOtherGame() {
+  if (!_kwGameActiveElsewhere()) return false;
+  _kwShowSingleGameNotice();
+  return true;
+}
+function _kwShowSingleGameNotice() {
+  const el = (typeof _bcOverlay === 'function') ? _bcOverlay() : null;
+  if (!el) { alert("You're already playing Kindlewood in another tab. Finish or leave that game first."); return; }
+  el.dataset.kind = 'singlegame';
+  el.innerHTML = `<div class="bc-overlay-panel">
+    <div class="bc-help-title">🎴 Already at a table</div>
+    <p style="font-family:'Crimson Pro',serif;color:var(--kw-cream,#efe4cd);max-width:340px;margin:8px auto 14px;line-height:1.5">
+      You're already playing Kindlewood in another tab. Finish or leave that game before starting a new one.</p>
+    <button class="cg-btn secondary" onclick="bcCloseOverlay()">Got it</button>
+  </div>`;
+  el.classList.add('open');
+}
+// Expose for lobby.js so host/join/solo can be refused up front.
+window.KWGameLock = {
+  blocked: _kwBlockedByOtherGame,
+  activeElsewhere: _kwGameActiveElsewhere,
+  acquire: _kwAcquireGameLock,
+  release: _kwReleaseGameLock,
+};
+window.addEventListener('beforeunload', _kwReleaseGameLock);
+
 function openCardGameMenu() {
   document.getElementById('tavern-menu').style.display = 'none';
   const el = document.getElementById('tavern-card-menu');
@@ -221,6 +278,8 @@ let _bcMultiplayer = null;
 function startBriarCourt(seating) { _startBriarCourt(seating); }
 
 function _bcOpenTable() {
+  if (_kwBlockedByOtherGame()) return;
+  _kwAcquireGameLock();
   const bd = document.getElementById('bcmp-backdrop');
   if (bd) bd.style.display = 'flex';
   // Reset chat drawer state (a prior solo game may have hidden it).
@@ -254,6 +313,7 @@ function bcLeaveTable() {
   clearTimeout(_bcmpAiTimer); _bcmpAiTimer = null;
   clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
   _bc = null; _bcmp = null; _currentGame = null; _bcMultiplayer = null; _spGame = null;
+  _kwReleaseGameLock();
   const chat = document.getElementById('bcmp-chat'); if (chat) chat.style.display = '';
   const shell = document.querySelector('.bcmp-shell'); if (shell) shell.classList.remove('chat-open');
   _bcChatUnread = 0; _bcChatRenderUnread();
@@ -1953,14 +2013,17 @@ function sqLeaveTable() {
   const bd = document.getElementById('sq-backdrop');
   if (bd) bd.style.display = 'none';
   _sq = null; _sqGame = null;
+  _kwReleaseGameLock();
   stopSquirrelMusic();
   if (typeof LobbySystem !== 'undefined') LobbySystem.close();
 }
 
 function _sqOpenTable() {
+  if (_kwBlockedByOtherGame()) return false;
   const bd = document.getElementById('sq-backdrop');
   if (!bd) { console.error("Squirrel modal (#sq-backdrop) not found in DOM"); return false; }
   bd.style.display = 'flex';
+  _kwAcquireGameLock();
   startSquirrelMusic();
   return true;
 }
@@ -2004,7 +2067,7 @@ function _sqRender() {
         ${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}
       </div>
 
-      ${_sqTurnStrip(s, meSeat)}
+      ${_sqTurnStrip(s, meSeat, me)}
 
       <div class="sq-scroll">
         <div class="sq-others">${others}</div>
@@ -2103,7 +2166,7 @@ function sqInitials(name) {
 // really is glows gold; during a Fox's Dare the victim glows fox-amber (they
 // draw temporarily) while the caller's circle shows a "held" ring, and a note
 // spells out that control returns to the caller.
-function _sqTurnStrip(s, meSeat) {
+function _sqTurnStrip(s, meSeat, me) {
   const order = (s.order && s.order.length) ? s.order : s.players.map(p => p.seat);
   const dare = s.dare || null;
   const homeSeat = (s.homeSeat != null) ? s.homeSeat : s.turnSeat;
@@ -2129,8 +2192,15 @@ function _sqTurnStrip(s, meSeat) {
     const c = (s.players.find(x => x.seat === dare.returnSeat) || {}).name || '';
     note = `<div class="sq-turn-note">🦊 <b>${_esc(v)}</b> must draw ${dare.remaining} more — then the turn returns to <b>${_esc(c)}</b></div>`;
   }
+  // The Draw/Stop buttons live HERE beside the turn order (pinned, always
+  // visible) — greyed out until it's your turn — so a tall table can never push
+  // them below the fold.
+  const actions = me ? _sqActionRow(s, me) : '';
   return `<div class="sq-turnbar">
-    <div class="sq-turn-strip">${circles}</div>
+    <div class="sq-turn-main">
+      <div class="sq-turn-strip">${circles}</div>
+      <div class="sq-turn-actions">${actions}</div>
+    </div>
     ${note}
   </div>`;
 }
@@ -2286,32 +2356,30 @@ function _sqActionRow(s, me) {
     </div>`;
 }
 
-// ── Prompt for the active phase ── (action row always on top, §7.1)
+// ── Prompt for the active phase ──
+// The Draw/Stop buttons now live in the turn-order bar (always visible), so the
+// prompt here carries only the contextual instruction for the current phase.
 function _sqPrompt(s, me, myTurn) {
   const P = s.pending;
-  const row = _sqActionRow(s, me);
 
-  // Dare in progress: the victim draws (via the action row's Draw).
+  // Dare in progress: the victim draws (via the turn-bar's Draw button).
   if (s.phase === 'turn' && s.dare && s.dare.victimSeat === me.seat)
-    return row + `<div class="sq-question">🦊 You've been dared! Draw from the pile — ${s.dare.remaining} more to go.</div>`;
+    return `<div class="sq-question">🦊 You've been dared! Draw from the pile — ${s.dare.remaining} more to go.</div>`;
 
-  // No hint here — the centre caption already shows draw progress, and a second
-  // line under the buttons pushed the row below the shell's fold once your
-  // stash had cards.
-  if (myTurn) return row;
+  if (myTurn) return '';   // the centre caption already shows draw progress
 
   if (s.phase === 'squirrel' && P && P.actorSeat === me.seat && P.choices)
-    return row + `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
+    return `<div class="sq-question">🐿️ The Squirrel offers two — click one above to keep it.</div>`;
   if (s.phase === 'storm' && me.stash.length && !((P && P.stormResolved) || []).includes(me.seat))
-    return row + `<div class="sq-question">⛈ Storm! Click a card in <em>your stash</em> below to return that stack to the pile.</div>`;
+    return `<div class="sq-question">⛈ Storm! Click a card in <em>your stash</em> below to return that stack to the pile.</div>`;
   if (s.phase === 'magpie' && P && P.actorSeat === me.seat) {
     const any = s.players.some(p => p.seat !== me.seat && p.stash.some(c => c.kind !== 'lucky7'));
-    return row + `<div class="sq-question">🐦 Magpie — click a highlighted card above to steal it${any ? '' : ' (nothing to steal — drawing continues)'}.</div>`;
+    return `<div class="sq-question">🐦 Magpie — click a highlighted card above to steal it${any ? '' : ' (nothing to steal — drawing continues)'}.</div>`;
   }
   if (s.phase === 'foxdare' && P && P.actorSeat === me.seat)
-    return row + `<div class="sq-question">🦊 Fox's Dare — click any player (or your own stash) to make them draw three.</div>`;
+    return `<div class="sq-question">🦊 Fox's Dare — click any player (or your own stash) to make them draw three.</div>`;
 
-  return row + _sqWaiting(s);
+  return _sqWaiting(s);
 }
 
 function _sqWaiting(s) {

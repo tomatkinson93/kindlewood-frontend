@@ -4104,6 +4104,11 @@
    Squirrel's Stash — turn-order strip + hoard ledger (§ turn order)
    ════════════════════════════════════════════════════════════════ */
 .sq-turnbar { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 4px 4px; }
+/* Turn strip and the Draw/Stop buttons share one centred, wrapping row so the
+   buttons sit beside the turn order and stay pinned/visible at any height. */
+.sq-turn-main { display: flex; align-items: center; justify-content: center; gap: 10px 22px; flex-wrap: wrap; }
+.sq-turn-actions { display: flex; }
+.sq-turn-actions .sq-actions { margin: 0; }
 .sq-turn-strip { display: flex; align-items: flex-start; gap: 4px; flex-wrap: wrap; justify-content: center; }
 .sq-turn-seat { display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
 .sq-turn-initials {

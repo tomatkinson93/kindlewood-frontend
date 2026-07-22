@@ -117,6 +117,7 @@ const LobbySystem = (() => {
   }
 
   function soloStart(gameType, difficulty) {
+    if (window.KWGameLock && window.KWGameLock.blocked()) return;  // one game per browser
     close();
     const g = games[gameType];
     if (g && g.onSingle) g.onSingle(difficulty);
@@ -188,6 +189,7 @@ const LobbySystem = (() => {
   }
 
   async function create(gameType) {
+    if (window.KWGameLock && window.KWGameLock.blocked()) return;  // one game per browser
     const maxPlayers = +document.getElementById('lobby-max').value;
     const visibility = document.getElementById('lobby-vis').value;
     const difficulty = document.getElementById('lobby-diff').value;
@@ -198,6 +200,7 @@ const LobbySystem = (() => {
   }
 
   async function join(code) {
+    if (window.KWGameLock && window.KWGameLock.blocked()) return;  // one game per browser
     try { await _api('/' + code + '/join', { method: 'POST' }); _enterRoom(code); }
     catch (e) { _error(e.message, () => current ? null : browse(_lastGame)); }
   }
