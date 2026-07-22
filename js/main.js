@@ -17,8 +17,42 @@ function clearStoredToken() {
   localStorage.removeItem('kw_token');
 }
 
+// ── Session lifecycle ──────────────────────────────────────────────────
+// When the token goes invalid (logout in another tab, expiry, or a stale
+// session after signing into a different account elsewhere), every poller would
+// otherwise spam the API with 401s and the user would keep "playing" a dead
+// session. We catch the first 401 on an authenticated call, end the session
+// cleanly (tear down games, stop hammering the server, return to login) and
+// short-circuit further calls until the user signs back in.
+let _sessionEnded = false;
+function _isAuthPath(path) { return /^\/api\/auth\//.test(path); }
+function handleSessionExpired() {
+  if (_sessionEnded) return;
+  _sessionEnded = true;
+  clearStoredToken();
+  // Close any open Tavern game (this also releases the one-game lock and stops
+  // its cursor/heartbeat pollers). Safe to call when nothing is open.
+  try { if (typeof sqLeaveTable === 'function') sqLeaveTable(); } catch (e) {}
+  try { if (typeof bcLeaveTable === 'function') bcLeaveTable(); } catch (e) {}
+  try { if (typeof stopResourceTick === 'function') stopResourceTick(); } catch (e) {}
+  gameData = null; worldMapData = null; _loadGameLock = false;
+  showScreen('login');
+  showMsg('login-error', 'Your session ended. Please sign in again.');
+}
+// Called on successful sign-in to re-arm apiFetch for the new session.
+function _resetSession() { _sessionEnded = false; }
+
 function apiFetch(path, options = {}) {
   const token = getStoredToken();
+
+  // Session already ended → don't touch the network; hand back a synthetic 401
+  // so existing callers behave exactly as on a real auth failure. This is what
+  // stops the 401 flood from the cursor/presence/events pollers.
+  if (_sessionEnded && !_isAuthPath(path)) {
+    return Promise.resolve(new Response(JSON.stringify({ error: 'Session ended' }), {
+      status: 401, headers: { 'Content-Type': 'application/json' },
+    }));
+  }
 
   const headers = {
     ...(options.headers || {}),
@@ -29,8 +63,22 @@ function apiFetch(path, options = {}) {
     credentials: 'include',
     ...options,
     headers,
+  }).then((res) => {
+    // A 401 on an authenticated, non-auth call means our token is no longer
+    // valid — end the session once (auth endpoints handle their own errors).
+    if (res.status === 401 && token && !_isAuthPath(path)) handleSessionExpired();
+    return res;
   });
 }
+
+// One session across tabs: react to auth changes made in OTHER tabs. Logging
+// out (token removed) ends this tab's session too; signing in as a different
+// account (token changed) reloads this tab onto that session.
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'kw_token' || e.newValue === e.oldValue) return;
+  if (!e.newValue) handleSessionExpired();
+  else location.reload();
+});
 
 
 // ══════════════════════════════════════════════
@@ -207,6 +255,7 @@ async function submitRegister() {
     }
 
     if (data.token) setStoredToken(data.token);
+    _resetSession();
 
     showMsg('reg-success', `Welcome, ${username}! Your realm awaits...`);
     setTimeout(() => loadGame(true), 700);
@@ -243,6 +292,7 @@ async function submitLogin() {
     }
 
     if (data.token) setStoredToken(data.token);
+    _resetSession();
 
     showMsg('login-success', `Welcome back, ${data.username}. Loading your realm...`);
     setTimeout(() => loadGame(true), 500);
@@ -260,10 +310,14 @@ async function logout() {
   }
 
   clearStoredToken();
+  // Close any open Tavern game (releases the one-game lock + stops its pollers).
+  try { if (typeof sqLeaveTable === 'function') sqLeaveTable(); } catch (e) {}
+  try { if (typeof bcLeaveTable === 'function') bcLeaveTable(); } catch (e) {}
   stopResourceTick();
   gameData = null;
   worldMapData = null;
   _loadGameLock = false;
+  _sessionEnded = true;   // stop pollers hammering the API after logout
   showScreen('welcome');
 }
 
