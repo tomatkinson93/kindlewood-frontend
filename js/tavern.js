@@ -138,6 +138,9 @@ window.KWGameLock = {
   release: _kwReleaseGameLock,
 };
 window.addEventListener('beforeunload', _kwReleaseGameLock);
+// True while a Tavern game (solo or multiplayer) is open in THIS tab. Lets the
+// lobby know not to re-bootstrap a game table on a reconnect snapshot.
+window.__kwGameActive = function () { return !!(_sq || _bcmp); };
 
 function openCardGameMenu() {
   document.getElementById('tavern-menu').style.display = 'none';
@@ -181,9 +184,29 @@ function renderGameSelect(el) {
         <div class="kw-gs-bramble-av">🦔</div>
         <div class="kw-gs-bramble-line">Fancy a game, friend? Pull up a stool and try your luck.</div>
       </div>
+      <div class="kw-gs-resume" style="display:none"></div>
       <div class="kw-gs-crests">${cards}</div>
       <button class="kw-gs-back" onclick="closeCardGameMenu()">← Back to the Tavern</button>
     </div>`;
+  _kwLoadResumeBanner();
+}
+
+// If the signed-in user is already seated in an active game, surface a "Rejoin"
+// banner on the select screen (server /mine). Reconnecting resumes the table.
+async function _kwLoadResumeBanner() {
+  if (typeof LobbySystem === 'undefined' || !LobbySystem.mine) return;
+  let list; try { list = await LobbySystem.mine(); } catch (e) { return; }
+  const active = (list || []).find(r => r.status === 'playing') || (list || [])[0];
+  const host = document.querySelector('.kw-gs-resume');
+  if (!host || !active) return;
+  const name = active.gameName || (window.KWGames && KWGames.name(active.gameType)) || 'your game';
+  const verb = active.status === 'playing' ? 'a game in progress' : 'a table waiting';
+  host.innerHTML = `
+    <div class="kw-gs-resume-card">
+      <span class="kw-gs-resume-txt">🎲 You have ${verb} — <b>${_esc(name)}</b> (table ${_esc(active.code)}).</span>
+      <button class="kw-gs-btn host" onclick="LobbySystem.rejoin('${active.code}','${_esc(active.gameType)}')">Rejoin</button>
+    </div>`;
+  host.style.display = '';
 }
 
 function closeCardGameMenu() {

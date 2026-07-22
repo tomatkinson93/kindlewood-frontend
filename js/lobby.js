@@ -24,6 +24,19 @@ const LobbySystem = (() => {
     return _api('/summary').then(d => d.summary || {}).catch(() => ({}));
   }
 
+  // Active games this user can rejoin (lobby or in-progress).
+  function mine() {
+    return _api('/mine').then(d => d.rooms || []).catch(() => []);
+  }
+  // Reconnect to a game the user is already seated in. Opens the SSE stream; the
+  // server's snapshot (with seats for a live match) drives the game table back
+  // open via _handle().
+  function rejoin(code, gameType) {
+    if (gameType) { _lastGame = gameType; _themeGame = gameType; }
+    const m = document.getElementById('lobby-modal'); if (m) m.classList.remove('open');
+    _enterRoom(code);
+  }
+
   function _api(path, opts = {}) {
     return apiFetch('/api/rooms' + path, {
       method: opts.method || 'GET',
@@ -229,7 +242,21 @@ const LobbySystem = (() => {
   function _handle(code, msg) {
     if (msg.type === 'snapshot') {
       if (msg.room.youId != null) myId = msg.room.youId;     // authoritative
-      current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
+      current = msg.room; _lastGame = msg.room.gameType;
+      // Cold reconnect to a live match (refresh, re-login, or "Rejoin"): the
+      // snapshot carries the seating, so reopen the game table directly instead
+      // of the lobby view — unless a game is already on screen in this tab.
+      if (msg.room.status === 'playing' && msg.room.seats &&
+          !(typeof window.__kwGameActive === 'function' && window.__kwGameActive())) {
+        const g = games[msg.room.gameType];
+        if (g && g.onStart) {
+          const m = document.getElementById('lobby-modal'); if (m) m.classList.remove('open');
+          const amHost = (myId != null && String(msg.room.hostId) === String(myId));
+          g.onStart({ seats: msg.room.seats, code, myId, isHost: amHost, players: msg.room.players, channel: _channel(code) });
+          return;
+        }
+      }
+      _renderRoom(code);
     } else if (msg.type === 'lobby_update') {
       // A rematch drops a finished match back to the lobby room view; close any
       // open game modal so the room shows through (no-op outside a match).
@@ -431,7 +458,7 @@ const LobbySystem = (() => {
 
   return { register, choose, browse, createForm, create, join, joinByInput,
            invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, removeAI, close,
-           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary,
+           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary, mine, rejoin,
            get current() { return current; } };
 })();
 

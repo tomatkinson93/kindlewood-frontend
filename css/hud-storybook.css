@@ -3771,6 +3771,16 @@
   cursor: pointer;
 }
 .kw-gs-back:hover { color: var(--kw-cream, #e8cf9a); }
+/* "Rejoin your game" banner (session resume). */
+.kw-gs-resume { width: 100%; display: flex; justify-content: center; }
+.kw-gs-resume-card {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+  max-width: 520px; padding: 10px 16px; margin-bottom: 4px;
+  background: rgba(180, 143, 188, .12); border: 1px solid #5e4a63; border-radius: 12px;
+}
+.kw-gs-resume-txt { font-family: 'Crimson Pro', Georgia, serif; font-size: .92rem; color: var(--kw-cream, #efe4cd); }
+.kw-gs-resume-txt b { color: #d9b8e0; }
+.kw-gs-resume-card .kw-gs-btn.host { background: #b48fbc; color: #241c13; border-color: #b48fbc; }
 @media (max-width: 520px) {
   .kw-gs-crests { grid-template-columns: 1fr; }
   .kw-gs-tagline { min-height: 0; }
