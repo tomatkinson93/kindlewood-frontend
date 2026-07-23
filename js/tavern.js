@@ -1999,9 +1999,12 @@ function _sqRender() {
       <div class="sq-roundbar">
         <span>Round ${s.round}</span>
         <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in pile ▾</button>
+        <button class="bc-help-btn" onclick="sqToggleLedger()" title="The hoard ledger">📜</button>
         <button class="bc-help-btn" onclick="sqToggleHelp()" title="Rules">?</button>
         ${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}
       </div>
+
+      ${_sqTurnStrip(s, meSeat)}
 
       <div class="sq-scroll">
         <div class="sq-others">${others}</div>
@@ -2033,6 +2036,7 @@ function _sqRender() {
   const lg = area.querySelector('.bc-log');
   if (lg) lg.scrollTop = lg.scrollHeight;
   _sqEnableDrag();
+  _sqRefreshLedger();   // keep an open ledger modal live as play advances
 }
 
 // Hoard tracker overlay — what's left in the pile, by card.
@@ -2085,6 +2089,89 @@ function _sqHoardHtml(count, seed, clickable, clickExpr) {
   }
   _sq._hoardKey = key; _sq._hoardHtml = pile;
   return pile;
+}
+
+// Up-to-two-letter monogram for a turn-strip circle.
+function sqInitials(name) {
+  const parts = String(name || '?').trim().split(/\s+/);
+  if (parts.length >= 2 && parts[1]) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+}
+
+// ── Turn-order strip (§ turn order) ──
+// A row of initial-circles in the fixed turn order. The circle whose turn it
+// really is glows gold; during a Fox's Dare the victim glows fox-amber (they
+// draw temporarily) while the caller's circle shows a "held" ring, and a note
+// spells out that control returns to the caller.
+function _sqTurnStrip(s, meSeat) {
+  const order = (s.order && s.order.length) ? s.order : s.players.map(p => p.seat);
+  const dare = s.dare || null;
+  const homeSeat = (s.homeSeat != null) ? s.homeSeat : s.turnSeat;
+  const circles = order.map(seat => {
+    const p = s.players.find(x => x.seat === seat);
+    if (!p) return '';
+    const isHome = seat === homeSeat;
+    const isVictim = dare && seat === dare.victimSeat;
+    const isMe = seat === meSeat;
+    const cls = ['sq-turn-seat',
+      isVictim ? 'dare-victim' : (isHome && !dare ? 'current' : ''),
+      (dare && isHome) ? 'held' : '',
+      isMe ? 'me' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}" title="${_esc(p.name)}${isMe ? ' (you)' : ''}">
+      <span class="sq-turn-initials">${_esc(sqInitials(p.name))}</span>
+      ${isVictim ? '<span class="sq-turn-fox">🦊</span>' : ''}
+      <span class="sq-turn-label">${isMe ? 'You' : _esc(p.name.split(/\s+/)[0])}</span>
+    </div>`;
+  }).join('<span class="sq-turn-arrow">›</span>');
+  let note = '';
+  if (dare) {
+    const v = (s.players.find(x => x.seat === dare.victimSeat) || {}).name || '';
+    const c = (s.players.find(x => x.seat === dare.returnSeat) || {}).name || '';
+    note = `<div class="sq-turn-note">🦊 <b>${_esc(v)}</b> must draw ${dare.remaining} more — then the turn returns to <b>${_esc(c)}</b></div>`;
+  }
+  return `<div class="sq-turnbar">
+    <div class="sq-turn-strip">${circles}</div>
+    ${note}
+  </div>`;
+}
+
+// ── The Hoard Ledger (§ turn order) — popout modal recording every move ──
+function _sqLedgerHtml() {
+  const entries = (_sq && _sq.state && _sq.state.ledger) || [];
+  const rows = entries.map(e => {
+    const t = e.text || '';
+    let cls = 'sq-led-row';
+    if (e.kind === 'turn') cls += ' turn';
+    else if (/BUST|busts/.test(t)) cls += ' bust';
+    else if (/Fox|dare|Dare/.test(t)) cls += ' fox';
+    else if (/steal|stole|steals/.test(t)) cls += ' steal';
+    else if (/bank|Bank/.test(t)) cls += ' bank';
+    return `<div class="${cls}">${_esc(t)}</div>`;
+  }).join('') || '<div class="sq-empty">No moves yet — draw a card to begin the tale.</div>';
+  return `<div class="bc-overlay-panel sq-ledger-panel">
+    <div class="bc-help-title">📜 The Hoard Ledger</div>
+    <div class="sq-ledger-scroll">${rows}</div>
+    <button class="cg-btn secondary" onclick="bcCloseOverlay()">Close</button>
+  </div>`;
+}
+function sqToggleLedger() {
+  const el = (typeof _bcOverlay === 'function') ? _bcOverlay() : null;
+  if (!el || !_sq || !_sq.state) return;
+  if (el.classList.contains('open') && el.dataset.kind === 'sqledger') { bcCloseOverlay(); return; }
+  el.dataset.kind = 'sqledger';
+  el.innerHTML = _sqLedgerHtml();
+  el.classList.add('open');
+  const sc = el.querySelector('.sq-ledger-scroll'); if (sc) sc.scrollTop = sc.scrollHeight;
+}
+// Keep an open ledger live as the game advances (called from _sqRender).
+function _sqRefreshLedger() {
+  const el = document.getElementById('bc-overlay') || document.querySelector('.bc-overlay');
+  if (!el || !el.classList.contains('open') || el.dataset.kind !== 'sqledger') return;
+  const sc0 = el.querySelector('.sq-ledger-scroll');
+  const atBottom = sc0 ? (sc0.scrollHeight - sc0.scrollTop - sc0.clientHeight < 30) : true;
+  el.innerHTML = _sqLedgerHtml();
+  const sc = el.querySelector('.sq-ledger-scroll');
+  if (sc && atBottom) sc.scrollTop = sc.scrollHeight;
 }
 
 function _sqPlayerBox(p, s) {
