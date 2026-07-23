@@ -97,6 +97,12 @@ function showScreen(id) {
 
   target.classList.add('active');
 
+  // Mobile: lock document scroll only while the game screen is active so map
+  // touch-pan can't fight page scroll / pull-to-refresh (mobile.css keys the
+  // overflow lock on body.in-game; a :has() twin covers browsers that support
+  // it). Harmless on desktop where the screen never scrolls anyway.
+  document.body.classList.toggle('in-game', id === 'game');
+
   if (id === 'register') populateRegisterChip();
 
   // Non-cinematic login entry (e.g. from register): the cinematic sets

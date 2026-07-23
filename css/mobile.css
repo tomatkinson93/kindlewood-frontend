@@ -52,14 +52,11 @@
   .auth-banner { padding: 16px 20px; }
   .species-picker { grid-template-columns: repeat(2, 1fr); }
 
-  /* Game screen */
-  .topbar { overflow-x: auto; gap: 0; }
-  .res { padding: 0 10px; font-size: 12px; }
+  /* Game screen — column layout. Detailed game-screen rules live in the
+     dedicated "GAME SCREEN — mobile remediation" section at the end of this
+     file (loads last, override layer). The stale .map-grid / .tile rules that
+     used to sit here targeted the removed DOM tile map and were deleted. */
   .game-body { flex-direction: column; }
-  .sidebar { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.06); max-height: 280px; }
-  .map-area { padding: 12px; }
-  .map-grid { grid-template-columns: repeat(9, 36px); grid-template-rows: repeat(7, 36px); }
-  .tile { width: 36px; height: 36px; font-size: 15px; }
 
   /* Modal */
   .modal-card { margin: 0 12px; }
@@ -100,10 +97,6 @@
 
   .btn-carousel-select .celtic-btn-wrap { padding: 9px 16px; font-size: 13px; }
 
-  /* Game map shrinks to fit */
-  .map-grid { grid-template-columns: repeat(9, 30px); grid-template-rows: repeat(7, 30px); }
-  .tile { width: 30px; height: 30px; font-size: 13px; }
-
   /* Species picker 2 cols on phone */
   .species-picker { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .sp-opt-art { width: 55px; height: 55px; }
@@ -111,4 +104,142 @@
   /* Auth */
   .auth-card { margin: 16px 12px; padding: 24px 18px 28px; }
   .auth-heading { font-size: 22px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   GAME SCREEN — mobile remediation (Kindlewood Mobile Spec, Phases 1/3/4)
+   mobile.css loads last: this is the designated override layer. Desktop
+   (≥769px) is untouched — everything below is either media-scoped to
+   ≤768px / ≤480px, gated on (hover:none), or affects touch only.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Map canvas owns all touch gestures — no browser pan/zoom/pull-to-refresh.
+   touch-action has no effect on mouse input, so desktop is unaffected. */
+#map-canvas { touch-action: none; }
+
+/* Lock document scroll while the game screen is active so touch-pan on the
+   map can't fight page scroll / pull-to-refresh. body.in-game is toggled in
+   showScreen() (main.js); the :has() rule is a progressive-enhancement twin
+   for browsers that support it. */
+@media (max-width: 768px) {
+  body.in-game { overflow: hidden; overscroll-behavior: none; }
+  html:has(#screen-game.active) { overflow: hidden; }
+  body:has(#screen-game.active) { overflow: hidden; overscroll-behavior: none; }
+}
+
+/* ── Sticky-hover guard (RC-10) ──────────────────────────────────────────
+   On touch devices :hover latches on tap and sticks. Neutralise the
+   highest-impact lift/scale transforms. Desktop (hover:hover) never matches. */
+@media (hover: none) {
+  .sp-card:hover,
+  .action-bar-btn:hover,
+  .kw-card:hover,
+  .comm-btn:hover,
+  .sidebar-tab:hover,
+  .map-ctrl-btn:hover,
+  .lb-podium-spot:hover { transform: none; }
+}
+
+@media (max-width: 768px) {
+
+  /* ── Viewport height (RC-4) — dvh tracks the shrinking URL-bar viewport,
+     with a vh fallback line first for older engines. ──────────────────── */
+  .screen { height: 100vh; height: 100dvh; }
+  #screen-welcome { height: 100vh; height: 100dvh; }
+
+  /* Safe-area padding for notch / home-indicator (viewport-fit=cover). */
+  .action-bar { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+
+  /* ── Compact two-row topbar (RC-5) ─────────────────────────────────────
+     Row 1: resource strip. Row 2: controls (season/bell/profile…). */
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 0;
+    padding: 4px calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left));
+    row-gap: 2px;
+    align-items: center;
+  }
+  .topbar .res { padding: 0 8px; font-size: 12px; }
+  .res-rate { display: none; }           /* rate revealed on tap — see topbar-mobile.js */
+  .res.show-rate .res-rate { display: inline; }
+  .topbar-version { display: none; }
+  .topbar-right { flex-basis: 100%; margin-left: 0; justify-content: flex-end; gap: 8px; }
+  .profile-username-label, .profile-caret { display: none; }   /* avatar-only trigger */
+
+  /* Right-anchored dropdowns: fix to viewport so a scrolled trigger can't
+     clip them, and clamp width to the screen (RC-5). Anchored just below the
+     two-row topbar. */
+  .events-panel {
+    position: fixed; top: 68px; right: 8px;
+    width: min(320px, calc(100vw - 16px));
+    max-height: calc(100dvh - 80px); overflow-y: auto;
+  }
+  .profile-menu {
+    position: fixed; top: 68px; right: 8px;
+    max-width: calc(100vw - 16px);
+  }
+
+  /* ── Community bar affordance (RC-6) — edge-fade cue that more tabs
+     scroll off-screen. ─────────────────────────────────────────────────── */
+  .community-bar { position: relative; }
+  .community-bar::after {
+    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 28px;
+    background: linear-gradient(to left, rgba(14,10,5,.9), transparent);
+    pointer-events: none; z-index: 3;
+  }
+  .comm-btn { padding: 11px 12px 9px; min-height: 44px; }
+  .comm-btn span:not(.online-count) { font-size: 13px; }
+
+  /* ── Map frame fills remaining height; larger touch-friendly pan arrows
+     (RC-3, RC-11). ─────────────────────────────────────────────────────── */
+  .map-frame { min-height: 0; flex: 1; }
+  .map-btn-up, .map-btn-down, .map-btn-left, .map-btn-right {
+    width: 44px; height: 44px;
+  }
+  /* Keep the down arrow clear of the action bar (absolute, bottom:0 inside
+     .map-frame) plus its safe-area padding. */
+  .map-btn-down { bottom: calc(60px + env(safe-area-inset-bottom)); }
+
+  /* ── Sidebar as bottom sheet (RC-1) ────────────────────────────────────
+     width:100% !important beats main.css `.sidebar { width:300px !important }`.
+     Three max-height states are cycled by the drag handle (topbar-mobile.js);
+     the default (no state class) is the half state. */
+  .sidebar {
+    width: 100% !important;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,.06);
+    max-height: 40dvh;
+    transition: max-height .25s ease;
+  }
+  .sidebar.sheet-peek { max-height: 66px; }        /* handle + tabs only */
+  .sidebar.sheet-half { max-height: 40dvh; }
+  .sidebar.sheet-full { max-height: 85dvh; }
+
+  /* Drag handle injected at the top of the sidebar by topbar-mobile.js. */
+  .sheet-handle {
+    display: flex; align-items: center; justify-content: center;
+    height: 22px; flex-shrink: 0; cursor: pointer;
+    background: var(--bark2, #211a10);
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sheet-handle::before {
+    content: ''; width: 40px; height: 4px; border-radius: 3px;
+    background: rgba(192,221,151,.35);
+  }
+
+  /* ── Tap-target sweep (RC-11) ─────────────────────────────────────────── */
+  .sidebar-tab { padding: 12px 8px; }
+  .carousel-arrow { width: 44px; height: 44px; }
+}
+
+/* Desktop keeps the drag handle hidden even if the element is injected. */
+@media (min-width: 769px) {
+  .sheet-handle { display: none; }
+}
+
+/* ── Phone density (≤480px) ────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .btn-cheat { display: none; }          /* cheat menu still reachable via profile menu */
 }

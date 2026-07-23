@@ -522,9 +522,78 @@ window.KWMap = (() => {
 
       canvas.style.cursor = 'grab';
 
-      // NOTE (spec §13 demand 1): touch/pointer events deliberately NOT added
-      // in Phase 1 — mouse-only, verbatim from main.js. When touch pan is
-      // wanted, pointerdown/move/up land here and nowhere else.
+      // ── Touch / pen input (Mobile Spec §Phase 2) — ADDITIVE ──────────────
+      // Pointer Events, gated to non-mouse pointers so the mouse handlers above
+      // keep running byte-for-byte on desktop. Panning reuses the *exact* same
+      // integer-axial math as the mouse drag; tap reuses the mouse click path
+      // (via a synthetic click) so screen→world→axial conversion and tile
+      // selection live in exactly one place (constraint 4). NOTE: this map has
+      // no zoom (scroll wheel disabled above), so there is no pinch-zoom target
+      // — a second finger simply suspends the pan. #map-canvas sets
+      // touch-action:none in CSS, so the page never pans/zooms underneath.
+      const _touchPointers = new Map();   // pointerId → last {x,y}
+      let _touchPan = null;               // { startX, startY, camX, camY, id }
+      let _tapStart = null;               // { x, y, t } for tap detection
+
+      canvas.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'mouse') return;
+        if (!document.getElementById('screen-game')?.classList.contains('active')) return;
+        _touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (_touchPointers.size === 1) {
+          try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+          _touchPan = { startX: e.clientX, startY: e.clientY, camX: camera.q, camY: camera.r, id: e.pointerId };
+          _tapStart = { x: e.clientX, y: e.clientY, t: Date.now() };
+          _wasDrag = false;
+        } else {
+          // Multi-touch → abandon pan + tap (no zoom to hand off to).
+          _touchPan = null;
+          _tapStart = null;
+        }
+        e.preventDefault();
+      });
+
+      canvas.addEventListener('pointermove', e => {
+        if (e.pointerType === 'mouse') return;
+        if (_touchPointers.has(e.pointerId)) _touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (!_touchPan || e.pointerId !== _touchPan.id || _touchPointers.size !== 1) return;
+        const tpx = TILE_PX();
+        const hexVert = Math.round(tpx * 1.1547 * 0.75);
+        const dx = Math.round((_touchPan.startX - e.clientX) / tpx);
+        const dy = Math.round((_touchPan.startY - e.clientY) / hexVert);
+        if (Math.abs(e.clientX - _touchPan.startX) > 10 || Math.abs(e.clientY - _touchPan.startY) > 10) {
+          _wasDrag = true;
+          _tapStart = null;
+        }
+        if (dx !== 0 || dy !== 0) {
+          camera.q = _touchPan.camX + dx;
+          camera.r = _touchPan.camY + dy;
+          if (worldMapData) renderWorldMap(worldMapData);
+        }
+        e.preventDefault();
+      });
+
+      const _endTouch = e => {
+        if (e.pointerType === 'mouse') return;
+        const wasSingle = _touchPointers.size === 1;
+        _touchPointers.delete(e.pointerId);
+        // Tap = single quick touch, <10px movement, <300ms → forward through the
+        // mouse click handler with the same client coords (constraint 4).
+        if (wasSingle && _tapStart && e.type === 'pointerup') {
+          const moved = Math.abs(e.clientX - _tapStart.x) > 10 || Math.abs(e.clientY - _tapStart.y) > 10;
+          const quick = (Date.now() - _tapStart.t) < 300;
+          if (!moved && quick) {
+            _wasDrag = false;
+            canvas.dispatchEvent(new MouseEvent('click', {
+              clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true
+            }));
+          }
+        }
+        if (_touchPan && e.pointerId === _touchPan.id) _touchPan = null;
+        _tapStart = null;
+        try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      };
+      canvas.addEventListener('pointerup', _endTouch);
+      canvas.addEventListener('pointercancel', _endTouch);
 
       // Keyboard panning (moved verbatim from main.js top level)
       const _keysHeld = {};

@@ -730,3 +730,18 @@
 /* Modal-level FX overlay (for the wither poof over the hand). */
 #combat-modal { position: fixed; }
 #combat-modal .cm-modal-fx { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
+
+/* ── Mobile (Kindlewood Mobile Spec, Phase 4 / RC-7) ─────────────────────
+   The desktop fan (116px cards, -18px overlap, 40px hand padding) needs
+   ~520px and overflows any phone. Shrink cards + tighten overlap/padding so
+   a full hand fits within the viewport. Desktop (≥769px) is untouched. */
+@media (max-width: 768px) {
+  .kw-hand { min-height: 140px; padding: 0 24px; }
+  .kw-card { width: 88px; height: 128px; margin: 0 -22px; }
+  .kw-card-name { margin-top: 18px; font-size: 11px; }
+  .kw-card-desc { font-size: 8.5px; }
+}
+@media (max-width: 480px) {
+  .kw-card { width: 76px; height: 112px; margin: 0 -26px; }
+  .kw-card-name { font-size: 10px; }
+}
