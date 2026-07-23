@@ -142,6 +142,46 @@ window.addEventListener('beforeunload', _kwReleaseGameLock);
 // lobby know not to re-bootstrap a game table on a reconnect snapshot.
 window.__kwGameActive = function () { return !!(_sq || _bcmp); };
 
+// ── Shared pause overlay (disconnect) ──────────────────────────────────
+// Any game whose pushed state carries `pause` shows this blocking overlay:
+// "<name> disconnected — waiting to rejoin…" with the 30s hand-to-AI countdown
+// (or a plain "paused, resume any time" when nobody else is at the table).
+// Generic, so briar/squirrel/future games all get it for free.
+let _kwPauseTimer = null;
+function _kwSyncPauseOverlay(pause) {
+  let el = document.getElementById('kw-pause-overlay');
+  if (!pause) { if (el) el.remove(); _kwStopPauseTimer(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'kw-pause-overlay'; el.className = 'kw-pause-overlay'; document.body.appendChild(el); }
+  const names = (pause.names || []).join(', ');
+  el.dataset.resumeBy = pause.resumeBy || '';
+  el.innerHTML = `<div class="kw-pause-card">
+      <div class="kw-pause-title">⏸ Game paused</div>
+      <div class="kw-pause-body"><b>${_esc(names)}</b> disconnected. ${pause.waiting ? 'Waiting for them to rejoin…' : 'Paused — resume any time.'}</div>
+      ${pause.waiting && pause.resumeBy ? '<div class="kw-pause-count" id="kw-pause-count"></div>' : ''}
+    </div>`;
+  _kwStartPauseTimer();
+}
+function _kwStartPauseTimer() { if (_kwPauseTimer) return; _kwPauseTimer = setInterval(_kwPauseTick, 500); _kwPauseTick(); }
+function _kwStopPauseTimer() { clearInterval(_kwPauseTimer); _kwPauseTimer = null; }
+function _kwPauseTick() {
+  const el = document.getElementById('kw-pause-overlay'); const c = document.getElementById('kw-pause-count');
+  if (!el) { _kwStopPauseTimer(); return; }
+  if (!c) return;
+  const rb = +el.dataset.resumeBy;
+  if (!rb) { c.textContent = ''; return; }
+  const s = Math.max(0, Math.ceil((rb - Date.now()) / 1000));
+  c.textContent = s > 0 ? `An AI takes over in ${s}s` : 'Handing their seat to an AI…';
+}
+// Brief toast when a disconnected player's seat is handed to the AI.
+function _kwToast(text) {
+  if (!text) return;
+  if (typeof window.showBuildToast === 'function') { try { window.showBuildToast(text, 'info'); return; } catch (e) {} }
+  let t = document.createElement('div'); t.className = 'kw-toast'; t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('show'), 20);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 4200);
+}
+
 function openCardGameMenu() {
   document.getElementById('tavern-menu').style.display = 'none';
   const el = document.getElementById('tavern-card-menu');
@@ -205,8 +245,17 @@ async function _kwLoadResumeBanner() {
     <div class="kw-gs-resume-card">
       <span class="kw-gs-resume-txt">🎲 You have ${verb} — <b>${_esc(name)}</b> (table ${_esc(active.code)}).</span>
       <button class="kw-gs-btn host" onclick="LobbySystem.rejoin('${active.code}','${_esc(active.gameType)}')">Rejoin</button>
+      <button class="kw-gs-btn leave" onclick="kwLeaveActiveGame('${active.code}')">Leave game</button>
     </div>`;
   host.style.display = '';
+}
+
+// "Leave game" from the tavern: an explicit forfeit — counts as a loss and the
+// table plays on with an AI in your seat.
+async function kwLeaveActiveGame(code) {
+  if (!confirm('Leave this game? It counts as a loss for you, and an AI will finish your hand.')) return;
+  try { if (LobbySystem.forfeit) await LobbySystem.forfeit(code); } catch (e) {}
+  _kwLoadResumeBanner();   // banner should now clear
 }
 
 function closeCardGameMenu() {
@@ -336,6 +385,7 @@ function bcLeaveTable() {
   clearTimeout(_bcmpAiTimer); _bcmpAiTimer = null;
   clearInterval(_bcmpDeadlineTimer); _bcmpDeadlineTimer = null;
   _bc = null; _bcmp = null; _currentGame = null; _bcMultiplayer = null; _spGame = null;
+  _kwSyncPauseOverlay(null);
   _kwReleaseGameLock();
   const chat = document.getElementById('bcmp-chat'); if (chat) chat.style.display = '';
   const shell = document.querySelector('.bcmp-shell'); if (shell) shell.classList.remove('chat-open');
@@ -412,6 +462,7 @@ function bcOnRoomEvent(msg) {
   // pushed game_state already carries the new isAI flag; just clear any stale
   // "waiting for them" banner and re-render.
   if (msg.type === 'seat_converted') {
+    if (msg.message) _kwToast(msg.message);
     if (_bcmp) { if (_bcmp.absent) delete _bcmp.absent[msg.seat]; _bcmpRender(); }
     return;
   }
@@ -1087,6 +1138,7 @@ function bcmpOnState(state) {
   if (!_bcmp) { _bcmpPendingState = state; return; }  // arrived before setup; buffer
   _bcmp.state = state;
   _bcmpRender();
+  _kwSyncPauseOverlay(state.pause);
 
   // Sounds on phase transitions (best-effort, host or not)
   _bcmpSounds(state);
@@ -1745,6 +1797,7 @@ function sqOnRoomEvent(msg) {
   if (msg.type === 'game_state') { sqOnState(msg.state); return; }
   if (msg.type === 'match_over') { sqOnOver(msg); return; }
   if (msg.type === 'cursor') { _sqRemoteCursor(msg); return; }
+  if (msg.type === 'seat_converted') { if (msg.message) _kwToast(msg.message); return; }
 }
 
 // ── Multiplayer cursors ──────────────────────────────────────────────────
@@ -1837,6 +1890,7 @@ function sqOnState(state) {
   if (!_sq) { _sqPendingState = state; return; }
   _sq.state = state;
   _sqRender();
+  _kwSyncPauseOverlay(state.pause);
   _sqSounds(state);
   _sqMaybeReveal(state);
   _sqMaybeSteal(state);
@@ -2036,6 +2090,8 @@ function sqLeaveTable() {
   const bd = document.getElementById('sq-backdrop');
   if (bd) bd.style.display = 'none';
   _sq = null; _sqGame = null;
+  clearInterval(_sqDeadlineTimer); _sqDeadlineTimer = null;
+  _kwSyncPauseOverlay(null);
   _kwReleaseGameLock();
   stopSquirrelMusic();
   if (typeof LobbySystem !== 'undefined') LobbySystem.close();
@@ -2084,6 +2140,7 @@ function _sqRender() {
     <div class="sq-table">
       <div class="sq-roundbar">
         <span>Round ${s.round}</span>
+        <span id="sq-deadline" class="sq-deadline">${_sqDeadlineText(s)}</span>
         <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in pile ▾</button>
         <button class="bc-help-btn" onclick="sqToggleLedger()" title="The hoard ledger">📜</button>
         <button class="bc-help-btn" onclick="sqToggleHelp()" title="Rules">?</button>
@@ -2101,19 +2158,19 @@ function _sqRender() {
           ${_sqCenterChoices(s, me)}
           <div class="sq-center-caption">${myTurn ? (me.drawsThisTurn < 3 ? '🐿️ Grab a card — safe draw ' + (me.drawsThisTurn + 1) + ' of 3' : 'Grab another, or stop to leave your stash on the table') : 'Waiting for ' + _esc(turnName) + '…'}</div>
         </div>
+      </div>
 
-        <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
-          ${badgerCount ? `<div class="sq-shield-label">🛡 BADGER'S PROTECTION${badgerCount > 1 ? ' ×' + badgerCount : ''}</div>` : ''}
-          <div class="sq-me-header">
-            <span class="sq-me-name">Your stash</span>
-            ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
-            <span class="sq-me-hoard"><span class="sq-hoard-lbl">Hoard</span><span class="sq-hoard-val">${me.score}</span><span class="sq-hoard-ac">🌰</span></span>
-          </div>
-          <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
-            cardClass: stormMine ? () => 'storm-target' : null,
-            wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
-          }) : ''}</div>
+      <div class="sq-me ${myTurn ? 'active' : ''} ${foxSelf ? 'fox-self-target' : ''} ${badgerCount ? 'badger-shield' : ''}" ${foxSelf ? `onclick="sqFoxDare(${meSeat})" title="Dare yourself"` : ''}>
+        ${badgerCount ? `<div class="sq-shield-label">🛡 BADGER'S PROTECTION${badgerCount > 1 ? ' ×' + badgerCount : ''}</div>` : ''}
+        <div class="sq-me-header">
+          <span class="sq-me-name">Your stash</span>
+          ${badgerCount ? `<span class="sq-badge">🦡 Badger ready${badgerCount > 1 ? ' ×' + badgerCount : ''}</span>` : ''}
+          <span class="sq-me-hoard"><span class="sq-hoard-lbl">Hoard</span><span class="sq-hoard-val">${me.score}</span><span class="sq-hoard-ac">🌰</span></span>
         </div>
+        <div class="sq-stash sq-my-stash ${stormMine ? 'storm-pick' : ''}">${me.stash.length ? _sqStashGrouped(me.stash, {
+          cardClass: stormMine ? () => 'storm-target' : null,
+          wrap: stormMine ? (c, i) => `onclick="sqStorm(${i})" title="Return ${_esc(c.label)} stack"` : null,
+        }) : ''}</div>
       </div>
 
       <div class="sq-prompt">${prompt}</div>
@@ -2123,6 +2180,31 @@ function _sqRender() {
   if (lg) lg.scrollTop = lg.scrollHeight;
   _sqEnableDrag();
   _sqRefreshLedger();   // keep an open ledger modal live as play advances
+  _sqEnsureDeadlineTimer();
+}
+
+// ── Squirrel decision timer (30s, server-enforced) ──
+// The server stamps deadlineAt on each pushed state (solo has none). A single
+// interval refreshes just the countdown text in place so the modal doesn't
+// reflow. Hidden while the table is paused (the pause overlay shows instead).
+let _sqDeadlineTimer = null;
+function _sqDeadlineText(s) {
+  if (!s || s.phase === 'gameover' || s.pause || !s.deadlineAt) return '';
+  const remain = Math.max(0, Math.ceil((s.deadlineAt - Date.now()) / 1000));
+  return `⏳ ${remain}s`;
+}
+function _sqEnsureDeadlineTimer() {
+  if (_sqDeadlineTimer) return;
+  _sqDeadlineTimer = setInterval(_sqUpdateDeadline, 500);
+}
+function _sqUpdateDeadline() {
+  const el = document.getElementById('sq-deadline');
+  if (!el || !_sq) { clearInterval(_sqDeadlineTimer); _sqDeadlineTimer = null; return; }
+  const s = _sq.state;
+  const text = _sqDeadlineText(s);
+  if (el.textContent !== text) el.textContent = text;
+  const remain = (s && s.deadlineAt) ? Math.ceil((s.deadlineAt - Date.now()) / 1000) : 999;
+  el.className = 'sq-deadline' + (text && remain <= 5 ? ' urgent' : '');
 }
 
 // Hoard tracker overlay — what's left in the pile, by card.

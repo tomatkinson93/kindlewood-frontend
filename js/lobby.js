@@ -28,6 +28,10 @@ const LobbySystem = (() => {
   function mine() {
     return _api('/mine').then(d => d.rooms || []).catch(() => []);
   }
+  // Explicit forfeit of an in-progress game (tavern "Leave game").
+  function forfeit(code) {
+    return _api('/' + code + '/forfeit', { method: 'POST' }).catch(() => {});
+  }
   // Reconnect to a game the user is already seated in. Opens the SSE stream; the
   // server's snapshot (with seats for a live match) drives the game table back
   // open via _handle().
@@ -278,8 +282,29 @@ const LobbySystem = (() => {
       // hand it to the active game. current may be null on a late reconnect, so
       // fall back to the last known game. Unknown types are ignored downstream.
       const gt = (current && current.gameType) || _lastGame;
+      // Cold reconnect: the server sends a game_state right after the snapshot.
+      // If no game table is open in this tab yet, bootstrap it FIRST (the game
+      // buffers state until its table exists, so opening it here makes resume
+      // work even if the snapshot lacked seating). Then deliver the event.
+      if (msg.type === 'game_state' && gt &&
+          !(typeof window.__kwGameActive === 'function' && window.__kwGameActive())) {
+        _resumeFromState(code, gt, msg.state);
+      }
       if (gt && games[gt]?.onEvent) games[gt].onEvent(msg);
     }
+  }
+
+  // Reopen a game table for a cold reconnect, deriving the seating from the
+  // pushed redacted state (works for any game whose view() lists players with a
+  // seat). Guarded by __kwGameActive so it never fires during normal play.
+  function _resumeFromState(code, gameType, state) {
+    const g = games[gameType];
+    if (!g || !g.onStart || !state || !Array.isArray(state.players)) return false;
+    const seats = state.players.map(p => ({ seat: p.seat, id: p.id, name: p.name, isAI: !!p.isAI }));
+    const amHost = (myId != null && current && String(current.hostId) === String(myId));
+    const m = document.getElementById('lobby-modal'); if (m) m.classList.remove('open');
+    g.onStart({ seats, code, myId, isHost: amHost, players: (current && current.players) || seats, channel: _channel(code) });
+    return true;
   }
 
   // Phase-2 channel handed to the game: send actions + receive events
@@ -458,7 +483,7 @@ const LobbySystem = (() => {
 
   return { register, choose, browse, createForm, create, join, joinByInput,
            invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, removeAI, close,
-           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary, mine, rejoin,
+           openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary, mine, rejoin, forfeit,
            get current() { return current; } };
 })();
 
