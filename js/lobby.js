@@ -247,6 +247,14 @@ const LobbySystem = (() => {
     if (msg.type === 'snapshot') {
       if (msg.room.youId != null) myId = msg.room.youId;     // authoritative
       current = msg.room; _lastGame = msg.room.gameType;
+      // The game is already over (e.g. you forfeited, or it ended while you were
+      // away) — there's nothing to rejoin. Close quietly and let the tavern
+      // refresh its "resume" banner rather than showing a dead lobby view.
+      if (msg.room.status === 'finished') {
+        _closeStream(); close();
+        if (typeof window.__kwRefreshResumeBanner === 'function') window.__kwRefreshResumeBanner();
+        return;
+      }
       // Cold reconnect to a live match (refresh, re-login, or "Rejoin"): the
       // snapshot carries the seating, so reopen the game table directly instead
       // of the lobby view — unless a game is already on screen in this tab.

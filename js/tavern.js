@@ -234,11 +234,12 @@ function renderGameSelect(el) {
 // If the signed-in user is already seated in an active game, surface a "Rejoin"
 // banner on the select screen (server /mine). Reconnecting resumes the table.
 async function _kwLoadResumeBanner() {
-  if (typeof LobbySystem === 'undefined' || !LobbySystem.mine) return;
-  let list; try { list = await LobbySystem.mine(); } catch (e) { return; }
-  const active = (list || []).find(r => r.status === 'playing') || (list || [])[0];
   const host = document.querySelector('.kw-gs-resume');
-  if (!host || !active) return;
+  const clear = () => { if (host) { host.innerHTML = ''; host.style.display = 'none'; } };
+  if (typeof LobbySystem === 'undefined' || !LobbySystem.mine) { clear(); return; }
+  let list; try { list = await LobbySystem.mine(); } catch (e) { clear(); return; }
+  const active = (list || []).find(r => r.status === 'playing') || (list || [])[0];
+  if (!host || !active) { clear(); return; }   // no active game → clear any stale banner
   const name = active.gameName || (window.KWGames && KWGames.name(active.gameType)) || 'your game';
   const verb = active.status === 'playing' ? 'a game in progress' : 'a table waiting';
   host.innerHTML = `
@@ -249,13 +250,17 @@ async function _kwLoadResumeBanner() {
     </div>`;
   host.style.display = '';
 }
+// Let the lobby refresh the banner after a game ends (e.g. rejoin found it over).
+window.__kwRefreshResumeBanner = _kwLoadResumeBanner;
 
 // "Leave game" from the tavern: an explicit forfeit — counts as a loss and the
-// table plays on with an AI in your seat.
+// table plays on with an AI in your seat (or ends if you were the last human).
 async function kwLeaveActiveGame(code) {
   if (!confirm('Leave this game? It counts as a loss for you, and an AI will finish your hand.')) return;
+  const host = document.querySelector('.kw-gs-resume');
+  if (host) { host.innerHTML = ''; host.style.display = 'none'; }   // clear immediately
   try { if (LobbySystem.forfeit) await LobbySystem.forfeit(code); } catch (e) {}
-  _kwLoadResumeBanner();   // banner should now clear
+  _kwLoadResumeBanner();   // re-confirm from the server
 }
 
 function closeCardGameMenu() {
