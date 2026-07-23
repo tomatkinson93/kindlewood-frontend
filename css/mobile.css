@@ -117,6 +117,11 @@
    touch-action has no effect on mouse input, so desktop is unaffected. */
 #map-canvas { touch-action: none; }
 
+/* The resource strip wrapper is transparent to layout on desktop (display:
+   contents → the .res cells are flex children of .topbar exactly as before);
+   it only becomes a real flex row on mobile (see @768 below). */
+.topbar-res-strip { display: contents; }
+
 /* Lock document scroll while the game screen is active so touch-pan on the
    map can't fight page scroll / pull-to-refresh. body.in-game is toggled in
    showScreen() (main.js); the :has() rule is a progressive-enhancement twin
@@ -151,7 +156,8 @@
   .action-bar { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
 
   /* ── Compact two-row topbar (RC-5) ─────────────────────────────────────
-     Row 1: resource strip. Row 2: controls (season/bell/profile…). */
+     Row 1: resource strip (a single scrollable row — beats the old uneven
+     4-then-1 wrap). Row 2: controls (season/bell/profile…). */
   .topbar {
     flex-wrap: wrap;
     height: auto;
@@ -160,9 +166,14 @@
     row-gap: 2px;
     align-items: center;
   }
-  .topbar .res { padding: 0 8px; font-size: 12px; }
-  .res-rate { display: none; }           /* rate revealed on tap — see topbar-mobile.js */
-  .res.show-rate .res-rate { display: inline; }
+  .topbar-res-strip {
+    display: flex; align-items: center;
+    flex-basis: 100%; min-width: 0;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .topbar-res-strip::-webkit-scrollbar { display: none; }
+  .topbar .res { padding: 0 8px; font-size: 12px; flex: 0 0 auto; }
+  .res-rate { display: none; }           /* rates live in the tap-to-open resource modal on mobile */
   .topbar-version { display: none; }
   .topbar-right { flex-basis: 100%; margin-left: 0; justify-content: flex-end; gap: 8px; }
   .profile-username-label, .profile-caret { display: none; }   /* avatar-only trigger */
@@ -191,15 +202,11 @@
   .comm-btn { padding: 11px 12px 9px; min-height: 44px; }
   .comm-btn span:not(.online-count) { font-size: 13px; }
 
-  /* ── Map frame fills remaining height; larger touch-friendly pan arrows
-     (RC-3, RC-11). ─────────────────────────────────────────────────────── */
+  /* ── Map frame fills remaining height ────────────────────────────────── */
   .map-frame { min-height: 0; flex: 1; }
-  .map-btn-up, .map-btn-down, .map-btn-left, .map-btn-right {
-    width: 44px; height: 44px;
-  }
-  /* Keep the down arrow clear of the action bar (absolute, bottom:0 inside
-     .map-frame) plus its safe-area padding. */
-  .map-btn-down { bottom: calc(60px + env(safe-area-inset-bottom)); }
+  /* Hide the on-screen pan arrows on mobile — one-finger drag pans the map, so
+     they're redundant and cluttered the view. Desktop keeps them. */
+  .map-btn-up, .map-btn-down, .map-btn-left, .map-btn-right { display: none; }
 
   /* ── Sidebar as bottom sheet (RC-1) ────────────────────────────────────
      width:100% !important beats main.css `.sidebar { width:300px !important }`.
@@ -212,21 +219,35 @@
     max-height: 40dvh;
     transition: max-height .25s ease;
   }
-  .sidebar.sheet-peek { max-height: 66px; }        /* handle + tabs only */
+  .sidebar.sheet-peek { max-height: 74px; }        /* handle + tabs stay visible */
   .sidebar.sheet-half { max-height: 40dvh; }
   .sidebar.sheet-full { max-height: 85dvh; }
 
-  /* Drag handle injected at the top of the sidebar by topbar-mobile.js. */
+  /* Sheet handle injected at the top of the sidebar by topbar-mobile.js.
+     A grabber pill plus a chevron that points the way the next tap grows the
+     sheet (up = expand, down = collapse), so it always reads as interactive. */
   .sheet-handle {
-    display: flex; align-items: center; justify-content: center;
-    height: 22px; flex-shrink: 0; cursor: pointer;
+    position: relative;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    height: 28px; flex-shrink: 0; cursor: pointer;
     background: var(--bark2, #211a10);
     border-bottom: 1px solid rgba(255,255,255,.05);
     -webkit-tap-highlight-color: transparent;
   }
-  .sheet-handle::before {
-    content: ''; width: 40px; height: 4px; border-radius: 3px;
-    background: rgba(192,221,151,.35);
+  .sheet-grip {
+    width: 40px; height: 4px; border-radius: 3px;
+    background: rgba(192,221,151,.4);
+  }
+  .sheet-chevron {
+    position: absolute; right: 14px; top: 50%;
+    width: 8px; height: 8px;
+    border-right: 2px solid rgba(192,221,151,.55);
+    border-bottom: 2px solid rgba(192,221,151,.55);
+    transform: translateY(-30%) rotate(-135deg);   /* points up = expand */
+    transition: transform .2s ease;
+  }
+  .sheet-handle.at-full .sheet-chevron {
+    transform: translateY(-70%) rotate(45deg);      /* points down = collapse */
   }
 
   /* ── Tap-target sweep (RC-11) ─────────────────────────────────────────── */

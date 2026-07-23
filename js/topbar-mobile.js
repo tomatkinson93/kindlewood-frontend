@@ -1,16 +1,13 @@
 /* topbar-mobile.js — Kindlewood Mobile Spec, Phase 3 (small JS)
  *
- * Vanilla IIFE, no modules (constraint 1). Two additive mobile behaviours;
- * both are inert on desktop and never touch desktop-only code paths:
+ * Vanilla IIFE, no modules (constraint 1). Mobile-only sidebar bottom-sheet
+ * behaviour; inert on desktop, where the injected handle is display:none and
+ * the state classes have no media-scoped max-height to act on.
  *
- *   1. Sidebar bottom-sheet — a drag handle injected at the top of #sidebar
- *      cycles the sheet between three heights (peek / half / full). The CSS
- *      that gives those classes their max-height is media-scoped to ≤768px
- *      (mobile.css), so on desktop the injected handle is display:none and the
- *      state classes do nothing. Last state persists in localStorage.
- *
- *   2. Resource-rate tap — hiding .res-rate on mobile (mobile.css) loses the
- *      per-tick rate; tapping a .res reveals its rate for 3s.
+ * A drag handle injected at the top of #sidebar cycles the sheet between three
+ * heights (peek / half / full). A chevron on the handle shows what the next
+ * tap will do, and the tabs stay visible in every state so the panel can never
+ * feel "lost". Last state persists in localStorage.
  */
 (function () {
   'use strict';
@@ -32,14 +29,21 @@
     STATES.forEach(function (s) { sb.classList.remove(s); });
     sb.classList.add(state);
     try { localStorage.setItem(SHEET_KEY, state); } catch (_) {}
+    // Chevron points the way the next tap grows the sheet: up while there's
+    // more room to open, down once fully open (next tap collapses to peek).
+    var handle = sb.querySelector('.sheet-handle');
+    if (handle) {
+      handle.classList.toggle('at-full', state === 'sheet-full');
+      handle.setAttribute('aria-label',
+        state === 'sheet-full' ? 'Collapse panel' : 'Expand panel');
+    }
   }
 
   function ensureAtLeastHalf() {
     var sb = sidebar();
     if (!sb) return;
-    if (currentState(sb) === 'sheet-peek' || !currentState(sb)) {
-      applyState(sb, 'sheet-half');
-    }
+    var cur = currentState(sb);
+    if (cur === 'sheet-peek' || !cur) applyState(sb, 'sheet-half');
   }
 
   function injectHandle() {
@@ -50,7 +54,7 @@
     handle.className = 'sheet-handle';
     handle.setAttribute('role', 'button');
     handle.setAttribute('tabindex', '0');
-    handle.setAttribute('aria-label', 'Resize panel');
+    handle.innerHTML = '<span class="sheet-grip"></span><span class="sheet-chevron" aria-hidden="true"></span>';
     sb.insertBefore(handle, sb.firstChild);
 
     var cycle = function () {
@@ -69,25 +73,8 @@
     applyState(sb, STATES.indexOf(saved) >= 0 ? saved : 'sheet-half');
   }
 
-  function wireResRates() {
-    var timers = {};
-    document.querySelectorAll('.topbar .res').forEach(function (res) {
-      if (res._rateWired) return;
-      res._rateWired = true;
-      res.addEventListener('click', function () {
-        if (!mq.matches) return;              // desktop shows rates already
-        res.classList.add('show-rate');
-        clearTimeout(timers[res.id]);
-        timers[res.id] = setTimeout(function () {
-          res.classList.remove('show-rate');
-        }, 3000);
-      });
-    });
-  }
-
   function init() {
     injectHandle();
-    wireResRates();
 
     // Auto-open the sheet to at least half when a tab is opened from an
     // action-bar button (Build / Citizens), so the panel isn't stuck peeking.

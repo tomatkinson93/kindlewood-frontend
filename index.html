@@ -38,7 +38,7 @@
   <link rel="stylesheet" href="/css/hud-storybook.css?v=58">
   <link rel="stylesheet" href="/css/carousel.css?v=spec20a">
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
-  <link rel="stylesheet" href="/css/mobile.css?v=mobilefix1">
+  <link rel="stylesheet" href="/css/mobile.css?v=mobilefix2">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -466,11 +466,13 @@
 
   <div class="screen" id="screen-game">
     <div class="topbar">
+      <div class="topbar-res-strip">
       <div class="res" id="res-food"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-food"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-timber"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-timber"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-stone"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-stone"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-metal"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-metal"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-wealth"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-wealth"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
+      </div>
       <div class="topbar-version">v0.5.0</div>
       <div class="topbar-right">
         <div id="season-badge" class="season-badge-wrap"></div>
@@ -776,7 +778,7 @@
   <script defer src="/js/config.js"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
   <script defer src="/js/game.js"></script>
-  <script defer src="/js/resources.js"></script>
+  <script defer src="/js/resources.js?v=mobilefix2"></script>
   <script defer src="/js/carousel.js?v=spec20b"></script>
   <script defer src="/js/placement.js"></script>
   <script defer src="/js/arrival.js"></script>
@@ -798,7 +800,7 @@
   <script defer src="/js/kwmap-tileactions.js?v=1"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
   <script defer src="/js/main.js?v=spec20e"></script>
-  <script defer src="/js/topbar-mobile.js?v=1"></script>
+  <script defer src="/js/topbar-mobile.js?v=2"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
   <script defer src="/js/leaderboard.js?v=3"></script>
