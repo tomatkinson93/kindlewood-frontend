@@ -1,0 +1,335 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Kindlewood — mobile game shell
+   ══════════════════════════════════════════════════════════════════════════
+   The phone layout for the game screen. Replaces the desktop's stacked bands
+   (topbar / nav / map / action bar / sidebar) with the layout mobile games
+   use: the map goes full-bleed and every piece of chrome floats on top of it.
+
+     · map canvas fills the screen
+     · resource pills + season/bell float over the top
+     · a five-slot bottom tab bar replaces the 12-tab community bar
+     · everything else lives in a grouped "More" sheet
+     · the sidebar becomes a contextual sheet that slides up on demand
+     · Scout / Centre become floating buttons; an optional stick pans the map
+
+   ACTIVATION — everything here is gated on `body.kw-shell`, which
+   js/mobile-shell.js sets from a single media query. That matters because a
+   phone in landscape is ~915px WIDE but only ~412px tall: a width-only gate
+   would hand it the desktop layout. Keying off one JS-owned class keeps CSS
+   and JS from ever disagreeing about when the shell is on.
+
+   DOM for the tab bar, More sheet, buttons and stick is injected by
+   js/mobile-shell.js. Without `body.kw-shell` none of it renders, so the
+   desktop layout is untouched. Loads after mobile.css.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Injected shell chrome is inert until the shell is switched on. */
+.kw-tabbar, .kw-sheet, .kw-fabs, .kw-stick { display: none; }
+
+body.kw-shell {
+  --kw-tabbar-h: 58px;
+  --kw-safe-b: env(safe-area-inset-bottom);
+}
+
+/* Track the visible viewport (URL-bar collapse) and stop the document
+   scrolling behind the map while the game screen is up. */
+body.kw-shell .screen { height: 100vh; height: 100dvh; }
+body.kw-shell.in-game { overflow: hidden; overscroll-behavior: none; }
+
+/* ── 1. Full-bleed map ─────────────────────────────────────────────────── */
+body.kw-shell #screen-game { position: relative; }
+
+/* game-body fills the whole screen; the topbar floats above it rather than
+   occupying a band, so the map gets the full viewport height. */
+body.kw-shell #screen-game .game-body {
+  position: absolute; inset: 0;
+  flex-direction: row;
+  overflow: hidden;
+}
+body.kw-shell #screen-game .map-area {
+  padding: 0 !important;
+  flex: 1; min-width: 0; min-height: 0;
+}
+body.kw-shell #screen-game .map-frame { flex: 1; min-height: 0; min-width: 0; }
+
+/* Chrome the shell replaces, or that has no place on a phone. */
+body.kw-shell #screen-game .community-bar { display: none !important; }
+body.kw-shell #screen-game .action-bar { display: none !important; }
+body.kw-shell #screen-game .map-btn-up,
+body.kw-shell #screen-game .map-btn-down,
+body.kw-shell #screen-game .map-btn-left,
+body.kw-shell #screen-game .map-btn-right { display: none !important; }
+body.kw-shell .map-decor { display: none !important; }
+
+/* ── 2. Floating HUD ───────────────────────────────────────────────────── */
+/* pointer-events:none on the bar, auto on the controls — so a drag starting
+   in the gradient reaches the map instead of being swallowed by the HUD. */
+body.kw-shell #screen-game .topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 40;
+  display: flex; flex-wrap: wrap; align-items: center;
+  height: auto; gap: 0; row-gap: 6px;
+  padding: calc(8px + env(safe-area-inset-top))
+           calc(8px + env(safe-area-inset-right))
+           20px
+           calc(8px + env(safe-area-inset-left));
+  background: linear-gradient(180deg, rgba(10,7,4,.92) 34%, rgba(10,7,4,0));
+  border-bottom: none;
+  pointer-events: none;
+}
+
+/* Resource pills — one scrollable row. */
+body.kw-shell .topbar-res-strip {
+  display: flex; align-items: center; gap: 6px;
+  flex-basis: 100%; min-width: 0;
+  overflow-x: auto; scrollbar-width: none;
+  pointer-events: auto;
+}
+body.kw-shell .topbar-res-strip::-webkit-scrollbar { display: none; }
+body.kw-shell #screen-game .topbar .res {
+  flex: 0 0 auto;
+  gap: 5px; padding: 5px 11px; font-size: 12px;
+  background: rgba(33,26,16,.9);
+  border: 1px solid rgba(192,160,80,.3);
+  border-radius: 20px;
+}
+body.kw-shell #screen-game .res-rate { display: none; }  /* rates live in the resource modal */
+body.kw-shell #screen-game .topbar-version { display: none; }
+
+/* Controls row. */
+body.kw-shell #screen-game .topbar-right {
+  flex-basis: 100%; margin-left: 0;
+  justify-content: flex-end; gap: 8px;
+  pointer-events: auto;
+}
+body.kw-shell #screen-game .profile-username-label,
+body.kw-shell #screen-game .profile-caret { display: none; }
+
+/* Right-anchored dropdowns: pin to the viewport and clamp to the screen so a
+   scrolled trigger can never clip them. */
+body.kw-shell #screen-game .events-panel {
+  position: fixed; top: 84px; right: 8px;
+  width: min(320px, calc(100vw - 16px));
+  max-height: calc(100dvh - 160px); overflow-y: auto;
+}
+body.kw-shell #screen-game .profile-menu {
+  position: fixed; top: 84px; right: 8px;
+  max-width: calc(100vw - 16px);
+}
+
+/* ── 3. Bottom tab bar ─────────────────────────────────────────────────── */
+body.kw-shell .kw-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: flex;
+  height: calc(var(--kw-tabbar-h) + var(--kw-safe-b));
+  padding-bottom: var(--kw-safe-b);
+  background: rgba(18,14,8,.97);
+  border-top: 1px solid rgba(192,160,80,.28);
+  backdrop-filter: blur(8px);
+  -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .kw-tab {
+  flex: 1; position: relative;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: 'Crimson Pro', serif;
+  color: rgba(192,221,151,.55);
+  -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .kw-tab-g { font-size: 18px; line-height: 1; }
+body.kw-shell .kw-tab-t { font-size: 9.5px; letter-spacing: .02em; }
+body.kw-shell .kw-tab.on { color: #f4c95d; }
+body.kw-shell .kw-tab.on::before {
+  content: ''; position: absolute; top: 0; left: 26%; right: 26%; height: 2px;
+  background: #f4c95d; border-radius: 0 0 3px 3px;
+}
+body.kw-shell .kw-tab-dot {
+  position: absolute; top: 8px; right: 50%; margin-right: -16px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #d8642f; display: none;
+}
+body.kw-shell .kw-tab.has-dot .kw-tab-dot { display: block; }
+
+/* ── 4. Sheets ─────────────────────────────────────────────────────────── */
+/* The sidebar becomes the contextual sheet; .kw-sheet is the More sheet.
+   Both slide up from just above the tab bar. */
+body.kw-shell #screen-game .sidebar,
+body.kw-shell .kw-sheet {
+  position: fixed; left: 0; right: 0;
+  bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b));
+  z-index: 55;
+  width: 100% !important;      /* beats main.css `.sidebar{width:300px!important}` */
+  max-width: none;
+  max-height: 62dvh;
+  display: flex; flex-direction: column;
+  background: linear-gradient(180deg, #241D12, #1A1409);
+  border-left: none;
+  border-top: 1px solid rgba(192,160,80,.35);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -10px 30px rgba(0,0,0,.5);
+  transform: translateY(110%);
+  transition: transform .26s cubic-bezier(.2,.8,.3,1);
+  overflow: hidden;
+}
+body.kw-shell #screen-game .sidebar.kw-open,
+body.kw-shell .kw-sheet.kw-open { transform: translateY(0); }
+
+/* Grab bar at the top of each sheet — tap to dismiss. */
+body.kw-shell .kw-grab {
+  display: grid; place-items: center;
+  padding: 9px 0 5px; flex-shrink: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .kw-grab::before {
+  content: ''; width: 38px; height: 4px; border-radius: 3px;
+  background: rgba(192,221,151,.4);
+}
+
+/* The sidebar's own tab strip stays usable inside the sheet. The panel views
+   inside it are flex:1/min-height:0/overflow:hidden and scroll internally, so
+   they size to the sheet; overflow-y:auto stays on the sidebar as a fallback
+   for any panel that lacks its own scroll area. */
+body.kw-shell #screen-game .sidebar { overflow-y: auto; min-height: 0; }
+body.kw-shell #screen-game .sidebar-tabs { flex-shrink: 0; }
+body.kw-shell #screen-game .sidebar-tab { padding: 11px 8px; }
+body.kw-shell #screen-game #panel-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* More sheet internals */
+body.kw-shell .kw-sheet-head {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 0 16px 10px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+body.kw-shell .kw-sheet-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16px; font-weight: 700; color: #C0DD97;
+}
+body.kw-shell .kw-sheet-sub { font-size: 11px; color: rgba(192,221,151,.5); }
+body.kw-shell .kw-sheet-close {
+  margin-left: auto; background: none; border: 0; cursor: pointer;
+  color: rgba(192,221,151,.5); font-size: 17px;
+  min-width: 34px; min-height: 34px;
+}
+body.kw-shell .kw-sheet-body {
+  padding: 12px 16px calc(16px + var(--kw-safe-b));
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+
+body.kw-shell .kw-grp { margin-bottom: 15px; }
+body.kw-shell .kw-grp:last-child { margin-bottom: 0; }
+body.kw-shell .kw-grp-label {
+  font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
+  color: #EF9F27; margin-bottom: 7px; font-weight: 700;
+}
+body.kw-shell .kw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+body.kw-shell .kw-item {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  min-height: 58px; padding: 9px 3px 7px;
+  background: rgba(60,48,28,.5);
+  border: 1px solid rgba(192,160,80,.2);
+  border-radius: 10px;
+  color: #f2e6c9; cursor: pointer;
+  font-family: 'Crimson Pro', serif;
+  -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .kw-item:active { background: rgba(244,201,93,.2); }
+body.kw-shell .kw-item-g { font-size: 17px; line-height: 1; }
+body.kw-shell .kw-item-g .kw-icon { width: 18px; height: 18px; }
+body.kw-shell .kw-item-t {
+  font-size: 9.5px; color: rgba(192,221,151,.6);
+  text-align: center; line-height: 1.2;
+}
+
+/* Toggle row (map stick) inside the More sheet. */
+body.kw-shell .kw-toggle-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 2px; font-size: 13px; color: #f2e6c9;
+  font-family: 'Crimson Pro', serif;
+}
+body.kw-shell .kw-tg-label { flex: 1; }
+body.kw-shell .kw-switch {
+  position: relative; width: 44px; height: 26px; flex: 0 0 auto;
+  border-radius: 20px; cursor: pointer;
+  background: rgba(60,48,28,.8);
+  border: 1px solid rgba(192,160,80,.3);
+  transition: background .18s;
+}
+body.kw-shell .kw-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(192,221,151,.6);
+  transition: transform .18s, background .18s;
+}
+body.kw-shell .kw-switch[aria-checked="true"] {
+  background: rgba(78,107,46,.8); border-color: rgba(244,201,93,.5);
+}
+body.kw-shell .kw-switch[aria-checked="true"]::after {
+  transform: translateX(18px); background: #f4c95d;
+}
+
+/* ── 5. Floating map controls ──────────────────────────────────────────── */
+body.kw-shell .kw-fabs {
+  position: fixed; right: 12px; z-index: 50;
+  bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + 16px);
+  display: flex; flex-direction: column; gap: 10px;
+}
+body.kw-shell .kw-fab {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(33,26,16,.92);
+  border: 1px solid rgba(192,160,80,.35);
+  color: #f4c95d; font-size: 16px; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,.5);
+  -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .kw-fab:active { background: rgba(244,201,93,.25); }
+
+/* Analog stick — pans without your thumb covering the tiles you're reading. */
+body.kw-shell .kw-stick {
+  position: fixed; left: 14px; z-index: 50;
+  bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + 12px);
+  width: 104px; height: 104px;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .kw-stick[hidden] { display: none; }
+body.kw-shell .kw-stick-base {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, rgba(46,38,23,.8), rgba(16,12,7,.72));
+  border: 1.5px solid rgba(192,160,80,.3);
+  box-shadow: inset 0 2px 10px rgba(0,0,0,.6);
+}
+body.kw-shell .kw-stick-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #6B5B36, #2C2416);
+  border: 1.5px solid rgba(244,201,93,.55);
+  box-shadow: 0 3px 10px rgba(0,0,0,.6);
+  display: grid; place-items: center;
+  transition: transform .16s cubic-bezier(.2,.8,.3,1);
+}
+body.kw-shell .kw-stick.kw-active .kw-stick-knob { transition: none; }
+body.kw-shell .kw-stick-knob::after {
+  content: ''; width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(244,201,93,.35);
+}
+
+/* A full-screen overlay (tavern, fishing, combat) owns the view outright. */
+body.kw-shell.kw-overlay .kw-tabbar,
+body.kw-shell.kw-overlay .kw-fabs,
+body.kw-shell.kw-overlay .kw-stick { display: none; }
+
+/* ── Landscape phone — height is the scarce axis, trim the chrome ──────── */
+@media (orientation: landscape) and (max-height: 540px) {
+  body.kw-shell { --kw-tabbar-h: 46px; }
+  body.kw-shell .kw-tab-t { display: none; }
+  body.kw-shell .kw-tab-g { font-size: 17px; }
+  body.kw-shell #screen-game .topbar { flex-wrap: nowrap; padding-bottom: 12px; }
+  body.kw-shell .topbar-res-strip { flex-basis: auto; flex: 1 1 auto; }
+  body.kw-shell #screen-game .topbar-right { flex-basis: auto; margin-left: auto; }
+  body.kw-shell #screen-game .sidebar,
+  body.kw-shell .kw-sheet { max-height: 76dvh; }
+  body.kw-shell .kw-stick { width: 86px; height: 86px; }
+  body.kw-shell .kw-stick-knob { width: 38px; height: 38px; margin: -19px 0 0 -19px; }
+}
