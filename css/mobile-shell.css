@@ -436,6 +436,86 @@ body.kw-shell .sv-back-btn {
 }
 body.kw-shell .sv-back-btn:active { background: rgba(120,78,28,.6); }
 
+/* ── Combat ─────────────────────────────────────────────────────────────
+   combat-ui.js injects a <style id="cm-layout-overrides"> at runtime that
+   hard-codes a desktop three-column bottom bar (230px rail + flexible hand +
+   300px log = 530px of fixed width) and 122px cards, all with !important. On a
+   390px screen that overflows in every direction, and because those rules are
+   injected into <head> after this file they win on document order. Beating
+   them needs both higher specificity (body.kw-shell + #combat-modal) and
+   !important — hence the shape of the rules below. */
+body.kw-shell .cm-backdrop { padding: 0 !important; }
+body.kw-shell #combat-modal .cm-card {
+  width: 100vw !important; height: 100dvh !important;
+  max-width: 100vw !important; max-height: 100dvh !important;
+  border-radius: 0 !important; border: none !important;
+}
+
+/* Arena keeps a share of the height; units scroll sideways instead of wrapping
+   into an overlapping pile. */
+body.kw-shell #combat-modal .cm-scene { min-height: 22dvh !important; }
+body.kw-shell #combat-modal .cm-stage {
+  grid-template-columns: 1fr !important;
+  gap: 6px !important; padding: 6px 8px 10px !important;
+}
+body.kw-shell #combat-modal .cm-vs { display: none !important; }
+body.kw-shell #combat-modal .cm-side {
+  flex-wrap: nowrap !important;
+  overflow-x: auto; scrollbar-width: none;
+  gap: 6px !important; padding-bottom: 2px;
+}
+body.kw-shell #combat-modal .cm-side::-webkit-scrollbar { display: none; }
+body.kw-shell #combat-modal .cm-unit {
+  width: 104px !important; flex: 0 0 auto;
+  padding: 6px 6px 5px !important;
+}
+
+/* Bottom bar: one stacked column instead of three fixed ones. */
+body.kw-shell #combat-modal .cm-bottom {
+  display: flex !important; flex-direction: column !important;
+  grid-template-columns: none !important;
+  flex: 0 0 auto !important; height: auto !important;
+  gap: 6px !important;
+  padding: 4px 8px calc(6px + var(--kw-safe-b)) !important;
+}
+body.kw-shell #combat-modal .cm-actions { order: 1; grid-column: auto !important; }
+body.kw-shell #combat-modal .cm-leftrail {
+  order: 2; grid-column: auto !important;
+  flex-direction: row !important; flex-wrap: wrap;
+  align-items: center; gap: 10px !important; padding-top: 0 !important;
+}
+body.kw-shell #combat-modal .cm-cards {
+  order: 3; grid-column: auto !important;
+  min-height: 0 !important; transform: none !important;
+}
+body.kw-shell #combat-modal .cm-log-wrap {
+  order: 4; grid-column: auto !important;
+  width: auto !important; justify-self: stretch !important;
+  min-height: 0 !important; max-height: 66px !important;
+}
+body.kw-shell #combat-modal .cm-log { font-size: 10.5px !important; }
+
+/* Hand sized so a full fan stays on screen (7 cards ≈ 340px at 390px wide). */
+body.kw-shell #combat-modal .kw-hand {
+  min-height: 122px !important; padding: 0 10px !important;
+}
+body.kw-shell #combat-modal .kw-card {
+  width: 76px !important; height: 112px !important; margin: 0 -16px !important;
+}
+body.kw-shell #combat-modal .kw-card-name { margin-top: 14px; font-size: 10px; }
+body.kw-shell #combat-modal .kw-card-desc { font-size: 8px; }
+
+/* ── Briarwood Court header ─────────────────────────────────────────────
+   The title row is a space-between flex with a nowrap title, so the countdown
+   ("auto-resolves in 22s") got squeezed into a sliver and broke one word per
+   line. Let the row wrap and give the countdown its own line. */
+body.kw-shell .card-game.briar > .card-game-title { flex-wrap: wrap; gap: 6px; }
+body.kw-shell .card-game.briar .bc-title-name { font-size: 15px; }
+body.kw-shell .card-game.briar #bcmp-deadline.bcmp-deadline {
+  flex: 1 0 100%; order: 3; text-align: left; font-size: .76rem;
+}
+body.kw-shell .card-game { max-width: 100% !important; }
+
 /* A full-screen overlay (tavern, fishing, combat) owns the view outright. */
 body.kw-shell.kw-overlay .kw-tabbar,
 body.kw-shell.kw-overlay .kw-fabs,
