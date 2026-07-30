@@ -194,9 +194,15 @@
   /* ── Community bar affordance (RC-6) — edge-fade cue that more tabs
      scroll off-screen. ─────────────────────────────────────────────────── */
   .community-bar { position: relative; }
+  /* Sticky flex item, not absolute: .community-bar is itself the scroll
+     container, so an absolutely-positioned fade is anchored to the scrolling
+     content and slides around with it (looked like a stray dark mark). A
+     sticky item with a negative margin pins to the visible right edge and
+     takes no layout space. */
   .community-bar::after {
-    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 28px;
-    background: linear-gradient(to left, rgba(14,10,5,.9), transparent);
+    content: ''; position: sticky; right: 0;
+    flex: 0 0 28px; margin-left: -28px; align-self: stretch;
+    background: linear-gradient(to left, rgba(14,10,5,.95), transparent);
     pointer-events: none; z-index: 3;
   }
   .comm-btn { padding: 11px 12px 9px; min-height: 44px; }
@@ -263,4 +269,34 @@
 /* ── Phone density (≤480px) ────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .btn-cheat { display: none; }          /* cheat menu still reachable via profile menu */
+}
+
+/* ── Landscape phone — height is the scarce axis ─────────────────────────
+   A landscape phone has ~330px of usable height once the URL bar refuses to
+   collapse. Stacked chrome (2-row topbar + nav + sheet + action bar) ate
+   nearly all of it, leaving a sliver of map. Collapse the chrome to single
+   compact rows and default the sheet closed so the map keeps real height.
+   max-height guard keeps tablets in landscape on the normal layout. */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 540px) {
+  /* Topbar back to one row: resources scroll, controls sit inline. */
+  .topbar { flex-wrap: nowrap; padding-top: 2px; padding-bottom: 2px; }
+  .topbar-res-strip { flex-basis: auto; flex: 1 1 auto; }
+  .topbar .res { padding: 0 7px; font-size: 11px; }
+  .topbar-right { flex-basis: auto; margin-left: auto; gap: 6px; }
+
+  /* Community bar: icon-only, shorter. Emoji-only buttons keep their glyph. */
+  .comm-btn { padding: 6px 10px; min-height: 34px; }
+  .comm-btn span:not(.online-count) { display: none; }
+
+  /* Sheet never dominates; peek keeps the tabs reachable. */
+  .sidebar { max-height: 46dvh; }
+  .sidebar.sheet-peek { max-height: 62px; }
+  .sidebar.sheet-half { max-height: 46dvh; }
+  .sidebar.sheet-full { max-height: 70dvh; }
+  .sheet-handle { height: 20px; }
+  .sidebar-tab { padding: 8px 8px; }
+
+  /* Trim the action bar so it doesn't eat the map. */
+  .action-bar { padding-top: 5px; padding-bottom: calc(5px + env(safe-area-inset-bottom)); }
+  .action-bar-btn { padding: 6px 12px; font-size: 12px; }
 }
