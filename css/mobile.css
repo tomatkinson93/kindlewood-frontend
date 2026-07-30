@@ -73,7 +73,9 @@
   /* Hero — show just the key info, very compact */
   .hero { height: 48vh; min-height: 280px; }
 
-  .btn-nav-secondary { display: none; }
+  /* Sign In must stay reachable — hiding it here left "create account" as the
+     only route onto the login screen. Shrink it instead of removing it. */
+  .btn-nav-secondary { padding: 6px 10px; font-size: 12px; }
   .hero-nav { padding: 10px 14px; }
 
   .game-title { font-size: 34px; }

@@ -92,15 +92,15 @@
     chat: 'Community', online: 'Community',
     feedback: 'You'
   };
-  var GROUP_ORDER = ['Realm', 'Adventure', 'Trade', 'Community', 'You', 'Other'];
+  var GROUP_ORDER = ['Adventure', 'Trade', 'Community', 'You', 'Other'];
   var TAB_LABELS = { map: 1, battles: 1 };   // already on the tab bar
 
   // Extra destinations that aren't community-bar buttons. Each is skipped
   // silently if the function isn't present, so a missing feature can't break
   // the sheet.
+  // Settlement and Scout are deliberately absent: Settlement is its own tab and
+  // Scout is a floating map button, so listing them here would be duplication.
   var EXTRAS = [
-    { group: 'Realm', label: 'Settlement', glyph: '🏛', fn: function () { window.switchTab('settlement'); }, needs: 'switchTab', sheet: true },
-    { group: 'Realm', label: 'Scout',      glyph: '🧭', fn: function () { window.actionScout(); },           needs: 'actionScout' },
     { group: 'You',   label: 'Profile',    glyph: '👤', fn: function () { window.openProfile(); },           needs: 'openProfile' },
     { group: 'You',   label: 'Settings',   glyph: '⚙',       fn: function () { window.openSettingsPopover(); },   needs: 'openSettingsPopover' },
     { group: 'You',   label: 'Help',       glyph: '❓',       fn: function () { window.showCommunityTab('help'); },needs: 'showCommunityTab' }
@@ -224,11 +224,11 @@
   /* ── Build: shell DOM ───────────────────────────────────────────────── */
 
   var TABS = [
-    { id: 'map',      glyph: '🗺', label: 'Map' },
-    { id: 'build',    glyph: '🏗', label: 'Build' },
-    { id: 'citizens', glyph: '🧍', label: 'Citizens' },
-    { id: 'battles',  glyph: '⚔',       label: 'Battles' },
-    { id: 'more',     glyph: '☰',       label: 'More' }
+    { id: 'map',        glyph: '🗺', label: 'Map' },
+    { id: 'settlement', glyph: '🏛', label: 'Settlement' },
+    { id: 'citizens',   glyph: '🧍', label: 'Citizens' },
+    { id: 'battles',    glyph: '⚔',       label: 'Battles' },
+    { id: 'more',       glyph: '☰',       label: 'More' }
   ];
 
   function onTab(id) {
@@ -242,9 +242,9 @@
         });
         closeSheets();
         break;
-      case 'build':
-        setActiveTab('build');
-        if (typeof window.switchTab === 'function') window.switchTab('buildings');
+      case 'settlement':
+        setActiveTab('settlement');
+        if (typeof window.switchTab === 'function') window.switchTab('settlement');
         openSidebarSheet();
         break;
       case 'citizens':
@@ -456,7 +456,7 @@
         var r = origSwitch.apply(this, arguments);
         if (autoOpenAllowed() && tab !== 'map') {
           openSidebarSheet();
-          if (tab === 'buildings') setActiveTab('build');
+          if (tab === 'settlement') setActiveTab('settlement');
           else if (tab === 'citizens') setActiveTab('citizens');
         }
         return r;

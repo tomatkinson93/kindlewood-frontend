@@ -194,6 +194,85 @@ body.kw-shell #screen-game .sidebar-tabs { flex-shrink: 0; }
 body.kw-shell #screen-game .sidebar-tab { padding: 11px 8px; }
 body.kw-shell #screen-game #panel-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
+/* ── Condensed Settlement panel ─────────────────────────────────────────
+   In the sheet, the tier artwork costs most of the available height for no
+   information. Drop it and keep the numbers and the action buttons (Tavern,
+   Fishing, Upgrade, …), which is what the tab is actually for. */
+body.kw-shell #screen-game .tier-card-wrap { display: none; }
+body.kw-shell #screen-game .sett-panel { padding-top: 4px; }
+body.kw-shell #screen-game .sett-actions-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+}
+body.kw-shell #screen-game .sett-action {
+  min-height: 44px; font-size: 12.5px;
+}
+/* "Build" is retired on mobile — the Settlement tab replaces it. */
+body.kw-shell #screen-game #tab-buildings { display: none; }
+
+/* ── "Your People" — table becomes cards ────────────────────────────────
+   The roster is a 14-column table; on a phone it ran off the side with the
+   stats unreachable. Re-flow each row into a card on an explicit grid, so
+   placement is deterministic regardless of the cells' source order. */
+body.kw-shell .all-citizens-modal {
+  width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
+  border-radius: 0; margin: 0;
+}
+body.kw-shell .ac-header { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+body.kw-shell .ac-search-wrap { order: 3; flex-basis: 100%; }
+body.kw-shell .ac-search { width: 100%; box-sizing: border-box; }
+body.kw-shell .ac-close { min-width: 44px; min-height: 44px; }
+body.kw-shell .ac-filter-bar { flex-wrap: wrap; gap: 6px; padding: 8px 14px; }
+body.kw-shell .ac-chip { min-height: 34px; }
+body.kw-shell .ac-chip-divider { display: none; }
+
+body.kw-shell .ac-table-wrap { padding: 10px 12px calc(16px + var(--kw-safe-b)); }
+body.kw-shell .ac-table,
+body.kw-shell .ac-table tbody { display: block; width: 100%; }
+body.kw-shell .ac-table thead { display: none; }
+
+body.kw-shell .ac-row {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px 6px;
+  align-items: center;
+  padding: 11px 12px;
+  margin: 0 0 8px;
+  background: rgba(60,48,28,.32);
+  border: 1px solid rgba(192,160,80,.18);
+  border-radius: 10px;
+}
+body.kw-shell .ac-row td { padding: 0; border: none; font-size: 11.5px; }
+
+body.kw-shell .ac-row td:nth-child(1)  { grid-area: 1 / 1 / 2 / 11; font-size: 14px; font-weight: 700; }
+body.kw-shell .ac-row td:nth-child(2)  { grid-area: 2 / 1 / 3 / 4; }
+body.kw-shell .ac-row td:nth-child(3)  { grid-area: 2 / 4 / 3 / 7; }
+body.kw-shell .ac-row td:nth-child(12) { grid-area: 2 / 7 / 3 / 9; text-align: right; }
+body.kw-shell .ac-row td:nth-child(13) { grid-area: 2 / 9 / 3 / 11; text-align: right; }
+body.kw-shell .ac-row td:nth-child(4)  { grid-area: 3 / 1 / 4 / 11; }
+body.kw-shell .ac-row td:nth-child(5)  { grid-area: 4 / 1 / 5 / 6; }
+body.kw-shell .ac-row td:nth-child(6)  { grid-area: 4 / 6 / 5 / 11; }
+body.kw-shell .ac-row td:nth-child(7)  { grid-area: 5 / 1 / 6 / 3; }
+body.kw-shell .ac-row td:nth-child(8)  { grid-area: 5 / 3 / 6 / 5; }
+body.kw-shell .ac-row td:nth-child(9)  { grid-area: 5 / 5 / 6 / 7; }
+body.kw-shell .ac-row td:nth-child(10) { grid-area: 5 / 7 / 6 / 9; }
+body.kw-shell .ac-row td:nth-child(11) { grid-area: 5 / 9 / 6 / 11; }
+body.kw-shell .ac-row td:nth-child(14) { grid-area: 6 / 1 / 7 / 11; }
+
+/* Label the numbers that lost their column header. */
+body.kw-shell .ac-row td::before {
+  color: rgba(192,221,151,.45); font-size: 9px;
+  letter-spacing: .06em; text-transform: uppercase; margin-right: 4px;
+}
+body.kw-shell .ac-row td:nth-child(5)::before  { content: 'Happy'; }
+body.kw-shell .ac-row td:nth-child(6)::before  { content: 'Health'; }
+body.kw-shell .ac-row td:nth-child(7)::before  { content: 'Str'; }
+body.kw-shell .ac-row td:nth-child(8)::before  { content: 'Agi'; }
+body.kw-shell .ac-row td:nth-child(9)::before  { content: 'End'; }
+body.kw-shell .ac-row td:nth-child(10)::before { content: 'Int'; }
+body.kw-shell .ac-row td:nth-child(11)::before { content: 'Cha'; }
+body.kw-shell .ac-role-select { width: 100%; min-height: 38px; }
+body.kw-shell .ac-row td:nth-child(14) { display: flex; gap: 5px; flex-wrap: wrap; }
+
 /* More sheet internals */
 body.kw-shell .kw-sheet-head {
   display: flex; align-items: baseline; gap: 8px;
@@ -287,6 +366,9 @@ body.kw-shell .kw-fab:active { background: rgba(244,201,93,.25); }
 
 /* Analog stick — pans without your thumb covering the tiles you're reading. */
 body.kw-shell .kw-stick {
+  /* display is required: the base rule above hides all injected chrome, so
+     without this the stick stayed invisible however the toggle was set. */
+  display: block;
   position: fixed; left: 14px; z-index: 50;
   bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + 12px);
   width: 104px; height: 104px;
@@ -314,6 +396,45 @@ body.kw-shell .kw-stick-knob::after {
   content: ''; width: 14px; height: 14px; border-radius: 50%;
   background: rgba(244,201,93,.35);
 }
+
+/* ── Manage Settlement view ─────────────────────────────────────────────
+   Two problems on a phone: the scene is far wider than the screen with no way
+   to reach the rest of it, and the view's only exit was a click on the
+   community bar, which the shell hides — so it was a dead end. Give the root
+   horizontal scrolling (native momentum panning), pin the header and panels so
+   they don't slide away with the scene, and show the Back button. */
+.sv-back-btn { display: none; }          /* desktop keeps its existing exit */
+
+body.kw-shell #settlement-view {
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+body.kw-shell #settlement-view .sv-scene {
+  width: 860px; min-width: 860px; right: auto;
+}
+body.kw-shell #settlement-view .sv-header {
+  position: sticky; left: 0; top: 0;
+  width: 100vw; z-index: 30;
+  flex-direction: row; flex-wrap: wrap;
+  justify-content: center; gap: 6px;
+}
+/* Panels are pinned to the viewport so horizontal panning can't carry them
+   off-screen. */
+body.kw-shell #settlement-view .sv-build-panel,
+body.kw-shell #settlement-view .sv-housing-modal { position: fixed; }
+
+body.kw-shell .sv-back-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-right: auto;
+  min-height: 38px; padding: 6px 14px;
+  background: rgba(28,18,10,.82);
+  border: 1px solid rgba(180,140,80,.42);
+  border-radius: 20px;
+  color: #e8d090; font-family: inherit; font-size: 13px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+body.kw-shell .sv-back-btn:active { background: rgba(120,78,28,.6); }
 
 /* A full-screen overlay (tavern, fishing, combat) owns the view outright. */
 body.kw-shell.kw-overlay .kw-tabbar,

@@ -486,6 +486,10 @@ function _ensureSvDOM() {
     + outSlots.map(slotHTML).join('') + '</div>'
     + '</div>'
     + '<div class="sv-header">'
+    // Back button: on desktop this view is dismissed by clicking the community
+    // bar, which the mobile shell hides — leaving no way out. Hidden on desktop
+    // by CSS so that layout is unchanged there.
+    + '<button class="sv-back-btn" id="sv-back-btn" onclick="closeSettlementView()">&#8592; Back</button>'
     + '<span class="sv-header-title" id="sv-title">Settlement</span>'
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<button class="sv-area-tab active" data-area="town" onclick="_svSwitchArea(\'town\')">&#127960; Town</button>'
