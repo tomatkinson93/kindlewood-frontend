@@ -530,6 +530,176 @@ body.kw-shell .card-game.briar #bcmp-deadline.bcmp-deadline {
 }
 body.kw-shell .card-game { max-width: 100% !important; }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   TAVERN GAMES — phone layout
+   ══════════════════════════════════════════════════════════════════════════
+   Both games rendered their desktop table on a phone: opponents took full-width
+   rows, the pile took a big scatter, and the player's own cards and buttons
+   ended up below the fold. Both get the same treatment, per the approved
+   prototype:
+
+     header (fixed) → opponents as a scannable strip → the live moment in the
+     middle → your hand and your actions pinned to the bottom
+
+   Achieved by reordering the existing DOM with flex `order`, so no markup
+   changes are needed and desktop is untouched.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Both games sit inside a shell > host > board chain where the intermediate
+   host has no height of its own, so `height:100%` on the board resolved
+   against auto and the pinned tray had nothing to pin to. Make the chain fill
+   the viewport first. */
+body.kw-shell .sq-shell,
+body.kw-shell .bcmp-shell {
+  width: 100vw !important; height: 100dvh !important;
+  max-width: 100vw !important; max-height: 100dvh !important;
+  box-sizing: border-box;
+  display: flex !important; flex-direction: column !important;
+  border-radius: 0 !important;
+}
+body.kw-shell .sq-game,
+body.kw-shell .bcmp-game {
+  flex: 1 1 auto !important; min-height: 0 !important;
+  display: flex !important; flex-direction: column !important;
+  margin: 0 !important; max-width: none !important;
+}
+body.kw-shell .bcmp-game .card-game.briar { margin: 0 !important; }
+
+/* ── Squirrel's Stash ──────────────────────────────────────────────────── */
+body.kw-shell .sq-table {
+  display: flex !important; flex-direction: column !important;
+  height: 100% !important; padding: 0 !important; overflow: hidden !important;
+}
+/* .sq-scroll wraps others/center/me; dissolving it lets all five bands be
+   ordered as siblings of .sq-table. */
+body.kw-shell .sq-scroll { display: contents !important; }
+
+body.kw-shell .sq-roundbar {
+  order: 1; flex: 0 0 auto;
+  padding: 6px 10px 5px !important; gap: 8px !important; font-size: 11.5px !important;
+}
+body.kw-shell .sq-turnbar { order: 2; flex: 0 0 auto; padding: 0 8px 4px !important; }
+body.kw-shell .sq-turn-strip { overflow-x: auto; scrollbar-width: none; }
+body.kw-shell .sq-turn-strip::-webkit-scrollbar { display: none; }
+
+/* Opponents: one scannable row of chips instead of four full-width blocks. */
+body.kw-shell .sq-others {
+  order: 3; flex: 0 0 auto;
+  display: flex !important; flex-wrap: nowrap !important;
+  gap: 6px !important; padding: 0 8px 6px !important;
+  overflow-x: auto !important; scrollbar-width: none;
+}
+body.kw-shell .sq-others::-webkit-scrollbar { display: none; }
+body.kw-shell .sq-player {
+  flex: 0 0 auto !important;
+  min-width: 78px !important; max-width: none !important;
+  min-height: 0 !important; max-height: none !important;
+  padding: 5px 8px 6px !important; text-align: center;
+  cursor: pointer;
+}
+body.kw-shell .sq-player-head { flex-direction: column !important; gap: 1px !important; }
+body.kw-shell .sq-player-name { font-size: 10.5px !important; white-space: nowrap; }
+body.kw-shell .sq-player-score { font-size: 10px !important; color: var(--kw-gold, #C98B3F); }
+/* Their stash is public, so it stays reachable — one tap expands the chip. */
+body.kw-shell .sq-others .sq-player .sq-stash { display: none !important; }
+body.kw-shell .sq-others .sq-player.kw-open { min-width: 128px !important; }
+body.kw-shell .sq-others .sq-player.kw-open .sq-stash {
+  display: flex !important; flex-wrap: wrap; justify-content: center; margin-top: 4px;
+}
+body.kw-shell .sq-player-stashval { font-size: 9.5px !important; }
+
+/* The live moment: the pile, and the card as it lands. */
+body.kw-shell .sq-center {
+  order: 4; flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; padding: 0 8px !important;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px;
+}
+body.kw-shell .sq-hoard { max-width: 100% !important; height: 150px !important; }
+body.kw-shell .sq-center-caption { font-size: 12px !important; }
+
+/* Your stash + the Draw/Bank decision, pinned where your thumb is. */
+body.kw-shell .sq-me {
+  order: 5; flex: 0 0 auto;
+  padding: 7px 10px 6px !important;
+  border-top: 1px solid rgba(192,160,80,.3);
+}
+body.kw-shell .sq-my-stash { min-height: 46px; }
+body.kw-shell .sq-prompt {
+  order: 6; flex: 0 0 auto;
+  padding: 0 10px calc(8px + var(--kw-safe-b)) !important;
+  background: linear-gradient(180deg, #241D12, #17110A);
+}
+body.kw-shell .sq-actions { display: flex !important; gap: 8px !important; }
+body.kw-shell .sq-actions .cg-btn {
+  flex: 1; min-height: 46px !important; font-size: 15px !important;
+}
+body.kw-shell .sq-question, body.kw-shell .sq-hint { font-size: 11px !important; }
+
+/* The reveal used to be a full-screen takeover on every draw, including the
+   AI's. Sized down it reads as the centrepiece of the middle band instead,
+   leaving the strip and the tray visible while it lands. */
+body.kw-shell .sq-reveal-card img { width: 122px !important; }
+body.kw-shell .sq-reveal-label { font-size: 12px !important; padding: 4px 10px !important; }
+
+/* ── Briarwood Court ───────────────────────────────────────────────────── */
+body.kw-shell .card-game.briar {
+  display: flex !important; flex-direction: column !important;
+  height: 100% !important; max-width: 100% !important; overflow: hidden !important;
+}
+body.kw-shell .card-game.briar > .card-game-title { order: 1; flex: 0 0 auto; }
+
+/* The court compresses to a chip row so the decision can have the middle. */
+body.kw-shell .bc-seats {
+  order: 2; flex: 0 0 auto;
+  display: flex !important; grid-template-columns: none !important;
+  flex-wrap: nowrap !important; gap: 6px !important;
+  overflow-x: auto !important; scrollbar-width: none;
+  padding-bottom: 4px;
+}
+body.kw-shell .bc-seats::-webkit-scrollbar { display: none; }
+body.kw-shell .bc-seats .bc-seat {
+  flex: 0 0 auto !important; min-width: 84px !important; width: auto !important;
+  padding: 5px 8px 6px !important; text-align: center;
+}
+body.kw-shell .bc-seats .bc-seat-name { font-size: 10.5px !important; white-space: nowrap; }
+body.kw-shell .bc-seats .bc-seat-acorns { font-size: 11px !important; }
+body.kw-shell .bc-seats .bc-seat-cards { gap: 3px !important; margin-top: 3px !important; }
+
+/* The tracker's direct child of .card-game is the wrapper, not .bc-tracker. */
+body.kw-shell .bc-tracker-wrap { order: 3; flex: 0 0 auto; }
+body.kw-shell .bc-tracker { flex-wrap: wrap; justify-content: center; }
+
+/* The decision you must make right now gets the room. */
+body.kw-shell .card-game.briar .bc-prompt {
+  order: 4; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  padding: 8px 2px !important;
+}
+body.kw-shell .card-game.briar .bc-prompt .cg-btn { min-height: 44px; }
+
+/* The Ledger is lovely and ate a third of the screen — show the latest line,
+   expand on tap. */
+/* Keyed on body, not the element: the Court re-renders on every state change,
+   which would otherwise collapse the Ledger under the player mid-read. */
+body.kw-shell .bc-log-scribe {
+  order: 5; flex: 0 0 auto; cursor: pointer;
+  max-height: 74px; overflow: hidden;
+}
+body.kw-shell.kw-led-open .bc-log-scribe { max-height: 40dvh; overflow-y: auto; }
+body.kw-shell:not(.kw-led-open) .bc-log-scribe .bc-log > div:not(:last-child) { display: none; }
+body.kw-shell .bc-log-head { font-size: 9px !important; }
+body.kw-shell .bc-log { font-size: 11.5px !important; }
+
+/* Your influence, pinned. */
+body.kw-shell .bc-you-seat {
+  order: 6; flex: 0 0 auto;
+  border-top: 1px solid rgba(192,160,80,.3);
+  padding: 7px 10px calc(8px + var(--kw-safe-b)) !important;
+}
+body.kw-shell .bc-you-seat .bc-hand { justify-content: center; gap: 8px; }
+body.kw-shell .bc-you-seat .bc-hand-card { width: 68px !important; }
+
 /* A full-screen overlay (tavern, fishing, combat) owns the view outright. */
 body.kw-shell.kw-overlay .kw-tabbar,
 body.kw-shell.kw-overlay .kw-fabs,

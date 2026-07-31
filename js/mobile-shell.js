@@ -351,6 +351,7 @@
     screen.appendChild(bar);
 
     wireIntegrations();
+    wireGameToggles();
     watchOverlays();
     applyStickVisibility();
   }
@@ -482,6 +483,33 @@
       wrapped._kwShell = true;
       window[name] = wrapped;
     });
+  }
+
+  /* Tavern-game affordances that the phone layout depends on. Both are
+     delegated, because these games re-render their whole subtree on every
+     state change. */
+  function wireGameToggles() {
+    document.addEventListener('click', function (e) {
+      if (!isMobile() || !e.target.closest) return;
+
+      // Squirrel: opponent chips collapse to save room, so a tap expands one to
+      // show that player's stash (which is public information anyway). Skipped
+      // when the row carries a targeting handler for the current phase — Fox's
+      // Dare and Magpie put an onclick on it, and that must win — and when the
+      // tap landed on a card, which has its own zoom handler.
+      var opp = e.target.closest('.sq-others .sq-player');
+      if (opp && !opp.hasAttribute('onclick') && !e.target.closest('.sq-card')) {
+        opp.classList.toggle('kw-open');
+        return;
+      }
+
+      // Briarwood Court: the Scribe's Ledger shows its latest line and expands
+      // on tap. The class goes on <body> so a re-render can't collapse it
+      // mid-read.
+      if (e.target.closest('.bc-log-scribe')) {
+        document.body.classList.toggle('kw-led-open');
+      }
+    }, false);
   }
 
   // Full-screen overlays (tavern, fishing, combat) must not have the tab bar
