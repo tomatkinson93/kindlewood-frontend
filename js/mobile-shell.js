@@ -92,7 +92,7 @@
     chat: 'Community', online: 'Community',
     feedback: 'You'
   };
-  var GROUP_ORDER = ['Adventure', 'Trade', 'Community', 'You', 'Other'];
+  var GROUP_ORDER = ['Places', 'Adventure', 'Trade', 'Community', 'You', 'Other'];
   var TAB_LABELS = { map: 1, battles: 1 };   // already on the tab bar
 
   // Extra destinations that aren't community-bar buttons. Each is skipped
@@ -101,6 +101,10 @@
   // Settlement and Scout are deliberately absent: Settlement is its own tab and
   // Scout is a floating map button, so listing them here would be duplication.
   var EXTRAS = [
+    // Places are otherwise only reachable by finding their tile on the map or
+    // going through the settlement panel.
+    { group: 'Places', label: 'Tavern',  glyph: '🍺', fn: function () { window.visitTavern(); },      needs: 'visitTavern' },
+    { group: 'Places', label: 'Fishing', glyph: '🎣', fn: function () { window.visitFishingPost(); }, needs: 'visitFishingPost' },
     { group: 'You',   label: 'Profile',    glyph: '👤', fn: function () { window.openProfile(); },           needs: 'openProfile' },
     { group: 'You',   label: 'Settings',   glyph: '⚙',       fn: function () { window.openSettingsPopover(); },   needs: 'openSettingsPopover' },
     { group: 'You',   label: 'Help',       glyph: '❓',       fn: function () { window.showCommunityTab('help'); },needs: 'showCommunityTab' }
@@ -483,9 +487,15 @@
   // Full-screen overlays (tavern, fishing, combat) must not have the tab bar
   // floating over them.
   function watchOverlays() {
-    // combat-modal is created on demand rather than living in index.html, so
-    // watch the body for it appearing as well as the static overlays' style.
-    var ids = ['tavern-overlay', 'fishing-overlay', 'combat-modal'];
+    // Anything that takes over the whole screen. The shell's tab bar, floating
+    // buttons and stick must not hover above these, and an open sheet must not
+    // be left behind them. Several are created on demand rather than living in
+    // index.html, so the body is watched for them appearing too.
+    var ids = [
+      'tavern-overlay', 'fishing-overlay', 'combat-modal',
+      'settlement-view', 'sq-backdrop', 'bcmp-backdrop'
+    ];
+    var wasOpen = false;
 
     var sync = function () {
       var open = ids.some(function (id) {
@@ -495,6 +505,10 @@
         return cs.display !== 'none' && cs.visibility !== 'hidden';
       });
       document.body.classList.toggle('kw-overlay', open);
+      // Opening one should dismiss whatever sheet launched it, so the game
+      // isn't sharing the screen with the More list.
+      if (open && !wasOpen) closeSheets();
+      wasOpen = open;
     };
 
     var attrMo = new MutationObserver(sync);

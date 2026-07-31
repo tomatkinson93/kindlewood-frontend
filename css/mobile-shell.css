@@ -451,11 +451,22 @@ body.kw-shell #combat-modal .cm-card {
   border-radius: 0 !important; border: none !important;
 }
 
-/* Arena keeps a share of the height; units scroll sideways instead of wrapping
-   into an overlapping pile. */
-body.kw-shell #combat-modal .cm-scene { min-height: 22dvh !important; }
+/* The standing-sprite layer is decorative and, at phone widths where the unit
+   cards sit ~100px apart, it lands on top of them — the floating faces over the
+   cards. Hidden here: the unit cards carry the same information and are
+   equally targetable (combatSelectTarget), so nothing becomes unreachable. */
+body.kw-shell #combat-modal .cm-sprites { display: none !important; }
+
+/* Arena takes the space left over and scrolls rather than overflowing past the
+   top of the modal, which is what pushed the unit cards off-screen in
+   landscape (the stage anchors its content to the bottom on desktop). */
+body.kw-shell #combat-modal .cm-scene {
+  min-height: 0 !important; flex: 1 1 auto !important;
+}
 body.kw-shell #combat-modal .cm-stage {
   grid-template-columns: 1fr !important;
+  align-items: start !important; align-content: start !important;
+  overflow-y: auto;
   gap: 6px !important; padding: 6px 8px 10px !important;
 }
 body.kw-shell #combat-modal .cm-vs { display: none !important; }
@@ -466,8 +477,11 @@ body.kw-shell #combat-modal .cm-side {
 }
 body.kw-shell #combat-modal .cm-side::-webkit-scrollbar { display: none; }
 body.kw-shell #combat-modal .cm-unit {
-  width: 104px !important; flex: 0 0 auto;
-  padding: 6px 6px 5px !important;
+  width: 96px !important; flex: 0 0 auto;
+  padding: 6px 6px 5px !important; font-size: 10px;
+}
+body.kw-shell #combat-modal .cm-portrait {
+  width: 30px !important; height: 30px !important; font-size: 14px !important;
 }
 
 /* Bottom bar: one stacked column instead of three fixed ones. */
@@ -520,6 +534,38 @@ body.kw-shell .card-game { max-width: 100% !important; }
 body.kw-shell.kw-overlay .kw-tabbar,
 body.kw-shell.kw-overlay .kw-fabs,
 body.kw-shell.kw-overlay .kw-stick { display: none; }
+
+/* ── Landscape phone: games ─────────────────────────────────────────────
+   ~412px of height has to hold an arena, the controls and a hand, so the
+   optional parts go and everything else shrinks. */
+@media (orientation: landscape) and (max-height: 560px) {
+  /* Combat */
+  body.kw-shell #combat-modal .cm-log-wrap { display: none !important; }
+  body.kw-shell #combat-modal .cm-unit { width: 84px !important; }
+  body.kw-shell #combat-modal .cm-portrait {
+    width: 24px !important; height: 24px !important; font-size: 12px !important;
+  }
+  body.kw-shell #combat-modal .kw-hand {
+    min-height: 96px !important; padding: 0 8px !important;
+  }
+  body.kw-shell #combat-modal .kw-card {
+    width: 62px !important; height: 90px !important; margin: 0 -12px !important;
+  }
+  body.kw-shell #combat-modal .kw-card-name { margin-top: 10px; font-size: 8.5px; }
+  body.kw-shell #combat-modal .kw-card-desc { display: none; }
+  body.kw-shell #combat-modal .cm-initiative { padding: 4px 10px 3px !important; }
+
+  /* Squirrel's Stash — the reveal card is sized for a tall screen. */
+  body.kw-shell .sq-reveal-card img { width: 96px !important; }
+  body.kw-shell .sq-reveal-label { font-size: 11px !important; padding: 3px 8px !important; }
+  body.kw-shell .sq-center { min-height: 110px !important; }
+  body.kw-shell .sq-hoard { height: 118px !important; }
+  body.kw-shell .sq-player { max-height: 84px !important; }
+
+  /* Card games need to scroll rather than run off the bottom. */
+  body.kw-shell .card-game { font-size: 12px; }
+  body.kw-shell .sq-table { overflow-y: auto !important; }
+}
 
 /* ── Landscape phone — height is the scarce axis, trim the chrome ──────── */
 @media (orientation: landscape) and (max-height: 540px) {
