@@ -2062,7 +2062,7 @@
 
 /* Narrow screens: shell shrinks; chat is now an overlay drawer (see P4 §6.1
    block near the end of the file), so no stacked-column layout is needed. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
   .bcmp-shell { height: 92vh; }
 }
 
@@ -2393,7 +2393,7 @@
 .lb-rank { color: var(--kw-muted); font-family: 'Playfair Display', serif; }
 .lb-name { font-weight: 600; }
 
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 560px) and (pointer: coarse) {
   .lb-body { flex-direction: column; }
   .lb-tabs { width: auto; display: flex; flex-wrap: wrap; gap: 4px; border-right: none; border-bottom: 1px solid var(--kw-border); }
   .lb-tab-group { margin-bottom: 6px; }
@@ -2890,7 +2890,7 @@
 
 /* Part 33 — Squirrel's Stash: MOBILE responsive layout
    (Briar has its own mobile rules; Squirrel needs its own or it overflows.) */
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
   .sq-backdrop { align-items: stretch; }
   .sq-shell {
     width: 100vw !important; height: 100vh !important;
@@ -3147,7 +3147,7 @@
 .sq-fact-who { color: var(--kw-cream); }
 .sq-end-actions { display: flex; gap: 10px; justify-content: center; }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
   .sq-choice-card img { width: 96px; }
   .sq-end-card { padding: 18px 16px; }
   .sq-end-title { font-size: 24px; }
@@ -3168,7 +3168,7 @@
   width: 70px; height: 4px; cursor: pointer;
   accent-color: var(--kw-gold);
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
   .kw-audio-slider { width: 52px; }
 }
 
@@ -4074,7 +4074,7 @@
 /* On narrow screens the drawer covers most of the table — that's fine, it's a
    temporary overlay the player dismisses. The old stacked layout no longer
    applies since the drawer is absolutely positioned. */
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 560px) and (pointer: coarse) {
   .bcmp-chat { width: 88vw; }
 }
 
