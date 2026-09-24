@@ -589,8 +589,12 @@
           const byKey = new Map((fresh.tiles || []).map(t => [t.q + ',' + t.r, t]));
           for (const t of w.tiles) {
             const f = byKey.get(t.q + ',' + t.r);
-            if (f) t.clan_territory = f.clan_territory || null;
+            if (!f) continue;
+            t.clan_territory = f.clan_territory || null;
+            // Nameplate clan tags ride on the settlement.
+            if (t.settlement && f.settlement) t.settlement.clan = f.settlement.clan || null;
           }
+          if (global.KWNameplates) global.KWNameplates.invalidate();
           const KW = global.KWMap;
           if (KW && KW.controller && KW.controller.invalidate) KW.controller.invalidate('tiles');
         } catch (_) { /* map refresh is best-effort */ }

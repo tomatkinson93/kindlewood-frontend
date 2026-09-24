@@ -252,6 +252,9 @@ window.KWMap = (() => {
         now,
       });
       this._renderUiFx(prep.W, prep.H, prep.dpr);
+      // Settlement nameplates (js/kwmap-nameplates.js) — additive, on top of
+      // the uifx strokes; renderers opt in by implementing labelAnchor().
+      if (window.KWNameplates && this._uifxCtx) window.KWNameplates.draw(this._uifxCtx, prep.W, prep.H, r, camera);
     },
 
     requestRender() {

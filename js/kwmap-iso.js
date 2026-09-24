@@ -328,6 +328,9 @@
   // Settlement / outpost token (disc + emoji), now a shadowed TALL drawable.
   function _drawSettlementToken(ctx, cx, cy, ctx3) {
     const { g, t } = ctx3;
+    // Tiered miniature (js/kwmap-settlements.js), footed just below the face
+    // centre so it sits on the tile; the disc token below is the fallback.
+    if (window.KWSettlements) { window.KWSettlements.draw(ctx, t, cx, cy + g.faceH * 0.22, g.hexW); return; }
     const s = t.settlement;
     const sType = s.settlement_type || (s.is_kingdom ? 'kingdom' : s.disposition === 'hostile' ? 'hostile' : (s.isOwn ? 'player' : 'npc'));
     let fill = 'rgba(60,90,150,0.9)', ring = 'rgba(255,210,120,0.95)', glyph = '🏘';
@@ -807,6 +810,13 @@
         if (cand && elevationOf(terrainAt(cand.wq, cand.wr)) >= e) return cand;
       }
       return baseInverse(px, py, g);       // flat/recessed ground plane
+    },
+
+    // Settlement footing on screen (lifted by elevation, matching where the
+    // settlement miniature is drawn) — nameplate anchoring.
+    labelAnchor(wq, wr, cam, W, H) {
+      const p = isoFirstVisibleCopy(wq, wr, W, H, true);
+      return p ? { x: p.cx, y: p.cy + p.faceH * 0.22, hexW: p.hexW } : null;
     },
 
     // Ground-plane tile centre (no elevation) — overlay/panel anchoring (§2.3).
