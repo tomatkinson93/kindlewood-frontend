@@ -114,6 +114,12 @@
       const s = tile.settlement;
       html += row('Settlement', `${esc(s.name || 'Settlement')}${s.username ? ' · @' + esc(s.username) : ''}${s.tier ? ' · ' + esc(s.tier) : ''}`);
     }
+    // Clan territory (spec 016 §6.5) — owner line + Claim action for ranks
+    // that may claim, on eligible tiles. Both helpers escape their input.
+    const CU = window.ClanUI;
+    if (CU && tile.clan_territory) html += row('Territory', CU.territoryLineHtml(tile));
+    const claimHtml = CU ? CU.claimButtonHtml(tile) : '';
+    if (claimHtml) html += `<div class="td-actions">${claimHtml}</div>`;
     html += `<div class="td-soon">More coming soon: citizens here, points of interest, resource breakdown &amp; fertility, water &amp; fish detail.</div>`;
     return html;
   }

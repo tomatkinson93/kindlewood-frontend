@@ -134,6 +134,12 @@
     ctx.lineTo(x, y + h * 0.25);
     ctx.closePath();
   }
+  // Endpoints of the face edge facing axial direction `dir` (0–5, the
+  // ClanTerritory.AXIAL_DIRS order). Same six vertices as isoHexPath, so an
+  // edge and the face outline can never disagree.
+  function isoHexEdge(x, y, w, h, dir) {
+    return window.ClanTerritory ? window.ClanTerritory.hexEdge(x, y, w, h, dir) : null;
+  }
   function skirtPath(ctx, x, y, w, h, skirtH) {
     // Front wall: lower-left → bottom → lower-right, extruded down by skirtH.
     const ll = [x, y + h * 0.75], bot = [x + w / 2, y + h], lr = [x + w, y + h * 0.75];
@@ -240,6 +246,9 @@
       if (t.outpost) c |= 64 | (t.outpost.mine ? 128 : 0);
       if (t.claimed_by_me) c |= 256;
       if (t.claim_owner) c |= 512;
+      // Clan territory (spec 016): owner + mine flag, so a claim refetch
+      // rebuilds the buffered ground.
+      if (t.clan_territory) c ^= (1024 | (t.clan_territory.mine ? 2048 : 0)) + t.clan_territory.clan_id * 4096;
       const tc = t.terrain ? t.terrain.charCodeAt(0) : 0;
       h = (h ^ (((t.q * 73856093) ^ (t.r * 19349663) ^ (c * 97 + tc)) >>> 0)) >>> 0;
       h = Math.imul(h, 16777619) >>> 0;
@@ -427,6 +436,30 @@
     },
   };
 
+  // clan-territory (spec 016 §6.5): banner-colour frontier on outer edges.
+  // Same layer as outpost claims and registered after them (the sort is
+  // stable), so the frontier paints over the outpost ring.
+  const clanTerritoryProvider = {
+    id: 'clan-territory', layer: L.CLAIM_BORDER, space: 'world',
+    collect(view, mapState) {
+      const out = [];
+      const CT = window.ClanTerritory;
+      if (!CT || !mapState || !mapState.tiles) return out;
+      const map = tileMapFor(mapState);
+      const lookup = (q, r) => map.get(q + ',' + r);
+      for (const t of mapState.tiles) {
+        if (!t || !t.clan_territory || t.terrain === 'fog') continue;
+        out.push({ wq: t.q, wr: t.r, layer: L.CLAIM_BORDER, heightPx: 0, t,
+                   edges: CT.territoryEdges(t.q, t.r, lookup) });
+      }
+      return out;
+    },
+    draw(ctx, x, y, ctx3) {
+      const { t, g, d } = ctx3;
+      window.ClanTerritory.drawTerritory(ctx, x, y, g.hexW, g.faceH, t.clan_territory, d.edges, isoHexPath);
+    },
+  };
+
   // ── Built-in TALL providers (spec §3.1) — depth-sorted into the TALL buffer.
   // terrain-features: the terrain's tall body (canopy / massif / hill relief).
   const terrainFeaturesProvider = {
@@ -478,6 +511,7 @@
   // consumes controller.listProviders() filtered to the ground / tall groups.
   KW.controller.register(terrainProvider);
   KW.controller.register(claimsProvider);
+  KW.controller.register(clanTerritoryProvider);
   KW.controller.register(terrainFeaturesProvider);
   KW.controller.register(settlementsProvider);
   KW.controller.register(outpostsProvider);

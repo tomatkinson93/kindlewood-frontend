@@ -114,7 +114,7 @@
   // Clan-channel events (clan:<id>) — all notify-then-fetch.
   ['clan_prestige', 'clan_level_up', 'clan_member_joined', 'clan_member_left',
    'clan_member_kicked', 'clan_rank_changed', 'clan_profile_updated',
-   'clan_leadership_transferred'].forEach(type => {
+   'clan_leadership_transferred', 'clan_territory_claimed'].forEach(type => {
     HANDLERS[type] = ev => { if (global.ClanUI) global.ClanUI.onClanEvent(ev); };
   });
 

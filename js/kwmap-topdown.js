@@ -661,6 +661,16 @@ KWMap.controller.registerRenderer('topdown', {
       ctx.restore();
     }
 
+    // Clan territory (spec 016 §6.5) — banner-colour frontier on the outer
+    // edges, drawn after the outpost ring so it reads on top. Same stroke as
+    // the iso renderer (ClanTerritory.drawTerritory). When top-down joins the
+    // provider registry this moves into the shared provider unchanged.
+    if (!isFog && t && t.clan_territory && window.ClanTerritory) {
+      const lookup = (q, r) => tileMap[`${q},${r}`];
+      window.ClanTerritory.drawTerritory(ctx, x, y, hexW, hexH, t.clan_territory,
+        window.ClanTerritory.territoryEdges(wq, wr, lookup), _hexPathLT);
+    }
+
     if (isHome) {
       _hexPathLT(ctx, x, y, hexW, hexH);
       ctx.strokeStyle = 'rgba(255,210,120,0.9)';
