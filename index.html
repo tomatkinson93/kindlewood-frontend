@@ -31,7 +31,7 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=shell3">
+  <link rel="stylesheet" href="/css/main.css?v=tierfix1">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
@@ -790,7 +790,7 @@
   <script defer src="/js/expeditions.js"></script>
   <script defer src="/js/seasons.js?v=3"></script>
   <script defer src="/js/season-atmosphere.js?v=1"></script>
-  <script defer src="/js/tier.js"></script>
+  <script defer src="/js/tier.js?v=tierfix1"></script>
   <script defer src="/js/profile.js?v=2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
@@ -1260,6 +1260,18 @@
       <div class="community-card-body" id="community-body">
         <div class="community-placeholder">Coming soon — this is where realm-wide news, notices and chat will live.</div>
       </div>
+    </div>
+  </div>
+  <!-- TIER UPGRADE MODAL — opened by the settlement panel's Upgrade button
+       (openTierUpgradeModal in js/tier.js, which fills #tier-upgrade-modal-body). -->
+  <div class="tier-upgrade-modal-backdrop" id="tier-upgrade-modal" style="display:none"
+       onclick="if (event.target === this) closeTierUpgradeModal()">
+    <div class="tier-upgrade-modal-card" role="dialog" aria-modal="true" aria-label="Settlement upgrade">
+      <div class="tier-upgrade-modal-header">
+        <span>Settlement Upgrade</span>
+        <button class="tier-upgrade-modal-close" type="button" onclick="closeTierUpgradeModal()" aria-label="Close">✕</button>
+      </div>
+      <div id="tier-upgrade-modal-body"></div>
     </div>
   </div>
   <!-- TIER CELEBRATION MODAL -->
