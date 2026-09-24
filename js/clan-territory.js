@@ -92,13 +92,25 @@
 
   // ── Territory emblem ──────────────────────────────────────────────────
   // One emblem per connected patch of a clan's (visible) land, centred on
-  // the patch and sized to it, clipped to its tiles.
+  // the patch's "heart" — the tile furthest from any non-clan tile — and
+  // sized to the ring of the clan's own land around it. Tiles belong to one
+  // clan only, so emblems of neighbouring clans can never overlap, and none
+  // needs cropping.
 
-  // Groups visible clan tiles into connected patches. Positions are
-  // unwrapped axial offsets from the patch's anchor — the tile nearest the
-  // patch centroid — so a patch straddling the wrap seam stays contiguous.
+  // Hex distance on the wrapped map (axial).
+  function hexDistanceWrapped(q1, r1, q2, r2) {
+    const W = mapW(), H = mapH();
+    let best = Infinity;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const dq = q1 - (q2 + a * W), dr = r1 - (r2 + b * H);
+      best = Math.min(best, (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2);
+    }
+    return best;
+  }
+
   // Cached per tiles array, keyed by a signature of which clan owns which
-  // tile — claims update tiles in place, so identity alone would go stale.
+  // tile and how it looks — claims and banner edits update tiles in place,
+  // so identity alone would go stale.
   const _groupCache = new WeakMap();
   // Hash of a clan's look (emblem + colours), so a banner edit also counts
   // as a change for caches and the iso ground buffer.
@@ -117,6 +129,12 @@
     }
     return h;
   }
+
+  // Groups visible clan tiles into connected patches (wrap-aware BFS).
+  // Each tile's depth = steps to the nearest tile outside the patch (edge
+  // tiles are 1; fogged neighbours count as outside). The heart is the
+  // deepest tile, ties broken toward the patch centroid. Tile offsets are
+  // unwrapped axial deltas from the heart.
   function territoryGroups(tiles) {
     if (!tiles) return [];
     const sig = territorySig(tiles);
@@ -125,83 +143,82 @@
     const W = mapW(), H = mapH();
     const byKey = new Map();
     for (const t of tiles) if (t && t.clan_territory && t.terrain !== 'fog') byKey.set(t.q + ',' + t.r, t);
+    const nbKeys = t => AXIAL_DIRS.map(([a, b]) => wrap(t.q + a, W) + ',' + wrap(t.r + b, H));
     const seen = new Set(), groups = [];
     for (const [key, start] of byKey) {
       if (seen.has(key)) continue;
       const clanId = start.clan_territory.clan_id;
-      const members = [{ t: start, dq: 0, dr: 0 }];
+      const members = [{ t: start, key, dq: 0, dr: 0, depth: 0 }];
       seen.add(key);
       for (let i = 0; i < members.length; i++) {
         const m = members[i];
-        for (const [a, b] of AXIAL_DIRS) {
+        AXIAL_DIRS.forEach(([a, b]) => {
           const k = wrap(m.t.q + a, W) + ',' + wrap(m.t.r + b, H);
           const nb = byKey.get(k);
-          if (!nb || seen.has(k) || nb.clan_territory.clan_id !== clanId) continue;
+          if (!nb || seen.has(k) || nb.clan_territory.clan_id !== clanId) return;
           seen.add(k);
-          members.push({ t: nb, dq: m.dq + a, dr: m.dr + b });
+          members.push({ t: nb, key: k, dq: m.dq + a, dr: m.dr + b, depth: 0 });
+        });
+      }
+      // Depth: multi-source BFS inward from the edge tiles.
+      const inPatch = new Map(members.map(m => [m.key, m]));
+      const queue = [];
+      for (const m of members) {
+        if (nbKeys(m.t).some(k => !inPatch.has(k))) { m.depth = 1; queue.push(m); }
+      }
+      for (let i = 0; i < queue.length; i++) {
+        for (const k of nbKeys(queue[i].t)) {
+          const n = inPatch.get(k);
+          if (n && !n.depth) { n.depth = queue[i].depth + 1; queue.push(n); }
         }
       }
-      // Centroid in screen-proportional space (x ∝ q + r/2, y ∝ r·0.866).
+      // Heart: deepest tile, nearest the centroid on ties.
       let sx = 0, sy = 0;
       for (const m of members) { sx += m.dq + m.dr / 2; sy += m.dr; }
       sx /= members.length; sy /= members.length;
-      let anchor = members[0], best = Infinity;
+      let heart = members[0], bestD = -1, bestC = Infinity;
       for (const m of members) {
-        const d = Math.hypot(m.dq + m.dr / 2 - sx, (m.dr - sy) * 0.866);
-        if (d < best) { best = d; anchor = m; }
+        const c = Math.hypot(m.dq + m.dr / 2 - sx, (m.dr - sy) * 0.866);
+        if (m.depth > bestD || (m.depth === bestD && c < bestC)) { heart = m; bestD = m.depth; bestC = c; }
       }
-      // Emblem centre: the centroid if it lies on the land, else the anchor.
-      const onLand = best <= 0.6;
       groups.push({
         clan: start.clan_territory,
-        anchor: anchor.t,
-        tiles: members.map(m => ({ t: m.t, dq: m.dq - anchor.dq, dr: m.dr - anchor.dr })),
-        centre: onLand
-          ? { x: sx - (anchor.dq + anchor.dr / 2), y: sy - anchor.dr }   // in (q + r/2, r) units
-          : { x: 0, y: 0 },
+        anchor: heart.t,
+        depth: Math.max(1, heart.depth),
+        tiles: members.map(m => ({ t: m.t, dq: m.dq - heart.dq, dr: m.dr - heart.dr })),
       });
     }
     _groupCache.set(tiles, { sig, groups });
     return groups;
   }
 
-  // Draws a patch's emblem, sized to fit the patch's extent so it reads as
-  // one mark across the land rather than a glyph cropped by tile edges.
-  // `place(dq, dr)` → { x, y } face top-left of the tile at that offset from
-  // the anchor; w/h = face size; hexVert = row step in the renderer's y
-  // units; squash (iso) lays the glyph flat on the ground.
+  // Draws a patch's emblem on its heart tile. The clan's own land extends
+  // depth − 1 rings around the heart, so an emblem spanning 2·depth − 1
+  // tiles stays on it. `place(dq, dr)` → { x, y } face top-left of the tile
+  // at that offset from the heart; w/h = face size; hexVert is unused but
+  // kept for the renderers' call shape; squash (iso) lays it flat.
   function drawEmblem(ctx, group, place, w, h, hexVert, squash) {
     const glyph = group.clan.glyph;
     if (!glyph) return;
     const k = squash || 1;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const m of group.tiles) {
-      const x = m.dq + m.dr / 2, y = m.dr;
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }
-    const spanW = (maxX - minX) * w + w;            // patch extent in px
-    const spanH = (maxY - minY) * hexVert + h;
-    const n = group.tiles.length;
-    // Fit inside the patch (the glyph's drawn height is size·k), grow gently
-    // with tile count, and cap so huge territories stay tasteful.
-    const size = Math.min(spanW * 0.8, (spanH / k) * 0.8, w * (0.8 + 0.45 * Math.sqrt(n)), w * 3.6);
+    const span = 2 * group.depth - 1;                 // tiles across
+    const size = Math.min(w * 0.8 * span, w * 4.5);
     const a = place(0, 0);
-    const cx = a.x + w / 2 + group.centre.x * w;
-    const cy = a.y + h / 2 + group.centre.y * hexVert;
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.translate(a.x + w / 2, a.y + h / 2);
     ctx.scale(1, k);
     ctx.font = `${Math.round(size)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.globalAlpha = 0.42;
-    ctx.shadowColor = rgba(group.clan.primary, 0.9);
-    ctx.shadowBlur = size * 0.12;
+    // A crisp dark halo keeps small emblems legible (a banner-colour glow
+    // could swamp them into a blob).
+    ctx.globalAlpha = 0.55;
+    ctx.shadowColor = 'rgba(20,14,8,0.55)';
+    ctx.shadowBlur = Math.max(2, size * 0.05);
     ctx.fillText(glyph, 0, 0);
     ctx.restore();
   }
 
   global.ClanTerritory = { AXIAL_DIRS, HEX_VERTS, DIR_EDGE, territoryEdges, hexEdge, drawTerritory,
-                           territoryGroups, drawEmblem, bannerHash };
+                           territoryGroups, drawEmblem, bannerHash, hexDistanceWrapped };
 })(typeof window !== 'undefined' ? window : globalThis);

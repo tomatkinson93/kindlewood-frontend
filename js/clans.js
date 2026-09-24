@@ -467,6 +467,9 @@
               : `Next claim costs <b>${t.next_cost}</b> prestige · clan has ${Number(c.prestige).toLocaleString()}.`}</div>
           </div>
         </div>
+        <p class="clan-muted">Reach: tiles within <b>${t.radius ?? '—'}</b> of your clan hall${
+          P().levelRow(c.level + 1) && P().claimRadius(c.level + 1) > (t.radius ?? 0)
+            ? ` · level ${c.level + 1} extends it to ${P().claimRadius(c.level + 1)}` : ''}. Territory grows outward from the hall, so it stays compact.</p>
         <p class="clan-muted">${can('claim_territory')
           ? 'To claim, tap an explored tile that borders your land, open it with 🔍, and choose <b>Claim</b>.'
           : 'Officers and above can claim tiles that border your land.'}
@@ -509,6 +512,16 @@
     if (!adjacent) return null;
     const base = { cost: t.next_cost, clanName: d.clan.name };
     if (t.count >= t.cap) return { ...base, ok: false, reason: `Your clan is at its ${t.cap}-tile limit — level up to claim more.` };
+    // Reach: within the level's radius of the clan hall (HQ tile).
+    if (t.hq && t.radius != null && CT && CT.hexDistanceWrapped) {
+      const dist = CT.hexDistanceWrapped(tile.q, tile.r, t.hq.q, t.hq.r);
+      if (dist > t.radius) {
+        const need = P().levelForRadius(dist);
+        return { ...base, ok: false, reason: need
+          ? `Beyond your clan's reach: ${dist} tiles from the hall, level ${d.clan.level} reaches ${t.radius}. Level ${need} reaches it.`
+          : `Beyond any clan's reach (${dist} tiles from the hall).` };
+      }
+    }
     if (d.clan.prestige < t.next_cost) {
       return { ...base, ok: false, reason: `Needs ${t.next_cost} prestige; your clan has ${Number(d.clan.prestige).toLocaleString()}.` };
     }
