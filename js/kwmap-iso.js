@@ -460,6 +460,32 @@
     },
   };
 
+  // clan-emblem: one emblem per connected patch of clan land, laid flat on
+  // the ground (squashed by ISO.K) and clipped to the patch's lifted faces.
+  // Anchored on the patch tile nearest its centroid, so it draws whenever
+  // that tile is in the ground buffer. Registered before clan-territory so
+  // the frontier strokes sit on top.
+  const clanEmblemProvider = {
+    id: 'clan-emblem', layer: L.CLAIM_BORDER, space: 'world',
+    collect(view, mapState) {
+      const CT = window.ClanTerritory;
+      if (!CT || !mapState || !mapState.tiles) return [];
+      return CT.territoryGroups(mapState.tiles).map(grp =>
+        ({ wq: grp.anchor.q, wr: grp.anchor.r, layer: L.CLAIM_BORDER, heightPx: 0, t: grp.anchor, grp }));
+    },
+    draw(ctx, x, y, ctx3) {
+      const { g, d } = ctx3;
+      const grp = d.grp, base = elevationOf(grp.anchor.terrain);
+      const elev = new Map(grp.tiles.map(m => [m.dq + ',' + m.dr, elevationOf(m.t.terrain)]));
+      const rowStep = g.hexVert * ISO.K;
+      const place = (dq, dr) => ({
+        x: x + g.hexW * (dq + dr / 2),
+        y: y + rowStep * dr - ((elev.get(dq + ',' + dr) ?? base) - base) * ISO.ELEV_PX,
+      });
+      window.ClanTerritory.drawEmblem(ctx, grp, place, g.hexW, g.faceH, rowStep, ISO.K);
+    },
+  };
+
   // ── Built-in TALL providers (spec §3.1) — depth-sorted into the TALL buffer.
   // terrain-features: the terrain's tall body (canopy / massif / hill relief).
   const terrainFeaturesProvider = {
@@ -511,6 +537,7 @@
   // consumes controller.listProviders() filtered to the ground / tall groups.
   KW.controller.register(terrainProvider);
   KW.controller.register(claimsProvider);
+  KW.controller.register(clanEmblemProvider);
   KW.controller.register(clanTerritoryProvider);
   KW.controller.register(terrainFeaturesProvider);
   KW.controller.register(settlementsProvider);

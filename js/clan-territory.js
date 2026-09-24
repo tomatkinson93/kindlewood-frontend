@@ -59,8 +59,8 @@
   // `pathFn(ctx, x, y, w, h)` traces the renderer's hex face; everything is
   // clipped to it so strokes never bleed onto the neighbour — which also
   // hides the outer half of each stroke, so widths below are doubled: the
-  // visible band is ~3px of primary over a faint dark underlay (reads on
-  // dark forest and pale grass alike) with a 1.5px secondary hairline.
+  // visible band is ~5px of primary over a faint dark underlay (reads on
+  // dark forest and pale grass alike) with a 2px secondary hairline.
   function drawTerritory(ctx, x, y, w, h, ct, edges, pathFn) {
     ctx.save();
     pathFn(ctx, x, y, w, h);
@@ -78,17 +78,119 @@
       };
       for (const dir of edges) {
         const [p, q] = hexEdge(x, y, w, h, dir);
-        stroke(p, q, 'rgba(20,14,8,0.35)', 9);
-        stroke(p, q, rgba(ct.primary, 0.95), 6);
-        // Hairline: the same edge moved ~4.5px toward the centre.
+        stroke(p, q, 'rgba(20,14,8,0.38)', 14);
+        stroke(p, q, rgba(ct.primary, 0.95), 10);
+        // Hairline: the same edge moved ~7px toward the centre.
         const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
         const len = Math.hypot(cx - mx, cy - my) || 1;
-        const ox = (cx - mx) / len * 4.5, oy = (cy - my) / len * 4.5;
-        stroke([p[0] + ox, p[1] + oy], [q[0] + ox, q[1] + oy], rgba(ct.secondary, 0.9), 1.5);
+        const ox = (cx - mx) / len * 7, oy = (cy - my) / len * 7;
+        stroke([p[0] + ox, p[1] + oy], [q[0] + ox, q[1] + oy], rgba(ct.secondary, 0.95), 2);
       }
     }
     ctx.restore();
   }
 
-  global.ClanTerritory = { AXIAL_DIRS, HEX_VERTS, DIR_EDGE, territoryEdges, hexEdge, drawTerritory };
+  // ── Territory emblem ──────────────────────────────────────────────────
+  // One emblem per connected patch of a clan's (visible) land, centred on
+  // the patch and sized to it, clipped to its tiles.
+
+  // Groups visible clan tiles into connected patches. Positions are
+  // unwrapped axial offsets from the patch's anchor — the tile nearest the
+  // patch centroid — so a patch straddling the wrap seam stays contiguous.
+  // Cached per tiles array, keyed by a signature of which clan owns which
+  // tile — claims update tiles in place, so identity alone would go stale.
+  const _groupCache = new WeakMap();
+  function territorySig(tiles) {
+    let h = 2166136261 >>> 0;
+    for (const t of tiles) {
+      const ct = t && t.terrain !== 'fog' && t.clan_territory;
+      if (!ct) continue;
+      h = Math.imul(h ^ ((t.q * 73856093) ^ (t.r * 19349663) ^ (ct.clan_id * 83492791)), 16777619) >>> 0;
+    }
+    return h;
+  }
+  function territoryGroups(tiles) {
+    if (!tiles) return [];
+    const sig = territorySig(tiles);
+    const hit = _groupCache.get(tiles);
+    if (hit && hit.sig === sig) return hit.groups;
+    const W = mapW(), H = mapH();
+    const byKey = new Map();
+    for (const t of tiles) if (t && t.clan_territory && t.terrain !== 'fog') byKey.set(t.q + ',' + t.r, t);
+    const seen = new Set(), groups = [];
+    for (const [key, start] of byKey) {
+      if (seen.has(key)) continue;
+      const clanId = start.clan_territory.clan_id;
+      const members = [{ t: start, dq: 0, dr: 0 }];
+      seen.add(key);
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i];
+        for (const [a, b] of AXIAL_DIRS) {
+          const k = wrap(m.t.q + a, W) + ',' + wrap(m.t.r + b, H);
+          const nb = byKey.get(k);
+          if (!nb || seen.has(k) || nb.clan_territory.clan_id !== clanId) continue;
+          seen.add(k);
+          members.push({ t: nb, dq: m.dq + a, dr: m.dr + b });
+        }
+      }
+      // Centroid in screen-proportional space (x ∝ q + r/2, y ∝ r·0.866).
+      let sx = 0, sy = 0;
+      for (const m of members) { sx += m.dq + m.dr / 2; sy += m.dr; }
+      sx /= members.length; sy /= members.length;
+      let anchor = members[0], best = Infinity;
+      for (const m of members) {
+        const d = Math.hypot(m.dq + m.dr / 2 - sx, (m.dr - sy) * 0.866);
+        if (d < best) { best = d; anchor = m; }
+      }
+      // Emblem centre: the centroid if it lies on the land, else the anchor.
+      const onLand = best <= 0.6;
+      groups.push({
+        clan: start.clan_territory,
+        anchor: anchor.t,
+        tiles: members.map(m => ({ t: m.t, dq: m.dq - anchor.dq, dr: m.dr - anchor.dr })),
+        centre: onLand
+          ? { x: sx - (anchor.dq + anchor.dr / 2), y: sy - anchor.dr }   // in (q + r/2, r) units
+          : { x: 0, y: 0 },
+      });
+    }
+    _groupCache.set(tiles, { sig, groups });
+    return groups;
+  }
+
+  // Draws a patch's emblem. `place(dq, dr)` → { x, y } face top-left of the
+  // tile at that offset from the anchor; w/h = face size; hexVert = row step
+  // in the renderer's y units; squash (iso) lays the glyph flat on the ground.
+  function drawEmblem(ctx, group, place, w, h, hexVert, squash) {
+    const glyph = group.clan.glyph;
+    if (!glyph) return;
+    ctx.save();
+    ctx.beginPath();
+    for (const m of group.tiles) {
+      const p = place(m.dq, m.dr);
+      HEX_VERTS.forEach(([fx, fy], i) => {
+        const vx = p.x + fx * w, vy = p.y + fy * h;
+        if (i) ctx.lineTo(vx, vy); else ctx.moveTo(vx, vy);
+      });
+      ctx.closePath();
+    }
+    ctx.clip();
+    const a = place(0, 0);
+    const cx = a.x + w / 2 + group.centre.x * w;
+    const cy = a.y + h / 2 + group.centre.y * hexVert;
+    const n = group.tiles.length;
+    const size = w * Math.min(3.6, 0.5 + 0.5 * Math.sqrt(n));
+    ctx.translate(cx, cy);
+    ctx.scale(1, squash || 1);
+    ctx.font = `${Math.round(size)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.34;
+    ctx.shadowColor = rgba(group.clan.primary, 0.9);
+    ctx.shadowBlur = size * 0.12;
+    ctx.fillText(glyph, 0, 0);
+    ctx.restore();
+  }
+
+  global.ClanTerritory = { AXIAL_DIRS, HEX_VERTS, DIR_EDGE, territoryEdges, hexEdge, drawTerritory,
+                           territoryGroups, drawEmblem };
 })(typeof window !== 'undefined' ? window : globalThis);

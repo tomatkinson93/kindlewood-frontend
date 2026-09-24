@@ -679,6 +679,21 @@ KWMap.controller.registerRenderer('topdown', {
     }
   }
 
+  // ── Pass 2b: clan emblems (spec 016) — one per connected patch of clan
+  // land, clipped to the patch; drawn under settlements. Positioned from any
+  // on-screen tile of the patch, so it survives the anchor scrolling away.
+  if (window.ClanTerritory) {
+    const visPos = new Map(visibleTiles.map(v => [v.wq + ',' + v.wr, v]));
+    for (const grp of window.ClanTerritory.territoryGroups(data.tiles)) {
+      const m = grp.tiles.find(x => visPos.has(x.t.q + ',' + x.t.r));
+      if (!m) continue;
+      const v = visPos.get(m.t.q + ',' + m.t.r);
+      const ax = v.x - hexW * (m.dq + m.dr / 2), ay = v.y - hexVert * m.dr;
+      window.ClanTerritory.drawEmblem(ctx, grp,
+        (dq, dr) => ({ x: ax + hexW * (dq + dr / 2), y: ay + hexVert * dr }), hexW, hexH, hexVert, 1);
+    }
+  }
+
   // ── Pass 3: settlement rendering ──────────────────────────────────────
   for (const { wq, wr, x, y, t } of visibleTiles) {
     if (!t?.settlement) continue;
