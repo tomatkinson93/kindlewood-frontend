@@ -175,6 +175,7 @@
       case 'invite_sent':            return ['✉️', `${who} invited ${name}.`];
       case 'profile_updated':        return ['🖌️', `${who} updated the clan banner and description.`];
       case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
+      case 'prestige_adjusted':      return ['🛠️', `${who} ${p.amount > 0 ? 'added' : 'removed'} <b>${esc(Math.abs(p.amount))}</b> prestige <span class="clan-muted">(Dev Tools)</span>.`];
       case 'prestige_earned':        return ['✦', `${who} earned <b>${esc(p.amount)}</b> prestige from ${esc(SOURCE_LABEL[p.source] || p.source)}${
         p.amount < p.raw ? ` <span class="clan-muted">(daily cap: ${esc(p.raw)} earned)</span>` : ''}.`];
       default:                       return ['·', esc(a.type)];
@@ -794,6 +795,25 @@
     }
   });
 
+  // Dev Tools: add (+) or remove (−) prestige for your own clan.
+  async function cheatClanPrestige(amount) {
+    const fb = document.getElementById('cheat-clan-prestige-feedback');
+    if (!Number.isFinite(amount) || !amount) { if (fb) fb.textContent = '⚠ Enter a non-zero amount.'; return; }
+    try {
+      const d = await call('POST', '/api/clans/cheat/prestige', { amount });
+      const msg = `✓ ${amount > 0 ? '+' : ''}${amount} → ${d.prestige.toLocaleString()} spendable · ${d.prestige_lifetime.toLocaleString()} lifetime · level ${d.level}`;
+      if (fb) fb.textContent = msg;
+      // One toast slot: announce the level-up here rather than letting this
+      // toast overwrite the clan_level_up one.
+      toast(d.leveledTo ? `🎉 Your clan reached level ${d.leveledTo}!`
+        : `🛡️ Clan prestige ${amount > 0 ? '+' : ''}${amount}`, 'success');
+      await refreshClanBadge();   // keeps cached clan data (Claim costs etc.) current
+    } catch (e) {
+      if (fb) fb.textContent = '⚠ ' + e.message;
+    }
+  }
+
+  global.cheatClanPrestige = cheatClanPrestige;
   global.openClanPanel = openClanPanel;
   global.closeClanPanel = closeClanPanel;
   global.refreshClanBadge = refreshClanBadge;

@@ -833,7 +833,7 @@
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
   <script defer src="/js/clan-palette.js?v=clan1"></script>
-  <script defer src="/js/clans.js?v=clan4"></script>
+  <script defer src="/js/clans.js?v=clan7"></script>
   <script defer src="/js/realtime.js?v=clan4"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
@@ -951,6 +951,20 @@
         <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(50000)">▲ +50k All (tier test)</button>
+
+        <div class="cheat-section-label" style="margin-top:14px">Clan Prestige <span style="opacity:.6;font-weight:400">(your clan)</span></div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(100)">🛡️ +100</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(500)">🛡️ +500</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(5000)">🛡️ +5,000</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(-100)">🛡️ −100</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(-1000)">🛡️ −1,000</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input type="number" id="cheat-clan-prestige" placeholder="e.g. 3500 or -250" class="cheat-citizen-sel" style="flex:1">
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(parseInt(document.getElementById('cheat-clan-prestige').value, 10))">Apply</button>
+        </div>
+        <div class="cheat-rel-feedback" id="cheat-clan-prestige-feedback">Adding raises lifetime prestige too (can level the clan up); removing only lowers the spendable balance.</div>
       </div>
 
       <!-- ── TAB: Citizens ── -->
