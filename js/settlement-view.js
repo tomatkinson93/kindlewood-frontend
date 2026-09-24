@@ -23,18 +23,26 @@ const SV_BIOMES = {
   mountain: ['sky', 'mtn-near', 'hills', 'foliage-fg'],
 };
 
-// ── Area building groups (used so any slot accepts any area building) ─────────
-const SV_AREA_BUILDINGS = {
-  town:      ['tavern', 'market', 'granary'],
-  outskirts: ['forager_hut', 'farm', 'lumber_camp', 'fishing_post', 'scout_post'],
-};
+// ── Buildable ids ─────────────────────────────────────────────────────────────
+// Any building can go in any building slot. The list comes from the server's
+// building data, so new buildings appear without a change here; housing is
+// managed through the Neighbourhood slot instead.
+function _svSlotBuildingIds() {
+  return _svBuildings
+    .filter(function(b) { return b.id !== 'housing' && b.id !== 'starter_house'; })
+    .map(function(b) { return b.id; });
+}
 
 // ── Slot definitions ──────────────────────────────────────────────────────────
+// `accepts` is the slot's default building: a building built outside this view
+// (e.g. from the sidebar) is shown here if it isn't placed anywhere else. It
+// does not restrict what can be built in the slot.
 const SV_SLOTS = [
   { id:'town-granary',       area:'town',      x:8,   y:74, accepts:['granary'],      label:'West Quarter',  size:'md' },
   { id:'town-tavern',        area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Town Centre',   size:'md' },
   { id:'town-market',        area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Row',    size:'md' },
   { id:'town-neighbourhood', area:'town',      x:67,  y:73, type:'neighbourhood',      label:'Neighbourhood', size:'md' },
+  { id:'town-guildhall',     area:'town',      x:86,  y:69, accepts:['guild_hall'],    label:'Guild Row',     size:'md' },
   { id:'out-forager',        area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',   size:'md' },
   { id:'out-farm',           area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',   size:'md' },
   { id:'out-lumber',         area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
@@ -53,8 +61,14 @@ const SV_VISUALS = {
   lumber_camp:   { emoji:'\u{1FA93}', bodyColor:'#6b4020', roofColor:'#4a2c10', flavor:'Axes ring through the morning pines.' },
   fishing_post:  { emoji:'\u{1F3A3}', bodyColor:'#3a6080', roofColor:'#284860', flavor:'A patient dock above the quiet water.' },
   forager_hut:   { emoji:'\u{1F344}', bodyColor:'#607850', roofColor:'#485a38', flavor:'Into the woodland, lantern in hand.' },
+  guild_hall:    { emoji:'🏛️',        bodyColor:'#6a4c7d', roofColor:'#3b3f6b', flavor:'Banners hang over the long tables.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
+
+// A building can be started when its building requirements and its minimum
+// settlement tier are both met. tierMet is absent on older servers → met.
+function _svCanBuild(b) { return !!b && b.requiresMet && b.tierMet !== false; }
+function _svTierLabel(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; }
 
 // ── Slot assignments (persisted to localStorage) ──────────────────────────────
 const _SV_ASSIGN_KEY = 'sv_slot_assignments';
@@ -202,6 +216,9 @@ function _injectSvStyles() {
 
 .sv-fg-layer { transition: opacity 0.45s ease; }
 .sv-area-hidden { opacity: 0 !important; pointer-events: none !important; }
+/* Slots opt back in with pointer-events:auto, so the hidden area's slots must be
+   switched off explicitly or they steal clicks from visible slots beneath them. */
+.sv-area-hidden * { pointer-events: none !important; }
 
 /* Slots re-enable pointer events within the passthrough fg layer */
 .sv-slot { position: absolute; transform: translate(-50%,-50%); cursor: pointer; z-index: 2; pointer-events: auto; }
@@ -629,16 +646,16 @@ function _renderScene() {
         el.appendChild(_buildOccupiedEl(slot, occupant));
         if (!_svEditMode) (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
       } else {
-        var areaBuildings = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
+        var areaBuildings = _svSlotBuildingIds();
         var taken = Object.values(_svGetAssignments());
         var unbuildable = areaBuildings.filter(function(id) { return !taken.includes(id); });
         var anyAvail = unbuildable.some(function(id) {
           var b = _svBuildings.find(function(b) { return b.id === id; });
-          return b && b.currentLevel === 0 && b.requiresMet;
+          return b && b.currentLevel === 0 && _svCanBuild(b);
         });
         var allLocked = unbuildable.length === 0 || unbuildable.every(function(id) {
           var b = _svBuildings.find(function(b) { return b.id === id; });
-          return !b || !b.requiresMet;
+          return !b || !_svCanBuild(b);
         });
         el.appendChild(_buildEmptyEl(slot, anyAvail, allLocked));
         if (!_svEditMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
@@ -662,6 +679,11 @@ function _occupantFor(slot) {
     var b = _svBuildings.find(function(b) { return b.id === bid && b.currentLevel > 0; });
     if (b) return b;
     _svClearAssignment(bid); // stale — building was demolished elsewhere
+  } else if (slot.accepts && slot.accepts.length === 1) {
+    var own = slot.accepts[0];
+    var placed = Object.values(assignments).indexOf(own) !== -1;
+    var built = _svBuildings.find(function(b) { return b.id === own && b.currentLevel > 0; });
+    if (built && !placed) { _svSetAssignment(slot.id, own); return built; }
   }
   return null;
 }
@@ -985,9 +1007,12 @@ function _openBuildPanel(slot, occupant) {
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div><div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
+      + (occupant.id === 'guild_hall' && typeof openClanPanel === 'function'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openClanPanel()">🛡️ Open Clan</button>'
+        : '')
       + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
   } else {
-    var areaIds = SV_AREA_BUILDINGS[slot.area] || slot.accepts;
+    var areaIds = _svSlotBuildingIds();
     var taken = Object.values(_svGetAssignments()); // already placed in other slots
     var opts = areaIds.filter(function(id) { return !taken.includes(id); }).map(function(id) {
       var b   = _svBuildings.find(function(b) { return b.id === id; });
@@ -996,17 +1021,20 @@ function _openBuildPanel(slot, occupant) {
       var costStr = b.cost
         ? Object.entries(b.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ')
         : 'Free';
-      if (b.requiresMet && b.currentLevel === 0) {
+      if (_svCanBuild(b) && b.currentLevel === 0) {
         return '<div class="sv-bp-opt available"><span class="sv-bp-emoji">' + vis.emoji + '</span>'
           + '<div class="sv-bp-info"><div class="sv-bp-name">' + b.label + '</div>'
           + '<div class="sv-bp-desc">' + (b.desc || '') + '</div>'
           + '<div class="sv-bp-cost">' + costStr + '</div></div>'
           + '<div class="sv-bp-action"><button class="sv-bp-build-btn" onclick="_svBuild(\'' + id + '\')">Build</button></div></div>';
       }
-      if (!b.requiresMet) {
+      if (!_svCanBuild(b) && b.currentLevel === 0) {
+        var why = b.tierMet === false && b.minTier
+          ? 'Requires a ' + _svTierLabel(b.minTier) + ' settlement.'
+          : 'Requires other buildings first.';
         return '<div class="sv-bp-opt locked"><span class="sv-bp-emoji">' + vis.emoji + '</span>'
           + '<div class="sv-bp-info"><div class="sv-bp-name">' + b.label + '</div>'
-          + '<div class="sv-bp-desc">Requires other buildings first.</div></div>'
+          + '<div class="sv-bp-desc">' + why + '</div></div>'
           + '<span style="font-size:18px">🔒</span></div>';
       }
       return '';

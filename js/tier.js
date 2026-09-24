@@ -296,7 +296,7 @@ async function openTierUpgradeModal() {
         </div>
         <div style="flex:1">
           <div style="font-size:11px;color:rgba(192,221,151,.4);margin-bottom:2px">Current Tier</div>
-          <div style="font-size:15px;font-weight:700;color:#f0e8c8">${data.currentTierLabel || data.currentTier}</div>
+          <div style="font-size:15px;font-weight:700;color:#f0e8c8">${data.currentTierLabel || (data.currentTier.charAt(0).toUpperCase() + data.currentTier.slice(1))}</div>
         </div>
       </div>
       ${data.nextTier ? `

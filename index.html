@@ -31,7 +31,7 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=shell3">
+  <link rel="stylesheet" href="/css/main.css?v=tierfix1">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
@@ -40,7 +40,7 @@
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
-  <link rel="stylesheet" href="/css/clans.css?v=clan1">
+  <link rel="stylesheet" href="/css/clans.css?v=clan4">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -790,22 +790,23 @@
   <script defer src="/js/expeditions.js"></script>
   <script defer src="/js/seasons.js?v=3"></script>
   <script defer src="/js/season-atmosphere.js?v=1"></script>
-  <script defer src="/js/tier.js"></script>
+  <script defer src="/js/tier.js?v=tierfix1"></script>
   <script defer src="/js/profile.js?v=2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
   <script defer src="/js/kwmap-core.js?v=3"></script>
-  <script defer src="/js/kwmap-topdown.js?v=1"></script>
+  <script defer src="/js/clan-territory.js?v=clan6"></script>
+  <script defer src="/js/kwmap-topdown.js?v=clan6"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
   <script defer src="/js/kwmap-assets.js?v=1"></script>
-  <script defer src="/js/kwmap-iso.js?v=8"></script>
+  <script defer src="/js/kwmap-iso.js?v=clan6"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
-  <script defer src="/js/kwmap-tileactions.js?v=1"></script>
+  <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
-  <script defer src="/js/main.js?v=clan1"></script>
+  <script defer src="/js/main.js?v=clan4"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
-  <script defer src="/js/leaderboard.js?v=3"></script>
+  <script defer src="/js/leaderboard.js?v=clan4"></script>
   <script defer src="/js/briar_engine.js?v=8"></script>
   <script defer src="/js/squirrel_engine.js?v=16"></script>
   <script defer src="/js/games-meta.js?v=1"></script>
@@ -832,8 +833,8 @@
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
   <script defer src="/js/clan-palette.js?v=clan1"></script>
-  <script defer src="/js/clans.js?v=clan1"></script>
-  <script defer src="/js/realtime.js?v=clan1"></script>
+  <script defer src="/js/clans.js?v=clan7"></script>
+  <script defer src="/js/realtime.js?v=clan4"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=clan1"></script>
@@ -950,6 +951,20 @@
         <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(50000)">▲ +50k All (tier test)</button>
+
+        <div class="cheat-section-label" style="margin-top:14px">Clan Prestige <span style="opacity:.6;font-weight:400">(your clan)</span></div>
+        <div class="cheat-resource-grid">
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(100)">🛡️ +100</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(500)">🛡️ +500</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(5000)">🛡️ +5,000</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(-100)">🛡️ −100</button>
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(-1000)">🛡️ −1,000</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input type="number" id="cheat-clan-prestige" placeholder="e.g. 3500 or -250" class="cheat-citizen-sel" style="flex:1">
+          <button class="cheat-res-btn" onclick="cheatClanPrestige(parseInt(document.getElementById('cheat-clan-prestige').value, 10))">Apply</button>
+        </div>
+        <div class="cheat-rel-feedback" id="cheat-clan-prestige-feedback">Adding raises lifetime prestige too (can level the clan up); removing only lowers the spendable balance.</div>
       </div>
 
       <!-- ── TAB: Citizens ── -->
@@ -1262,6 +1277,18 @@
       </div>
     </div>
   </div>
+  <!-- TIER UPGRADE MODAL — opened by the settlement panel's Upgrade button
+       (openTierUpgradeModal in js/tier.js, which fills #tier-upgrade-modal-body). -->
+  <div class="tier-upgrade-modal-backdrop" id="tier-upgrade-modal" style="display:none"
+       onclick="if (event.target === this) closeTierUpgradeModal()">
+    <div class="tier-upgrade-modal-card" role="dialog" aria-modal="true" aria-label="Settlement upgrade">
+      <div class="tier-upgrade-modal-header">
+        <span>Settlement Upgrade</span>
+        <button class="tier-upgrade-modal-close" type="button" onclick="closeTierUpgradeModal()" aria-label="Close">✕</button>
+      </div>
+      <div id="tier-upgrade-modal-body"></div>
+    </div>
+  </div>
   <!-- TIER CELEBRATION MODAL -->
   <div class="tier-celebration-backdrop" id="tier-celebration-modal">
     <div class="tier-celebration-box">
@@ -1521,7 +1548,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=shell2"></script>
+    <script defer src="js/settlement-view.js?v=clan2"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

@@ -661,11 +661,36 @@ KWMap.controller.registerRenderer('topdown', {
       ctx.restore();
     }
 
+    // Clan territory (spec 016 §6.5) — banner-colour frontier on the outer
+    // edges, drawn after the outpost ring so it reads on top. Same stroke as
+    // the iso renderer (ClanTerritory.drawTerritory). When top-down joins the
+    // provider registry this moves into the shared provider unchanged.
+    if (!isFog && t && t.clan_territory && window.ClanTerritory) {
+      const lookup = (q, r) => tileMap[`${q},${r}`];
+      window.ClanTerritory.drawTerritory(ctx, x, y, hexW, hexH, t.clan_territory,
+        window.ClanTerritory.territoryEdges(wq, wr, lookup), _hexPathLT);
+    }
+
     if (isHome) {
       _hexPathLT(ctx, x, y, hexW, hexH);
       ctx.strokeStyle = 'rgba(255,210,120,0.9)';
       ctx.lineWidth = 2;
       ctx.stroke();
+    }
+  }
+
+  // ── Pass 2b: clan emblems (spec 016) — one per connected patch of clan
+  // land, clipped to the patch; drawn under settlements. Positioned from any
+  // on-screen tile of the patch, so it survives the anchor scrolling away.
+  if (window.ClanTerritory) {
+    const visPos = new Map(visibleTiles.map(v => [v.wq + ',' + v.wr, v]));
+    for (const grp of window.ClanTerritory.territoryGroups(data.tiles)) {
+      const m = grp.tiles.find(x => visPos.has(x.t.q + ',' + x.t.r));
+      if (!m) continue;
+      const v = visPos.get(m.t.q + ',' + m.t.r);
+      const ax = v.x - hexW * (m.dq + m.dr / 2), ay = v.y - hexVert * m.dr;
+      window.ClanTerritory.drawEmblem(ctx, grp,
+        (dq, dr) => ({ x: ax + hexW * (dq + dr / 2), y: ay + hexVert * dr }), hexW, hexH, hexVert, 1);
     }
   }
 

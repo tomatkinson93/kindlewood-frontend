@@ -1447,9 +1447,12 @@ function _selectWorldTileImpl(tile) {
       : tile.outpost ? `${tile.outpost.owner}'s outpost`
       : tile.claimed_by_me ? 'Your claim'
       : tile.claim_owner ? `Claimed by ${tile.claim_owner}`
+      : tile.clan_territory ? `${tile.clan_territory.name} territory`
       : 'Unoccupied'}`;
     body.innerHTML = `
       <div class="info-row"><span class="info-label">Terrain bonus</span><span class="info-val" style="font-size:11px;">${TERRAIN_BONUSES_DISPLAY[tile.terrain] || 'None'}</span></div>
+      ${window.ClanUI && tile.clan_territory ? `<div class="info-row"><span class="info-label">Territory</span><span class="info-val" style="font-size:11px;">${window.ClanUI.territoryLineHtml(tile)}</span></div>` : ''}
+      ${window.ClanUI ? window.ClanUI.claimButtonHtml(tile) : ''}
       <hr class="sdivider">
       ${_outpostSectionHtml(tile)}
     `;

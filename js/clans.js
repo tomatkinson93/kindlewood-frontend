@@ -26,7 +26,9 @@
 
   const state = {
     data: null,        // last /api/clans/me response
-    tab: 'overview',   // overview | roster
+    tab: 'overview',   // overview | roster | activity
+    activity: null,    // loaded feed rows (newest first), null = not loaded
+    activityMore: false,
     view: 'main',      // main | found | edit
     draft: null,       // banner/name draft for found/edit forms
     busy: false,
@@ -99,6 +101,7 @@
   }
 
   async function refresh() {
+    state.activity = null;   // refetched when the Activity tab renders
     try {
       state.data = await call('GET', '/api/clans/me');
       if (!state.data.clan && state.tab !== 'overview') state.tab = 'overview';
@@ -146,10 +149,67 @@
     byId('clan-title').textContent = c.name;
     byId('clan-sub').textContent = `Level ${c.level} · ${c.member_count}/${c.member_cap} members · you are ${d.me.rank_label}`;
     byId('clan-head-banner').innerHTML = bannerHtml(c.banner, 40);
-    byId('clan-tabs').innerHTML = ['overview', 'roster'].map(t =>
-      `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${t === 'overview' ? 'Overview' : `Roster (${c.member_count})`}</button>`
+    const TAB_LABEL = { overview: 'Overview', roster: `Roster (${c.member_count})`, territory: 'Territory', activity: 'Activity' };
+    byId('clan-tabs').innerHTML = ['overview', 'roster', 'territory', 'activity'].map(t =>
+      `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${TAB_LABEL[t]}</button>`
     ).join('');
-    byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml() : overviewHtml();
+    byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml()
+      : state.tab === 'activity' ? activityHtml()
+      : state.tab === 'territory' ? territoryHtml() : overviewHtml();
+    if (state.tab === 'activity' && state.activity === null) loadActivity();
+  }
+
+  // ── Activity feed ───────────────────────────────────────────────────────
+
+  const SOURCE_LABEL = { quest: 'a quest', battle: 'a battle', outpost: 'a new outpost', tier: 'a settlement upgrade' };
+
+  function activityLine(a) {
+    const p = a.payload || {}, who = `<b>${esc(a.actor || 'Someone')}</b>`, name = `<b>${esc(p.username || '')}</b>`;
+    switch (a.type) {
+      case 'clan_founded':           return ['🏛️', `${who} founded the clan.`];
+      case 'member_joined':          return ['🌱', `${who} joined the clan.`];
+      case 'member_left':            return ['🚪', `${who} left the clan.`];
+      case 'member_kicked':          return ['✂️', `${who} removed ${name}.`];
+      case 'rank_changed':           return ['🎖️', `${who} made ${name} ${esc(cap(p.rank || ''))}.`];
+      case 'leadership_transferred': return ['👑', `${who} passed leadership to ${name}.`];
+      case 'invite_sent':            return ['✉️', `${who} invited ${name}.`];
+      case 'profile_updated':        return ['🖌️', `${who} updated the clan banner and description.`];
+      case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
+      case 'prestige_adjusted':      return ['🛠️', `${who} ${p.amount > 0 ? 'added' : 'removed'} <b>${esc(Math.abs(p.amount))}</b> prestige <span class="clan-muted">(Dev Tools)</span>.`];
+      case 'prestige_earned':        return ['✦', `${who} earned <b>${esc(p.amount)}</b> prestige from ${esc(SOURCE_LABEL[p.source] || p.source)}${
+        p.amount < p.raw ? ` <span class="clan-muted">(daily cap: ${esc(p.raw)} earned)</span>` : ''}.`];
+      default:                       return ['·', esc(a.type)];
+    }
+  }
+
+  function activityHtml() {
+    if (state.activity === null) return '<div class="clan-empty">Reading the ledger…</div>';
+    if (!state.activity.length) return '<div class="clan-empty">Nothing has happened yet.</div>';
+    return `<ul class="clan-feed">${state.activity.map(a => {
+      const [ic, text] = activityLine(a);
+      return `<li><span class="clan-feed-ic">${ic}</span><span class="clan-feed-text">${text}
+        <span class="clan-feed-when">${esc(timeAgo(a.created_at))}</span></span></li>`;
+    }).join('')}</ul>${state.activityMore ? '<button type="button" class="clan-btn ghost block" data-act="activity-more">Older entries</button>' : ''}`;
+  }
+
+  function timeAgo(ts) {
+    const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return new Date(ts).toLocaleDateString();
+  }
+
+  async function loadActivity(older) {
+    try {
+      const before = older && state.activity && state.activity.length ? state.activity[state.activity.length - 1].id : null;
+      const d = await call('GET', '/api/clans/activity' + (before ? `?before=${before}` : ''));
+      state.activity = before ? state.activity.concat(d.activity) : d.activity;
+      state.activityMore = d.activity.length === 30;
+    } catch (e) {
+      if (!older) state.activity = [];
+    }
+    if (isOpen() && state.view === 'main' && state.tab === 'activity') render();
   }
 
   function can(flag) {
@@ -363,11 +423,12 @@
     const myRank = d.me.rank;
     const lower = RANK_ORDER[myRank] > RANK_ORDER[m.rank];
     const up = RANKS[RANKS.indexOf(m.rank) - 1];
-    const acts = [];
+    const acts = [
+      `<button type="button" class="clan-btn block" data-act="profile" data-id="${m.user_id}">👤 View profile</button>`,
+    ];
     if (m.user_id !== d.me.user_id) {
-      acts.push(`<button type="button" class="clan-btn ghost block" data-act="profile" data-name="${esc(m.username)}">View profile</button>`);
       if (can('manage_ranks') && lower && up && up !== 'founder' && RANK_ORDER[up] < RANK_ORDER[myRank]) {
-        acts.push(`<button type="button" class="clan-btn block" data-act="promote" data-id="${m.user_id}">Promote to ${cap(up)}</button>`);
+        acts.push(`<button type="button" class="clan-btn ghost block" data-act="promote" data-id="${m.user_id}">Promote to ${cap(up)}</button>`);
       }
       if (can('manage_ranks') && lower && m.rank !== 'recruit') {
         acts.push(`<button type="button" class="clan-btn ghost block" data-act="demote" data-id="${m.user_id}">Demote to ${cap(RANKS[RANKS.indexOf(m.rank) + 1])}</button>`);
@@ -387,6 +448,159 @@
   }
 
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // ── Territory (spec §6) ─────────────────────────────────────────────────
+
+  function territoryHtml() {
+    const d = state.data, t = d.territory, c = d.clan;
+    if (!t) return '<div class="clan-empty">Territory is not available yet.</div>';
+    const full = t.count >= t.cap;
+    const next = P().nextLevel(c.level);
+    return `
+      <section class="clan-sec">
+        <div class="clan-overview-top">
+          <div class="clan-terr-count">${t.count}<span>/${t.cap}</span></div>
+          <div>
+            <div class="clan-level">Tiles held</div>
+            <div class="clan-muted">${full
+              ? (next ? `At the level ${c.level} limit — level ${c.level + 1} allows ${next.territoryCap}.` : 'At the maximum.')
+              : `Next claim costs <b>${t.next_cost}</b> prestige · clan has ${Number(c.prestige).toLocaleString()}.`}</div>
+          </div>
+        </div>
+        <p class="clan-muted">${can('claim_territory')
+          ? 'To claim, tap an explored tile that borders your land, open it with 🔍, and choose <b>Claim</b>.'
+          : 'Officers and above can claim tiles that border your land.'}
+          Claims can't be undone, so your land always stays connected.</p>
+      </section>
+      <section class="clan-sec">
+        <h3>Holdings</h3>
+        <ul class="clan-list">${t.tiles.map(x => `<li><span>(${x.q}, ${x.r})${
+          t.hq && x.q === t.hq.q && x.r === t.hq.r ? ' <span class="clan-muted">· HQ</span>' : ''}</span>
+          <button type="button" class="clan-btn small ghost" data-act="goto-tile" data-q="${x.q}" data-r="${x.r}">Show</button></li>`).join('')}</ul>
+      </section>`;
+  }
+
+  const wrapN = (v, n) => ((v % n) + n) % n;
+  function mapDims() {
+    return [typeof HEX_MAP_W !== 'undefined' ? HEX_MAP_W : 40, typeof HEX_MAP_H !== 'undefined' ? HEX_MAP_H : 40];
+  }
+  function worldTile(q, r) {
+    const w = typeof worldMapData !== 'undefined' ? worldMapData : null;
+    return w && w.tiles ? w.tiles.find(t => t.q === q && t.r === r) : null;
+  }
+
+  // Whether the viewer can claim `tile` for their clan, mirroring the server
+  // rules for the UI only (the server re-checks everything).
+  // → null (don't show) | { ok, cost, reason, clanName }
+  function claimInfo(tile) {
+    const d = state.data;
+    if (!tile || !d || !d.clan || !d.territory || !can('claim_territory')) return null;
+    if (tile.terrain === 'fog' || tile.clan_territory) return null;
+    const s = tile.settlement;
+    if (s && (s.settlement_type && s.settlement_type !== 'player')) return null;
+    if (s && !s.isOwn && !d.roster.some(m => m.username === s.username)) return null;
+    const t = d.territory, [W, H] = mapDims();
+    const CT = global.ClanTerritory;
+    const dirs = CT ? CT.AXIAL_DIRS : [];
+    const touches = (x, y) => dirs.some(([dq, dr]) => wrapN(x + dq, W) === tile.q && wrapN(y + dr, H) === tile.r);
+    const adjacent = t.count
+      ? t.tiles.some(x => touches(x.q, x.r))
+      : !!(t.hq && (touches(t.hq.q, t.hq.r) || (t.hq.q === tile.q && t.hq.r === tile.r)));
+    if (!adjacent) return null;
+    const base = { cost: t.next_cost, clanName: d.clan.name };
+    if (t.count >= t.cap) return { ...base, ok: false, reason: `Your clan is at its ${t.cap}-tile limit — level up to claim more.` };
+    if (d.clan.prestige < t.next_cost) {
+      return { ...base, ok: false, reason: `Needs ${t.next_cost} prestige; your clan has ${Number(d.clan.prestige).toLocaleString()}.` };
+    }
+    return { ...base, ok: true };
+  }
+
+  // "Territory of <clan>" line for tile info surfaces ('' when unclaimed).
+  function territoryLineHtml(tile) {
+    const ct = tile && tile.clan_territory;
+    if (!ct) return '';
+    const chip = `<span class="clan-chip" style="--c1:${esc(ct.primary)};--c2:${esc(ct.secondary)}">${esc(ct.glyph || '')}</span>`;
+    const name = ct.mine
+      ? `<a href="#" class="clan-link" onclick="event.preventDefault();openClanPanel()">${esc(ct.name)}</a> <span class="clan-muted">(your clan)</span>`
+      : esc(ct.name);
+    return `${chip} ${name}`;
+  }
+
+  // Claim button (or the reason it's unavailable) — '' when not relevant.
+  function claimButtonHtml(tile) {
+    const info = claimInfo(tile);
+    if (!info) return '';
+    return info.ok
+      ? `<button type="button" class="clan-btn clan-claim-btn" onclick="ClanUI.claimFromTile(${tile.q},${tile.r}, this)">🏳️ Claim for ${esc(info.clanName)} — ${info.cost} prestige</button>`
+      : `<div class="clan-claim-na">🏳️ ${esc(info.reason)}</div>`;
+  }
+
+  async function claimFromTile(q, r, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Claiming…'; }
+    const ok = await claimTile(q, r);
+    const tile = worldTile(q, r);
+    // Re-render whichever tile surface is open with the new owner.
+    const td = document.getElementById('tile-detail-modal');
+    if (tile && td && td.style.display !== 'none' && typeof global.openTileDetail === 'function') global.openTileDetail(tile);
+    if (tile && typeof global.selectWorldTile === 'function' && ok) global.selectWorldTile(tile);
+    if (!ok && btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+  }
+
+  async function claimTile(q, r) {
+    try {
+      const out = await call('POST', '/api/clans/territory/claim', { q, r });
+      toast(`🏳️ Claimed (${q}, ${r}) for ${state.data.clan.name} — ${out.cost} prestige.`, 'success');
+      await refresh();
+      await refreshTerritoryOnMap();
+      return true;
+    } catch (e) {
+      toast(e.message, 'error');
+      return false;
+    }
+  }
+
+  // Pulls fresh territory into the loaded map in place (loadWorldMap would
+  // recentre the camera). The iso renderer rebuilds when its content
+  // signature changes; the controller redraw covers top-down.
+  let _terrTimer = null;
+  function refreshTerritoryOnMap() {
+    clearTimeout(_terrTimer);
+    return new Promise(resolve => {
+      _terrTimer = setTimeout(async () => {
+        try {
+          const w = typeof worldMapData !== 'undefined' ? worldMapData : null;
+          if (!w || !w.tiles) return resolve();
+          const res = await global.apiFetch('/api/map/world');
+          if (!res.ok) return resolve();
+          const fresh = await res.json();
+          const byKey = new Map((fresh.tiles || []).map(t => [t.q + ',' + t.r, t]));
+          for (const t of w.tiles) {
+            const f = byKey.get(t.q + ',' + t.r);
+            if (f) t.clan_territory = f.clan_territory || null;
+          }
+          const KW = global.KWMap;
+          if (KW && KW.controller && KW.controller.invalidate) KW.controller.invalidate('tiles');
+        } catch (_) { /* map refresh is best-effort */ }
+        resolve();
+      }, 150);
+    });
+  }
+
+  // Opens the member's full player profile on top of the Clan panel (the
+  // profile modals sit above it), so closing the profile returns here.
+  // Roster data seeds the card until the profile endpoint answers.
+  function openMemberProfile(userId) {
+    const d = state.data;
+    const m = d && d.roster.find(x => x.user_id === userId);
+    if (!m) return;
+    closeSheet();
+    if (m.user_id === d.me.user_id) {
+      if (typeof global.openProfile === 'function') global.openProfile();
+    } else if (typeof global.viewPlayerProfile === 'function') {
+      global.viewPlayerProfile(m.username, m.species || '', m.settlement_name || '',
+        m.tier || 'camp', m.tile_q ?? '?', m.tile_r ?? '?');
+    }
+  }
 
   // ── Events ──────────────────────────────────────────────────────────────
 
@@ -417,13 +631,22 @@
     const c = state.data && state.data.clan;
     switch (act) {
       case 'tab': state.tab = t.dataset.tab; render(); break;
+      case 'activity-more': loadActivity(true); break;
+      case 'goto-tile': {
+        const q = parseInt(t.dataset.q, 10), r = parseInt(t.dataset.r, 10);
+        closeClanPanel();
+        if (typeof global.navGoMap === 'function') global.navGoMap();
+        const tile = worldTile(q, r);
+        if (tile && typeof global.selectWorldTile === 'function') {
+          if (typeof camera !== 'undefined') { camera.q = q; camera.r = r; }
+          global.selectWorldTile(tile);
+        }
+        break;
+      }
       case 'sheet-close': closeSheet(); break;
       case 'confirm-yes': { const fn = _pendingConfirm; _pendingConfirm = null; if (fn) fn(); break; }
       case 'member': memberSheet(id); break;
-      case 'profile':
-        closeClanPanel();
-        if (typeof global.openProfileForUser === 'function') global.openProfileForUser(t.dataset.name);
-        break;
+      case 'profile': openMemberProfile(id); break;
       case 'found':
         state.draft = { emblem: 'acorn', primary: 'moss', secondary: 'wheat', name: '', description: '' };
         state.view = 'found'; render(); break;
@@ -533,7 +756,22 @@
   // ── Realtime hooks (called from realtime.js) ────────────────────────────
 
   function onMembershipChanged() {
+    refreshTerritoryOnMap();   // 'mine' flags on the map change with membership
     if (isOpen()) { state.view = 'main'; refresh(); } else refreshClanBadge();
+  }
+  // Clan-channel events (notify-then-fetch). Skips the re-render while the
+  // viewer is typing in the panel, so an incoming event can't wipe input.
+  function onClanEvent(ev) {
+    if (ev && ev.type === 'clan_level_up') toast(`🎉 Your clan reached level ${ev.level}!`, 'success');
+    if (ev && ev.type === 'clan_territory_claimed') refreshTerritoryOnMap();
+    // Keep cached clan data current for the map's Claim action even while
+    // the panel is closed.
+    if (!isOpen()) { refreshClanBadge(); return; }
+    if (!isOpen() || state.view !== 'main') return;
+    const typing = document.activeElement && byId('clan-panel').contains(document.activeElement)
+      && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if (typing) return;
+    refresh();
   }
   function onInviteReceived() {
     toast('🛡️ You have a new clan invitation.', 'success');
@@ -557,8 +795,29 @@
     }
   });
 
+  // Dev Tools: add (+) or remove (−) prestige for your own clan.
+  async function cheatClanPrestige(amount) {
+    const fb = document.getElementById('cheat-clan-prestige-feedback');
+    if (!Number.isFinite(amount) || !amount) { if (fb) fb.textContent = '⚠ Enter a non-zero amount.'; return; }
+    try {
+      const d = await call('POST', '/api/clans/cheat/prestige', { amount });
+      const msg = `✓ ${amount > 0 ? '+' : ''}${amount} → ${d.prestige.toLocaleString()} spendable · ${d.prestige_lifetime.toLocaleString()} lifetime · level ${d.level}`;
+      if (fb) fb.textContent = msg;
+      // One toast slot: announce the level-up here rather than letting this
+      // toast overwrite the clan_level_up one.
+      toast(d.leveledTo ? `🎉 Your clan reached level ${d.leveledTo}!`
+        : `🛡️ Clan prestige ${amount > 0 ? '+' : ''}${amount}`, 'success');
+      await refreshClanBadge();   // keeps cached clan data (Claim costs etc.) current
+    } catch (e) {
+      if (fb) fb.textContent = '⚠ ' + e.message;
+    }
+  }
+
+  global.cheatClanPrestige = cheatClanPrestige;
   global.openClanPanel = openClanPanel;
   global.closeClanPanel = closeClanPanel;
   global.refreshClanBadge = refreshClanBadge;
-  global.ClanUI = { onMembershipChanged, onInviteReceived, onDisbanded, refresh };
+  global.ClanUI = { onMembershipChanged, onInviteReceived, onDisbanded, onClanEvent, refresh,
+                    claimInfo, claimTile, claimFromTile, refreshTerritoryOnMap,
+                    territoryLineHtml, claimButtonHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

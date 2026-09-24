@@ -164,3 +164,25 @@ body.kw-shell .kw-item.has-dot::after {
   content: ''; position: absolute; top: 6px; right: 8px;
   width: 7px; height: 7px; border-radius: 50%; background: #d8642f;
 }
+
+/* Activity feed */
+.clan-feed { list-style: none; margin: 0; padding: 0; }
+.clan-feed li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(200,148,26,.08); line-height: 1.4; }
+.clan-feed-ic { width: 22px; text-align: center; flex-shrink: 0; }
+.clan-feed-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.clan-feed-text b { color: #f4c95d; font-weight: 600; }
+.clan-feed-when { display: block; font-size: 12px; color: rgba(242,230,201,.45); }
+
+/* Territory */
+.clan-terr-count { font-family: 'Playfair Display', serif; font-size: 34px; color: #f4c95d; min-width: 64px; text-align: center; }
+.clan-terr-count span { font-size: 16px; color: rgba(242,230,201,.5); }
+.clan-chip {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 18px; height: 22px; font-size: 11px;
+  background: linear-gradient(180deg, var(--c1) 0 62%, var(--c2) 62% 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 84%, 50% 100%, 0 84%);
+}
+.clan-link { color: #f4c95d; text-decoration: underline; text-underline-offset: 2px; }
+.clan-claim-btn { width: 100%; margin: 8px 0 4px; }
+.clan-claim-na { margin: 8px 0 4px; font-size: 13px; color: rgba(242,230,201,.6); font-style: italic; }
+.td-actions { margin: 10px 0 4px; }

@@ -10003,6 +10003,31 @@ body.login-mode .hero-text-welcome {
 .tier-upgrade-modal-close:hover { color: rgba(192,221,151,.8); }
 #tier-upgrade-modal-body .tier-panel { padding: 20px; }
 #tier-upgrade-modal-body .tier-req-row { margin-bottom: 10px; }
+/* Classes openTierUpgradeModal() renders that had no rules of their own. */
+#tier-upgrade-modal-body .tier-panel { padding: 18px 20px 20px !important; color: #f0e8c8; }
+#tier-upgrade-modal-body .tier-current-section,
+#tier-upgrade-modal-body .tier-next-section { display: flex; align-items: center; gap: 14px; }
+#tier-upgrade-modal-body .tier-badge {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 64px; height: 64px; flex-shrink: 0; border: 1px solid; border-radius: 12px;
+}
+#tier-upgrade-modal-body .tier-badge-emoji { font-size: 24px; line-height: 1; }
+#tier-upgrade-modal-body .tier-badge-name { font-size: 9px; font-weight: 700; letter-spacing: .1em; margin-top: 4px; }
+#tier-upgrade-modal-body .tier-arrow { margin: 10px 0 10px 18px; font-size: 12px; color: rgba(192,221,151,.45); }
+#tier-upgrade-modal-body .tier-requirements { margin: 16px 0 6px; }
+#tier-upgrade-modal-body .tier-req-row { display: flex; align-items: center; gap: 10px; }
+#tier-upgrade-modal-body .tier-req-label { width: 110px; flex-shrink: 0; font-size: 13px; color: rgba(240,232,200,.85); }
+#tier-upgrade-modal-body .tier-req-bar-wrap { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
+#tier-upgrade-modal-body .tier-req-bar { height: 100%; background: #e07b39; border-radius: 3px; }
+#tier-upgrade-modal-body .tier-req-bar.met { background: #7bc67e; }
+#tier-upgrade-modal-body .tier-req-nums { min-width: 96px; text-align: right; font-size: 12px; color: #e07b39; }
+#tier-upgrade-modal-body .tier-req-nums.met { color: #7bc67e; }
+#tier-upgrade-modal-body .tier-unlocks-title {
+  margin: 14px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: #e8c76a;
+}
+#tier-upgrade-modal-body .tier-unlock-item { font-size: 13px; color: rgba(240,232,200,.8); padding: 2px 0; }
+#tier-upgrade-modal-body .tier-upgrade-btn { width: 100%; margin-top: 16px; }
 
 /* Status row clickable */
 .sett-status-clickable {
