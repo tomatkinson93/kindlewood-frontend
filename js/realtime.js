@@ -39,7 +39,10 @@
     // is wired up. We log once and reset the reconnect backoff.
     connected(ev) {
       _reconnectAttempts = 0;
-      console.log('[realtime] connected to settlement', ev.settlement_id);
+      console.log('[realtime] connected to settlement', ev.settlement_id, 'clan', ev.clan_id);
+      // Events may have been missed while disconnected (phones suspend
+      // EventSource in the background) — catch the clan panel up.
+      if (global.ClanUI && ev.clan_id) global.ClanUI.onClanEvent({ type: 'reconnected' });
     },
 
     // A quest finished — completed or failed. Reload quest list so the
@@ -107,6 +110,13 @@
       if (global.ClanUI) global.ClanUI.onDisbanded(ev);
     },
   };
+
+  // Clan-channel events (clan:<id>) — all notify-then-fetch.
+  ['clan_prestige', 'clan_level_up', 'clan_member_joined', 'clan_member_left',
+   'clan_member_kicked', 'clan_rank_changed', 'clan_profile_updated',
+   'clan_leadership_transferred'].forEach(type => {
+    HANDLERS[type] = ev => { if (global.ClanUI) global.ClanUI.onClanEvent(ev); };
+  });
 
   function _buildStreamUrl() {
     // Same API base apiFetch uses. We append the token as a query param

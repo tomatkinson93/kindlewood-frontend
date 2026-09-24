@@ -1,8 +1,13 @@
 // js/leaderboard.js — prestigious tabbed leaderboard modal.
 //
-// Categories are scaffolded; only "Briarwood Court Wins" pulls live data
-// (from /api/stats/leaderboard?game=briar) for now. Others show a graceful
+// Categories are scaffolded; items with live:true pull data from their
+// endpoint (Briarwood Court Wins, Clan Prestige). Others show a graceful
 // "coming soon" so the structure is visible. Top 3 get trophy styling.
+//
+// Live item options: map(row) → [name, stat, secondary?]; columns; empty
+// ({ icon, title, text }) for the no-data state; rowAction:'none' for boards
+// whose names aren't players (clicking would open a player profile);
+// podium(row) → HTML for the stat line under a podium name.
 
 (function () {
   const CATEGORIES = [
@@ -24,6 +29,15 @@
       { id: 'briar',      name: 'Briarwood Court Wins', live: true,
         endpoint: '/api/stats/leaderboard?game=briar',
         columns: ['Wins', 'Games'], map: r => [r.username, r.wins, r.games] },
+    ]},
+    { group: 'Clans', items: [
+      { id: 'clanprestige', name: 'Clan Prestige', live: true,
+        endpoint: '/api/clans/leaderboard',
+        columns: ['Prestige', 'Level'], map: r => [r.name, Number(r.prestige).toLocaleString(), r.level],
+        rowAction: 'none',
+        podium: row => `${_esc(row[1])} prestige · Level ${_esc(row[2])}`,
+        empty: { icon: '🛡️', title: 'No clans yet',
+                 text: 'Build a Guild Hall in a Town, found a clan, and raise its banner here.' } },
     ]},
     { group: 'Achievements', items: [
       { id: 'achpoints',  name: 'Achievement Points', live: false },
@@ -111,13 +125,18 @@
     } catch (e) {}
 
     if (!rows.length) {
+      const e = item.empty || { icon: '🃏', title: 'No champions yet',
+        text: 'Be the first to win at the Briarwood Court and claim this throne.' };
       content.innerHTML = `<div class="lb-soon">
-        <div class="lb-soon-icon">🃏</div>
-        <div class="lb-soon-title">No champions yet</div>
-        <div class="lb-soon-text">Be the first to win at the Briarwood Court and claim this throne.</div>
+        <div class="lb-soon-icon">${_esc(e.icon)}</div>
+        <div class="lb-soon-title">${_esc(e.title)}</div>
+        <div class="lb-soon-text">${_esc(e.text)}</div>
       </div>`;
       return;
     }
+    // Player boards open a profile on click; others (clans) don't.
+    const click = name => item.rowAction === 'none'
+      ? '' : ` onclick="Leaderboard._viewProfile('${_esc(name)}')" title="View ${_esc(name)}"`;
 
     const mapped = rows.map(item.map);
     const podium = mapped.slice(0, 3);
@@ -133,10 +152,10 @@
       ${order.map(i => {
         const row = podium[i];
         if (!row) return '';
-        return `<div class="lb-podium-spot ${medal[i]} place-${i + 1}" onclick="Leaderboard._viewProfile('${_esc(row[0])}')" title="View ${_esc(row[0])}">
+        return `<div class="lb-podium-spot ${medal[i]} place-${i + 1}"${click(row[0])}>
           <div class="lb-podium-trophy">${trophy[i]}</div>
           <div class="lb-podium-name">${_esc(row[0])}</div>
-          <div class="lb-podium-stat">${_esc(row[1])} ${_esc(cols[0].toLowerCase())}${row[2] != null ? ` <span class="lb-podium-games">(${_esc(row[2])} ${_esc((cols[1]||'games').toLowerCase())})</span>` : ''}</div>
+          <div class="lb-podium-stat">${item.podium ? item.podium(row) : `${_esc(row[1])} ${_esc(cols[0].toLowerCase())}${row[2] != null ? ` <span class="lb-podium-games">(${_esc(row[2])} ${_esc((cols[1]||'games').toLowerCase())})</span>` : ''}`}</div>
           <div class="lb-podium-base">${i + 1}</div>
         </div>`;
       }).join('')}
@@ -145,7 +164,7 @@
     const restHtml = rest.length ? `<table class="lb-table">
       <thead><tr><th>#</th><th>Name</th>${cols.map(c => `<th>${_esc(c)}</th>`).join('')}</tr></thead>
       <tbody>
-        ${rest.map((row, idx) => `<tr class="lb-row-click" onclick="Leaderboard._viewProfile('${_esc(row[0])}')" title="View profile">
+        ${rest.map((row, idx) => `<tr${item.rowAction === 'none' ? '' : ' class="lb-row-click"'}${click(row[0])}>
           <td class="lb-rank">${idx + 4}</td>
           <td class="lb-name">${_esc(row[0])}</td>
           ${row.slice(1).map(v => `<td>${_esc(v)}</td>`).join('')}

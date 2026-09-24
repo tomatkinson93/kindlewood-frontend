@@ -26,7 +26,9 @@
 
   const state = {
     data: null,        // last /api/clans/me response
-    tab: 'overview',   // overview | roster
+    tab: 'overview',   // overview | roster | activity
+    activity: null,    // loaded feed rows (newest first), null = not loaded
+    activityMore: false,
     view: 'main',      // main | found | edit
     draft: null,       // banner/name draft for found/edit forms
     busy: false,
@@ -99,6 +101,7 @@
   }
 
   async function refresh() {
+    state.activity = null;   // refetched when the Activity tab renders
     try {
       state.data = await call('GET', '/api/clans/me');
       if (!state.data.clan && state.tab !== 'overview') state.tab = 'overview';
@@ -146,10 +149,65 @@
     byId('clan-title').textContent = c.name;
     byId('clan-sub').textContent = `Level ${c.level} · ${c.member_count}/${c.member_cap} members · you are ${d.me.rank_label}`;
     byId('clan-head-banner').innerHTML = bannerHtml(c.banner, 40);
-    byId('clan-tabs').innerHTML = ['overview', 'roster'].map(t =>
-      `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${t === 'overview' ? 'Overview' : `Roster (${c.member_count})`}</button>`
+    const TAB_LABEL = { overview: 'Overview', roster: `Roster (${c.member_count})`, activity: 'Activity' };
+    byId('clan-tabs').innerHTML = ['overview', 'roster', 'activity'].map(t =>
+      `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${TAB_LABEL[t]}</button>`
     ).join('');
-    byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml() : overviewHtml();
+    byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml()
+      : state.tab === 'activity' ? activityHtml() : overviewHtml();
+    if (state.tab === 'activity' && state.activity === null) loadActivity();
+  }
+
+  // ── Activity feed ───────────────────────────────────────────────────────
+
+  const SOURCE_LABEL = { quest: 'a quest', battle: 'a battle', outpost: 'a new outpost', tier: 'a settlement upgrade' };
+
+  function activityLine(a) {
+    const p = a.payload || {}, who = `<b>${esc(a.actor || 'Someone')}</b>`, name = `<b>${esc(p.username || '')}</b>`;
+    switch (a.type) {
+      case 'clan_founded':           return ['🏛️', `${who} founded the clan.`];
+      case 'member_joined':          return ['🌱', `${who} joined the clan.`];
+      case 'member_left':            return ['🚪', `${who} left the clan.`];
+      case 'member_kicked':          return ['✂️', `${who} removed ${name}.`];
+      case 'rank_changed':           return ['🎖️', `${who} made ${name} ${esc(cap(p.rank || ''))}.`];
+      case 'leadership_transferred': return ['👑', `${who} passed leadership to ${name}.`];
+      case 'invite_sent':            return ['✉️', `${who} invited ${name}.`];
+      case 'profile_updated':        return ['🖌️', `${who} updated the clan banner and description.`];
+      case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
+      case 'prestige_earned':        return ['✦', `${who} earned <b>${esc(p.amount)}</b> prestige from ${esc(SOURCE_LABEL[p.source] || p.source)}${
+        p.amount < p.raw ? ` <span class="clan-muted">(daily cap: ${esc(p.raw)} earned)</span>` : ''}.`];
+      default:                       return ['·', esc(a.type)];
+    }
+  }
+
+  function activityHtml() {
+    if (state.activity === null) return '<div class="clan-empty">Reading the ledger…</div>';
+    if (!state.activity.length) return '<div class="clan-empty">Nothing has happened yet.</div>';
+    return `<ul class="clan-feed">${state.activity.map(a => {
+      const [ic, text] = activityLine(a);
+      return `<li><span class="clan-feed-ic">${ic}</span><span class="clan-feed-text">${text}
+        <span class="clan-feed-when">${esc(timeAgo(a.created_at))}</span></span></li>`;
+    }).join('')}</ul>${state.activityMore ? '<button type="button" class="clan-btn ghost block" data-act="activity-more">Older entries</button>' : ''}`;
+  }
+
+  function timeAgo(ts) {
+    const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return new Date(ts).toLocaleDateString();
+  }
+
+  async function loadActivity(older) {
+    try {
+      const before = older && state.activity && state.activity.length ? state.activity[state.activity.length - 1].id : null;
+      const d = await call('GET', '/api/clans/activity' + (before ? `?before=${before}` : ''));
+      state.activity = before ? state.activity.concat(d.activity) : d.activity;
+      state.activityMore = d.activity.length === 30;
+    } catch (e) {
+      if (!older) state.activity = [];
+    }
+    if (isOpen() && state.view === 'main' && state.tab === 'activity') render();
   }
 
   function can(flag) {
@@ -434,6 +492,7 @@
     const c = state.data && state.data.clan;
     switch (act) {
       case 'tab': state.tab = t.dataset.tab; render(); break;
+      case 'activity-more': loadActivity(true); break;
       case 'sheet-close': closeSheet(); break;
       case 'confirm-yes': { const fn = _pendingConfirm; _pendingConfirm = null; if (fn) fn(); break; }
       case 'member': memberSheet(id); break;
@@ -549,6 +608,16 @@
   function onMembershipChanged() {
     if (isOpen()) { state.view = 'main'; refresh(); } else refreshClanBadge();
   }
+  // Clan-channel events (notify-then-fetch). Skips the re-render while the
+  // viewer is typing in the panel, so an incoming event can't wipe input.
+  function onClanEvent(ev) {
+    if (ev && ev.type === 'clan_level_up') toast(`🎉 Your clan reached level ${ev.level}!`, 'success');
+    if (!isOpen() || state.view !== 'main') return;
+    const typing = document.activeElement && byId('clan-panel').contains(document.activeElement)
+      && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if (typing) return;
+    refresh();
+  }
   function onInviteReceived() {
     toast('🛡️ You have a new clan invitation.', 'success');
     refreshClanBadge();
@@ -574,5 +643,5 @@
   global.openClanPanel = openClanPanel;
   global.closeClanPanel = closeClanPanel;
   global.refreshClanBadge = refreshClanBadge;
-  global.ClanUI = { onMembershipChanged, onInviteReceived, onDisbanded, refresh };
+  global.ClanUI = { onMembershipChanged, onInviteReceived, onDisbanded, onClanEvent, refresh };
 })(typeof window !== 'undefined' ? window : globalThis);
