@@ -100,12 +100,20 @@
   // Cached per tiles array, keyed by a signature of which clan owns which
   // tile — claims update tiles in place, so identity alone would go stale.
   const _groupCache = new WeakMap();
+  // Hash of a clan's look (emblem + colours), so a banner edit also counts
+  // as a change for caches and the iso ground buffer.
+  function bannerHash(ct) {
+    const s = (ct.glyph || '') + (ct.primary || '') + (ct.secondary || '');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
+    return h;
+  }
   function territorySig(tiles) {
     let h = 2166136261 >>> 0;
     for (const t of tiles) {
       const ct = t && t.terrain !== 'fog' && t.clan_territory;
       if (!ct) continue;
-      h = Math.imul(h ^ ((t.q * 73856093) ^ (t.r * 19349663) ^ (ct.clan_id * 83492791)), 16777619) >>> 0;
+      h = Math.imul(h ^ ((t.q * 73856093) ^ (t.r * 19349663) ^ (ct.clan_id * 83492791) ^ bannerHash(ct)), 16777619) >>> 0;
     }
     return h;
   }
@@ -157,34 +165,37 @@
     return groups;
   }
 
-  // Draws a patch's emblem. `place(dq, dr)` → { x, y } face top-left of the
-  // tile at that offset from the anchor; w/h = face size; hexVert = row step
-  // in the renderer's y units; squash (iso) lays the glyph flat on the ground.
+  // Draws a patch's emblem, sized to fit the patch's extent so it reads as
+  // one mark across the land rather than a glyph cropped by tile edges.
+  // `place(dq, dr)` → { x, y } face top-left of the tile at that offset from
+  // the anchor; w/h = face size; hexVert = row step in the renderer's y
+  // units; squash (iso) lays the glyph flat on the ground.
   function drawEmblem(ctx, group, place, w, h, hexVert, squash) {
     const glyph = group.clan.glyph;
     if (!glyph) return;
-    ctx.save();
-    ctx.beginPath();
+    const k = squash || 1;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const m of group.tiles) {
-      const p = place(m.dq, m.dr);
-      HEX_VERTS.forEach(([fx, fy], i) => {
-        const vx = p.x + fx * w, vy = p.y + fy * h;
-        if (i) ctx.lineTo(vx, vy); else ctx.moveTo(vx, vy);
-      });
-      ctx.closePath();
+      const x = m.dq + m.dr / 2, y = m.dr;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
     }
-    ctx.clip();
+    const spanW = (maxX - minX) * w + w;            // patch extent in px
+    const spanH = (maxY - minY) * hexVert + h;
+    const n = group.tiles.length;
+    // Fit inside the patch (the glyph's drawn height is size·k), grow gently
+    // with tile count, and cap so huge territories stay tasteful.
+    const size = Math.min(spanW * 0.8, (spanH / k) * 0.8, w * (0.8 + 0.45 * Math.sqrt(n)), w * 3.6);
     const a = place(0, 0);
     const cx = a.x + w / 2 + group.centre.x * w;
     const cy = a.y + h / 2 + group.centre.y * hexVert;
-    const n = group.tiles.length;
-    const size = w * Math.min(3.6, 0.5 + 0.5 * Math.sqrt(n));
+    ctx.save();
     ctx.translate(cx, cy);
-    ctx.scale(1, squash || 1);
+    ctx.scale(1, k);
     ctx.font = `${Math.round(size)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.globalAlpha = 0.34;
+    ctx.globalAlpha = 0.42;
     ctx.shadowColor = rgba(group.clan.primary, 0.9);
     ctx.shadowBlur = size * 0.12;
     ctx.fillText(glyph, 0, 0);
@@ -192,5 +203,5 @@
   }
 
   global.ClanTerritory = { AXIAL_DIRS, HEX_VERTS, DIR_EDGE, territoryEdges, hexEdge, drawTerritory,
-                           territoryGroups, drawEmblem };
+                           territoryGroups, drawEmblem, bannerHash };
 })(typeof window !== 'undefined' ? window : globalThis);

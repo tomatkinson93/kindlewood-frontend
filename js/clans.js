@@ -731,6 +731,7 @@
           banner: { emblem: d.emblem, primary: d.primary, secondary: d.secondary },
         });
         state.view = 'main';
+        refreshTerritoryOnMap();   // new emblem / colours on the map
       }, 'Clan updated.');
     }
   }
@@ -763,7 +764,7 @@
   // viewer is typing in the panel, so an incoming event can't wipe input.
   function onClanEvent(ev) {
     if (ev && ev.type === 'clan_level_up') toast(`🎉 Your clan reached level ${ev.level}!`, 'success');
-    if (ev && ev.type === 'clan_territory_claimed') refreshTerritoryOnMap();
+    if (ev && (ev.type === 'clan_territory_claimed' || ev.type === 'clan_profile_updated')) refreshTerritoryOnMap();
     // Keep cached clan data current for the map's Claim action even while
     // the panel is closed.
     if (!isOpen()) { refreshClanBadge(); return; }

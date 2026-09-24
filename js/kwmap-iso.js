@@ -246,9 +246,12 @@
       if (t.outpost) c |= 64 | (t.outpost.mine ? 128 : 0);
       if (t.claimed_by_me) c |= 256;
       if (t.claim_owner) c |= 512;
-      // Clan territory (spec 016): owner + mine flag, so a claim refetch
-      // rebuilds the buffered ground.
-      if (t.clan_territory) c ^= (1024 | (t.clan_territory.mine ? 2048 : 0)) + t.clan_territory.clan_id * 4096;
+      // Clan territory (spec 016): owner, mine flag and banner look, so a
+      // claim or banner edit rebuilds the buffered ground.
+      if (t.clan_territory) {
+        c ^= (1024 | (t.clan_territory.mine ? 2048 : 0)) + t.clan_territory.clan_id * 4096;
+        if (window.ClanTerritory) c ^= window.ClanTerritory.bannerHash(t.clan_territory);   // banner edits
+      }
       const tc = t.terrain ? t.terrain.charCodeAt(0) : 0;
       h = (h ^ (((t.q * 73856093) ^ (t.r * 19349663) ^ (c * 97 + tc)) >>> 0)) >>> 0;
       h = Math.imul(h, 16777619) >>> 0;
