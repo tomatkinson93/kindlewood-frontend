@@ -363,11 +363,12 @@
     const myRank = d.me.rank;
     const lower = RANK_ORDER[myRank] > RANK_ORDER[m.rank];
     const up = RANKS[RANKS.indexOf(m.rank) - 1];
-    const acts = [];
+    const acts = [
+      `<button type="button" class="clan-btn block" data-act="profile" data-id="${m.user_id}">👤 View profile</button>`,
+    ];
     if (m.user_id !== d.me.user_id) {
-      acts.push(`<button type="button" class="clan-btn ghost block" data-act="profile" data-name="${esc(m.username)}">View profile</button>`);
       if (can('manage_ranks') && lower && up && up !== 'founder' && RANK_ORDER[up] < RANK_ORDER[myRank]) {
-        acts.push(`<button type="button" class="clan-btn block" data-act="promote" data-id="${m.user_id}">Promote to ${cap(up)}</button>`);
+        acts.push(`<button type="button" class="clan-btn ghost block" data-act="promote" data-id="${m.user_id}">Promote to ${cap(up)}</button>`);
       }
       if (can('manage_ranks') && lower && m.rank !== 'recruit') {
         acts.push(`<button type="button" class="clan-btn ghost block" data-act="demote" data-id="${m.user_id}">Demote to ${cap(RANKS[RANKS.indexOf(m.rank) + 1])}</button>`);
@@ -387,6 +388,22 @@
   }
 
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // Opens the member's full player profile on top of the Clan panel (the
+  // profile modals sit above it), so closing the profile returns here.
+  // Roster data seeds the card until the profile endpoint answers.
+  function openMemberProfile(userId) {
+    const d = state.data;
+    const m = d && d.roster.find(x => x.user_id === userId);
+    if (!m) return;
+    closeSheet();
+    if (m.user_id === d.me.user_id) {
+      if (typeof global.openProfile === 'function') global.openProfile();
+    } else if (typeof global.viewPlayerProfile === 'function') {
+      global.viewPlayerProfile(m.username, m.species || '', m.settlement_name || '',
+        m.tier || 'camp', m.tile_q ?? '?', m.tile_r ?? '?');
+    }
+  }
 
   // ── Events ──────────────────────────────────────────────────────────────
 
@@ -420,10 +437,7 @@
       case 'sheet-close': closeSheet(); break;
       case 'confirm-yes': { const fn = _pendingConfirm; _pendingConfirm = null; if (fn) fn(); break; }
       case 'member': memberSheet(id); break;
-      case 'profile':
-        closeClanPanel();
-        if (typeof global.openProfileForUser === 'function') global.openProfileForUser(t.dataset.name);
-        break;
+      case 'profile': openMemberProfile(id); break;
       case 'found':
         state.draft = { emblem: 'acorn', primary: 'moss', secondary: 'wheat', name: '', description: '' };
         state.view = 'found'; render(); break;
