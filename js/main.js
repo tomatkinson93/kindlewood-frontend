@@ -359,6 +359,10 @@ async function loadGame(force = false) {
     if (typeof refreshClanBadge === 'function') {
       try { refreshClanBadge(); } catch(e) {}
     }
+    // Unread clan chat lights a dot on Chat.
+    if (window.ChatHub) {
+      try { window.ChatHub.refreshBadge(); } catch(e) {}
+    }
     _populateProfileTrigger();
     setTimeout(selectHomeTile2, 800);
 

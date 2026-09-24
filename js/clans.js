@@ -243,6 +243,7 @@
         ${progress}
         <p class="clan-desc">${c.description ? esc(c.description) : '<span class="clan-muted">No description yet.</span>'}</p>
         <ul class="clan-unlocks">${unlocks}</ul>
+        <button type="button" class="clan-btn ghost" onclick="closeClanPanel();openChatHub()">💬 Open the clan hall (Chat)</button>
         ${can('edit_profile') ? '<button type="button" class="clan-btn ghost" data-act="edit">Edit banner & description</button>' : ''}
       </section>`;
 
