@@ -44,6 +44,36 @@
     } catch (e) {}
   }
 
+  // ── Touch tap-select (Mobile Spec Phase 4.2/4.3) ─────────────────────────
+  // There is no hover on touch, and a single tap would otherwise play a card
+  // immediately (easy to misfire) with no chance to read it first. On
+  // (hover:none) devices we switch to a two-step model: first tap selects +
+  // enlarges the card (and reveals its effect preview); a second tap on the
+  // same card plays it; a tap anywhere else deselects. Desktop click-to-play
+  // is byte-for-byte unchanged (every branch below is gated on _isTouchInput).
+  var _touchDeselectWired = false;
+  function _isTouchInput() {
+    return !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+  }
+  function _clearTouchSelect(scope) {
+    (scope || document).querySelectorAll('.kw-card.kw-card-tap-selected').forEach(function (c) {
+      c.classList.remove('kw-card-tap-selected');
+      c.style.transform = c.getAttribute('data-rest-transform') || '';
+      if (c.hasAttribute('data-z-rest')) c.style.zIndex = c.getAttribute('data-z-rest');
+    });
+  }
+  function _wireTouchDeselect() {
+    if (_touchDeselectWired) return;
+    _touchDeselectWired = true;
+    // Capture phase so a tap on a card is seen here first: if it lands on a
+    // card we leave it for that card's own click handler; otherwise we clear.
+    document.addEventListener('click', function (e) {
+      if (!_isTouchInput()) return;
+      if (e.target && e.target.closest && e.target.closest('.kw-card')) return;
+      _clearTouchSelect(document);
+    }, true);
+  }
+
   function defs() { return window.CARD_REGISTRY || window.CARD_DEFS || null; }
   var cfg = null;
   var _renderRAF = null;   // coalesced-render frame handle
@@ -198,6 +228,8 @@
     var deck = state && state.deck;
     var container = cfg.container;
 
+    _wireTouchDeselect();   // once; deselects tap-selected cards on outside taps
+
     if (!deck) {
       container.innerHTML = '';
       container.appendChild(el('div', 'kw-cards-empty', 'No deck active (using classic actions).'));
@@ -337,6 +369,7 @@
       }
       btn.style.zIndex = idx === pendingIndex ? '60' : String(10 + idx);
       btn.setAttribute('data-rest-transform', tf);
+      btn.setAttribute('data-z-rest', btn.style.zIndex);
 
       // Deal-in animation: animate cards at/after animateFromIdx exactly once.
       var shouldAnimate = (idx >= animateFromIdx) && (idx !== pendingIndex);
@@ -406,18 +439,30 @@
       // rule because of specificity, so we swap the inline transform directly
       // and restore the resting fan transform on mouse-leave.
       btn.addEventListener('mouseenter', function () {
+        if (_isTouchInput()) return;          // touch uses tap-select, not hover
         if (btn.disabled) return;
         btn.style.transform = 'translateY(-22px) rotate(0deg) scale(1.22)';
         btn.style.zIndex = '50';
         _playHoverSfx();
       });
       btn.addEventListener('mouseleave', function () {
+        if (_isTouchInput()) return;
         btn.style.transform = btn.getAttribute('data-rest-transform') || '';
         btn.style.zIndex = String(10 + idx);
       });
 
       btn.addEventListener('click', function () {
         if (!cfg || !cfg.onPlay) return;
+        // Touch two-step: first tap selects + enlarges (no play); second tap on
+        // the same card plays. A card already pending a target is past this.
+        if (_isTouchInput() && idx !== pendingIndex &&
+            !btn.classList.contains('kw-card-tap-selected')) {
+          _clearTouchSelect(hand);
+          btn.classList.add('kw-card-tap-selected');
+          btn.style.transform = 'translateY(-22px) rotate(0deg) scale(1.22)';
+          btn.style.zIndex = '55';
+          return;
+        }
         var requestedTarget = (cfg.getRequestedTarget &&
           cfg.getRequestedTarget(card.target)) || null;
         cfg.onPlay(idx, requestedTarget, card);

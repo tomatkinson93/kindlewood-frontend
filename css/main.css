@@ -5576,7 +5576,9 @@ body.login-mode .hero-text-welcome {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.65);
-  z-index: 400;
+  /* Above .all-citizens-backdrop (3000): this modal is opened FROM that
+     roster, so at 400 it rendered behind the list that spawned it. */
+  z-index: 3100;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(3px);
@@ -10776,7 +10778,7 @@ body.login-mode .hero-text-welcome {
 }
 
 /* ── Mobile tweaks ──────────────────────────────────────────────────────── */
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 560px) and (pointer: coarse) {
   .cm-backdrop { padding: 56px 0 0; }
   .cm-card { width: 100vw; height: calc(100vh - 56px); max-height: calc(100vh - 56px); border-radius: 0; }
   .cm-stage { grid-template-columns: 1fr; gap: 10px; }
@@ -10994,7 +10996,7 @@ body.login-mode .hero-text-welcome {
 }
 
 /* Mobile */
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 560px) and (pointer: coarse) {
   .bm-card { width: 100vw; max-height: 100vh; border-radius: 0; }
   .bm-row { flex-wrap: wrap; }
   .bm-engage { width: 100%; }

@@ -52,14 +52,11 @@
   .auth-banner { padding: 16px 20px; }
   .species-picker { grid-template-columns: repeat(2, 1fr); }
 
-  /* Game screen */
-  .topbar { overflow-x: auto; gap: 0; }
-  .res { padding: 0 10px; font-size: 12px; }
+  /* Game screen — column layout. Detailed game-screen rules live in the
+     dedicated "GAME SCREEN — mobile remediation" section at the end of this
+     file (loads last, override layer). The stale .map-grid / .tile rules that
+     used to sit here targeted the removed DOM tile map and were deleted. */
   .game-body { flex-direction: column; }
-  .sidebar { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.06); max-height: 280px; }
-  .map-area { padding: 12px; }
-  .map-grid { grid-template-columns: repeat(9, 36px); grid-template-rows: repeat(7, 36px); }
-  .tile { width: 36px; height: 36px; font-size: 15px; }
 
   /* Modal */
   .modal-card { margin: 0 12px; }
@@ -76,7 +73,9 @@
   /* Hero — show just the key info, very compact */
   .hero { height: 48vh; min-height: 280px; }
 
-  .btn-nav-secondary { display: none; }
+  /* Sign In must stay reachable — hiding it here left "create account" as the
+     only route onto the login screen. Shrink it instead of removing it. */
+  .btn-nav-secondary { padding: 6px 10px; font-size: 12px; }
   .hero-nav { padding: 10px 14px; }
 
   .game-title { font-size: 34px; }
@@ -100,10 +99,6 @@
 
   .btn-carousel-select .celtic-btn-wrap { padding: 9px 16px; font-size: 13px; }
 
-  /* Game map shrinks to fit */
-  .map-grid { grid-template-columns: repeat(9, 30px); grid-template-rows: repeat(7, 30px); }
-  .tile { width: 30px; height: 30px; font-size: 13px; }
-
   /* Species picker 2 cols on phone */
   .species-picker { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .sp-opt-art { width: 55px; height: 55px; }
@@ -111,4 +106,58 @@
   /* Auth */
   .auth-card { margin: 16px 12px; padding: 24px 18px 28px; }
   .auth-heading { font-size: 22px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   GAME SCREEN — shared mobile basics
+   The full mobile game-screen layout (full-bleed map, floating HUD, bottom
+   tab bar, sheets, map stick) lives in mobile-shell.css, which loads after
+   this file. Only device-level basics that the shell also relies on stay here.
+   Desktop (>=769px) is untouched throughout.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Map canvas owns all touch gestures — no browser pan/zoom/pull-to-refresh.
+   touch-action has no effect on mouse input, so desktop is unaffected. */
+#map-canvas { touch-action: none; }
+
+/* The resource strip wrapper is transparent to layout on desktop (display:
+   contents -> the .res cells are flex children of .topbar exactly as before);
+   the shell turns it into a real row on mobile. */
+.topbar-res-strip { display: contents; }
+
+/* Lock document scroll while the game screen is active so touch-pan on the
+   map can't fight page scroll / pull-to-refresh. body.in-game is toggled in
+   showScreen() (main.js); the :has() rules are a progressive-enhancement twin. */
+@media (max-width: 768px) {
+  body.in-game { overflow: hidden; overscroll-behavior: none; }
+  html:has(#screen-game.active) { overflow: hidden; }
+  body:has(#screen-game.active) { overflow: hidden; overscroll-behavior: none; }
+}
+
+/* ── Sticky-hover guard (RC-10) ──────────────────────────────────────────
+   On touch devices :hover latches on tap and sticks. Neutralise the
+   highest-impact lift/scale transforms. Desktop (hover:hover) never matches. */
+@media (hover: none) {
+  .sp-card:hover,
+  .action-bar-btn:hover,
+  .kw-card:hover,
+  .comm-btn:hover,
+  .sidebar-tab:hover,
+  .map-ctrl-btn:hover,
+  .lb-podium-spot:hover { transform: none; }
+}
+
+@media (max-width: 768px) {
+  /* Viewport height (RC-4) — dvh tracks the shrinking URL-bar viewport, with
+     a vh fallback line first for older engines. */
+  .screen { height: 100vh; height: 100dvh; }
+  #screen-welcome { height: 100vh; height: 100dvh; }
+
+  /* Tap-target sweep (RC-11) */
+  .carousel-arrow { width: 44px; height: 44px; }
+}
+
+/* ── Phone density (<=480px) ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .btn-cheat { display: none; }          /* cheat menu still reachable via More */
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Kindlewood — Rise of the Woodland Realms</title>
   <meta name="description" content="Kindlewood is a woodland strategy game — build your settlement, lead your kin, and forge an empire from the forest floor.">
   <meta name="theme-color" content="#2C2218">
@@ -31,14 +31,15 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=spec20c">
-  <link rel="stylesheet" href="/css/card-hand-ui.css?v=1778502800">
+  <link rel="stylesheet" href="/css/main.css?v=shell3">
+  <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
-  <link rel="stylesheet" href="/css/deck-feedback.css?v=1778500800">
-  <link rel="stylesheet" href="/css/hud-storybook.css?v=58">
+  <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
+  <link rel="stylesheet" href="/css/hud-storybook.css?v=shell3">
   <link rel="stylesheet" href="/css/carousel.css?v=spec20a">
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
-  <link rel="stylesheet" href="/css/mobile.css?v=spec20a">
+  <link rel="stylesheet" href="/css/mobile.css?v=shell2">
+  <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -466,11 +467,13 @@
 
   <div class="screen" id="screen-game">
     <div class="topbar">
+      <div class="topbar-res-strip">
       <div class="res" id="res-food"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-food"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-timber"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-timber"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-stone"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-stone"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-metal"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-metal"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
       <div class="res" id="res-wealth"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-wealth"/></svg><span class="res-val">—</span><span class="res-rate"></span></div>
+      </div>
       <div class="topbar-version">v0.5.0</div>
       <div class="topbar-right">
         <div id="season-badge" class="season-badge-wrap"></div>
@@ -776,7 +779,7 @@
   <script defer src="/js/config.js"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
   <script defer src="/js/game.js"></script>
-  <script defer src="/js/resources.js"></script>
+  <script defer src="/js/resources.js?v=mobilefix2"></script>
   <script defer src="/js/carousel.js?v=spec20b"></script>
   <script defer src="/js/placement.js"></script>
   <script defer src="/js/arrival.js"></script>
@@ -789,7 +792,7 @@
   <script defer src="/js/profile.js?v=2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script defer src="/js/kwmap-core.js?v=2"></script>
+  <script defer src="/js/kwmap-core.js?v=3"></script>
   <script defer src="/js/kwmap-topdown.js?v=1"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
   <script defer src="/js/kwmap-assets.js?v=1"></script>
@@ -797,7 +800,7 @@
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=1"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
-  <script defer src="/js/main.js?v=spec20d"></script>
+  <script defer src="/js/main.js?v=spec20e"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
   <script defer src="/js/leaderboard.js?v=3"></script>
@@ -820,13 +823,16 @@
   <script defer src="/js/card-registry.js?v=1778502600"></script>
   <script defer src="/js/card-engine.js?v=1778502600"></script>
   <script defer src="/js/card-combat.js?v=1778502600"></script>
-  <script defer src="/js/card-hand-ui.js?v=1778502800"></script>
+  <script defer src="/js/card-hand-ui.js?v=mobilefix1"></script>
   <script defer src="/js/card-admin.js?v=1778502700"></script>
   <script defer src="/js/deck-builder.js?v=1778500800"></script>
   <script defer src="/js/feedback.js?v=1778500800"></script>
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
   <script defer src="/js/realtime.js?v=1778441000"></script>
+  <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
+       Loads last so every entry point it wires to already exists. -->
+  <script defer src="/js/mobile-shell.js?v=4"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->
@@ -1511,7 +1517,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js"></script>
+    <script defer src="js/settlement-view.js?v=shell2"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

@@ -536,6 +536,11 @@ function bindResourceCells() {
     // doesn't spawn five tooltips. Cancellation on mouseleave.
     let hoverTimer = null;
     el.addEventListener('mouseenter', () => {
+      // Touch devices synthesize mouseenter on tap, which would pop this
+      // tooltip (clipped by the topbar) on top of the resource modal a tap
+      // already opens. Skip it on non-hover pointers — the modal has the full
+      // breakdown anyway.
+      if (window.matchMedia && window.matchMedia('(hover: none)').matches) return;
       clearTimeout(hoverTimer);
       hoverTimer = setTimeout(async () => {
         const data = await _getBreakdown();
