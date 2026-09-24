@@ -87,3 +87,15 @@
 .ca-sfx-row { display: flex; gap: 6px; align-items: center; }
 .ca-sfx-row .ca-in { flex: 1; }
 .ca-sfx-test { flex: 0 0 auto; width: 28px; height: 28px; font-size: 12px; }
+
+/* ── Mobile (Kindlewood Mobile Spec, Phase 4 / RC-8) ─────────────────────
+   Two-column pool|deck grid with 22px controls is unusable on a phone.
+   Stack to one column and raise the +/- controls to a 40px touch target.
+   Desktop (≥769px) is untouched. */
+@media (max-width: 768px) {
+  .db-cols { grid-template-columns: 1fr; }
+  .db-list { max-height: 32vh; }
+  .db-row { padding: 9px 8px; }
+  .db-mini { width: 40px; height: 40px; font-size: 16px; }
+  .fb-mini { min-height: 40px; padding: 8px 14px; }
+}

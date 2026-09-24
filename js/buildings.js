@@ -31,7 +31,8 @@ function renderBuildingsPanel() {
   if (!buildTab?.classList.contains('active')) return;
 
   const built = buildingsData.filter(b => b.currentLevel > 0 && b.id !== 'housing' && b.id !== 'starter_house');
-  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.id !== 'housing' && b.id !== 'starter_house');
+  // tierMet is absent on older servers — treat missing as met.
+  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.tierMet !== false && b.id !== 'housing' && b.id !== 'starter_house');
 
   let html = '';
 
@@ -52,6 +53,9 @@ function renderBuildingsPanel() {
           ${b.currentLevel < b.maxLevel
             ? `<button class="building-upgrade-btn" onclick="buildBuilding('${b.id}')">↑</button>`
             : `<span class="building-maxed">MAX</span>`}
+          ${b.id === 'guild_hall' && typeof openClanPanel === 'function'
+            ? `<button class="building-upgrade-btn" onclick="openClanPanel()" title="Clan">🛡️</button>`
+            : ''}
           <button class="building-remove-btn" onclick="confirmRemoveBuilding('${b.id}','${b.label}')" title="Demolish">🗑</button>
         </div>
       </div>
@@ -84,7 +88,7 @@ function renderBuildingsPanel() {
   }).join('');
 
   // Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
-  const locked = buildingsData.filter(b => b.currentLevel === 0 && !b.requiresMet && b.id !== 'housing' && b.id !== 'starter_house');
+  const locked = buildingsData.filter(b => b.currentLevel === 0 && (!b.requiresMet || b.tierMet === false) && b.id !== 'housing' && b.id !== 'starter_house');
   if (locked.length) {
     html += `<div class="slabel" style="margin-top:8px;">LOCKED</div>`;
     html += locked.map(b => `
@@ -93,7 +97,9 @@ function renderBuildingsPanel() {
           <div style="opacity:0.4">${_buildingIcon(b, 72)}</div>
           <div class="building-card-info">
             <div class="building-name" style="opacity:.5">${b.label}</div>
-            <div class="building-cost" style="color:rgba(192,221,151,.3)">Requires more buildings</div>
+            <div class="building-cost" style="color:rgba(192,221,151,.3)">${b.tierMet === false && b.minTier
+              ? `🔒 Requires a ${b.minTier.charAt(0).toUpperCase() + b.minTier.slice(1)} settlement`
+              : 'Requires more buildings'}</div>
           </div>
         </div>
       </div>
@@ -1170,7 +1176,8 @@ async function applyMapRegenerate() {
     '  • Clear all player settlement placements\n' +
     '  • Clear all fog of war\n' +
     '  • Cancel all in-flight expeditions\n' +
-    '  • Clear NPC settlements (re-seed manually after)\n\n' +
+    '  • Clear NPC settlements (re-seed manually after)\n' +
+    '  • WIPE ALL CLANS — members, territory, chat (restore will NOT bring them back)\n\n' +
     'Settlement contents (citizens, buildings, inventory, quests) are preserved.\n\n' +
     'Continue?'
   );

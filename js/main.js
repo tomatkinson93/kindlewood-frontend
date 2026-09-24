@@ -97,6 +97,12 @@ function showScreen(id) {
 
   target.classList.add('active');
 
+  // Mobile: lock document scroll only while the game screen is active so map
+  // touch-pan can't fight page scroll / pull-to-refresh (mobile.css keys the
+  // overflow lock on body.in-game; a :has() twin covers browsers that support
+  // it). Harmless on desktop where the screen never scrolls anyway.
+  document.body.classList.toggle('in-game', id === 'game');
+
   if (id === 'register') populateRegisterChip();
 
   // Non-cinematic login entry (e.g. from register): the cinematic sets
@@ -348,6 +354,10 @@ async function loadGame(force = false) {
     // battles badge poller.
     if (typeof startRealtime === 'function') {
       try { startRealtime(); } catch(e) {}
+    }
+    // Pending clan invites light a dot on the Clan button (and More on phones).
+    if (typeof refreshClanBadge === 'function') {
+      try { refreshClanBadge(); } catch(e) {}
     }
     _populateProfileTrigger();
     setTimeout(selectHomeTile2, 800);
