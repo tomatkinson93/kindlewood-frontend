@@ -89,7 +89,7 @@
     quests: 'Adventure', decks: 'Adventure',
     inventory: 'Trade', market: 'Trade',
     rankings: 'Community', events: 'Community', messages: 'Community',
-    chat: 'Community', online: 'Community',
+    chat: 'Community', clan: 'Community', online: 'Community',
     feedback: 'You'
   };
   var GROUP_ORDER = ['Places', 'Adventure', 'Trade', 'Community', 'You', 'Other'];
@@ -162,6 +162,7 @@
       buckets[group].push({
         label: label,
         icon: iconFor(btn),
+        dot: btn.classList.contains('has-dot'),
         run: function () { btn.click(); }
       });
     });
@@ -184,7 +185,7 @@
       grp.appendChild(el('div', 'kw-grp-label', gname));
       var grid = el('div', 'kw-grid');
       items.forEach(function (it) {
-        var b = el('button', 'kw-item');
+        var b = el('button', 'kw-item' + (it.dot ? ' has-dot' : ''));
         b.type = 'button';
         var g = el('span', 'kw-item-g');
         g.appendChild(it.icon);
@@ -521,7 +522,8 @@
     // index.html, so the body is watched for them appearing too.
     var ids = [
       'tavern-overlay', 'fishing-overlay', 'combat-modal',
-      'settlement-view', 'sq-backdrop', 'bcmp-backdrop'
+      'settlement-view', 'sq-backdrop', 'bcmp-backdrop',
+      'clan-panel', 'chat-hub'
     ];
     var wasOpen = false;
 
@@ -579,8 +581,19 @@
     boot();
   }
 
+  // Lights the More tab's dot while any community-bar button carries a
+  // .has-dot badge (e.g. a pending clan invite). Features call this after
+  // toggling their own button's badge.
+  function syncBadges() {
+    var bar = byId('kw-tabbar');
+    if (!bar) return;
+    var more = bar.querySelector('.kw-tab[data-tab="more"]');
+    if (more) more.classList.toggle('has-dot', !!document.querySelector('.community-bar .comm-btn.has-dot'));
+  }
+
   window.KWShell = {
     openMore: function () { buildMoreBody(byId('kw-more-body')); openMoreSheet(); },
+    syncBadges: syncBadges,
     openPanel: openSidebarSheet,
     close: closeSheets,
     setStick: setStickEnabled

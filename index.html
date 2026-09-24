@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
+  <link rel="stylesheet" href="/css/clans.css?v=clan1">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -527,6 +528,7 @@
       <button class="comm-btn" onclick="openLeaderboard()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-rankings"/></svg><span>Rankings</span></button>
       <button class="comm-btn" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
       <button class="comm-btn" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
+      <button class="comm-btn" id="nav-clan" onclick="openClanPanel()">🛡️ <span>Clan</span></button>
       <button class="comm-btn" onclick="showCommunityTab('chat')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-chat"/></svg><span>Chat</span></button>
       <button class="comm-btn" id="nav-online" onclick="showOnlineList()">🟢 <span>Online</span> <span id="online-count" class="online-count"></span></button>
       <button class="comm-btn" id="nav-feedback" onclick="openFeedback()">🐞 <span>Feedback</span></button>
@@ -784,7 +786,7 @@
   <script defer src="/js/placement.js"></script>
   <script defer src="/js/arrival.js"></script>
   <script defer src="/js/citizens.js?v=1776929386"></script>
-  <script defer src="/js/buildings.js?v=1778441000"></script>
+  <script defer src="/js/buildings.js?v=clan1"></script>
   <script defer src="/js/expeditions.js"></script>
   <script defer src="/js/seasons.js?v=3"></script>
   <script defer src="/js/season-atmosphere.js?v=1"></script>
@@ -800,7 +802,7 @@
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=1"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
-  <script defer src="/js/main.js?v=spec20e"></script>
+  <script defer src="/js/main.js?v=clan1"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
   <script defer src="/js/leaderboard.js?v=3"></script>
@@ -829,10 +831,12 @@
   <script defer src="/js/feedback.js?v=1778500800"></script>
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
-  <script defer src="/js/realtime.js?v=1778441000"></script>
+  <script defer src="/js/clan-palette.js?v=clan1"></script>
+  <script defer src="/js/clans.js?v=clan1"></script>
+  <script defer src="/js/realtime.js?v=clan1"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
-  <script defer src="/js/mobile-shell.js?v=4"></script>
+  <script defer src="/js/mobile-shell.js?v=clan1"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->

@@ -90,6 +90,22 @@
         try { refreshActiveQuests(); } catch(e) {}
       }
     },
+
+    // ── Clans (spec 016). These arrive on the settlement channel. ──
+
+    // Joined, left, kicked, founded or disbanded. The stream's subscription
+    // set is fixed at connect time, so reconnect to pick up (or drop) the
+    // clan channel, then refresh the clan panel/badge.
+    clan_membership_changed(ev) {
+      restart();
+      if (global.ClanUI) global.ClanUI.onMembershipChanged(ev);
+    },
+    clan_invite_received(ev) {
+      if (global.ClanUI) global.ClanUI.onInviteReceived(ev);
+    },
+    clan_disbanded(ev) {
+      if (global.ClanUI) global.ClanUI.onDisbanded(ev);
+    },
   };
 
   function _buildStreamUrl() {
@@ -164,9 +180,18 @@
     if (_es) { try { _es.close(); } catch (e) {} _es = null; }
   }
 
+  // Close and reopen the stream. Unlike stopRealtime(), this leaves the
+  // client enabled, so connect() actually runs.
+  function restart() {
+    _disabled = false;
+    if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
+    connect();
+  }
+
   // Expose globally. start() is called from main.js once gameData is loaded;
   // we don't open the stream during the loading screen because the cookie
   // might not be settled yet on very first session.
   global.startRealtime = connect;
   global.stopRealtime = disconnect;
+  global.restartRealtime = restart;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -355,6 +355,10 @@ async function loadGame(force = false) {
     if (typeof startRealtime === 'function') {
       try { startRealtime(); } catch(e) {}
     }
+    // Pending clan invites light a dot on the Clan button (and More on phones).
+    if (typeof refreshClanBadge === 'function') {
+      try { refreshClanBadge(); } catch(e) {}
+    }
     _populateProfileTrigger();
     setTimeout(selectHomeTile2, 800);
 
