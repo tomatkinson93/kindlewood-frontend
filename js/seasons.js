@@ -185,6 +185,10 @@ function renderSeasonPanel() {
           <input type="checkbox" data-kwmap-setting="lowdetail">
           <span>Reduce map detail</span>
         </label>
+        <label class="sp-toggle" data-kwmap-row>
+          <input type="checkbox" data-kwmap-setting="clouds">
+          <span>Drifting clouds</span>
+        </label>
         <label class="sp-toggle" data-atmo-row>
           <input type="checkbox" data-atmo-setting="atmosphere">
           <span>Seasonal colour grading</span>
@@ -216,6 +220,13 @@ function renderSeasonPanel() {
       low.addEventListener('change', () => window.KWMap.perf.setLowDetail(low.checked));
     } else if (low) {
       const row = low.closest('.sp-toggle'); if (row) row.style.display = 'none';
+    }
+    const clouds = panel.querySelector('[data-kwmap-setting="clouds"]');
+    if (clouds && window.KWMap.atmosphere) {
+      clouds.checked = !!window.KWMap.atmosphere.clouds;
+      clouds.addEventListener('change', () => window.KWMap.atmosphere.setClouds(clouds.checked));
+    } else if (clouds) {
+      const row = clouds.closest('.sp-toggle'); if (row) row.style.display = 'none';
     }
   } else {
     panel.querySelectorAll('[data-kwmap-row]').forEach(el => { el.style.display = 'none'; });
