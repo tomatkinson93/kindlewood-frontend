@@ -24,6 +24,7 @@
 <!-- Production scripts, exact load order from index.html -->
 <script src="/js/pixelart.js"></script>
 <script src="/js/kwmap-core.js"></script>
+<script src="/js/kwmap-atmosphere.js"></script>
 <script src="/js/kwmap-topdown.js"></script>
 <script src="/js/kwmap-assets.js"></script>
 <script src="/js/kwmap-iso.js"></script>
@@ -59,6 +60,16 @@
   put(11,10,{ terrain:'mountain' });
   put(10,11,{ terrain:'mountain' });
 
+  // ?fogr=N — fog everything further than N hexes from home (a small
+  // explored island in uncharted territory, like an early-game map).
+  const fogR = Number(new URLSearchParams(location.search).get('fogr'));
+  if (fogR > 0) for (const t of tiles) {
+    const dq = t.q - 15, dr = t.r - 14;
+    if ((Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 > fogR) {
+      t.terrain = 'fog'; delete t.settlement; delete t.outpost; delete t.claim_owner;
+    }
+  }
+
   const season = new URLSearchParams(location.search).get('season');
   if (season) {
     const sg = document.getElementById('screen-game');
@@ -88,7 +99,10 @@
     : 'top-down view — the frozen Phase-1 renderer (full water treatment)';
   // Render a few frames as variant art streams in.
   let n = 0;
-  const draw = () => { KWMap.controller.renderFrame(1000 + n * 16); if (++n < 40) requestAnimationFrame(draw); };
+  // ?t=seconds — render at a given clock (clouds drift with time)
+  const t0 = 1000;
+  if (KWMap.atmosphere) KWMap.atmosphere._timeOffset = Number(qs.get('t')) || 0;
+  const draw = () => { KWMap.controller.renderFrame(t0 + n * 16); if (++n < 40) requestAnimationFrame(draw); };
   draw();
   window.__isoReady = true;
 })();

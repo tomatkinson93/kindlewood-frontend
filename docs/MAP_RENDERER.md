@@ -11,6 +11,7 @@ Loaded in `index.html` after `pixelart.js`, before `main.js`:
 
 ```
 js/kwmap-core.js      controller, layer stack, provider registry, uifx canvas, shared math
+js/kwmap-atmosphere.js KWMap.atmosphere — uncharted-map fog backdrop + drifting clouds
 js/kwmap-topdown.js   TopDownRenderer (id 'topdown') — the original passes
 js/kwmap-assets.js    KWMap.assets — manifest loader + runtime placeholder atlas
 js/kwmap-iso.js       IsometricRenderer (id 'iso') — projection, buffers, hit-scan, perf
@@ -108,11 +109,36 @@ fnv1a32 + mulberry32, season-independent and memoized per tile. `worldSeed` is
 (under `/assets/iso/` + `assets/iso/manifest.json`, `decor.<key>[ _season]`)
 supersedes the procedural placeholders per key with no code change.
 
+## Fog of war & clouds (`KWMap.atmosphere`)
+
+Cosmetic, shared by both renderers (each falls back to the legacy drifting
+`_fogImg` texture when the file isn't loaded — e.g. the verify harness, so the
+top-down golden is unaffected).
+
+- `drawBackdrop(ctx, W, H, camX, camY, {yScale})` — the fog of war is an old
+  cartographer's chart: a seeded, seamlessly tiling 1024² parchment texture
+  (rhumb-line network, compass rose, sketched ranges/forests/lakes, dotted
+  trails, "Terra Incognita" in IM Fell English). It is anchored to the world
+  (pans with the map); iso squashes it onto the ground plane (`yScale = K`).
+  Rebuilt once when the script font finishes loading.
+- `drawClouds(ctx, W, H, camX, camY, now, {yScale})` — painted cumulus +
+  high wisps in a periodic 3400² field of cloud "systems", drifting with a
+  slow wind. Low clouds parallax ×1.14, wisps ×1.32 against the ground; soft
+  ground shadows fall down-right (sun upper-left). Clouds thin over the
+  centre of view so the focus stays readable. Sprites are generated per
+  season tint, one per frame (no hitch). Drawn last in the world pass (iso:
+  above the haze).
+- Perf ladder: level ≥ 2 drops the wisps, ≥ 3 drops shadows, 5 disables.
+- Settings: **Drifting clouds** toggle (persists `kw_map_clouds`).
+- `verify/iso_demo.html` takes `?fogr=N` (fog beyond N hexes of home) and
+  `?t=seconds` (cloud clock offset) for screenshots.
+
 ## Settings
 
 The season panel's "✦ Map & Atmosphere" block has a **Map View** select
 (persists `kw_map_view`; restored on init) and a **Reduce map detail** toggle
-(persists `kw_map_low_detail`). Default renderer is `topdown`; flip it by
+(persists `kw_map_low_detail`) and a **Drifting clouds** toggle (persists
+`kw_map_clouds`). Default renderer is `topdown`; flip it by
 changing `controller.activeId`'s initial value once iso has been lived with.
 
 ## Verification
