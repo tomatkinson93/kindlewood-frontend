@@ -186,7 +186,7 @@ function renderOwnSettlements() {
   const s = gameData.settlement;
   container.innerHTML = renderSettlementCard(
     s.name,
-    `${s.tier} · ${gameData.species} · tile (${s.tile_x}, ${s.tile_y})`,
+    `${s.tier} · ${gameData.species} · tile (${s.tile_q ?? s.tile_x ?? '?'}, ${s.tile_r ?? s.tile_y ?? '?'})`,
     s.tier
   );
 }

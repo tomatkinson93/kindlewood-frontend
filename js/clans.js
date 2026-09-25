@@ -162,12 +162,15 @@
     byId('clan-title').textContent = c.name;
     byId('clan-sub').textContent = `Level ${c.level} · ${c.member_count}/${c.member_cap} members · you are ${d.me.rank_label}`;
     byId('clan-head-banner').innerHTML = bannerHtml(c.banner, 40);
-    const TAB_LABEL = { overview: 'Overview', roster: `Roster (${c.member_count})`, territory: 'Territory', activity: 'Activity' };
-    byId('clan-tabs').innerHTML = ['overview', 'roster', 'territory', 'activity'].map(t =>
+    const reqs = (d.join_requests || []).length;
+    const TAB_LABEL = { overview: `Overview${reqs ? ' <span class="clan-tab-dot"></span>' : ''}`, roster: `Roster (${c.member_count})`,
+      unlocks: 'Unlocks', territory: 'Territory', activity: 'Activity' };
+    byId('clan-tabs').innerHTML = ['overview', 'roster', 'unlocks', 'territory', 'activity'].map(t =>
       `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${TAB_LABEL[t]}</button>`
     ).join('');
     byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml()
       : state.tab === 'activity' ? activityHtml()
+      : state.tab === 'unlocks' ? unlocksHtml()
       : state.tab === 'territory' ? territoryHtml() : overviewHtml();
     if (state.tab === 'activity' && state.activity === null) loadActivity();
   }
@@ -187,6 +190,8 @@
       case 'leadership_transferred': return ['👑', `${who} passed leadership to ${name}.`];
       case 'invite_sent':            return ['✉️', `${who} invited ${name}.`];
       case 'profile_updated':        return ['🖌️', `${who} updated the clan banner and description.`];
+      case 'title_changed':          return ['🏷️', p.title ? `${who} gave ${name} the title <b>${esc(p.title)}</b>.` : `${who} removed ${name}'s title.`];
+      case 'join_policy_changed':    return ['📯', `${who} set recruitment to <b>${esc({ invite: 'Invite only', request: 'Request to join', open: 'Open' }[p.policy] || p.policy)}</b>.`];
       case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
       case 'prestige_adjusted':      return ['🛠️', `${who} ${p.amount > 0 ? 'added' : 'removed'} <b>${esc(Math.abs(p.amount))}</b> prestige <span class="clan-muted">(Dev Tools)</span>.`];
       case 'prestige_earned':        return ['✦', `${who} earned <b>${esc(p.amount)}</b> prestige from ${esc(SOURCE_LABEL[p.source] || p.source)}${
@@ -239,8 +244,11 @@
       progress = `<div class="clan-bar"><span style="width:${pct}%"></span></div>
         <div class="clan-muted">${lifetime.toLocaleString()} / ${c.next_level_at.toLocaleString()} lifetime prestige to level ${c.level + 1}</div>`;
     }
-    // Unlock ladder: everything earned so far, then what's next.
-    const unlocks = P().LEVEL_UNLOCKS.map(u => `<li class="${c.level >= u.level ? 'ok' : ''}">${c.level >= u.level ? '✓' : '🔒'} ${u.icon} ${esc(u.label)} <span class="clan-muted">— level ${u.level}</span></li>`).join('');
+    const next = P().LEVEL_UNLOCKS.find(u => u.level > c.level);
+    const teaser = next ? `<button type="button" class="clan-next-unlock" data-act="tab" data-tab="unlocks">
+        <span class="clan-next-ic">${next.icon}</span>
+        <span><span class="clan-muted">Next unlock · level ${next.level}</span><br>${esc(next.label)}</span>
+        <span class="clan-next-go">All unlocks ›</span></button>` : '';
 
     let html = `
       <section class="clan-sec">
@@ -253,14 +261,15 @@
         </div>
         ${progress}
         <p class="clan-desc">${c.description ? esc(c.description) : '<span class="clan-muted">No description yet.</span>'}</p>
-        <ul class="clan-unlocks">${unlocks}</ul>
-        ${c.recruiting ? '<div class="clan-muted">📯 Shown as <b>recruiting</b> on your public profile.</div>' : ''}
+        ${teaser}
         <div class="clan-btn-row">
           <button type="button" class="clan-btn ghost" onclick="closeClanPanel();openChatHub('forum')">💬 Open the clan hall (Chat)</button>
           <button type="button" class="clan-btn ghost" data-act="public" data-id="${c.id}">🛡️ View public profile</button>
         </div>
         ${can('edit_profile') ? '<button type="button" class="clan-btn ghost" data-act="edit">Edit banner & description</button>' : ''}
       </section>`;
+
+    html += recruitmentHtml();
 
     if (can('invite')) {
       const out = d.outgoing_invites || [];
@@ -288,6 +297,82 @@
     if (can('disband') && !alone) html += `<button type="button" class="clan-btn danger" data-act="disband">Disband clan</button>`;
     html += `</section>`;
     return html;
+  }
+
+  // ── Recruitment (join policy + join requests) ───────────────────────────
+  const POLICY = {
+    invite:  { icon: '✉️', label: 'Invite only', hint: 'Players join only when invited.' },
+    request: { icon: '📯', label: 'Request to join', hint: 'Players ask from your public profile; officers approve.' },
+    open:    { icon: '🔓', label: 'Open', hint: 'Anyone can join straight away, while there is room.' },
+  };
+
+  function recruitmentHtml() {
+    const d = state.data, c = d.clan, pol = c.join_policy || 'invite';
+    const reqs = d.join_requests || [];
+    let html = `<section class="clan-sec"><h3>Recruitment</h3>`;
+    if (can('manage_recruitment')) {
+      html += `<div class="clan-seg" role="radiogroup">${Object.entries(POLICY).map(([k, v]) =>
+        `<button type="button" class="clan-seg-btn${pol === k ? ' on' : ''}" data-act="policy" data-policy="${k}" role="radio" aria-checked="${pol === k}">
+          <span>${v.icon}</span> ${v.label}</button>`).join('')}</div>`;
+    } else {
+      html += `<div class="clan-policy-line">${POLICY[pol].icon} <b>${POLICY[pol].label}</b></div>`;
+    }
+    html += `<div class="clan-muted">${POLICY[pol].hint}</div>`;
+    if (can('invite') && (reqs.length || pol === 'request')) {
+      html += `<h4 class="clan-subhead">Join requests${reqs.length ? ` <span class="clan-count">${reqs.length}</span>` : ''}</h4>`;
+      html += reqs.length ? `<ul class="clan-requests">${reqs.map(r => `
+        <li>
+          <span class="clan-inv-main">
+            <span class="clan-member-name">${esc(r.username)}</span>
+            <span class="clan-muted">${CP() ? CP().tierIcon(r.tier) : ''} ${esc(r.settlement_name || '')} · ${esc(r.species || '')} · ${esc(timeAgo(r.created_at))}</span>
+            ${r.message ? `<span class="clan-req-msg">“${esc(r.message)}”</span>` : ''}
+          </span>
+          <span class="clan-inv-actions">
+            <button type="button" class="clan-btn small" data-act="req-accept" data-id="${r.id}">Accept</button>
+            <button type="button" class="clan-btn small ghost" data-act="req-decline" data-id="${r.id}">Decline</button>
+          </span>
+        </li>`).join('')}</ul>` : '<div class="clan-muted">No one is waiting.</div>';
+    }
+    return html + '</section>';
+  }
+
+  // ── Unlocks: the level ladder as a timeline ─────────────────────────────
+  function unlocksHtml() {
+    const c = state.data.clan, p = P();
+    const byLevel = {};
+    for (const u of p.LEVEL_UNLOCKS) (byLevel[u.level] = byLevel[u.level] || []).push(u);
+    const life = c.prestige_lifetime;
+    const nodes = p.CLAN_LEVELS.map((row, i) => {
+      const prev = p.CLAN_LEVELS[i - 1];
+      const st = row.level < c.level ? 'done' : row.level === c.level ? 'current' : row.level === c.level + 1 ? 'next' : 'locked';
+      const perks = (byLevel[row.level] || []).map(u =>
+        `<span class="clan-perk"><span class="clan-perk-ic">${u.icon}</span>${esc(u.label)}</span>`).join('');
+      const grow = [];
+      if (!prev || row.memberCap > prev.memberCap) grow.push(`👥 ${row.memberCap} members`);
+      if (!prev || row.territoryCap > prev.territoryCap) grow.push(`🏳️ ${row.territoryCap} ${row.territoryCap === 1 ? 'tile' : 'tiles'}`);
+      if (prev && row.claimRadius > prev.claimRadius) grow.push(`🧭 reach ${row.claimRadius}`);
+      let foot = '';
+      if (st === 'next') {
+        const from = prev ? prev.lifetime : 0;
+        const pct = Math.max(2, Math.min(100, Math.round(100 * (life - from) / Math.max(1, row.lifetime - from))));
+        foot = `<div class="clan-bar"><span style="width:${pct}%"></span></div>
+          <div class="clan-muted">${life.toLocaleString()} / ${row.lifetime.toLocaleString()} lifetime prestige · ${(row.lifetime - life).toLocaleString()} to go</div>`;
+      }
+      const badge = st === 'done' ? '<span class="clan-tl-badge">✓ Unlocked</span>'
+        : st === 'current' ? '<span class="clan-tl-badge here">★ Your clan</span>'
+        : `<span class="clan-tl-badge lock">🔒 ${row.lifetime.toLocaleString()} prestige</span>`;
+      return `<li class="clan-tl-node ${st}">
+        <div class="clan-tl-dot">${row.level}</div>
+        <div class="clan-tl-card">
+          <div class="clan-tl-head"><span class="clan-tl-title">Level ${row.level}</span>${badge}</div>
+          ${perks ? `<div class="clan-perks">${perks}</div>` : ''}
+          <div class="clan-tl-grow">${grow.map(esc).join(' · ')}</div>
+          ${foot}
+        </div>
+      </li>`;
+    }).join('');
+    return `<p class="clan-muted clan-tl-intro">Every member's quests, battles, outposts and settlement upgrades earn lifetime prestige. Each level unlocks something new for the whole clan.</p>
+      <ol class="clan-tl">${nodes}</ol>`;
   }
 
   // ── Roster: sort, filter, rank groups, presence, contribution share ────
@@ -373,6 +458,21 @@
         </li>`).join('')}</ul></section>`;
     }
 
+    const myReqs = d.requests || [];
+    if (myReqs.length) {
+      html += `<section class="clan-sec"><h3>Your requests</h3><ul class="clan-invites">${myReqs.map(r => `
+        <li>
+          ${bannerHtml(r.banner, 36)}
+          <span class="clan-inv-main">
+            <a href="#" class="clan-member-name clan-link" onclick="event.preventDefault();openClanProfile(${parseInt(r.clan_id, 10)})">${esc(r.clan_name)}</a>
+            <span class="clan-muted">Level ${r.level} · asked ${esc(timeAgo(r.created_at))} · waiting for an officer</span>
+          </span>
+          <span class="clan-inv-actions"><button type="button" class="clan-btn small ghost" data-act="withdraw" data-id="${r.clan_id}">Withdraw</button></span>
+        </li>`).join('')}</ul></section>`;
+    }
+    html += `<section class="clan-sec"><h3>Find a clan</h3>
+      <p class="clan-muted">Browse clans in <b>Rankings → Clan Prestige</b>. Open clans let you join at once; others take requests or invitations.</p>
+      <button type="button" class="clan-btn ghost" data-act="browse">🏆 Browse clans</button></section>`;
     html += `<section class="clan-sec"><h3>Found a clan</h3>`;
     if (!f.placed) {
       html += `<p class="clan-muted">Place your settlement on the map first.</p>`;
@@ -383,7 +483,7 @@
         <button type="button" class="clan-btn" data-act="found">Found a clan</button>`;
     }
     html += `</section>`;
-    if (!d.invites.length) html = `<p class="clan-empty">You're not in a clan. Accept an invitation or found your own.</p>` + html;
+    if (!d.invites.length && !myReqs.length) html = `<p class="clan-empty">You're not in a clan. Join one or found your own.</p>` + html;
     byId('clan-body').innerHTML = html;
   }
 
@@ -440,8 +540,6 @@
         ${pickerHtml(c.level)}
         <label class="clan-label" for="clan-e-desc">Description</label>
         <textarea id="clan-e-desc" name="description" maxlength="500" rows="3">${esc(state.draft.description || '')}</textarea>
-        <label class="clan-check"><input type="checkbox" name="recruiting"${state.draft.recruiting ? ' checked' : ''}>
-          <span>📯 Recruiting <span class="clan-muted">— show players on your public profile that you're looking for members</span></span></label>
         <div class="clan-form-actions">
           <button type="button" class="clan-btn ghost" data-act="back">Cancel</button>
           <button type="submit" class="clan-btn">Save</button>
@@ -455,7 +553,6 @@
     if (!f) return;
     if (f.elements.name) state.draft.name = f.elements.name.value;
     if (f.elements.description) state.draft.description = f.elements.description.value;
-    if (f.elements.recruiting) state.draft.recruiting = f.elements.recruiting.checked;
   }
 
   // ── Action sheet + confirm (touch-friendly, no hover) ───────────────────
@@ -754,13 +851,32 @@
       case 'profile': openMemberProfile(id); break;
       case 'public': if (global.openClanProfile) global.openClanProfile(id); break;
       case 'title': titleSheet(id); break;
+      case 'policy': {
+        const pol = t.dataset.policy;
+        if (pol === (c.join_policy || 'invite')) break;
+        const pending = (state.data.join_requests || []).length;
+        const go = () => run(() => call('PATCH', '/api/clans/recruitment', { join_policy: pol }), `Recruitment: ${POLICY[pol].label}.`);
+        if (pending && pol !== 'request') {
+          confirmSheet('Change recruitment', `${pending} pending ${pending === 1 ? 'request' : 'requests'} will be declined.`, `Switch to ${POLICY[pol].label}`, go);
+        } else if (pol === 'open') {
+          confirmSheet('Open the clan', `Anyone will be able to join ${c.name} at once, as a Recruit, while there is room.`, 'Open the clan', go);
+        } else go();
+        break;
+      }
+      case 'req-accept': run(() => call('POST', `/api/clans/requests/${id}/accept`), 'Welcome aboard — request accepted.'); break;
+      case 'req-decline': run(() => call('POST', `/api/clans/requests/${id}/decline`), 'Request declined.'); break;
+      case 'withdraw': run(() => call('DELETE', `/api/clans/${id}/join`), 'Request withdrawn.'); break;
+      case 'browse':
+        closeClanPanel();
+        if (global.openLeaderboard) { global.openLeaderboard(); if (global.Leaderboard) global.Leaderboard._select('clanprestige'); }
+        break;
       case 'title-clear': run(() => call('PATCH', `/api/clans/members/${id}/title`, { title: '' }), 'Title removed.'); break;
       case 'found':
         state.draft = { emblem: 'acorn', primary: 'moss', secondary: 'wheat', name: '', description: '' };
         state.view = 'found'; render(); break;
       case 'edit': {
         const b = c.banner;
-        state.draft = { emblem: b.emblem, primary: b.primary, secondary: b.secondary, description: c.description, recruiting: !!c.recruiting };
+        state.draft = { emblem: b.emblem, primary: b.primary, secondary: b.secondary, description: c.description };
         state.view = 'edit'; render(); break;
       }
       case 'back': state.view = 'main'; render(); break;
@@ -838,7 +954,7 @@
       const d = state.draft;
       run(async () => {
         await call('PATCH', '/api/clans/profile', {
-          description: d.description, recruiting: !!d.recruiting,
+          description: d.description,
           banner: { emblem: d.emblem, primary: d.primary, secondary: d.secondary },
         });
         state.view = 'main';
@@ -851,7 +967,7 @@
 
   function updateBadge() {
     const d = state.data;
-    const on = !!(d && !d.clan && d.invites && d.invites.length);
+    const on = !!(d && (d.clan ? (d.join_requests || []).length : (d.invites && d.invites.length)));
     const btn = document.getElementById('nav-clan');
     if (btn) btn.classList.toggle('has-dot', on);
     if (global.KWShell && typeof global.KWShell.syncBadges === 'function') global.KWShell.syncBadges();
@@ -884,6 +1000,10 @@
       && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
     if (typing) return;
     refresh();
+  }
+  function onRequestDeclined(ev) {
+    toast(`${(ev && ev.name) || 'The clan'} declined your request to join.`, 'error');
+    refreshClanBadge();
   }
   function onInviteReceived() {
     toast('🛡️ You have a new clan invitation.', 'success');
@@ -929,7 +1049,7 @@
   global.openClanPanel = openClanPanel;
   global.closeClanPanel = closeClanPanel;
   global.refreshClanBadge = refreshClanBadge;
-  global.ClanUI = { onMembershipChanged, onInviteReceived, onDisbanded, onClanEvent, refresh,
+  global.ClanUI = { onMembershipChanged, onInviteReceived, onRequestDeclined, onDisbanded, onClanEvent, refresh,
                     claimInfo, claimTile, claimFromTile, refreshTerritoryOnMap,
                     territoryLineHtml, claimButtonHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

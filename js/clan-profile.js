@@ -40,6 +40,17 @@
         <button class="clan-close cp-close" type="button" aria-label="Close" data-cp="close">✕</button>
         <div class="cp-scroll" id="cp-scroll"></div>
       </div>`;
+    root.addEventListener('submit', e => {
+      const f = e.target.closest('form[data-cp-form="ask"]');
+      if (!f) return;
+      e.preventDefault();
+      const message = f.elements.message.value.trim();
+      joinAction(async () => {
+        await joinCall('POST', { message });
+        toastMsg(`📯 Request sent to ${_data.clan.name}.`);
+        if (global.refreshClanBadge) global.refreshClanBadge();
+      });
+    });
     root.addEventListener('click', e => {
       if (e.target === root) return closeClanProfile();
       const t = e.target.closest('[data-cp]');
@@ -89,6 +100,49 @@
   }
   function titleChip(t) { return t ? `<span class="clan-title-chip">${esc(t)}</span>` : ''; }
   function tierIcon(t) { return TIER_ICON[t] || '🏠'; }
+
+  // ── Joining ─────────────────────────────────────────────────────────────
+  function policyTag(p) {
+    return p === 'open' ? '<span class="cp-tag rec">🔓 Open to all</span>'
+      : p === 'request' ? '<span class="cp-tag rec">📯 Taking requests</span>'
+      : '<span class="cp-tag">✉️ Invite only</span>';
+  }
+  function joinHtml(c, viewer) {
+    if (viewer.member) return '<button type="button" class="clan-btn" data-cp="panel">🛡️ Open clan panel</button>';
+    const full = c.member_count >= c.member_cap;
+    if (c.join_policy === 'invite') return '<div class="clan-muted">Membership is by invitation from a Leader or Officer.</div>';
+    if (viewer.in_clan) return `<div class="clan-muted">${c.join_policy === 'open' ? `${esc(c.name)} is open to all` : `${esc(c.name)} takes join requests`} — leave your current clan first.</div>`;
+    if (full) return '<div class="clan-muted">The clan is full right now.</div>';
+    if (c.join_policy === 'open') {
+      return `<button type="button" class="clan-btn" data-cp="join">🔓 Join ${esc(c.name)}</button>
+        <div class="clan-muted">You'll join at once as a Recruit.</div>`;
+    }
+    if (viewer.request_pending) {
+      return `<div class="cp-pending">📯 Request sent — an officer will answer soon.</div>
+        <button type="button" class="clan-btn ghost" data-cp="withdraw">Withdraw request</button>`;
+    }
+    return `<form class="cp-ask" data-cp-form="ask">
+        <textarea name="message" rows="2" maxlength="200" placeholder="A few words for the officers (optional)"></textarea>
+        <button type="submit" class="clan-btn">📯 Request to join</button>
+      </form>`;
+  }
+  async function joinCall(method, body) {
+    const id = _data.clan.id;
+    const res = await global.apiFetch(`/api/clans/${id}/join`, {
+      method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined,
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Something went wrong.');
+    return d;
+  }
+  let _busy = false;
+  async function joinAction(fn) {
+    if (_busy) return;
+    _busy = true;
+    try { await fn(); } catch (e) { toastMsg(e.message, 'error'); } finally { _busy = false; }
+    if (_data && isOpen()) openClanProfile(_data.clan.id);
+  }
+  const toastMsg = (m, t) => { if (typeof global.showBuildToast === 'function') global.showBuildToast(m, t || 'success'); };
 
   // ── Render ──────────────────────────────────────────────────────────────
   function render() {
@@ -147,7 +201,7 @@
           <div class="cp-sub">Level ${c.level} · founded ${esc(founded)}</div>
           <div class="cp-tags">
             ${viewer.member ? '<span class="cp-tag mine">Your clan</span>' : ''}
-            ${c.recruiting ? '<span class="cp-tag rec">📯 Recruiting</span>' : ''}
+            ${policyTag(c.join_policy)}
             ${online ? `<span class="cp-tag"><span class="clan-presence on"></span> ${online} online</span>` : ''}
           </div>
         </div>
@@ -172,11 +226,7 @@
         ${ms ? `<section class="clan-sec"><h3>Milestones</h3><ul class="clan-feed">${ms}</ul></section>` : ''}
         <section class="clan-sec cp-actions">
           ${hq ? `<button type="button" class="clan-btn ghost" data-cp="hq">🏛️ Show clan hall${hq.name ? ` — ${esc(hq.name)}` : ''}</button>` : ''}
-          ${viewer.member
-            ? '<button type="button" class="clan-btn" data-cp="panel">🛡️ Open clan panel</button>'
-            : `<div class="clan-muted">${c.recruiting
-                ? `📯 ${esc(c.name)} is recruiting. Membership is by invitation — message a Leader or Officer.`
-                : 'Membership is by invitation from a Leader or Officer.'}</div>`}
+          ${joinHtml(c, viewer)}
         </section>
       </div>`;
     byId('cp-scroll').scrollTop = 0;
@@ -198,6 +248,16 @@
         }
         break;
       }
+      case 'join':
+        joinAction(async () => {
+          await joinCall('POST', {});
+          toastMsg(`🛡️ Welcome to ${_data.clan.name}!`);
+          if (global.refreshClanBadge) global.refreshClanBadge();
+        });
+        break;
+      case 'withdraw':
+        joinAction(async () => { await joinCall('DELETE'); toastMsg('Request withdrawn.'); if (global.refreshClanBadge) global.refreshClanBadge(); });
+        break;
       case 'panel':
         closeClanProfile();
         if (global.Leaderboard) global.Leaderboard.close();

@@ -270,6 +270,110 @@ body.kw-shell #clan-profile .cp-body { padding-bottom: calc(18px + env(safe-area
 .pm-clan { margin-top: 4px; }
 .pm-clan-btn {
   display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 6px; border-radius: 14px; cursor: pointer;
-  background: rgba(0,0,0,.25); border: 1px solid rgba(200,148,26,.3); color: inherit; font: inherit; font-size: 13.5px;
+  background: rgba(0,0,0,.3); border: 1px solid rgba(200,148,26,.35);
+  color: #e8dcc0; font-family: 'Crimson Pro', Georgia, serif; font-size: 13.5px; line-height: 1.3; text-align: left;
 }
-.pm-clan-btn:hover { border-color: rgba(244,201,93,.6); }
+.pm-clan-btn b { color: #f4c95d; font-weight: 600; }
+.pm-clan-btn:hover { border-color: rgba(244,201,93,.65); background: rgba(244,201,93,.08); }
+
+/* Profile modals: taller before they scroll, and no native scrollbar
+   squeezed inside the ornate frame (wheel / touch still scroll). */
+.profile-modal-box { max-height: 92vh; scrollbar-width: none; }
+.profile-modal-box::-webkit-scrollbar { display: none; }
+
+/* ── Unlocks timeline ── */
+.clan-tl-intro { margin: 2px 0 14px; }
+.clan-tl { list-style: none; margin: 0; padding: 0 0 4px; position: relative; }
+.clan-tl-node { position: relative; display: flex; gap: 14px; padding-bottom: 14px; }
+/* Track segment from this node down to the next */
+.clan-tl-node::before {
+  content: ''; position: absolute; left: 17px; top: 36px; bottom: -2px; width: 3px; border-radius: 2px;
+  background: rgba(242,230,201,.12);
+}
+.clan-tl-node:last-child::before { display: none; }
+.clan-tl-node.done::before { background: linear-gradient(180deg, #f4c95d, #c8941a); }
+.clan-tl-node.current::before { background: linear-gradient(180deg, #c8941a, rgba(242,230,201,.12)); }
+.clan-tl-dot {
+  flex-shrink: 0; width: 37px; height: 37px; border-radius: 50%; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Playfair Display', serif; font-weight: 700; font-size: 16px;
+  background: #1a1510; color: rgba(242,230,201,.35); border: 2px solid rgba(242,230,201,.15);
+}
+.clan-tl-node.done .clan-tl-dot { background: linear-gradient(160deg, #f4c95d, #b07f16); color: #2a1a05; border-color: #f4c95d; }
+.clan-tl-node.current .clan-tl-dot {
+  background: linear-gradient(160deg, #ffe08a, #d9a326); color: #2a1a05; border-color: #fff1c4;
+  box-shadow: 0 0 0 4px rgba(244,201,93,.18), 0 0 18px rgba(244,201,93,.55);
+  animation: clanTlPulse 2.4s ease-in-out infinite;
+}
+.clan-tl-node.next .clan-tl-dot { color: #f4c95d; border-color: rgba(244,201,93,.55); border-style: dashed; }
+@keyframes clanTlPulse { 50% { box-shadow: 0 0 0 7px rgba(244,201,93,.08), 0 0 24px rgba(244,201,93,.7); } }
+.clan-tl-card {
+  flex: 1; min-width: 0; padding: 9px 12px 10px; border-radius: 10px;
+  background: rgba(255,255,255,.025); border: 1px solid rgba(242,230,201,.08);
+}
+.clan-tl-node.done .clan-tl-card { background: rgba(244,201,93,.06); border-color: rgba(244,201,93,.25); }
+.clan-tl-node.current .clan-tl-card {
+  background: linear-gradient(135deg, rgba(244,201,93,.16), rgba(244,201,93,.05)); border-color: rgba(244,201,93,.6);
+}
+.clan-tl-node.next .clan-tl-card { border-color: rgba(244,201,93,.3); border-style: dashed; }
+.clan-tl-node.locked .clan-tl-card, .clan-tl-node.next .clan-tl-card { filter: saturate(.25); }
+.clan-tl-node.locked .clan-tl-card { opacity: .5; }
+.clan-tl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.clan-tl-title { font-family: 'Playfair Display', serif; font-size: 16px; color: #f2e6c9; }
+.clan-tl-node.done .clan-tl-title, .clan-tl-node.current .clan-tl-title { color: #f4c95d; }
+.clan-tl-badge { font-size: 12px; color: #C0DD97; }
+.clan-tl-badge.here { color: #fff1c4; font-weight: 600; }
+.clan-tl-badge.lock { color: rgba(242,230,201,.6); }
+.clan-perks { display: flex; flex-wrap: wrap; gap: 6px; margin: 7px 0 3px; }
+.clan-perk {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border-radius: 16px; font-size: 13.5px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(242,230,201,.14); color: #f2e6c9;
+}
+.clan-perk-ic {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(255,255,255,.06); font-size: 14px;
+}
+.clan-tl-node.done .clan-perk, .clan-tl-node.current .clan-perk { border-color: rgba(244,201,93,.35); }
+.clan-tl-node.done .clan-perk-ic, .clan-tl-node.current .clan-perk-ic { background: rgba(244,201,93,.2); }
+.clan-tl-node.locked .clan-perk-ic, .clan-tl-node.next .clan-perk-ic { filter: grayscale(1); }
+.clan-tl-grow { font-size: 12.5px; color: rgba(242,230,201,.55); margin-top: 3px; }
+.clan-tl-card .clan-bar { margin-top: 8px; }
+
+/* Next-unlock teaser on Overview */
+.clan-next-unlock {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 12px 0 6px; padding: 10px 12px; text-align: left;
+  border-radius: 10px; cursor: pointer; font: inherit; color: #f2e6c9;
+  background: linear-gradient(135deg, rgba(244,201,93,.1), rgba(244,201,93,.02)); border: 1px dashed rgba(244,201,93,.4);
+}
+.clan-next-unlock:hover { border-style: solid; }
+.clan-next-ic { font-size: 22px; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.3); filter: grayscale(.6); }
+.clan-next-go { margin-left: auto; font-size: 13px; color: #f4c95d; white-space: nowrap; }
+.clan-tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #d8642f; vertical-align: 2px; margin-left: 2px; }
+
+/* Recruitment */
+.clan-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin-bottom: 8px;
+  border-radius: 10px; background: rgba(0,0,0,.3); border: 1px solid rgba(242,230,201,.12); }
+.clan-seg-btn {
+  min-height: 40px; padding: 6px 6px; border-radius: 7px; cursor: pointer; border: 1px solid transparent;
+  background: transparent; color: rgba(242,230,201,.7); font: inherit; font-size: 14px;
+}
+.clan-seg-btn:hover { color: #f2e6c9; background: rgba(255,255,255,.04); }
+.clan-seg-btn.on { color: #2a1a05; background: linear-gradient(180deg, #f4c95d, #c8941a); font-weight: 600; }
+.clan-policy-line { margin-bottom: 4px; }
+.clan-subhead { margin: 14px 0 4px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #EF9F27; font-weight: 500; }
+.clan-count {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px; background: #d8642f; color: #fff; font-size: 11px; letter-spacing: 0; vertical-align: 1px;
+}
+.clan-requests { list-style: none; margin: 4px 0 0; padding: 0; }
+.clan-requests li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(200,148,26,.08); }
+.clan-req-msg { font-style: italic; font-size: 14px; color: rgba(242,230,201,.8); overflow-wrap: anywhere; }
+
+/* Public profile join area */
+.cp-ask { display: flex; flex-direction: column; gap: 8px; }
+.cp-ask textarea {
+  width: 100%; box-sizing: border-box; padding: 9px 10px; border-radius: 8px; resize: vertical;
+  background: rgba(0,0,0,.35); color: #f2e6c9; border: 1px solid rgba(242,230,201,.2); font: inherit; font-size: 16px;
+}
+.cp-pending { padding: 9px 12px; border-radius: 8px; background: rgba(192,221,151,.08); border: 1px solid rgba(192,221,151,.3); color: #C0DD97; }
+@media (max-width: 420px) { .clan-seg-btn { font-size: 12.5px; } }
