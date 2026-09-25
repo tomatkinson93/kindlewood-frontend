@@ -441,3 +441,27 @@ body.kw-shell #clan-profile .cp-body { padding-bottom: calc(18px + env(safe-area
 .cq-pick-name { font-size: 16px; }
 .cq-pick-chance { margin-left: auto; font-family: 'Playfair Display', serif; color: #f4c95d; }
 .cq-pick-btn .clan-muted { margin-left: 4px; }
+
+/* Quest admin (Dev Tools): clan fields */
+.ce-grid--5 { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 520px) { .ce-grid--5 { grid-template-columns: repeat(3, 1fr); } }
+.qa-src-tag { font-size: 9.5px; padding: 0 5px; border-radius: 6px; margin-left: 4px; background: rgba(244,201,93,.14); color: #f4c95d; vertical-align: 1px; }
+.qa-hint { margin-top: 6px; font-size: 10.5px; line-height: 1.4; color: rgba(192,221,151,.55); font-style: italic; }
+
+/* Clan quests: rotation, teasers, battles */
+.cq-rotation {
+  display: inline-block; margin: 2px 0 6px; padding: 4px 11px; border-radius: 14px; font-size: 13px;
+  background: rgba(244,201,93,.08); border: 1px solid rgba(244,201,93,.25); color: #e8d0a0;
+}
+.cq-rotation b { color: #f4c95d; font-weight: 600; }
+.cq-chip.danger { border-color: rgba(233,138,107,.45); color: #f0a488; background: rgba(233,138,107,.08); }
+.cq-locked { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 0 2px; font-size: 13px; }
+.cq-locked-item { padding: 2px 9px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px dashed rgba(242,230,201,.18); color: rgba(242,230,201,.6); filter: saturate(.3); }
+.cq-battle { font-size: 13.5px; padding: 6px 9px; border-radius: 8px; }
+.cq-battle.won { background: rgba(192,221,151,.08); color: #C0DD97; }
+.cq-battle.lost { background: rgba(233,138,107,.08); color: #f0a488; }
+.cq-won { font-size: 12.5px; color: #C0DD97; margin-left: 4px; }
+.cq-log { margin-top: 4px; font-size: 12.5px; color: rgba(242,230,201,.75); }
+.cq-log summary { cursor: pointer; color: rgba(244,201,93,.8); width: max-content; }
+.cq-log ol { margin: 6px 0 0; padding-left: 20px; max-height: 200px; overflow-y: auto; }
+.cq-log li { padding: 1px 0; }

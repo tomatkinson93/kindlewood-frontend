@@ -110,6 +110,7 @@
     },
     // A clan quest you took part in finished (your settlement channel).
     clan_quest_resolved(ev) { if (global.ClanQuests) global.ClanQuests.onResolved(ev); },
+    clan_quest_battle(ev) { if (global.ClanQuests) global.ClanQuests.onBattle(ev); },
     clan_request_declined(ev) {
       if (global.ClanUI && global.ClanUI.onRequestDeclined) global.ClanUI.onRequestDeclined(ev);
     },

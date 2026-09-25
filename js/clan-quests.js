@@ -75,13 +75,19 @@
     const forming = d.runs.filter(r => r.status === 'forming');
     const active = d.runs.filter(r => r.status === 'active');
     const solo = d.board.filter(q => q.kind === 'solo'), party = d.board.filter(q => q.kind === 'party');
-    let out = `<p class="clan-muted cq-intro">Send citizens out for the clan. Everyone who takes part gets the rewards and earns the clan prestige — failing costs nothing.</p>`;
+    let out = `<p class="clan-muted cq-intro">Send citizens out for the clan. Everyone who takes part gets the rewards and earns the clan prestige — failing costs nothing.</p>
+      <div class="cq-rotation">📜 Today's board · new quests in <b data-cq-until="${esc(d.rotates_at)}" data-cq-done="a moment">${dur((new Date(d.rotates_at) - now()) / 1000)}</b></div>`;
     if (forming.length) out += `<section class="clan-sec"><h3>📯 Parties gathering</h3>${forming.map(formingCard).join('')}</section>`;
     if (active.length) out += `<section class="clan-sec"><h3>🚶 Underway</h3>${active.map(activeCard).join('')}</section>`;
     out += `<section class="clan-sec"><h3>Solo quests <span class="clan-muted cq-h-note">once a day each</span></h3>
-      <div class="cq-grid">${solo.map(boardCard).join('')}</div></section>`;
-    out += `<section class="clan-sec"><h3>Party quests <span class="clan-muted cq-h-note">one citizen per member · clan level ${d.party_unlock_level}+</span></h3>
-      <div class="cq-grid">${party.map(boardCard).join('')}</div></section>`;
+      ${solo.length ? `<div class="cq-grid">${solo.map(boardCard).join('')}</div>` : '<div class="clan-muted">No solo quests on the board today.</div>'}</section>`;
+    out += `<section class="clan-sec"><h3>Party quests <span class="clan-muted cq-h-note">one citizen per member</span></h3>
+      ${party.length ? `<div class="cq-grid">${party.map(boardCard).join('')}</div>`
+        : `<div class="clan-muted">${d.level < d.party_unlock_level ? `Party quests open at clan level ${d.party_unlock_level}.` : 'No party quests on the board today.'}</div>`}</section>`;
+    if (d.locked && d.locked.length) {
+      out += `<div class="cq-locked"><span class="clan-muted">Unlocking later:</span> ${d.locked.map(l =>
+        `<span class="cq-locked-item">${esc(l.icon)} ${esc(l.title)} <span class="clan-muted">· L${l.unlock_level}</span></span>`).join('')}</div>`;
+    }
     if (d.recent.length) out += `<section class="clan-sec"><h3>Recent</h3><ul class="cq-recent">${d.recent.map(recentLine).join('')}</ul></section>`;
     return out;
   }
@@ -109,7 +115,7 @@
         <div><div class="cq-title">${esc(q.title)}</div>
           <div class="clan-muted small">${dur(q.duration_s)} · ${pct(q.base_success)} base · ✦ ${q.prestige} prestige${q.kind === 'party' ? ' each' : ''}</div></div></div>
       <p class="cq-desc">${esc(q.description)}</p>
-      <div class="cq-chips">${skill}</div>
+      <div class="cq-chips">${skill}${q.combat_chance > 0 ? `<span class="cq-chip danger" title="The party may be ambushed on the way. Clan battles resolve themselves and never injure — a defeat just ends the quest.">⚔️ ${q.combat_chance}% chance of a fight</span>` : ''}</div>
       <div class="cq-rewards">${esc(rewardsText(q.rewards))}${q.kind === 'party' ? ' <span class="clan-muted">each</span>' : ''}</div>
       <div class="cq-foot">${foot}</div>
     </article>`;
@@ -160,16 +166,32 @@
           <div class="small">${who}</div></div>
         <span class="cq-eta" data-cq-until="${esc(run.completes_at)}" data-cq-done="Returning…">${dur((end - now()) / 1000)}</span></div>
       <div class="clan-bar"><span data-cq-bar data-start="${start}" data-end="${end}" style="width:${p}%"></span></div>
+      ${battleHtml(run)}
     </article>`;
   }
 
   function recentLine(run) {
     const q = run.quest, ok = run.status === 'completed';
     const who = run.slots.map(s => esc(s.username)).join(', ');
+    const lost = run.combat && run.combat.outcome === 'defeat';
     const tail = run.status === 'expired' ? 'lapsed before the party filled'
-      : ok ? `${esc(rewardsText(q.rewards))}${run.kind === 'party' ? ' each' : ''}` : 'came home empty-handed';
-    return `<li class="cq-recent-${run.status}"><span class="cq-ic sm">${ok ? '✓' : run.status === 'expired' ? '⌛' : '✗'}</span>
-      <span><b>${esc(q.title)}</b> <span class="clan-muted">— ${who || 'no one'} · ${tail}</span></span></li>`;
+      : ok ? `${esc(rewardsText(q.rewards))}${run.kind === 'party' ? ' each' : ''}`
+      : lost ? `driven back by ${esc(run.combat.foes)}` : 'came home empty-handed';
+    const fought = run.combat && run.combat.outcome === 'victory' ? ` <span class="cq-won">⚔️ beat ${esc(run.combat.foes)}</span>` : '';
+    return `<li class="cq-recent-${run.status}"><span class="cq-ic sm">${ok ? '✓' : run.status === 'expired' ? '⌛' : lost ? '⚔️' : '✗'}</span>
+      <span><b>${esc(q.title)}</b> <span class="clan-muted">— ${who || 'no one'} · ${tail}</span>${fought}${run.combat ? battleLog(run) : ''}</span></li>`;
+  }
+
+  // "Fought off …" line + collapsible log for a run whose encounter happened.
+  function battleHtml(run) {
+    if (!run.combat) return '';
+    const won = run.combat.outcome === 'victory';
+    return `<div class="cq-battle ${won ? 'won' : 'lost'}">⚔️ ${won ? `Fought off ${esc(run.combat.foes)} — pressing on` : `Driven back by ${esc(run.combat.foes)}`}${battleLog(run)}</div>`;
+  }
+  function battleLog(run) {
+    const log = (run.combat && run.combat.log) || [];
+    if (!log.length) return '';
+    return `<details class="cq-log"><summary>Battle log</summary><ol>${log.map(l => `<li>${esc(typeof l === 'string' ? l : (l.text || l.msg || JSON.stringify(l)))}</li>`).join('')}</ol></details>`;
   }
 
   // ── Countdowns ──────────────────────────────────────────────────────────
@@ -289,7 +311,17 @@
 
   // ── Realtime ────────────────────────────────────────────────────────────
   function onUpdated() { if (st.data) load(); }
+  function onBattle(ev) {
+    toast(`⚔️ Your clan party on "${ev.title}" fought off ${ev.foes} and presses on!`);
+    if (st.data) load();
+  }
   function onResolved(ev) {
+    if (ev.battle === 'defeat') {
+      toast(`⚔️ "${ev.title}": driven back by ${ev.foes}. Everyone made it home.`, 'error');
+      if (typeof global.loadCitizens === 'function') global.loadCitizens();
+      if (st.data) load();
+      return;
+    }
     const ok = ev.outcome === 'completed';
     toast(ok ? `🎉 Clan quest "${ev.title}" complete! ${rewardsText(ev.rewards)}` : `Clan quest "${ev.title}" failed — everyone is home safe.`, ok ? 'success' : 'error');
     if (typeof global.refreshResources === 'function') global.refreshResources();
@@ -307,6 +339,6 @@
     } catch (e) { if (fb) fb.textContent = '⚠ ' + e.message; }
   }
 
-  global.ClanQuests = { html, load, onClick, afterRender, onUpdated, onResolved, reset: () => { st.data = null; } };
+  global.ClanQuests = { html, load, onClick, afterRender, onUpdated, onResolved, onBattle, reset: () => { st.data = null; } };
   global.cheatFinishClanQuests = cheatFinish;
 })(typeof window !== 'undefined' ? window : globalThis);
