@@ -5,8 +5,9 @@
 // "coming soon" so the structure is visible. Top 3 get trophy styling.
 //
 // Live item options: map(row) → [name, stat, secondary?]; columns; empty
-// ({ icon, title, text }) for the no-data state; rowAction:'none' for boards
-// whose names aren't players (clicking would open a player profile);
+// ({ icon, title, text }) for the no-data state; rowAction:'clan' for boards
+// of clans (a click opens the public clan profile by the row's id) —
+// otherwise a click opens the named player's profile;
 // podium(row) → HTML for the stat line under a podium name.
 
 (function () {
@@ -34,7 +35,7 @@
       { id: 'clanprestige', name: 'Clan Prestige', live: true,
         endpoint: '/api/clans/leaderboard',
         columns: ['Prestige', 'Level'], map: r => [r.name, Number(r.prestige).toLocaleString(), r.level],
-        rowAction: 'none',
+        rowAction: 'clan',
         podium: row => `${_esc(row[1])} prestige · Level ${_esc(row[2])}`,
         empty: { icon: '🛡️', title: 'No clans yet',
                  text: 'Build a Guild Hall in a Town, found a clan, and raise its banner here.' } },
@@ -134,9 +135,11 @@
       </div>`;
       return;
     }
-    // Player boards open a profile on click; others (clans) don't.
-    const click = name => item.rowAction === 'none'
-      ? '' : ` onclick="Leaderboard._viewProfile('${_esc(name)}')" title="View ${_esc(name)}"`;
+    // Player boards open a player profile on click; clan boards the clan's
+    // public profile (i = index into the raw rows).
+    const click = (name, i) => item.rowAction === 'clan'
+      ? ` onclick="openClanProfile(${parseInt(rows[i].id, 10)})" title="View ${_esc(name)}"`
+      : ` onclick="Leaderboard._viewProfile('${_esc(name)}')" title="View ${_esc(name)}"`;
 
     const mapped = rows.map(item.map);
     const podium = mapped.slice(0, 3);
@@ -152,7 +155,7 @@
       ${order.map(i => {
         const row = podium[i];
         if (!row) return '';
-        return `<div class="lb-podium-spot ${medal[i]} place-${i + 1}"${click(row[0])}>
+        return `<div class="lb-podium-spot ${medal[i]} place-${i + 1}"${click(row[0], i)}>
           <div class="lb-podium-trophy">${trophy[i]}</div>
           <div class="lb-podium-name">${_esc(row[0])}</div>
           <div class="lb-podium-stat">${item.podium ? item.podium(row) : `${_esc(row[1])} ${_esc(cols[0].toLowerCase())}${row[2] != null ? ` <span class="lb-podium-games">(${_esc(row[2])} ${_esc((cols[1]||'games').toLowerCase())})</span>` : ''}`}</div>
@@ -164,7 +167,7 @@
     const restHtml = rest.length ? `<table class="lb-table">
       <thead><tr><th>#</th><th>Name</th>${cols.map(c => `<th>${_esc(c)}</th>`).join('')}</tr></thead>
       <tbody>
-        ${rest.map((row, idx) => `<tr${item.rowAction === 'none' ? '' : ' class="lb-row-click"'}${click(row[0])}>
+        ${rest.map((row, idx) => `<tr class="lb-row-click"${click(row[0], idx + 3)}>
           <td class="lb-rank">${idx + 4}</td>
           <td class="lb-name">${_esc(row[0])}</td>
           ${row.slice(1).map(v => `<td>${_esc(v)}</td>`).join('')}

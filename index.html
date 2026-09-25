@@ -40,8 +40,8 @@
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
-  <link rel="stylesheet" href="/css/clans.css?v=clan4">
-  <link rel="stylesheet" href="/css/chat-hub.css?v=mod1">
+  <link rel="stylesheet" href="/css/clans.css?v=cp1">
+  <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -792,7 +792,7 @@
   <script defer src="/js/seasons.js?v=3"></script>
   <script defer src="/js/season-atmosphere.js?v=1"></script>
   <script defer src="/js/tier.js?v=tierfix1"></script>
-  <script defer src="/js/profile.js?v=2"></script>
+  <script defer src="/js/profile.js?v=cp1"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
   <script defer src="/js/kwmap-core.js?v=np1"></script>
@@ -809,7 +809,7 @@
   <script defer src="/js/main.js?v=chat1"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
-  <script defer src="/js/leaderboard.js?v=clan4"></script>
+  <script defer src="/js/leaderboard.js?v=cp1"></script>
   <script defer src="/js/briar_engine.js?v=8"></script>
   <script defer src="/js/squirrel_engine.js?v=16"></script>
   <script defer src="/js/games-meta.js?v=1"></script>
@@ -835,13 +835,14 @@
   <script defer src="/js/feedback.js?v=1778500800"></script>
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
-  <script defer src="/js/clan-palette.js?v=clan9"></script>
-  <script defer src="/js/clans.js?v=chat2"></script>
-  <script defer src="/js/chat-hub.js?v=mod1"></script>
-  <script defer src="/js/realtime.js?v=mod1"></script>
+  <script defer src="/js/clan-palette.js?v=cp1"></script>
+  <script defer src="/js/clans.js?v=cp1"></script>
+  <script defer src="/js/clan-profile.js?v=cp1"></script>
+  <script defer src="/js/chat-hub.js?v=cp1"></script>
+  <script defer src="/js/realtime.js?v=cp1"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
-  <script defer src="/js/mobile-shell.js?v=clan1"></script>
+  <script defer src="/js/mobile-shell.js?v=cp1"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->
@@ -1320,6 +1321,7 @@
           <div class="pm-username" id="pm-username">—</div>
           <div class="pm-title" id="pm-title" hidden></div>
           <div class="pm-species" id="pm-species"></div>
+          <div class="pm-clan" id="pm-clan" hidden></div>
           <div class="pm-joined" id="pm-joined"></div>
         </div>
       </div>
@@ -1390,6 +1392,7 @@
           <div class="pm-username" id="vp-username">—</div>
           <div class="pm-title" id="vp-title" hidden></div>
           <div class="pm-species" id="vp-species"></div>
+          <div class="pm-clan" id="vp-clan" hidden></div>
         </div>
       </div>
 

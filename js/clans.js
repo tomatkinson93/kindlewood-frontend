@@ -32,6 +32,8 @@
     view: 'main',      // main | found | edit
     draft: null,       // banner/name draft for found/edit forms
     busy: false,
+    rosterSort: 'rank',   // rank | prestige | active | name
+    rosterQuery: '',
   };
 
   function toast(msg, type) {
@@ -76,6 +78,17 @@
     el.querySelector('.clan-close').addEventListener('click', closeClanPanel);
     el.addEventListener('click', onAction);
     el.addEventListener('submit', onSubmit);
+    // Roster toolbar: sort re-renders the tab; search only swaps the list so
+    // the input keeps focus.
+    el.addEventListener('change', e => {
+      if (e.target.dataset.act === 'roster-sort') { state.rosterSort = e.target.value; render(); }
+    });
+    el.addEventListener('input', e => {
+      if (e.target.dataset.act !== 'roster-search') return;
+      state.rosterQuery = e.target.value;
+      const ul = byId('clan-roster-list');
+      if (ul) ul.innerHTML = rosterRowsHtml();
+    });
     document.body.appendChild(el);
     return el;
   }
@@ -226,10 +239,8 @@
       progress = `<div class="clan-bar"><span style="width:${pct}%"></span></div>
         <div class="clan-muted">${lifetime.toLocaleString()} / ${c.next_level_at.toLocaleString()} lifetime prestige to level ${c.level + 1}</div>`;
     }
-    const unlocks = [
-      { lv: P().FORUM_UNLOCK_LEVEL, label: 'Clan forum' },
-      { lv: P().CHAT_UNLOCK_LEVEL, label: 'Clan live chat' },
-    ].map(u => `<li class="${c.level >= u.lv ? 'ok' : ''}">${c.level >= u.lv ? '✓' : '🔒'} ${u.label} <span class="clan-muted">— level ${u.lv}</span></li>`).join('');
+    // Unlock ladder: everything earned so far, then what's next.
+    const unlocks = P().LEVEL_UNLOCKS.map(u => `<li class="${c.level >= u.level ? 'ok' : ''}">${c.level >= u.level ? '✓' : '🔒'} ${u.icon} ${esc(u.label)} <span class="clan-muted">— level ${u.level}</span></li>`).join('');
 
     let html = `
       <section class="clan-sec">
@@ -243,7 +254,11 @@
         ${progress}
         <p class="clan-desc">${c.description ? esc(c.description) : '<span class="clan-muted">No description yet.</span>'}</p>
         <ul class="clan-unlocks">${unlocks}</ul>
-        <button type="button" class="clan-btn ghost" onclick="closeClanPanel();openChatHub('forum')">💬 Open the clan hall (Chat)</button>
+        ${c.recruiting ? '<div class="clan-muted">📯 Shown as <b>recruiting</b> on your public profile.</div>' : ''}
+        <div class="clan-btn-row">
+          <button type="button" class="clan-btn ghost" onclick="closeClanPanel();openChatHub('forum')">💬 Open the clan hall (Chat)</button>
+          <button type="button" class="clan-btn ghost" data-act="public" data-id="${c.id}">🛡️ View public profile</button>
+        </div>
         ${can('edit_profile') ? '<button type="button" class="clan-btn ghost" data-act="edit">Edit banner & description</button>' : ''}
       </section>`;
 
@@ -275,19 +290,64 @@
     return html;
   }
 
-  function rosterHtml() {
-    const d = state.data;
-    return `<ul class="clan-roster">${d.roster.map(m => `
-      <li>
+  // ── Roster: sort, filter, rank groups, presence, contribution share ────
+  const CP = () => global.ClanProfile;
+  const SORTS = { rank: 'Rank', prestige: 'Contribution', active: 'Recently active', name: 'Name' };
+  const seenTime = m => (m.online ? Infinity : (m.last_seen_at ? new Date(m.last_seen_at).getTime() : 0));
+
+  function sortedRoster() {
+    const d = state.data, qy = state.rosterQuery.trim().toLowerCase();
+    let list = d.roster.filter(m => !qy || m.username.toLowerCase().includes(qy)
+      || (m.title || '').toLowerCase().includes(qy) || (m.settlement_name || '').toLowerCase().includes(qy));
+    const cmp = {
+      rank: null,   // server order: rank, then join date
+      prestige: (a, b) => b.prestige_contributed - a.prestige_contributed,
+      active: (a, b) => seenTime(b) - seenTime(a),
+      name: (a, b) => a.username.localeCompare(b.username),
+    }[state.rosterSort];
+    if (cmp) list = list.slice().sort(cmp);
+    return list;
+  }
+
+  function rosterRowsHtml() {
+    const d = state.data, list = sortedRoster();
+    if (!list.length) return '<li class="clan-empty">No members match.</li>';
+    const total = Math.max(1, d.roster.reduce((n, m) => n + m.prestige_contributed, 0));
+    let group = '', out = '';
+    for (const m of list) {
+      if (state.rosterSort === 'rank' && m.rank !== group) {
+        group = m.rank;
+        const n = list.filter(x => x.rank === group).length;
+        out += `<li class="cp-group">${RANK_ICON[group] || ''} ${esc(CP() ? CP().RANK_GROUP[group] : cap(group))} <span class="clan-muted">${n}</span></li>`;
+      }
+      const share = Math.round(100 * m.prestige_contributed / total);
+      const seen = CP() ? CP().presence(m) : '';
+      out += `<li>
         <button type="button" class="clan-member" data-act="member" data-id="${m.user_id}">
-          <span class="clan-rank-ic" title="${esc(m.rank_label)}">${RANK_ICON[m.rank] || ''}</span>
+          <span class="clan-rank-ic" title="${esc(m.rank_label)}">${RANK_ICON[m.rank] || ''}<span class="clan-presence${m.online ? ' on' : ''}" title="${esc(seen || 'Offline')}"></span></span>
           <span class="clan-member-main">
-            <span class="clan-member-name">${esc(m.username)}${m.user_id === d.me.user_id ? ' <span class="clan-muted">(you)</span>' : ''}</span>
-            <span class="clan-muted">${esc(m.rank_label)} · ${esc(m.species || '')} · ${esc(m.settlement_name || '')}</span>
+            <span class="clan-member-name">${esc(m.username)}${m.user_id === d.me.user_id ? ' <span class="clan-muted">(you)</span>' : ''}${CP() ? CP().titleChip(m.title) : ''}</span>
+            <span class="clan-muted">${esc(m.rank_label)} · ${CP() ? CP().tierIcon(m.tier) : ''} ${esc(m.settlement_name || 'No settlement')}${seen ? ` · <span class="${m.online ? 'clan-online' : ''}">${esc(seen)}</span>` : ''}</span>
           </span>
-          <span class="clan-member-pts" title="Prestige contributed">${Number(m.prestige_contributed).toLocaleString()}</span>
+          <span class="clan-member-pts" title="${share}% of the clan's prestige">✦ ${Number(m.prestige_contributed).toLocaleString()}
+            <span class="clan-share"><span style="width:${Math.max(share ? 4 : 0, share)}%"></span></span></span>
         </button>
-      </li>`).join('')}</ul>`;
+      </li>`;
+    }
+    return out;
+  }
+
+  function rosterHtml() {
+    const d = state.data, c = d.clan;
+    const online = d.roster.filter(m => m.online).length;
+    return `
+      <div class="clan-roster-bar">
+        <div class="clan-muted"><span class="clan-presence on"></span> ${online} online · ${c.member_count}/${c.member_cap} members</div>
+        <label class="clan-sort">Sort <select data-act="roster-sort">${Object.entries(SORTS).map(([k, v]) =>
+          `<option value="${k}"${state.rosterSort === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
+      </div>
+      ${d.roster.length > 6 ? `<input class="clan-search" type="search" data-act="roster-search" placeholder="Find a member, title or settlement" value="${esc(state.rosterQuery)}" autocomplete="off">` : ''}
+      <ul class="clan-roster" id="clan-roster-list">${rosterRowsHtml()}</ul>`;
   }
 
   function renderClanless() {
@@ -380,6 +440,8 @@
         ${pickerHtml(c.level)}
         <label class="clan-label" for="clan-e-desc">Description</label>
         <textarea id="clan-e-desc" name="description" maxlength="500" rows="3">${esc(state.draft.description || '')}</textarea>
+        <label class="clan-check"><input type="checkbox" name="recruiting"${state.draft.recruiting ? ' checked' : ''}>
+          <span>📯 Recruiting <span class="clan-muted">— show players on your public profile that you're looking for members</span></span></label>
         <div class="clan-form-actions">
           <button type="button" class="clan-btn ghost" data-act="back">Cancel</button>
           <button type="submit" class="clan-btn">Save</button>
@@ -393,6 +455,7 @@
     if (!f) return;
     if (f.elements.name) state.draft.name = f.elements.name.value;
     if (f.elements.description) state.draft.description = f.elements.description.value;
+    if (f.elements.recruiting) state.draft.recruiting = f.elements.recruiting.checked;
   }
 
   // ── Action sheet + confirm (touch-friendly, no hover) ───────────────────
@@ -427,6 +490,12 @@
     const acts = [
       `<button type="button" class="clan-btn block" data-act="profile" data-id="${m.user_id}">👤 View profile</button>`,
     ];
+    // Titles (cosmetic, clan level 5+): yourself and lower ranks.
+    if (can('manage_ranks') && (lower || m.user_id === d.me.user_id)) {
+      acts.push(d.clan.level >= P().TITLE_UNLOCK_LEVEL
+        ? `<button type="button" class="clan-btn ghost block" data-act="title" data-id="${m.user_id}">🏷️ ${m.title ? 'Change title' : 'Give a title'}</button>`
+        : `<div class="clan-muted clan-sheet-note">🏷️ Member titles unlock at clan level ${P().TITLE_UNLOCK_LEVEL}.</div>`);
+    }
     if (m.user_id !== d.me.user_id) {
       if (can('manage_ranks') && lower && up && up !== 'founder' && RANK_ORDER[up] < RANK_ORDER[myRank]) {
         acts.push(`<button type="button" class="clan-btn ghost block" data-act="promote" data-id="${m.user_id}">Promote to ${cap(up)}</button>`);
@@ -443,12 +512,30 @@
     }
     acts.push(`<button type="button" class="clan-btn ghost block" data-act="sheet-close">Close</button>`);
     openSheet(`
-      <div class="clan-sheet-title">${RANK_ICON[m.rank] || ''} ${esc(m.username)}</div>
-      <p class="clan-sheet-msg">${esc(m.rank_label)} · joined ${new Date(m.joined_at).toLocaleDateString()} · ${Number(m.prestige_contributed).toLocaleString()} prestige contributed</p>
+      <div class="clan-sheet-title">${RANK_ICON[m.rank] || ''} ${esc(m.username)}${CP() ? CP().titleChip(m.title) : ''}</div>
+      <p class="clan-sheet-msg">${esc(m.rank_label)} · joined ${new Date(m.joined_at).toLocaleDateString()} · ${Number(m.prestige_contributed).toLocaleString()} prestige contributed${
+        CP() && CP().presence(m) ? ` · ${esc(CP().presence(m))}` : ''}</p>
       ${acts.join('')}`);
   }
 
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function titleSheet(userId) {
+    const m = state.data.roster.find(x => x.user_id === userId);
+    if (!m) return;
+    const max = P().TITLE_MAX;
+    openSheet(`
+      <div class="clan-sheet-title">🏷️ Title for ${esc(m.username)}</div>
+      <p class="clan-sheet-msg">Shown beside their name on the roster, the clan's public profile and their player profile.</p>
+      <form class="clan-inline-form" data-form="title" data-id="${m.user_id}">
+        <input name="title" type="text" maxlength="${max}" value="${esc(m.title || '')}" placeholder="e.g. Quartermaster" autocomplete="off">
+        <button type="submit" class="clan-btn">Save</button>
+      </form>
+      ${m.title ? `<button type="button" class="clan-btn ghost block" data-act="title-clear" data-id="${m.user_id}">Remove title</button>` : ''}
+      <button type="button" class="clan-btn ghost block" data-act="sheet-close">Cancel</button>`);
+    const i = byId('clan-sheet-wrap').querySelector('input[name=title]');
+    if (i && !document.body.classList.contains('kw-shell')) i.focus();
+  }
 
   // ── Territory (spec §6) ─────────────────────────────────────────────────
 
@@ -536,7 +623,7 @@
     const chip = `<span class="clan-chip" style="--c1:${esc(ct.primary)};--c2:${esc(ct.secondary)}">${esc(ct.glyph || '')}</span>`;
     const name = ct.mine
       ? `<a href="#" class="clan-link" onclick="event.preventDefault();openClanPanel()">${esc(ct.name)}</a> <span class="clan-muted">(your clan)</span>`
-      : esc(ct.name);
+      : `<a href="#" class="clan-link" onclick="event.preventDefault();openClanProfile(${parseInt(ct.clan_id, 10)})">${esc(ct.name)}</a>`;
     return `${chip} ${name}`;
   }
 
@@ -665,12 +752,15 @@
       case 'confirm-yes': { const fn = _pendingConfirm; _pendingConfirm = null; if (fn) fn(); break; }
       case 'member': memberSheet(id); break;
       case 'profile': openMemberProfile(id); break;
+      case 'public': if (global.openClanProfile) global.openClanProfile(id); break;
+      case 'title': titleSheet(id); break;
+      case 'title-clear': run(() => call('PATCH', `/api/clans/members/${id}/title`, { title: '' }), 'Title removed.'); break;
       case 'found':
         state.draft = { emblem: 'acorn', primary: 'moss', secondary: 'wheat', name: '', description: '' };
         state.view = 'found'; render(); break;
       case 'edit': {
         const b = c.banner;
-        state.draft = { emblem: b.emblem, primary: b.primary, secondary: b.secondary, description: c.description };
+        state.draft = { emblem: b.emblem, primary: b.primary, secondary: b.secondary, description: c.description, recruiting: !!c.recruiting };
         state.view = 'edit'; render(); break;
       }
       case 'back': state.view = 'main'; render(); break;
@@ -729,6 +819,9 @@
     if (kind === 'invite') {
       const username = f.elements.username.value.trim();
       if (username) run(() => call('POST', '/api/clans/invites', { username }), `Invitation sent to ${username}.`);
+    } else if (kind === 'title') {
+      const uid = parseInt(f.dataset.id, 10), title = f.elements.title.value.trim();
+      run(() => call('PATCH', `/api/clans/members/${uid}/title`, { title }), title ? 'Title given.' : 'Title removed.');
     } else if (kind === 'found') {
       captureFormText();
       const d = state.draft;
@@ -745,7 +838,7 @@
       const d = state.draft;
       run(async () => {
         await call('PATCH', '/api/clans/profile', {
-          description: d.description,
+          description: d.description, recruiting: !!d.recruiting,
           banner: { emblem: d.emblem, primary: d.primary, secondary: d.secondary },
         });
         state.view = 'main';

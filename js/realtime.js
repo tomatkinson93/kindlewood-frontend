@@ -133,7 +133,7 @@
   // Clan-channel events (clan:<id>) — all notify-then-fetch.
   ['clan_prestige', 'clan_level_up', 'clan_member_joined', 'clan_member_left',
    'clan_member_kicked', 'clan_rank_changed', 'clan_profile_updated',
-   'clan_leadership_transferred', 'clan_territory_claimed'].forEach(type => {
+   'clan_leadership_transferred', 'clan_territory_claimed', 'clan_member_updated'].forEach(type => {
     HANDLERS[type] = ev => {
       if (global.ClanUI) global.ClanUI.onClanEvent(ev);
       // A level-up can unlock the forum / live chat tabs.

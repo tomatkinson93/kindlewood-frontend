@@ -216,3 +216,5 @@ body.kw-shell .chat-report { opacity: .6; }
 .mod-list { list-style: none; margin: 0; padding: 0; }
 .mod-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(200,148,26,.1); }
 .mod-snip { font-style: italic; overflow-wrap: anywhere; }
+button.chat-clan-tag { border: none; cursor: pointer; font-family: inherit; }
+button.chat-clan-tag:hover { filter: brightness(1.15); }

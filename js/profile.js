@@ -69,6 +69,20 @@ async function renderHonors(prefix, username) {
 // ── Open own profile ──────────────────────────────────────────────────────
 
 // openProfileForUser — wraps viewPlayerProfile for use from the map sidebar
+// Clan line under the name on player profiles (spec 016 Phase 5): banner
+// chip, "Title · Rank of <clan>"; tapping opens the clan's public profile.
+function renderProfileClan(prefix, clan) {
+  const el = document.getElementById(`${prefix}-clan`);
+  if (!el) return;
+  if (!clan) { el.hidden = true; el.innerHTML = ''; return; }
+  const b = clan.banner || {};
+  const role = clan.title ? `${escHtml(clan.title)} · ${escHtml(clan.rank_label)}` : escHtml(clan.rank_label);
+  el.innerHTML = `<button type="button" class="pm-clan-btn" onclick="closeViewProfile();closeProfile();openClanProfile(${parseInt(clan.id, 10)})">
+      <span class="clan-chip" style="--c1:${escHtml(b.primaryHex)};--c2:${escHtml(b.secondaryHex)}">${escHtml(b.glyph || '')}</span>
+      <span>${role} of <b>${escHtml(clan.name)}</b></span></button>`;
+  el.hidden = false;
+}
+
 async function openProfileForUser(username, species, settlementName, tier, tileX, tileY) {
   if (!username) { openProfile(); return; }
   if (gameData && gameData.username === username) { openProfile(); return; }
@@ -97,6 +111,7 @@ async function openProfile() {
       const res = await apiFetch(`/api/auth/profile/${encodeURIComponent(username)}`);
       if (res.ok) {
         const data = await res.json();
+        renderProfileClan('pm', data.clan);
         const bioEl = document.getElementById('pm-bio');
         if (bioEl) { bioEl.value = data.bio || ''; updateBioCounter(); }
         if (data.joined) {
@@ -227,11 +242,13 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
 
   // Fetch bio and profile from server
   document.getElementById('vp-bio').textContent = 'Loading…';
+  renderProfileClan('vp', null);
   try {
     const res = await apiFetch(`/api/auth/profile/${encodeURIComponent(username)}`);
     if (res.ok) {
       const data = await res.json();
       document.getElementById('vp-bio').textContent = data.bio || 'This ruler keeps their own counsel.';
+      renderProfileClan('vp', data.clan);
       // Server settlement data overrides the sidebar fallback
       if (data.settlement) {
         document.getElementById('vp-settlements').innerHTML = renderSettlementCard(
@@ -251,7 +268,10 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
 }
 
 function closeViewProfile() {
-  document.getElementById('view-profile-modal')?.classList.remove('open');
+  const vp = document.getElementById('view-profile-modal');
+  if (!vp) return;
+  vp.classList.remove('open');
+  vp.style.zIndex = '';   // clan-profile.js raises it above itself
 }
 
 function closeViewProfileIfOutside(e) {

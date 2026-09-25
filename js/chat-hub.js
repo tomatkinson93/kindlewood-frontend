@@ -237,7 +237,9 @@
   }
   function clanTag(ac) {
     if (!ac || !isGlobal(channel())) return '';
-    return `<span class="chat-clan-tag" style="--c:${esc(ac.primary)}" title="${esc(ac.name)}">${esc(ac.glyph)} ${esc(ac.name)}</span>`;
+    return ac.id
+      ? `<button type="button" class="chat-clan-tag" style="--c:${esc(ac.primary)}" data-act="clan-profile" data-id="${parseInt(ac.id, 10)}" title="View ${esc(ac.name)}">${esc(ac.glyph)} ${esc(ac.name)}</button>`
+      : `<span class="chat-clan-tag" style="--c:${esc(ac.primary)}" title="${esc(ac.name)}">${esc(ac.glyph)} ${esc(ac.name)}</span>`;
   }
 
   function lockedHtml(what, gate) {
@@ -648,6 +650,7 @@
         run(async () => { await call('DELETE', `/api/chat/posts/${id}`); await openThread(st.thread.id); });
         break;
       case 'report': openReport(t.dataset.type, id); break;
+      case 'clan-profile': if (global.openClanProfile) global.openClanProfile(id); break;
       case 'report-cancel':
         if (e.target !== t) break;       // clicks inside the sheet bubble up to its backdrop
         st.reporting = null; render(); break;
