@@ -164,20 +164,22 @@
     byId('clan-head-banner').innerHTML = bannerHtml(c.banner, 40);
     const reqs = (d.join_requests || []).length;
     const TAB_LABEL = { overview: `Overview${reqs ? ' <span class="clan-tab-dot"></span>' : ''}`, roster: `Roster (${c.member_count})`,
-      unlocks: 'Unlocks', territory: 'Territory', activity: 'Activity' };
-    byId('clan-tabs').innerHTML = ['overview', 'roster', 'unlocks', 'territory', 'activity'].map(t =>
+      quests: 'Quests', unlocks: 'Unlocks', territory: 'Territory', activity: 'Activity' };
+    byId('clan-tabs').innerHTML = ['overview', 'roster', 'quests', 'unlocks', 'territory', 'activity'].map(t =>
       `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${TAB_LABEL[t]}</button>`
     ).join('');
     byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml()
       : state.tab === 'activity' ? activityHtml()
       : state.tab === 'unlocks' ? unlocksHtml()
+      : state.tab === 'quests' ? (global.ClanQuests ? global.ClanQuests.html() : '')
       : state.tab === 'territory' ? territoryHtml() : overviewHtml();
+    if (state.tab === 'quests' && global.ClanQuests) global.ClanQuests.afterRender();
     if (state.tab === 'activity' && state.activity === null) loadActivity();
   }
 
   // ── Activity feed ───────────────────────────────────────────────────────
 
-  const SOURCE_LABEL = { quest: 'a quest', battle: 'a battle', outpost: 'a new outpost', tier: 'a settlement upgrade' };
+  const SOURCE_LABEL = { clan_quest: 'a clan quest', quest: 'a quest', battle: 'a battle', outpost: 'a new outpost', tier: 'a settlement upgrade' };
 
   function activityLine(a) {
     const p = a.payload || {}, who = `<b>${esc(a.actor || 'Someone')}</b>`, name = `<b>${esc(p.username || '')}</b>`;
@@ -192,6 +194,8 @@
       case 'profile_updated':        return ['🖌️', `${who} updated the clan banner and description.`];
       case 'title_changed':          return ['🏷️', p.title ? `${who} gave ${name} the title <b>${esc(p.title)}</b>.` : `${who} removed ${name}'s title.`];
       case 'join_policy_changed':    return ['📯', `${who} set recruitment to <b>${esc({ invite: 'Invite only', request: 'Request to join', open: 'Open' }[p.policy] || p.policy)}</b>.`];
+      case 'clan_quest_completed':   return ['📜', `${p.members && p.members.length ? `<b>${esc(p.members.join(', '))}</b>` : 'The clan'} completed <b>${esc(p.title || '')}</b>.`];
+      case 'clan_quest_failed':      return ['🥀', `${p.members && p.members.length ? esc(p.members.join(', ')) : 'The clan'} came back from <b>${esc(p.title || '')}</b> without success.`];
       case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
       case 'prestige_adjusted':      return ['🛠️', `${who} ${p.amount > 0 ? 'added' : 'removed'} <b>${esc(Math.abs(p.amount))}</b> prestige <span class="clan-muted">(Dev Tools)</span>.`];
       case 'prestige_earned':        return ['✦', `${who} earned <b>${esc(p.amount)}</b> prestige from ${esc(SOURCE_LABEL[p.source] || p.source)}${
@@ -827,6 +831,9 @@
   }
 
   function onAction(e) {
+    // Quests tab + its citizen picker (js/clan-quests.js).
+    const cq = e.target.closest('[data-cq]');
+    if (cq && global.ClanQuests) { if (!cq.disabled) global.ClanQuests.onClick(cq); return; }
     const t = e.target.closest('[data-act]');
     if (!t) return;
     const act = t.dataset.act, id = parseInt(t.dataset.id, 10);
@@ -983,7 +990,18 @@
 
   // ── Realtime hooks (called from realtime.js) ────────────────────────────
 
+  // Re-renders the body if `tab` is showing and nobody is typing there.
+  function renderTab(tab) {
+    if (!isOpen() || state.view !== 'main' || state.tab !== tab || !state.data || !state.data.clan) return;
+    const a = document.activeElement;
+    if (a && byId('clan-body').contains(a) && /INPUT|TEXTAREA/.test(a.tagName)) return;
+    const scroll = byId('clan-body').scrollTop;
+    render();
+    byId('clan-body').scrollTop = scroll;
+  }
+
   function onMembershipChanged() {
+    if (global.ClanQuests) global.ClanQuests.reset();
     refreshTerritoryOnMap();   // 'mine' flags on the map change with membership
     if (isOpen()) { state.view = 'main'; refresh(); } else refreshClanBadge();
   }
@@ -992,6 +1010,7 @@
   function onClanEvent(ev) {
     if (ev && ev.type === 'clan_level_up') toast(`🎉 Your clan reached level ${ev.level}!`, 'success');
     if (ev && (ev.type === 'clan_territory_claimed' || ev.type === 'clan_profile_updated')) refreshTerritoryOnMap();
+    if (ev && ev.type === 'clan_quest_updated') { if (global.ClanQuests) global.ClanQuests.onUpdated(); return; }
     // Keep cached clan data current for the map's Claim action even while
     // the panel is closed.
     if (!isOpen()) { refreshClanBadge(); return; }
@@ -1049,7 +1068,8 @@
   global.openClanPanel = openClanPanel;
   global.closeClanPanel = closeClanPanel;
   global.refreshClanBadge = refreshClanBadge;
-  global.ClanUI = { onMembershipChanged, onInviteReceived, onRequestDeclined, onDisbanded, onClanEvent, refresh,
+  global.ClanUI = { renderTab, sheet: openSheet, closeSheet, confirm: confirmSheet,
+                    onMembershipChanged, onInviteReceived, onRequestDeclined, onDisbanded, onClanEvent, refresh,
                     claimInfo, claimTile, claimFromTile, refreshTerritoryOnMap,
                     territoryLineHtml, claimButtonHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

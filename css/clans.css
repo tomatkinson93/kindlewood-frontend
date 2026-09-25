@@ -377,3 +377,67 @@ body.kw-shell #clan-profile .cp-body { padding-bottom: calc(18px + env(safe-area
 }
 .cp-pending { padding: 9px 12px; border-radius: 8px; background: rgba(192,221,151,.08); border: 1px solid rgba(192,221,151,.3); color: #C0DD97; }
 @media (max-width: 420px) { .clan-seg-btn { font-size: 12.5px; } }
+
+/* Six tabs: let the bar scroll sideways on narrow screens */
+.clan-tabs { overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.clan-tabs::-webkit-scrollbar { display: none; }
+.clan-tab { white-space: nowrap; flex-shrink: 0; }
+
+/* ── Clan quests (Quests tab) ── */
+.cq-intro { margin: 0 0 4px; }
+.cq-h-note { font-family: 'Crimson Pro', Georgia, serif; font-size: 12.5px; font-weight: 400; margin-left: 6px; }
+.cq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.cq-card, .cq-run {
+  display: flex; flex-direction: column; gap: 6px; padding: 11px 12px; border-radius: 10px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(200,148,26,.2);
+}
+.cq-card.locked { opacity: .5; filter: saturate(.3); }
+.cq-run { margin-bottom: 10px; }
+.cq-run.forming { border-color: rgba(192,221,151,.4); background: rgba(192,221,151,.05); }
+.cq-run.active { border-color: rgba(244,201,93,.4); }
+.cq-card-head { display: flex; align-items: flex-start; gap: 10px; }
+.cq-ic {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 19px; background: rgba(0,0,0,.3); border: 1px solid rgba(244,201,93,.25);
+}
+.cq-ic.sm { width: 22px; height: 22px; font-size: 12px; }
+.cq-title { font-family: 'Playfair Display', serif; font-size: 15.5px; color: #f4c95d; line-height: 1.2; }
+.cq-desc { margin: 0; font-size: 14px; line-height: 1.4; color: rgba(242,230,201,.8); }
+.cq-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.cq-chip { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: rgba(0,0,0,.3); border: 1px solid rgba(242,230,201,.15); }
+.cq-rewards { font-size: 13px; color: #C0DD97; }
+.cq-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 2px; }
+.cq-foot .cq-rewards { margin-right: auto; }
+.cq-state { font-size: 13px; }
+.cq-state.lock { color: rgba(242,230,201,.6); }
+.cq-state.done { color: #C0DD97; }
+.cq-state.run { color: #f4c95d; }
+.cq-eta { margin-left: auto; font-family: 'Playfair Display', serif; color: #f4c95d; white-space: nowrap; }
+.cq-roles { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cq-role {
+  display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 8px;
+  background: rgba(0,0,0,.22); border: 1px dashed rgba(242,230,201,.2);
+}
+.cq-role.filled { border-style: solid; border-color: rgba(244,201,93,.3); }
+.cq-role.mine { background: rgba(244,201,93,.08); }
+.cq-role-name { font-weight: 600; min-width: 64px; color: #e8d0a0; }
+.cq-role-who { flex: 1; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.cq-recent { list-style: none; margin: 0; padding: 0; }
+.cq-recent li { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 14px; border-bottom: 1px solid rgba(200,148,26,.08); }
+.cq-recent-completed .cq-ic { color: #9fdca8; }
+.cq-recent-failed .cq-ic, .cq-recent-expired .cq-ic { color: rgba(242,230,201,.5); }
+
+/* Citizen picker (inside the panel's action sheet) */
+.clan-sheet { max-height: 80%; overflow-y: auto; }
+.cq-role-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 4px; padding: 4px; margin: 6px 0;
+  border-radius: 10px; background: rgba(0,0,0,.3); }
+.cq-pick { list-style: none; margin: 8px 0 0; padding: 0; }
+.cq-pick-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 8px 10px; text-align: left; cursor: pointer;
+  background: none; border: none; border-bottom: 1px solid rgba(200,148,26,.1); color: #f2e6c9; font: inherit;
+}
+.cq-pick-btn:hover:not([disabled]) { background: rgba(244,201,93,.07); }
+.cq-pick-btn[disabled] { opacity: .45; cursor: default; }
+.cq-pick-name { font-size: 16px; }
+.cq-pick-chance { margin-left: auto; font-family: 'Playfair Display', serif; color: #f4c95d; }
+.cq-pick-btn .clan-muted { margin-left: 4px; }

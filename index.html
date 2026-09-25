@@ -40,7 +40,7 @@
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
-  <link rel="stylesheet" href="/css/clans.css?v=cp2">
+  <link rel="stylesheet" href="/css/clans.css?v=cq2">
   <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
   <script>
     // Capture the settlement species from any API response that includes it, so
@@ -836,10 +836,11 @@
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
   <script defer src="/js/clan-palette.js?v=cp2"></script>
-  <script defer src="/js/clans.js?v=cp2"></script>
+  <script defer src="/js/clans.js?v=cq1"></script>
   <script defer src="/js/clan-profile.js?v=cp2"></script>
+  <script defer src="/js/clan-quests.js?v=cq2"></script>
   <script defer src="/js/chat-hub.js?v=cp1"></script>
-  <script defer src="/js/realtime.js?v=cp2"></script>
+  <script defer src="/js/realtime.js?v=cq1"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=cp1"></script>
@@ -970,6 +971,10 @@
           <button class="cheat-res-btn" onclick="cheatClanPrestige(parseInt(document.getElementById('cheat-clan-prestige').value, 10))">Apply</button>
         </div>
         <div class="cheat-rel-feedback" id="cheat-clan-prestige-feedback">Adding raises lifetime prestige too (can level the clan up); removing only lowers the spendable balance.</div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="cheat-res-btn" style="flex:1" onclick="cheatFinishClanQuests()">Finish my clan quests now</button>
+        </div>
+        <div class="cheat-rel-feedback" id="cheat-clan-quests-feedback">Brings every clan quest you're part of to its end and resolves it.</div>
       </div>
 
       <!-- ── TAB: Citizens ── -->

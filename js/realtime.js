@@ -108,6 +108,8 @@
     clan_invite_received(ev) {
       if (global.ClanUI) global.ClanUI.onInviteReceived(ev);
     },
+    // A clan quest you took part in finished (your settlement channel).
+    clan_quest_resolved(ev) { if (global.ClanQuests) global.ClanQuests.onResolved(ev); },
     clan_request_declined(ev) {
       if (global.ClanUI && global.ClanUI.onRequestDeclined) global.ClanUI.onRequestDeclined(ev);
     },
@@ -136,7 +138,7 @@
   // Clan-channel events (clan:<id>) — all notify-then-fetch.
   ['clan_prestige', 'clan_level_up', 'clan_member_joined', 'clan_member_left',
    'clan_member_kicked', 'clan_rank_changed', 'clan_profile_updated',
-   'clan_leadership_transferred', 'clan_territory_claimed', 'clan_member_updated', 'clan_join_requested'].forEach(type => {
+   'clan_leadership_transferred', 'clan_territory_claimed', 'clan_member_updated', 'clan_join_requested', 'clan_quest_updated'].forEach(type => {
     HANDLERS[type] = ev => {
       if (global.ClanUI) global.ClanUI.onClanEvent(ev);
       // A level-up can unlock the forum / live chat tabs.
