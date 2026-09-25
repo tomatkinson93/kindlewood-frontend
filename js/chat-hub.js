@@ -12,6 +12,12 @@
 //  reconnects and tab-resumes fetch ?after=<lastId> to fill the gap.
 //  Unread = last seen message id per channel in localStorage (per device).
 //
+//  Moderation: anyone can ⚑ report someone else's line or post. Site staff
+//  (admins + moderators) see a Moderation section — the report queue, mutes,
+//  the action log and (admins) the moderator list — and MOD/ADMIN badges
+//  mark staff authors. Muted players read the realm channels but the
+//  composer tells them when they can post again.
+//
 //  Depends on: apiFetch, escHtml, ClanPalette, showBuildToast (optional).
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -31,6 +37,10 @@
     messages: [], moreOlder: false, stick: true, newBelow: 0,
     busy: false,
     myName: null,
+    // Moderation
+    staff: null, admin: false, muted: null, openReports: 0,
+    reporting: null,           // { type, id, author, body } while the report sheet is open
+    modReports: [], modFilter: 'open', mutes: [], modLog: [], staffList: [],
   };
 
   function toast(m, t) { if (typeof global.showBuildToast === 'function') global.showBuildToast(m, t || 'success'); }
@@ -113,9 +123,26 @@
   const isNarrow = () => document.body.classList.contains('kw-shell') || window.innerWidth < 760;
 
   async function loadChannels() {
-    try { st.channels = (await call('GET', '/api/chat/channels')).channels; }
-    catch (e) { st.channels = []; }
+    try {
+      const d = await call('GET', '/api/chat/channels');
+      st.channels = d.channels;
+      st.staff = d.staff || null; st.admin = !!d.admin;
+      st.muted = d.muted || null; st.openReports = d.open_reports || 0;
+      if (!st.staff && isModView(st.view)) st.view = 'home';
+    } catch (e) { st.channels = []; }
     updateBadge();
+  }
+  const isModView = v => /^mod-/.test(v || '');
+  // Muted (realm channels only) and the mute hasn't lapsed yet.
+  function mutedHere(ch) {
+    if (!isGlobal(ch) || !st.muted) return false;
+    if (st.muted.until && new Date(st.muted.until) <= new Date()) { st.muted = null; return false; }
+    return true;
+  }
+  function mutedText() {
+    return st.muted && st.muted.until
+      ? `You're muted in the Town Square until ${new Date(st.muted.until).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}. You can still read.`
+      : "You're muted in the Town Square until a moderator lifts it. You can still read.";
   }
 
   async function go(view, channelId) {
@@ -125,8 +152,10 @@
     }
     st.view = view;
     st.editing = null;
+    if (isModView(view)) st.channelId = null;
     if (view === 'forum') await loadThreads();
     if (view === 'live') await loadMessages();
+    if (isModView(view)) await loadMod(view);
     render();
     if (view === 'live') { scrollToBottom(true); focusComposer(); }
   }
@@ -137,7 +166,7 @@
     const root = byId('chat-hub');
     root.classList.toggle('chat-pushed', st.view !== 'home');
     byId('chat-side').innerHTML = sideHtml();
-    byId('chat-main').innerHTML = mainHtml();
+    byId('chat-main').innerHTML = mainHtml() + (st.reporting ? reportSheetHtml() : '');
     wireLiveScroll();
   }
 
@@ -167,6 +196,20 @@
       <div class="chat-sec">
         <div class="chat-sec-label">Clan hall</div>
         ${clan}
+      </div>${st.staff ? modSideHtml() : ''}`;
+  }
+
+  function modSideHtml() {
+    const b = (view, label, extra) => {
+      const on = st.view === view;
+      return `<button type="button" class="chat-tab${on ? ' on' : ''}" data-act="go" data-view="${view}"><span>${label}</span>${extra || ''}</button>`;
+    };
+    return `<div class="chat-sec">
+        <div class="chat-sec-label">Moderation <span class="chat-staff-badge ${st.staff}">${st.staff === 'admin' ? 'Admin' : 'Mod'}</span></div>
+        ${b('mod-reports', '⚑ Reports', st.openReports ? `<span class="chat-count">${st.openReports}</span>` : '')}
+        ${b('mod-mutes', '🔇 Mutes')}
+        ${b('mod-log', '📋 Action log')}
+        ${st.admin ? b('mod-staff', '🛡 Moderators') : ''}
       </div>`;
   }
 
@@ -183,6 +226,15 @@
     return view === 'live' ? '💬 Live chat' : '📜 Forum';
   }
   // Small clan tag after an author's name in realm channels.
+  // MOD / ADMIN badge after a staff author's name (every channel).
+  function staffBadge(role) {
+    return role ? `<span class="chat-staff-badge ${esc(role)}" title="Kindlewood ${role === 'admin' ? 'admin' : 'moderator'}">${role === 'admin' ? 'Admin' : 'Mod'}</span>` : '';
+  }
+  // ⚑ Report on someone else's (non-system) line/post.
+  function reportBtn(type, item) {
+    if (!item.author || item.author === myName() || item.system) return '';
+    return `<button type="button" class="chat-link chat-report" data-act="report" data-type="${type}" data-id="${item.id}" title="Report to the moderators" aria-label="Report">⚑</button>`;
+  }
   function clanTag(ac) {
     if (!ac || !isGlobal(channel())) return '';
     return `<span class="chat-clan-tag" style="--c:${esc(ac.primary)}" title="${esc(ac.name)}">${esc(ac.glyph)} ${esc(ac.name)}</span>`;
@@ -209,6 +261,7 @@
 
   function mainHtml() {
     const ch = channel();
+    if (isModView(st.view) && st.staff) return modHtml();
     if (st.view === 'home' || !ch) {
       return header('Chat') + `<div class="chat-empty">Pick a board or chat from the list — the Town Square is open to everyone${
         clanHall() ? ', and your clan hall is just for your clan' : ''}.</div>`;
@@ -239,8 +292,8 @@
 
   function forumHtml() {
     const ch = channel();
-    const newBtn = ch.permissions.post_forum
-      ? '<button type="button" class="chat-btn small" data-act="compose">✎ New thread</button>'
+    const newBtn = mutedHere(ch) ? '<span class="chat-muted small">🔇 Muted</span>'
+      : ch.permissions.post_forum ? '<button type="button" class="chat-btn small" data-act="compose">✎ New thread</button>'
       : `<span class="chat-muted small">${isGlobal(ch) ? 'Posted by the Kindlewood team' : 'Recruits can read; posting opens at Member.'}</span>`;
     const rows = st.threads.length ? st.threads.map(t => `
       <li><button type="button" class="chat-thread" data-act="thread" data-id="${t.id}">
@@ -277,19 +330,20 @@
     const posts = st.posts.map(p => {
       const mine = p.author === me;
       const editing = st.editing === p.id;
-      const actions = (mine || mod) && !editing ? `<span class="chat-post-actions">
+      const actions = (mine || mod) && !editing && !(mine && mutedHere(ch)) ? `<span class="chat-post-actions">
           <button type="button" class="chat-link" data-act="edit" data-id="${p.id}">Edit</button>
           ${p.id !== t.first_post_id ? `<button type="button" class="chat-link danger" data-act="del-post" data-id="${p.id}">Delete</button>` : ''}
         </span>` : '';
       return `<article class="chat-post${p.id === t.first_post_id ? ' first' : ''}">
-        <div class="chat-post-meta"><b>${esc(p.author || 'someone')}</b>${clanTag(p.author_clan)} <span class="chat-muted small">${esc(timeLabel(p.created_at))}${p.edited_at ? ' · edited' : ''}</span>${actions}</div>
+        <div class="chat-post-meta"><b>${esc(p.author || 'someone')}</b>${staffBadge(p.author_staff)}${clanTag(p.author_clan)} <span class="chat-muted small">${esc(timeLabel(p.created_at))}${p.edited_at ? ' · edited' : ''}</span>${actions}${editing ? '' : reportBtn('post', p)}</div>
         ${editing
           ? `<form data-form="edit" data-id="${p.id}"><textarea name="body" maxlength="${LIMIT.post}" rows="4">${esc(p.body)}</textarea>
               <div class="chat-form-row"><button type="button" class="chat-btn ghost small" data-act="cancel-edit">Cancel</button><button class="chat-btn small">Save</button></div></form>`
           : `<div class="chat-post-body">${esc(p.body)}</div>`}
       </article>`;
     }).join('');
-    const reply = (ch.permissions.post_reply ?? ch.permissions.post_forum)
+    const reply = mutedHere(ch) ? `<div class="chat-composer chat-muted small chat-muted-note">🔇 ${esc(mutedText())}</div>`
+      : (ch.permissions.post_reply ?? ch.permissions.post_forum)
       ? `<form class="chat-composer" data-form="reply"><textarea name="body" rows="2" maxlength="${LIMIT.post}" placeholder="Write a reply…" required></textarea><button class="chat-btn">Reply</button></form>`
       : '<div class="chat-composer chat-muted small">Recruits can read the forum; replying opens at Member.</div>';
     return header(`${t.pinned ? '📌 ' : ''}${esc(t.title)}`, 'forum', tools)
@@ -333,7 +387,7 @@
     if (m.system) return `<li class="chat-msg system" data-id="${m.id}"><span>${esc(m.body)}</span></li>`;
     const del = ch && ch.permissions.moderate ? `<button type="button" class="chat-link danger chat-msg-del" data-act="del-msg" data-id="${m.id}" aria-label="Remove">✕</button>` : '';
     return `<li class="chat-msg${m.author === me ? ' mine' : ''}" data-id="${m.id}">
-      <div class="chat-msg-meta"><b>${esc(m.author || 'someone')}</b>${clanTag(m.author_clan)} <span class="chat-muted small">${esc(timeLabel(m.created_at))}</span>${del}</div>
+      <div class="chat-msg-meta"><b>${esc(m.author || 'someone')}</b>${staffBadge(m.author_staff)}${clanTag(m.author_clan)} <span class="chat-muted small">${esc(timeLabel(m.created_at))}</span>${del}${reportBtn('message', m)}</div>
       <div class="chat-msg-body">${esc(m.body)}</div></li>`;
   }
 
@@ -345,10 +399,10 @@
         <ul class="chat-msgs" id="chat-msgs">${st.messages.map(msgHtml).join('') || '<li class="chat-empty">No messages yet.</li>'}</ul>
       </div>
       <button type="button" class="chat-new-chip" id="chat-new-chip" data-act="to-bottom" hidden>New messages ↓</button>
-      <form class="chat-composer" data-form="chat">
+      ${mutedHere(ch) ? `<div class="chat-composer chat-muted small chat-muted-note">🔇 ${esc(mutedText())}</div>` : `<form class="chat-composer" data-form="chat">
         <input name="body" maxlength="${LIMIT.chat}" placeholder="${isGlobal(ch) ? 'Message the realm…' : 'Message your clan…'}" autocomplete="off" required>
         <button class="chat-btn">Send</button>
-      </form>`;
+      </form>`}`;
   }
 
   function scrollToBottom(force) {
@@ -396,9 +450,158 @@
     else { st.newBelow++; showChip(); }
   }
 
+  // ── Reporting ───────────────────────────────────────────────────────────
+  const REASONS = [
+    ['spam', 'Spam or advertising'], ['abuse', 'Abuse or harassment'],
+    ['inappropriate', 'Inappropriate content'], ['other', 'Something else'],
+  ];
+  function openReport(type, id) {
+    const item = type === 'message' ? st.messages.find(m => m.id === id) : st.posts.find(p => p.id === id);
+    if (!item) return;
+    st.reporting = { type, id, author: item.author, body: item.body };
+    render();
+  }
+  function reportSheetHtml() {
+    const r = st.reporting;
+    return `<div class="chat-sheet-back" data-act="report-cancel">
+      <form class="chat-sheet" data-form="report" role="dialog" aria-label="Report">
+        <div class="chat-sheet-title">⚑ Report ${esc(r.author)}'s ${r.type === 'message' ? 'message' : 'post'}</div>
+        <blockquote class="mod-snap">${esc(r.body.length > 280 ? r.body.slice(0, 280) + '…' : r.body)}</blockquote>
+        <div class="chat-reasons">${REASONS.map(([v, l], i) => `
+          <label class="chat-reason"><input type="radio" name="reason" value="${v}"${i === 0 ? ' checked' : ''}> ${l}</label>`).join('')}
+        </div>
+        <textarea name="note" rows="2" maxlength="300" placeholder="Anything the moderators should know? (optional)"></textarea>
+        <div class="chat-muted small">Reports go to the Kindlewood moderators — ${esc(r.author)} won't see who sent it.</div>
+        <div class="chat-form-row"><button type="button" class="chat-btn ghost" data-act="report-cancel">Cancel</button><button class="chat-btn">Send report</button></div>
+      </form></div>`;
+  }
+
+  // ── Moderation (staff) ──────────────────────────────────────────────────
+  const MUTE_OPTS = [[1, '1 hour'], [24, '24 hours'], [72, '3 days'], [168, '7 days'], [0, 'Until lifted']];
+  const muteSelect = name => `<select name="${name}" class="chat-select">${MUTE_OPTS.map(([h, l]) =>
+    `<option value="${h}"${h === 24 ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+  const REASON_LABEL = Object.fromEntries(REASONS.map(([v, l]) => [v, l]));
+  const ACTION_LABEL = {
+    remove_message: 'removed a chat line by', remove_post: 'removed a post by', remove_thread: 'removed a thread by',
+    pin_thread: 'pinned a thread', unpin_thread: 'unpinned a thread',
+    report_dismiss: 'dismissed a report on', report_remove: 'removed reported content by',
+    report_remove_and_mute: 'removed reported content and muted', mute: 'muted', unmute: 'lifted the mute on',
+    grant_moderator: 'made a moderator:', revoke_moderator: 'revoked moderator from',
+  };
+  const untilLabel = u => u ? 'until ' + new Date(u).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'until lifted';
+
+  async function loadMod(view) {
+    try {
+      if (view === 'mod-reports') {
+        const d = await call('GET', `/api/chat/reports${st.modFilter === 'resolved' ? '?status=resolved' : ''}`);
+        st.modReports = d.reports;
+        if (st.modFilter === 'open') { st.openReports = d.open_reports || 0; updateBadge(); }
+      } else if (view === 'mod-mutes') st.mutes = (await call('GET', '/api/chat/mutes')).mutes;
+      else if (view === 'mod-log') st.modLog = (await call('GET', '/api/chat/mod-log')).actions;
+      else if (view === 'mod-staff') st.staffList = (await call('GET', '/api/chat/staff')).staff;
+    } catch (e) { handleErr(e); }
+  }
+
+  function modHtml() {
+    if (st.view === 'mod-reports') return reportsHtml();
+    if (st.view === 'mod-mutes') return mutesHtml();
+    if (st.view === 'mod-log') return logHtml();
+    if (st.view === 'mod-staff') return staffHtml();
+    return '';
+  }
+
+  function whereLabel(r) {
+    const c = r.channel || {};
+    const where = c.kind === 'clan' ? `🛡 ${esc(c.name || 'a clan')} (clan hall)` : esc(c.name || 'a deleted channel');
+    return where + (r.thread_title ? ` › ${esc(r.thread_title)}` : '');
+  }
+  function userLine(u) {
+    if (!u) return '<b>someone (deleted)</b>';
+    return `<b>${esc(u.username)}</b>${staffBadge(u.staff)}${u.muted ? ` <span class="mod-pill">🔇 muted ${esc(untilLabel(u.muted_until))}</span>` : ''}`;
+  }
+
+  function reportsHtml() {
+    const tog = `<div class="mod-toggle">
+      <button type="button" class="chat-btn small ${st.modFilter === 'open' ? '' : 'ghost'}" data-act="mod-filter" data-filter="open">Open${st.openReports ? ` (${st.openReports})` : ''}</button>
+      <button type="button" class="chat-btn small ${st.modFilter === 'resolved' ? '' : 'ghost'}" data-act="mod-filter" data-filter="resolved">Resolved</button></div>`;
+    let body;
+    if (st.modFilter === 'resolved') {
+      body = st.modReports.length ? st.modReports.map(r => `
+        <article class="mod-card resolved">
+          <div class="mod-card-head">${userLine(r.reported_user)} <span class="chat-muted small">in ${whereLabel(r)}</span></div>
+          <blockquote class="mod-snap">${esc(r.body)}</blockquote>
+          <div class="chat-muted small">${esc(REASON_LABEL[r.reason] || r.reason)} · reported by ${esc(r.reporter || 'someone')}${r.note ? ` — “${esc(r.note)}”` : ''}</div>
+          <div class="small mod-outcome ${r.status}">${r.status === 'dismissed' ? '✓ Dismissed' : '⚒ ' + esc(r.resolution || 'actioned')} by ${esc(r.resolver || 'someone')} · ${esc(timeLabel(r.resolved_at))}</div>
+        </article>`).join('') : '<div class="chat-empty">Nothing resolved yet.</div>';
+    } else {
+      body = st.modReports.length ? st.modReports.map(r => {
+        const u = r.reported_user;
+        const canMute = u && u.staff !== 'admin' && (!u.staff || st.admin);
+        return `<article class="mod-card" data-report="${r.id}">
+          <div class="mod-card-head">${userLine(u)} <span class="chat-muted small">in ${whereLabel(r)}</span>
+            ${r.reports.length > 1 ? `<span class="chat-count">${r.reports.length} reports</span>` : ''}</div>
+          <blockquote class="mod-snap">${esc(r.body)}</blockquote>
+          ${r.still_there ? '' : '<div class="chat-muted small">Already removed from the channel.</div>'}
+          <ul class="mod-reports">${r.reports.map(x => `<li><span class="mod-reason ${esc(x.reason)}">${esc(REASON_LABEL[x.reason] || x.reason)}</span>
+            <span class="chat-muted small">${esc(x.reporter || 'someone')} · ${esc(timeLabel(x.created_at))}</span>${x.note ? `<div class="small">“${esc(x.note)}”</div>` : ''}</li>`).join('')}</ul>
+          <div class="mod-actions">
+            <button type="button" class="chat-btn ghost small" data-act="resolve" data-action="dismiss" data-id="${r.id}">Dismiss</button>
+            ${r.still_there ? `<button type="button" class="chat-btn danger small" data-act="resolve" data-action="remove" data-id="${r.id}">${r.is_opening ? 'Remove thread' : 'Remove'}</button>` : ''}
+            ${canMute ? `<span class="mod-mute">${muteSelect('hours-' + r.id)}<button type="button" class="chat-btn danger small" data-act="resolve" data-action="remove_and_mute" data-id="${r.id}">${r.still_there ? 'Remove & mute' : 'Mute'}</button></span>` : ''}
+          </div>
+        </article>`;
+      }).join('') : '<div class="chat-empty">No open reports — all quiet in the realm. 🌿</div>';
+    }
+    return header('⚑ Reports', 'home', tog) + `<div class="chat-scroll">${body}</div>`;
+  }
+
+  function mutesHtml() {
+    const rows = st.mutes.length ? st.mutes.map(m => `
+      <li class="mod-row"><div><b>${esc(m.username)}</b> <span class="chat-muted small">${esc(untilLabel(m.until))} · by ${esc(m.muted_by || 'someone')}</span>
+        ${m.reason ? `<div class="small chat-muted">${esc(m.reason)}</div>` : ''}</div>
+        <button type="button" class="chat-btn ghost small" data-act="unmute" data-id="${m.user_id}">Lift</button></li>`).join('')
+      : '<li class="chat-empty">Nobody is muted.</li>';
+    return header('🔇 Mutes', 'home') + `<div class="chat-scroll">
+      <form class="mod-form" data-form="mute">
+        <input name="username" placeholder="Player name" required autocomplete="off">
+        ${muteSelect('hours')}
+        <input name="reason" maxlength="200" placeholder="Reason (optional)" autocomplete="off">
+        <button class="chat-btn small">Mute</button>
+      </form>
+      <div class="chat-muted small mod-help">Muted players can read the Town Square but not post. Clan halls are moderated by each clan's own officers.</div>
+      <ul class="mod-list">${rows}</ul></div>`;
+  }
+
+  function logHtml() {
+    const rows = st.modLog.length ? st.modLog.map(a => {
+      const d = a.detail || {};
+      const snip = d.body || d.title;
+      return `<li class="mod-row"><div><b>${esc(a.actor || 'someone')}</b> ${esc(ACTION_LABEL[a.action] || a.action)} ${a.target ? `<b>${esc(a.target)}</b>` : ''}
+        ${d.hours !== undefined ? `<span class="chat-muted small">(${d.hours ? d.hours + 'h' : 'until lifted'})</span>` : ''}
+        ${snip ? `<div class="small chat-muted mod-snip">“${esc(String(snip).slice(0, 140))}”</div>` : ''}</div>
+        <span class="chat-muted small">${esc(timeLabel(a.created_at))}</span></li>`;
+    }).join('') : '<li class="chat-empty">No moderator actions yet.</li>';
+    return header('📋 Action log', 'home') + `<div class="chat-scroll"><ul class="mod-list">${rows}</ul></div>`;
+  }
+
+  function staffHtml() {
+    const rows = st.staffList.map(u => `
+      <li class="mod-row"><div><b>${esc(u.username)}</b>${staffBadge(u.role)}</div>
+        ${u.role === 'moderator' ? `<button type="button" class="chat-btn ghost small" data-act="revoke" data-name="${esc(u.username)}">Revoke</button>`
+          : '<span class="chat-muted small">set by server config</span>'}</li>`).join('');
+    return header('🛡 Moderators', 'home') + `<div class="chat-scroll">
+      <form class="mod-form" data-form="appoint">
+        <input name="username" placeholder="Player name" required autocomplete="off">
+        <button class="chat-btn small">Make moderator</button>
+      </form>
+      <div class="chat-muted small mod-help">Moderators can pin, remove posts and chat lines, post announcements, work the report queue and mute players in the Town Square.</div>
+      <ul class="mod-list">${rows}</ul></div>`;
+  }
+
   // ── Events ──────────────────────────────────────────────────────────────
   function handleErr(e) {
     if (e && e.data && e.data.locked) { loadChannels().then(render); }
+    if (e && e.data && e.data.muted) { st.muted = { until: e.data.muted_until || null }; render(); }
     toast(e.message, 'error');
   }
 
@@ -444,6 +647,31 @@
         if (!confirm('Delete this reply?')) break;
         run(async () => { await call('DELETE', `/api/chat/posts/${id}`); await openThread(st.thread.id); });
         break;
+      case 'report': openReport(t.dataset.type, id); break;
+      case 'report-cancel':
+        if (e.target !== t) break;       // clicks inside the sheet bubble up to its backdrop
+        st.reporting = null; render(); break;
+      case 'mod-filter': st.modFilter = t.dataset.filter; go('mod-reports'); break;
+      case 'resolve': {
+        const action = t.dataset.action;
+        const sel = document.querySelector(`#chat-hub select[name="hours-${id}"]`);
+        const hours = sel ? parseInt(sel.value, 10) : 24;
+        if (action !== 'dismiss' && !confirm(action === 'remove' ? 'Remove this content?'
+          : `Remove this content and mute its author ${hours ? 'for ' + sel.selectedOptions[0].textContent : 'until lifted'}?`)) break;
+        run(async () => {
+          await call('POST', `/api/chat/reports/${id}/resolve`, { action, mute_hours: action === 'remove_and_mute' ? hours : undefined });
+          toast(action === 'dismiss' ? 'Report dismissed.' : 'Done — thanks for keeping the realm kind.');
+          await go('mod-reports');
+        });
+        break;
+      }
+      case 'unmute':
+        run(async () => { await call('DELETE', `/api/chat/mutes/${id}`); toast('Mute lifted.'); await go('mod-mutes'); });
+        break;
+      case 'revoke':
+        if (!confirm(`Remove ${t.dataset.name}'s moderator role?`)) break;
+        run(async () => { await call('POST', '/api/chat/staff', { username: t.dataset.name, role: 'player' }); await go('mod-staff'); });
+        break;
       case 'del-msg':
         run(async () => { await call('DELETE', `/api/chat/messages/${id}`); removeMessage(id); });
         break;
@@ -476,6 +704,29 @@
         await openThread(st.thread.id);
         const s = document.querySelector('#chat-hub .chat-scroll'); if (s) s.scrollTop = s.scrollHeight;
       });
+    } else if (kind === 'report') {
+      const r = st.reporting;
+      run(async () => {
+        const d = await call('POST', '/api/chat/reports', {
+          target_type: r.type, target_id: r.id, reason: f.elements.reason.value, note: f.elements.note.value,
+        });
+        st.reporting = null; render();
+        toast(d.already ? 'You already reported that — the moderators have it.' : 'Report sent. Thank you.');
+      });
+    } else if (kind === 'mute') {
+      run(async () => {
+        const d = await call('POST', '/api/chat/mutes', {
+          username: f.elements.username.value.trim(), hours: parseInt(f.elements.hours.value, 10), reason: f.elements.reason.value,
+        });
+        toast(`${d.username} muted ${untilLabel(d.until)}.`);
+        await go('mod-mutes');
+      });
+    } else if (kind === 'appoint') {
+      run(async () => {
+        const d = await call('POST', '/api/chat/staff', { username: f.elements.username.value.trim(), role: 'moderator' });
+        toast(`${d.username} is now a moderator.`);
+        await go('mod-staff');
+      });
     } else if (kind === 'edit') {
       run(async () => {
         await call('PATCH', `/api/chat/posts/${f.dataset.id}`, { body: f.elements.body.value });
@@ -486,6 +737,7 @@
   }
 
   function onKey(e) {
+    if (e.key === 'Escape' && st.reporting) { st.reporting = null; render(); return; }
     if (e.key === 'Escape') { if (st.editing) { st.editing = null; render(); } else closeChatHub(); }
     // Ctrl/Cmd+Enter posts from a forum textarea.
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.tagName === 'TEXTAREA') {
@@ -504,11 +756,12 @@
     return Array.prototype.find.call(document.querySelectorAll('.community-bar .comm-btn'),
       b => /chat/i.test(b.textContent || '') && !b.id);
   }
-  // Nav dot: unread clan-hall chat, or an announcement you haven't opened.
+  // Nav dot: unread clan-hall chat, an announcement you haven't opened, or
+  // (staff) open reports.
   // (Busy realm channels only mark themselves in the hub's list.)
   function updateBadge() {
     const ann = realm().find(c => c.post_policy === 'staff');
-    const on = chatUnread(clanHall()) || boardUnread(ann);
+    const on = chatUnread(clanHall()) || boardUnread(ann) || (!!st.staff && st.openReports > 0);
     const b = byId('nav-chat') || chatBtn();
     if (b) b.classList.toggle('has-dot', on);
     if (global.KWShell && global.KWShell.syncBadges) global.KWShell.syncBadges();
@@ -535,6 +788,14 @@
       if (ev.what === 'thread_deleted') go('forum'); else openThread(st.thread.id);
     }
   }
+  function onModReports(ev) {
+    if (!st.staff) return;
+    st.openReports = ev.open_reports || 0;
+    updateBadge();
+    if (!isOpen()) return;
+    byId('chat-side').innerHTML = sideHtml();
+    if (st.view === 'mod-reports' && st.modFilter === 'open' && !st.busy) go('mod-reports');
+  }
   async function onLevelOrMembership() {
     await loadChannels();
     if (isOpen()) render();
@@ -545,6 +806,7 @@
       if (!isOpen()) return;
       if (st.view === 'live') catchUp();
       else if (st.view === 'forum') loadThreads().then(render);
+      else if (isModView(st.view)) go(st.view);
       else render();
     });
   }
@@ -553,5 +815,5 @@
 
   global.openChatHub = openChatHub;
   global.closeChatHub = closeChatHub;
-  global.ChatHub = { onChat, onChatDeleted, onForumUpdated, onLevelOrMembership, onReconnect, refreshBadge: loadChannels };
+  global.ChatHub = { onChat, onChatDeleted, onForumUpdated, onLevelOrMembership, onModReports, onReconnect, refreshBadge: loadChannels };
 })(typeof window !== 'undefined' ? window : globalThis);

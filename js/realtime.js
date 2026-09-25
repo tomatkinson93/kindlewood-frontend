@@ -121,6 +121,13 @@
     chat_message(ev) { if (global.ChatHub) global.ChatHub.onChat(ev); },
     chat_message_deleted(ev) { if (global.ChatHub) global.ChatHub.onChatDeleted(ev); },
     forum_updated(ev) { if (global.ChatHub) global.ChatHub.onForumUpdated(ev); },
+    // Moderation: open-report count for staff (on the "staff" bus key), and
+    // a role change, which reconnects to pick up or drop that key.
+    mod_reports(ev) { if (global.ChatHub) global.ChatHub.onModReports(ev); },
+    site_role_changed(ev) {
+      restart();
+      if (global.ChatHub) global.ChatHub.onLevelOrMembership();
+    },
   };
 
   // Clan-channel events (clan:<id>) — all notify-then-fetch.
