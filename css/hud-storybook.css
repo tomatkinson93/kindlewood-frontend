@@ -4164,3 +4164,92 @@
 .sq-led-row.fox   { color: #9a5a1a; font-weight: 600; }
 .sq-led-row.steal { color: #4a6b2a; font-weight: 600; }
 .sq-led-row.bank  { color: #6b4f2a; }
+
+/* ── Briar Court: Ward, Heron tithe, Court Seasons ─────────────────────── */
+/* Warded seat — gold ring + shield badge while view.ward covers it. */
+.bc-seat.warded {
+  border-color: var(--kw-gold);
+  box-shadow: 0 0 0 2px var(--kw-gold-dim), 0 0 12px var(--kw-gold-dim);
+}
+.bc-ward-badge {
+  position: absolute;
+  top: -10px;
+  left: -8px;
+  width: 24px;
+  height: 24px;
+  line-height: 22px;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--kw-wood);
+  border: 1.5px solid var(--kw-gold);
+  z-index: 3;
+  pointer-events: auto;
+  cursor: help;
+}
+.bc-you-seat { position: relative; }
+
+/* Tithe refusal warning — the claim-warning line under the Heron prompt. */
+.bc-claim-warn {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--kw-muted);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Help sheet: a role not dealt at this table (e.g. Heron at ≤4 players). */
+.bc-help-row.bc-help-absent { opacity: .5; }
+
+/* Court Seasons banner — a small card in the table's corner. */
+.bc-season {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-end;
+  margin: 2px 4px 6px auto;
+  padding: 5px 12px 5px 8px;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+  transform-origin: 50% 50%;
+}
+.bc-season.flip { animation: bc-season-flip .7s ease-out; }
+@keyframes bc-season-flip {
+  0%   { transform: perspective(400px) rotateY(90deg); opacity: 0; }
+  60%  { transform: perspective(400px) rotateY(-12deg); opacity: 1; }
+  100% { transform: perspective(400px) rotateY(0); }
+}
+.bc-season-icon { font-size: 22px; line-height: 1; }
+.bc-season-body { display: flex; flex-direction: column; line-height: 1.15; }
+.bc-season-name {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--kw-gold);
+}
+.bc-season-text {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 12px;
+  color: var(--kw-muted);
+}
+@media (prefers-reduced-motion: reduce) { .bc-season.flip { animation: none; } }
+
+/* Lobby: Briar table options (Court Seasons toggle, Heron note). */
+.lobby-note {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--kw-muted);
+}
+.lobby-field.lobby-check { flex-wrap: wrap; justify-content: flex-start; cursor: pointer; }
+.lobby-field.lobby-check input { accent-color: var(--kw-gold-btn); width: 16px; height: 16px; }
+.lobby-field.lobby-check em {
+  flex-basis: 100%;
+  font-family: 'Crimson Pro', serif;
+  font-size: 12px;
+  color: var(--kw-muted);
+}

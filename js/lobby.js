@@ -96,6 +96,7 @@ const LobbySystem = (() => {
     _show(`
       <div class="lobby-title">${_esc(g.name)} — Single Player</div>
       <div class="lobby-sub">Choose your opponents' cunning.</div>
+      ${g.soloOptionsHtml ? `<div class="lobby-form">${g.soloOptionsHtml()}</div>` : ''}
       <div class="lobby-mode-row">
         <button class="lobby-card" onclick="LobbySystem.soloStart('${gameType}','simple')">
           <div class="lobby-card-icon">\u{1F642}</div>
@@ -117,9 +118,10 @@ const LobbySystem = (() => {
   }
 
   function soloStart(gameType, difficulty) {
-    close();
     const g = games[gameType];
-    if (g && g.onSingle) g.onSingle(difficulty);
+    const opts = g && g.readSoloOptions ? g.readSoloOptions() : undefined;   // read before close() tears down the form
+    close();
+    if (g && g.onSingle) g.onSingle(difficulty, opts);
   }
 
   // ── Browser: public rooms + create/join ──
@@ -139,7 +141,7 @@ const LobbySystem = (() => {
       <div class="lobby-room-row">
         <div class="lobby-room-info">
           <div class="lobby-room-host">${_esc(host)}'s table</div>
-          <div class="lobby-room-meta"><span class="lobby-pips">${pips}</span> ${filled}/${cap} \u00b7 code ${r.code}</div>
+          <div class="lobby-room-meta"><span class="lobby-pips">${pips}</span> ${filled}/${cap} \u00b7 code ${r.code}${r.seasons ? ' \u00b7 \u{1F343} Court Seasons' : ''}</div>
         </div>
         <button class="cg-btn" onclick="LobbySystem.join('${r.code}')">Join</button>
       </div>`;
@@ -180,6 +182,7 @@ const LobbySystem = (() => {
             <option value="simple">Gentle \u2014 rarely challenges</option>
             <option value="cunning">Ruthless \u2014 amplified & relentless</option>
           </select></label>
+        ${g.createOptionsHtml ? g.createOptionsHtml() : ''}
       </div>
       <div class="lobby-actions">
         <button class="cg-btn" onclick="LobbySystem.create('${gameType}')">Create table</button>
@@ -191,8 +194,10 @@ const LobbySystem = (() => {
     const maxPlayers = +document.getElementById('lobby-max').value;
     const visibility = document.getElementById('lobby-vis').value;
     const difficulty = document.getElementById('lobby-diff').value;
+    const g = games[gameType];
+    const extra = g && g.readCreateOptions ? g.readCreateOptions() : {};
     try {
-      const { room } = await _api('/create', { method: 'POST', body: { gameType, maxPlayers, visibility, difficulty } });
+      const { room } = await _api('/create', { method: 'POST', body: { gameType, maxPlayers, visibility, difficulty, ...extra } });
       _enterRoom(room.code);
     } catch (e) { _error(e.message, () => createForm(gameType)); }
   }
@@ -287,6 +292,7 @@ const LobbySystem = (() => {
         Room code <strong>${r.code}</strong>
         <button class="lobby-copy" onclick="LobbySystem.invite()" title="Copy invite">\u{1F4CB} Invite</button>
         <span class="lobby-vis-tag">${r.visibility === 'private' ? '\u{1F512} Private' : '\u{1F310} Public'}</span>
+        ${r.seasons ? '<span class="lobby-vis-tag">\u{1F343} Court Seasons</span>' : ''}
       </div>
       <div class="lobby-seats">${seats.join('')}</div>
       <div class="lobby-actions">
@@ -325,6 +331,10 @@ const LobbySystem = (() => {
       blurb: 'Greedy and patient. She plays it safe, striking only when the odds are hers.' },
     'Thorn':       { color: '#c0503f', emoji: '🐍', title: 'The Ferocious',
       blurb: 'She is aggresive and holds a grudge. Not afraid of swinging first either.' },
+    'Bramblefoot': { color: '#7c8f6a', emoji: '🦔', title: 'The Steady Hand',
+      blurb: 'Even-tempered and hard to rattle. Plays the table as it lies — no grudges, no flourishes.' },
+    'Quill':       { color: '#8b7fae', emoji: '🦉', title: 'The Quiet Scholar',
+      blurb: 'Measured and unshowy. Takes what the Court offers and seldom gives much away.' },
   };
   const COURTIER_DEFAULT = { color: '#7a6a52', emoji: '🌿', title: 'Courtier', blurb: 'A courtier of unknown temperament.' };
   const _courtierMeta = name => COURTIER_META[name] || Object.assign({}, COURTIER_DEFAULT, { title: name });
@@ -452,7 +462,21 @@ LobbySystem.register({
   name: (window.KWGames && KWGames.name('briar')) || 'Briarwood Court',
   minPlayers: 2,
   maxPlayers: 6,
-  onSingle: (difficulty) => { if (typeof startBriarCourtSolo === 'function') startBriarCourtSolo(difficulty || 'smart'); else startCardGame('briar'); },
+  onSingle: (difficulty, opts) => { if (typeof startBriarCourtSolo === 'function') startBriarCourtSolo(difficulty || 'smart', opts); else startCardGame('briar'); },
+  // Briar-only table options: the Court Seasons variant, and a note that the
+  // Heron is dealt at 5–6 seats. Shared by the host form and the solo screen.
+  createOptionsHtml: () => _briarSeasonsField(),
+  readCreateOptions: () => ({ seasons: !!(document.getElementById('lobby-seasons') || {}).checked }),
+  soloOptionsHtml: () => `
+    <label class="lobby-field"><span>Table size</span>
+      <select id="lobby-solo-size" class="ac-role-select">
+        ${[6, 5, 4, 3, 2].map(n => `<option value="${n}"${n === 4 ? ' selected' : ''}>${n} players</option>`).join('')}
+      </select></label>
+    ${_briarSeasonsField()}`,
+  readSoloOptions: () => ({
+    players: +((document.getElementById('lobby-solo-size') || {}).value || 4),
+    seasons: !!(document.getElementById('lobby-seasons') || {}).checked,
+  }),
   onStart: ({ seats, code, channel, isHost }) => {
     // Networked, server-authoritative game. The host's client drives AI seats.
     if (typeof startBriarCourtMultiplayerNet === 'function') {
@@ -463,5 +487,13 @@ LobbySystem.register({
     if (typeof bcOnRoomEvent === 'function') bcOnRoomEvent(msg);
   },
 });
+
+function _briarSeasonsField() {
+  return `
+    <div class="lobby-note">\u{1FAB6} The Heron joins tables of 5\u20136.</div>
+    <label class="lobby-field lobby-check"><span>Court Seasons</span>
+      <input type="checkbox" id="lobby-seasons">
+      <em>Each round a season turns \u2014 cheaper forage, costlier stings, festivals\u2026</em></label>`;
+}
 
 // Identity is derived from the JWT inside the module (see _deriveMyId).

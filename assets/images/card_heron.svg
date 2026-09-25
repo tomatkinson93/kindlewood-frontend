@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 540" width="420" height="540">
+  <!-- Stand-in for The Heron until painted card art exists. Parchment card,
+       woodcut-style heron silhouette wading in reeds. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#efe4cd"/>
+      <stop offset="1" stop-color="#d9c7a1"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fa7a0" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#5f7a74" stop-opacity=".75"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="412" height="532" rx="26" fill="#241a10"/>
+  <rect x="16" y="16" width="388" height="508" rx="18" fill="url(#bg)" stroke="#c9a45c" stroke-width="4"/>
+  <rect x="30" y="30" width="360" height="400" rx="10" fill="#e6d8b8" stroke="#6e5836" stroke-width="2"/>
+  <!-- moon -->
+  <circle cx="300" cy="100" r="38" fill="#f6ecd3" stroke="#c9a45c" stroke-width="2"/>
+  <!-- water -->
+  <path d="M30 330 Q 120 318 210 330 T 390 330 V 430 H 30 Z" fill="url(#water)"/>
+  <path d="M60 352 h60 M160 368 h80 M270 350 h70 M90 392 h50 M230 400 h90" stroke="#efe4cd" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+  <!-- reeds -->
+  <g stroke="#3a2c1b" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M70 340 C 66 280 72 240 64 200"/>
+    <path d="M86 344 C 88 290 96 260 92 230"/>
+    <path d="M352 336 C 356 290 348 250 356 214"/>
+  </g>
+  <g fill="#3a2c1b">
+    <ellipse cx="64" cy="196" rx="6" ry="20"/>
+    <ellipse cx="92" cy="226" rx="5" ry="16"/>
+    <ellipse cx="356" cy="210" rx="6" ry="18"/>
+  </g>
+  <!-- heron silhouette -->
+  <g fill="#1d150d" stroke="#1d150d" stroke-linejoin="round" stroke-linecap="round">
+    <!-- legs -->
+    <path d="M206 262 L 200 348" stroke-width="5" fill="none"/>
+    <path d="M222 262 L 232 346" stroke-width="5" fill="none"/>
+    <!-- body -->
+    <path d="M150 232 C 170 200 240 196 262 222 C 272 236 258 262 226 266 C 196 270 168 262 150 232 Z"/>
+    <!-- tail plumes -->
+    <path d="M152 232 L 118 250 L 150 244 L 124 262 L 160 250 Z"/>
+    <!-- S-curved neck -->
+    <path d="M250 214 C 280 196 262 166 244 150 C 228 136 240 108 266 104" stroke-width="15" fill="none"/>
+    <!-- head -->
+    <ellipse cx="272" cy="103" rx="15" ry="11"/>
+    <!-- crest -->
+    <path d="M264 96 C 250 88 238 90 226 94" stroke-width="3" fill="none"/>
+    <!-- beak -->
+    <path d="M284 99 L 336 108 L 284 110 Z"/>
+  </g>
+  <circle cx="275" cy="100" r="2.4" fill="#e8c87a"/>
+  <!-- title -->
+  <text x="210" y="478" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="44" font-weight="700" fill="#1d150d">The Heron</text>
+  <text x="210" y="510" text-anchor="middle" font-family="'Crimson Pro', Georgia, serif" font-style="italic" font-size="20" fill="#6e5836">Tithe · every rival pays one</text>
+</svg>
