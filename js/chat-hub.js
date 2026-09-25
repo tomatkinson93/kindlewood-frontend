@@ -1,9 +1,9 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  CHAT HUB — clan forum + live chat (spec 016 §7, Phase 4)
 //
-//  Opened from the Chat comm-btn. Left: channel list — "Town Square"
-//  (community-wide boards/chat, coming soon) and your clan's hall with
-//  Forum and Live tabs. Right: the open view. On phones (body.kw-shell) it
+//  Opened from the Chat comm-btn. Left: channel list — "Town Square" (the
+//  realm's boards — Announcements, General, Trade, Help, … — and Realm Chat,
+//  open to everyone) and your clan's hall with Forum and Live tabs. Right: the open view. On phones (body.kw-shell) it
 //  is one full-screen column: the list, then a pushed view with a back
 //  button. #chat-hub is registered in mobile-shell watchOverlays().
 //
@@ -23,7 +23,8 @@
   const LIMIT = { title: 80, post: 2000, chat: 500 };
 
   const st = {
-    channels: null,          // from /api/chat/channels
+    channels: null,          // from /api/chat/channels (clan hall first, then realm)
+    channelId: null,         // the open channel
     view: 'home',            // home | forum | thread | compose | live
     threads: [], threadsMore: false,
     thread: null, posts: [], postsMore: false, editing: null,
@@ -43,7 +44,20 @@
     return d;
   }
   const byId = id => document.getElementById(id);
-  const channel = () => (st.channels && st.channels[0]) || null;
+  const channel = () => (st.channels && st.channels.find(c => c.id === st.channelId)) || null;
+  const clanHall = () => (st.channels && st.channels.find(c => c.kind === 'clan')) || null;
+  const realm = () => (st.channels || []).filter(c => c.kind === 'global');
+  const realmChat = () => realm().find(c => c.features === 'chat') || null;
+  // Board "seen" = newest last_post_at viewed, per device.
+  const boardKey = id => 'kw_board_seen_' + id;
+  function boardSeen(id) { try { return parseInt(localStorage.getItem(boardKey(id)), 10) || 0; } catch (_) { return 0; } }
+  function markBoardSeen(ch) {
+    if (!ch || !ch.last_post_at) return;
+    try { localStorage.setItem(boardKey(ch.id), String(new Date(ch.last_post_at).getTime())); } catch (_) {}
+  }
+  const boardUnread = ch => !!(ch && ch.last_post_at && new Date(ch.last_post_at).getTime() > boardSeen(ch.id));
+  const chatUnread = ch => !!(ch && ch.chat.unlocked && (ch.last_message_id || 0) > getSeen(ch.id));
+  const isGlobal = ch => !!ch && ch.kind === 'global';
   const seenKey = id => 'kw_chat_seen_' + id;
   function getSeen(id) { try { return parseInt(localStorage.getItem(seenKey(id)), 10) || 0; } catch (_) { return 0; } }
   function setSeen(id, v) { try { if (v > getSeen(id)) localStorage.setItem(seenKey(id), String(v)); } catch (_) {} }
@@ -82,15 +96,18 @@
   }
   const isOpen = () => { const r = byId('chat-hub'); return !!r && r.classList.contains('open'); };
 
-  async function openChatHub(tab) {
+  // openChatHub()               → Realm Chat on wide screens, the list on phones
+  // openChatHub('forum' | 'live') → your clan hall's tab
+  async function openChatHub(tab, channelId) {
     el().classList.add('open');
     document.querySelectorAll('.comm-btn').forEach(b => b.classList.remove('active'));
     await loadChannels();
-    const ch = channel();
-    if (tab && ch) { await go(tab); return; }
-    // On wide screens open straight into the most useful unlocked tab.
-    if (ch && !isNarrow()) await go(ch.chat.unlocked ? 'live' : ch.forum.unlocked ? 'forum' : 'home');
-    else render();
+    const hall = clanHall();
+    if (channelId) { await go(tab || 'forum', channelId); return; }
+    if (tab && hall) { await go(tab, hall.id); return; }
+    const rc = realmChat();
+    if (rc && !isNarrow()) await go('live', rc.id);
+    else { st.view = 'home'; render(); }
   }
   function closeChatHub() { const r = byId('chat-hub'); if (r) r.classList.remove('open'); }
   const isNarrow = () => document.body.classList.contains('kw-shell') || window.innerWidth < 760;
@@ -101,7 +118,11 @@
     updateBadge();
   }
 
-  async function go(view) {
+  async function go(view, channelId) {
+    if (channelId) {
+      if (channelId !== st.channelId) { st.messages = []; st.threads = []; st.thread = null; st.stick = true; }
+      st.channelId = channelId;
+    }
     st.view = view;
     st.editing = null;
     if (view === 'forum') await loadThreads();
@@ -121,23 +142,27 @@
   }
 
   function sideHtml() {
-    const ch = channel();
+    const hall = clanHall();
     let clan;
     if (!st.channels) clan = '<div class="chat-muted">Loading…</div>';
-    else if (!ch) clan = `<div class="chat-muted">Join or found a clan to open a clan hall.</div>
+    else if (!hall) clan = `<div class="chat-muted">Join or found a clan to open a private clan hall.</div>
         <button type="button" class="chat-btn ghost small" data-act="open-clan">🛡️ Clan panel</button>`;
     else {
-      const unread = ch.chat.unlocked && (ch.last_message_id || 0) > getSeen(ch.id);
       clan = `
-        <div class="chat-clan-name">${esc(ch.banner.glyph)} ${esc(ch.name)}</div>
-        ${tabBtn('forum', '📜 Forum', ch.forum)}
-        ${tabBtn('live', '💬 Live chat', ch.chat, unread)}`;
+        <div class="chat-clan-name">${esc(hall.banner.glyph)} ${esc(hall.name)}</div>
+        ${tabBtn(hall, 'forum', '📜 Forum', hall.forum)}
+        ${tabBtn(hall, 'live', '💬 Live chat', hall.chat, chatUnread(hall))}`;
     }
+    const rc = realmChat();
+    const boards = realm().filter(c => c.features !== 'chat');
+    const square = !st.channels ? '<div class="chat-muted">Loading…</div>' : `
+        ${rc ? tabBtn(rc, 'live', `${esc(rc.icon)} ${esc(rc.name)}`, { unlocked: true }, false) : ''}
+        ${boards.map(b => tabBtn(b, 'forum', `${esc(b.icon)} ${esc(b.name)}`, { unlocked: true }, boardUnread(b), b.description)).join('')}`;
     return `
       <div class="chat-side-title">Chat</div>
       <div class="chat-sec">
         <div class="chat-sec-label">Town Square</div>
-        <div class="chat-soon">Realm-wide boards and chat — coming soon.</div>
+        ${square}
       </div>
       <div class="chat-sec">
         <div class="chat-sec-label">Clan hall</div>
@@ -145,14 +170,26 @@
       </div>`;
   }
 
-  function tabBtn(view, label, gate, dot) {
-    const on = st.view === view || (view === 'forum' && (st.view === 'thread' || st.view === 'compose'));
-    return `<button type="button" class="chat-tab${on ? ' on' : ''}${gate.unlocked ? '' : ' locked'}" data-act="go" data-view="${view}">
+  function tabBtn(ch, view, label, gate, dot, title) {
+    const here = st.channelId === ch.id;
+    const on = here && (st.view === view || (view === 'forum' && (st.view === 'thread' || st.view === 'compose')));
+    return `<button type="button" class="chat-tab${on ? ' on' : ''}${gate.unlocked ? '' : ' locked'}" data-act="go" data-view="${view}" data-channel="${ch.id}"${title ? ` title="${esc(title)}"` : ''}>
       <span>${label}</span>${gate.unlocked ? (dot ? '<span class="chat-dot"></span>' : '') : `<span class="chat-lock">🔒 L${gate.unlock_level}</span>`}</button>`;
   }
 
+  // Header title for the open channel's view.
+  function chTitle(ch, view) {
+    if (isGlobal(ch)) return `${esc(ch.icon)} ${esc(ch.name)}`;
+    return view === 'live' ? '💬 Live chat' : '📜 Forum';
+  }
+  // Small clan tag after an author's name in realm channels.
+  function clanTag(ac) {
+    if (!ac || !isGlobal(channel())) return '';
+    return `<span class="chat-clan-tag" style="--c:${esc(ac.primary)}" title="${esc(ac.name)}">${esc(ac.glyph)} ${esc(ac.name)}</span>`;
+  }
+
   function lockedHtml(what, gate) {
-    const ch = channel();
+    const ch = clanHall();
     const need = gate.unlock_level;
     const target = (P().levelRow(need) || {}).lifetime || 0;
     return `<div class="chat-locked">
@@ -173,9 +210,8 @@
   function mainHtml() {
     const ch = channel();
     if (st.view === 'home' || !ch) {
-      return header('Chat') + `<div class="chat-empty">${ch
-        ? 'Pick your clan’s Forum or Live chat.'
-        : 'Chat lives in your clan hall for now. Join or found a clan to talk with your clanmates — realm-wide channels are on the way.'}</div>`;
+      return header('Chat') + `<div class="chat-empty">Pick a board or chat from the list — the Town Square is open to everyone${
+        clanHall() ? ', and your clan hall is just for your clan' : ''}.</div>`;
     }
     if (st.view === 'forum') return ch.forum.unlocked ? forumHtml() : header('Forum', 'home') + lockedHtml('The clan forum', ch.forum);
     if (st.view === 'thread') return threadHtml();
@@ -193,6 +229,11 @@
       const d = await call('GET', `/api/chat/channels/${ch.id}/threads${last ? `?before=${encodeURIComponent(last.last_post_at)}` : ''}`);
       st.threads = more ? st.threads.concat(d.threads) : d.threads;
       st.threadsMore = d.more;
+      if (!more) {
+        const newest = d.threads.reduce((mx, t) => Math.max(mx, new Date(t.last_post_at).getTime()), 0);
+        if (newest && (!ch.last_post_at || newest > new Date(ch.last_post_at).getTime())) ch.last_post_at = new Date(newest).toISOString();
+        markBoardSeen(ch); updateBadge();
+      }
     } catch (e) { handleErr(e); }
   }
 
@@ -200,13 +241,14 @@
     const ch = channel();
     const newBtn = ch.permissions.post_forum
       ? '<button type="button" class="chat-btn small" data-act="compose">✎ New thread</button>'
-      : '<span class="chat-muted small">Recruits can read; posting opens at Member.</span>';
+      : `<span class="chat-muted small">${isGlobal(ch) ? 'Posted by the Kindlewood team' : 'Recruits can read; posting opens at Member.'}</span>`;
     const rows = st.threads.length ? st.threads.map(t => `
       <li><button type="button" class="chat-thread" data-act="thread" data-id="${t.id}">
         <span class="chat-thread-title">${t.pinned ? '📌 ' : ''}${esc(t.title)}</span>
-        <span class="chat-muted small">${esc(t.author || 'someone')} · ${t.reply_count} ${t.reply_count === 1 ? 'reply' : 'replies'} · ${esc(timeLabel(t.last_post_at))}</span>
+        <span class="chat-muted small">${esc(t.author || 'someone')}${clanTag(t.author_clan)} · ${t.reply_count} ${t.reply_count === 1 ? 'reply' : 'replies'} · ${esc(timeLabel(t.last_post_at))}</span>
       </button></li>`).join('') : '<li class="chat-empty">No threads yet — start the first one.</li>';
-    return header('📜 Forum', 'home', newBtn) + `<div class="chat-scroll"><ul class="chat-threads">${rows}</ul>
+    const about = isGlobal(ch) && ch.description ? `<div class="chat-about">${esc(ch.description)}</div>` : '';
+    return header(chTitle(ch, 'forum'), 'home', newBtn) + about + `<div class="chat-scroll"><ul class="chat-threads">${rows}</ul>
       ${st.threadsMore ? '<button type="button" class="chat-btn ghost block" data-act="threads-more">Older threads</button>' : ''}</div>`;
   }
 
@@ -240,14 +282,14 @@
           ${p.id !== t.first_post_id ? `<button type="button" class="chat-link danger" data-act="del-post" data-id="${p.id}">Delete</button>` : ''}
         </span>` : '';
       return `<article class="chat-post${p.id === t.first_post_id ? ' first' : ''}">
-        <div class="chat-post-meta"><b>${esc(p.author || 'someone')}</b> <span class="chat-muted small">${esc(timeLabel(p.created_at))}${p.edited_at ? ' · edited' : ''}</span>${actions}</div>
+        <div class="chat-post-meta"><b>${esc(p.author || 'someone')}</b>${clanTag(p.author_clan)} <span class="chat-muted small">${esc(timeLabel(p.created_at))}${p.edited_at ? ' · edited' : ''}</span>${actions}</div>
         ${editing
           ? `<form data-form="edit" data-id="${p.id}"><textarea name="body" maxlength="${LIMIT.post}" rows="4">${esc(p.body)}</textarea>
               <div class="chat-form-row"><button type="button" class="chat-btn ghost small" data-act="cancel-edit">Cancel</button><button class="chat-btn small">Save</button></div></form>`
           : `<div class="chat-post-body">${esc(p.body)}</div>`}
       </article>`;
     }).join('');
-    const reply = ch.permissions.post_forum
+    const reply = (ch.permissions.post_reply ?? ch.permissions.post_forum)
       ? `<form class="chat-composer" data-form="reply"><textarea name="body" rows="2" maxlength="${LIMIT.post}" placeholder="Write a reply…" required></textarea><button class="chat-btn">Reply</button></form>`
       : '<div class="chat-composer chat-muted small">Recruits can read the forum; replying opens at Member.</div>';
     return header(`${t.pinned ? '📌 ' : ''}${esc(t.title)}`, 'forum', tools)
@@ -291,19 +333,20 @@
     if (m.system) return `<li class="chat-msg system" data-id="${m.id}"><span>${esc(m.body)}</span></li>`;
     const del = ch && ch.permissions.moderate ? `<button type="button" class="chat-link danger chat-msg-del" data-act="del-msg" data-id="${m.id}" aria-label="Remove">✕</button>` : '';
     return `<li class="chat-msg${m.author === me ? ' mine' : ''}" data-id="${m.id}">
-      <div class="chat-msg-meta"><b>${esc(m.author || 'someone')}</b> <span class="chat-muted small">${esc(timeLabel(m.created_at))}</span>${del}</div>
+      <div class="chat-msg-meta"><b>${esc(m.author || 'someone')}</b>${clanTag(m.author_clan)} <span class="chat-muted small">${esc(timeLabel(m.created_at))}</span>${del}</div>
       <div class="chat-msg-body">${esc(m.body)}</div></li>`;
   }
 
   function liveHtml() {
-    return header('💬 Live chat', 'home') + `
+    const ch = channel();
+    return header(chTitle(ch, 'live'), 'home') + (isGlobal(ch) && ch.description ? `<div class="chat-about">${esc(ch.description)}</div>` : '') + `
       <div class="chat-scroll chat-live" id="chat-live">
         ${st.moreOlder ? '<button type="button" class="chat-btn ghost block small" data-act="older">Earlier messages</button>' : ''}
         <ul class="chat-msgs" id="chat-msgs">${st.messages.map(msgHtml).join('') || '<li class="chat-empty">No messages yet.</li>'}</ul>
       </div>
       <button type="button" class="chat-new-chip" id="chat-new-chip" data-act="to-bottom" hidden>New messages ↓</button>
       <form class="chat-composer" data-form="chat">
-        <input name="body" maxlength="${LIMIT.chat}" placeholder="Message your clan…" autocomplete="off" required>
+        <input name="body" maxlength="${LIMIT.chat}" placeholder="${isGlobal(ch) ? 'Message the realm…' : 'Message your clan…'}" autocomplete="off" required>
         <button class="chat-btn">Send</button>
       </form>`;
   }
@@ -371,7 +414,7 @@
     const act = t.dataset.act, id = parseInt(t.dataset.id, 10);
     switch (act) {
       case 'close': closeChatHub(); break;
-      case 'go': go(t.dataset.view); break;
+      case 'go': go(t.dataset.view, parseInt(t.dataset.channel, 10) || undefined); break;
       case 'open-clan': closeChatHub(); if (global.openClanPanel) global.openClanPanel(); break;
       case 'compose': {
         st.view = 'compose'; render();
@@ -461,9 +504,11 @@
     return Array.prototype.find.call(document.querySelectorAll('.community-bar .comm-btn'),
       b => /chat/i.test(b.textContent || '') && !b.id);
   }
+  // Nav dot: unread clan-hall chat, or an announcement you haven't opened.
+  // (Busy realm channels only mark themselves in the hub's list.)
   function updateBadge() {
-    const ch = channel();
-    const on = !!(ch && ch.chat.unlocked && (ch.last_message_id || 0) > getSeen(ch.id));
+    const ann = realm().find(c => c.post_policy === 'staff');
+    const on = chatUnread(clanHall()) || boardUnread(ann);
     const b = byId('nav-chat') || chatBtn();
     if (b) b.classList.toggle('has-dot', on);
     if (global.KWShell && global.KWShell.syncBadges) global.KWShell.syncBadges();
@@ -473,14 +518,18 @@
   function onChat(ev) {
     const m = ev && ev.message;
     if (!m) return;
-    const ch = channel();
-    if (ch && m.channel_id === ch.id) ch.last_message_id = Math.max(ch.last_message_id || 0, m.id);
-    if (isOpen() && st.view === 'live') addMessage(m);
-    else updateBadge();
+    const ch = (st.channels || []).find(c => c.id === m.channel_id);
+    if (ch) ch.last_message_id = Math.max(ch.last_message_id || 0, m.id);
+    if (isOpen() && st.view === 'live' && m.channel_id === st.channelId) addMessage(m);
+    else { updateBadge(); if (isOpen()) byId('chat-side').innerHTML = sideHtml(); }
   }
   function onChatDeleted(ev) { removeMessage(ev.message_id); }
   function onForumUpdated(ev) {
+    const ch = (st.channels || []).find(c => c.id === ev.channel_id);
+    if (ch && ev.what !== 'thread_deleted' && ev.what !== 'post_deleted') ch.last_post_at = new Date().toISOString();
+    updateBadge();
     if (!isOpen()) return;
+    if (ev.channel_id !== st.channelId) { byId('chat-side').innerHTML = sideHtml(); return; }
     if (st.view === 'forum') loadThreads().then(render);
     else if (st.view === 'thread' && st.thread && ev.thread_id === st.thread.id && !st.editing) {
       if (ev.what === 'thread_deleted') go('forum'); else openThread(st.thread.id);

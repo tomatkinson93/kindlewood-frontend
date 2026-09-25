@@ -117,6 +117,10 @@
     clan_chat(ev) { if (global.ChatHub) global.ChatHub.onChat(ev); },
     clan_chat_deleted(ev) { if (global.ChatHub) global.ChatHub.onChatDeleted(ev); },
     clan_forum_updated(ev) { if (global.ChatHub) global.ChatHub.onForumUpdated(ev); },
+    // Realm channels (Town Square boards + Realm Chat), on the "global" bus key.
+    chat_message(ev) { if (global.ChatHub) global.ChatHub.onChat(ev); },
+    chat_message_deleted(ev) { if (global.ChatHub) global.ChatHub.onChatDeleted(ev); },
+    forum_updated(ev) { if (global.ChatHub) global.ChatHub.onForumUpdated(ev); },
   };
 
   // Clan-channel events (clan:<id>) — all notify-then-fetch.
