@@ -212,6 +212,26 @@ const BC_ROLES = {
 };
 const BC_AI_NAMES = ['Old Bracken', 'Sly Whisper', 'Marigold', 'Thorn'];
 
+// Role defs for the server-engine table (multiplayer + solo). Kept apart from
+// BC_ROLES, which also deals the legacy local game: the Heron exists only at
+// 5–6 player tables on the shared engine, and Ward is an engine-only action.
+const BC_ROLES_ALL = {
+  ...BC_ROLES,
+  hedgewitch: { ...BC_ROLES.hedgewitch, power: 'Ward (pay 2, shield a seat from Pilfer & Sting) \u00b7 blocks Sting' },
+  heron:      { name: 'Heron', icon: '\u{1FAB6}', power: 'Tithe (every rival pays 1 \u2014 or refuses by claiming Heron) \u00b7 5\u20136 players' },
+};
+// The roles actually dealt in this game (the engine's view carries `roster`).
+const _bcRoster = s => (s && s.roster) ? s.roster : Object.keys(BC_ROLES);
+
+// Court Seasons (variant) — display copy for the season banner.
+const BC_SEASONS = {
+  harvest:  { name: 'Harvest Moon', icon: '\u{1F315}', text: 'Forage yields 2' },
+  frost:    { name: 'Frost',        icon: '\u2744\uFE0F', text: 'Sting costs 4' },
+  festival: { name: 'Festival',     icon: '\u{1F389}', text: 'Gather cannot be blocked' },
+  shadows:  { name: 'Long Shadows', icon: '\u{1F318}', text: 'Consult draws 3' },
+  quiet:    { name: 'Quiet Court',  icon: '\u{1F343}', text: 'No effect this round' },
+};
+
 let _bc = null;
 let _bcResolver = null;
 let _bcMultiplayer = null;
@@ -451,7 +471,8 @@ const _bcHasRole = (p, role) => p.cards.some(c => !c.revealed && c.role === role
 
 // ── Rendering ─────────────────────────────────
 
-const BC_CARD_IMG = role => `/assets/images/card_${role}.png`;
+// The Heron has no painted card yet — it uses a vector stand-in.
+const BC_CARD_IMG = role => role === 'heron' ? '/assets/images/card_heron.svg' : `/assets/images/card_${role}.png`;
 
 function _bcCardHtml(card) {
   if (card.revealed) {
@@ -597,12 +618,23 @@ function bcToggleHelp() {
   const el = _bcOverlay();
   if (el.classList.contains('open') && el.dataset.kind === 'help') { bcCloseOverlay(); return; }
   el.dataset.kind = 'help';
+  // The shared engine table (multiplayer/solo) has Ward, the Heron, Banish
+  // Legacy and Seasons; the legacy local game keeps its original sheet.
+  const eng = !!(_bcmp && _bcmp.state);
+  const s = eng ? _bcmp.state : null;
+  const defs = eng ? BC_ROLES_ALL : BC_ROLES;
+  const roles = eng ? ['elder', 'adder', 'magpie', 'owl', 'hedgewitch', 'heron'] : Object.keys(BC_ROLES);
+  const inPlay = k => !eng || _bcRoster(s).includes(k);
   el.innerHTML = `<div class="bc-overlay-panel">
     <div class="bc-help-title">How the Court works</div>
-    ${Object.entries(BC_ROLES).map(([k, r]) => `<div class="bc-help-row"><img class="bc-mini-card" src="${BC_CARD_IMG(k)}" alt="${r.name}" onclick="bcInspect('${k}')"><b>${r.name}</b><span>${r.power}</span></div>`).join('')}
+    ${roles.map(k => { const r = defs[k]; return `<div class="bc-help-row ${inPlay(k) ? '' : 'bc-help-absent'}"><img class="bc-mini-card" src="${BC_CARD_IMG(k)}" alt="${r.name}" onclick="bcInspect('${k}')"><b>${r.name}</b><span>${r.power}${inPlay(k) ? '' : ' <i>(not dealt at this table)</i>'}</span></div>`; }).join('')}
     <div class="bc-help-row"><span style="min-width:54px">🌰</span><b>Forage</b><span>+1 acorn · always safe</span></div>
     <div class="bc-help-row"><span style="min-width:54px">🌾</span><b>Gather</b><span>+2 · anyone may block as Elder</span></div>
     <div class="bc-help-row"><span style="min-width:54px">⚖</span><b>Banish</b><span>pay 7 · unblockable · forced at 10 acorns</span></div>
+    ${eng ? `<div class="bc-help-row"><span style="min-width:54px">🛡️</span><b>Ward</b><span>claim Hedgewitch · pay 2 · choose any seat (even yours): Pilfer &amp; Sting against it fail until your next turn. Challengeable, never blockable. Banish ignores it.</span></div>
+    <div class="bc-help-row"><span style="min-width:54px">💰</span><b>Legacy</b><span>when your Banish or Sting takes a courtier's last card, claim up to 2 of their acorns; the rest of their purse is lost.</span></div>
+    <div class="bc-help-row"><span style="min-width:54px">🪶</span><b>Tithe</b><span>claim Heron (5–6 player tables) · every rival pays you 1 acorn, or refuses by claiming the Heron themselves. Refusals can't be challenged — but the Court remembers them.</span></div>
+    ${s && s.seasonsEnabled ? `<div class="bc-help-note"><b>Court Seasons</b> — each round a new season turns: ${Object.values(BC_SEASONS).map(x => `${x.icon} <b>${x.name}</b> (${x.text.toLowerCase()})`).join(' · ')}.</div>` : ''}` : ''}
     <div class="bc-help-note">Role actions and blocks are claims — true or not. Anyone may <b>challenge</b>: if the claimant proves it, the challenger loses a card; if they bluffed, they do. Lose both cards and you leave the Court. Last courtier standing wins <b>4 gold</b>.</div>
     <button class="cg-btn secondary" onclick="bcCloseOverlay()">Close</button>
   </div>`;
@@ -619,7 +651,7 @@ function bcToggleLedger() {
   el.innerHTML = `<div class="bc-overlay-panel">
     <div class="bc-help-title">The Court Ledger</div>
     <div class="bc-ledger-grid">
-      ${Object.entries(BC_ROLES).map(([k, r]) => {
+      ${(_bcmp && _bcmp.state ? _bcRoster(s).map(k => [k, BC_ROLES_ALL[k]]) : Object.entries(BC_ROLES)).map(([k, r]) => {
         const d = dead[k] || 0;
         return `<div class="bc-ledger-role">
           <div class="bc-ledger-cards">${[0,1,2].map(i => `<img class="bc-mini-card ${i < d ? 'dead' : ''}" src="${BC_CARD_IMG(k)}" alt="${r.name}" onclick="bcInspect('${k}')">`).join('')}</div>
@@ -643,7 +675,7 @@ function bcInspect(role) {
     el.onclick = () => el.remove();
     document.body.appendChild(el);
   }
-  el.innerHTML = `<img src="${BC_CARD_IMG(role)}" alt="${BC_ROLES[role].name}">`;
+  el.innerHTML = `<img src="${BC_CARD_IMG(role)}" alt="${BC_ROLES_ALL[role].name}">`;
 }
 
 // ── AI heuristics (the other half of the multiplayer seam) ──
@@ -1084,9 +1116,11 @@ function _bcmpRender() {
       ? '<div class="bc-bubble whisper">{ whispering… }</div>' : '';
     const rx = _bcReactionClass(p);
     const rxLabel = _bcReactionLabel(p);
-    return `<div class="bc-seat ${!p.alive ? 'out' : ''} ${acting ? 'acting' : ''} ${rx}" data-seat="${p.seat}">
+    const warded = s.ward && s.ward.protectedSeat === p.seat;
+    return `<div class="bc-seat ${!p.alive ? 'out' : ''} ${acting ? 'acting' : ''} ${warded ? 'warded' : ''} ${rx}" data-seat="${p.seat}">
       ${typingBubble}
       ${rxLabel ? `<div class="bc-seat-react">${rxLabel}</div>` : ''}
+      ${warded ? _bcWardBadge(s) : ''}
       <div class="bc-seat-name">${_esc(p.name)}${p.isAI ? ' <span class="lobby-ai-tag">AI</span>' : ''}</div>
       <div class="bc-seat-acorns">🌰 ${p.acorns}</div>
       <div class="bc-seat-cards">${p.cards.map(c => _bcmpCardHtml(c)).join('')}</div>
@@ -1098,6 +1132,7 @@ function _bcmpRender() {
   const absent = _bcmp.absent && Object.keys(_bcmp.absent).length ? Object.values(_bcmp.absent) : null;
   const absentBanner = absent ? `<div class="bcmp-absent">⚠ ${absent.map(_esc).join(', ')} disconnected — waiting for them to return…${_bcmp.isHost ? ' <button class="cg-btn secondary" onclick="bcmpEndGame()">End game</button>' : ''}</div>` : '';
   const meActing = s.turnSeat === meSeat && s.phase === 'action';
+  const meWarded = s.ward && s.ward.protectedSeat === meSeat;
   area.innerHTML = `
     <div class="card-game briar">
       <div class="card-game-title">
@@ -1106,13 +1141,15 @@ function _bcmpRender() {
         <span class="bc-title-tools"><button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</span>
       </div>
       ${absentBanner}
+      ${_bcSeasonBanner(s)}
       <div class="bc-seats">${seatHtml}</div>
       ${_bcmpTracker(s)}
       <div class="bc-log-scribe">
         <div class="bc-log-head">The Scribe's Ledger</div>
         <div class="bc-log">${s.log.map(l => `<div>${l}</div>`).join('')}</div>
       </div>
-      <div class="bc-you-seat bc-seat you ${meActing ? 'acting' : ''} ${!me.alive ? 'out' : ''}" data-seat="${meSeat}">
+      <div class="bc-you-seat bc-seat you ${meActing ? 'acting' : ''} ${!me.alive ? 'out' : ''} ${meWarded ? 'warded' : ''}" data-seat="${meSeat}">
+        ${meWarded ? _bcWardBadge(s) : ''}
         <div class="bc-seat-name">You${meActing ? ' <span class="bc-you-turn">— your move</span>' : ''}</div>
         <div class="bc-seat-acorns">🌰 ${me.acorns}</div>
         <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
@@ -1124,6 +1161,26 @@ function _bcmpRender() {
   _bcApplyPassTints(s);
   _bcFlashFromLog(s);
   _bcmpEnsureDeadlineTimer();
+}
+
+// Shield badge on a warded seat plaque (the ward was cast in the open).
+function _bcWardBadge(s) {
+  const caster = s.players.find(p => p.seat === s.ward.expiresOnSeat);
+  const by = caster ? (caster.seat === _bcmp.mySeat ? 'you' : caster.name) : 'a Hedgewitch';
+  return `<div class="bc-ward-badge" title="Warded by ${_esc(by)} — Pilfer and Sting fail against this seat until ${_esc(by)}'s next turn">🛡️</div>`;
+}
+
+// Court Seasons banner. Flips in when the season changes (tracked per table so
+// ordinary re-renders don't replay the animation).
+function _bcSeasonBanner(s) {
+  if (!s.seasonsEnabled || !s.season || !BC_SEASONS[s.season]) return '';
+  const k = BC_SEASONS[s.season];
+  const flip = _bcmp._lastSeason !== undefined && _bcmp._lastSeason !== s.season;
+  _bcmp._lastSeason = s.season;
+  return `<div class="bc-season ${flip ? 'flip' : ''}" title="Court Seasons — a new season turns each round">
+    <span class="bc-season-icon">${k.icon}</span>
+    <span class="bc-season-body"><span class="bc-season-name">${k.name}</span><span class="bc-season-text">${k.text}</span></span>
+  </div>`;
 }
 
 // ── Decision-timer countdown (§3.2) ──
@@ -1154,12 +1211,14 @@ function _bcmpUpdateDeadline() {
 
 function _bcReactionClass(p) {
   if (!p.reaction) return '';
-  return { passed: 'react-passed', challenging: 'react-challenge', blocking: 'react-block' }[p.reaction] || '';
+  return { passed: 'react-passed', challenging: 'react-challenge', blocking: 'react-block',
+           paid: 'react-passed', refused: 'react-block' }[p.reaction] || '';
 }
 function _bcReactionLabel(p) {
   // 'passed' renders as a wax-seal stamp (styled in CSS via .react-passed);
   // the others stay as small status pills.
-  return { passed: 'PASSED', challenging: '⚔ Challenging', blocking: '🛡 Blocking' }[p.reaction] || '';
+  return { passed: 'PASSED', challenging: '⚔ Challenging', blocking: '🛡 Blocking',
+           paid: 'PAID', refused: '🪶 Refused' }[p.reaction] || '';
 }
 
 // After each render, scan the newest log line for a just-resolved challenge
@@ -1203,7 +1262,7 @@ function _bcFlashFromLog(s) {
 function _bcApplyPassTints(s) {
   if (!s) return;
   for (const p of s.players) {
-    if (p.reaction === 'passed') {
+    if (p.reaction === 'passed' || p.reaction === 'paid') {
       const el = document.querySelector(`#bcmp-game .bc-seat[data-seat="${p.seat}"]`);
       if (el) el.classList.add('react-passed');
     }
@@ -1212,13 +1271,13 @@ function _bcApplyPassTints(s) {
 
 function _bcmpCardHtml(c) {
   if (c.revealed && c.role) {
-    return `<div class="bc-card revealed-img"><img src="${BC_CARD_IMG(c.role)}" alt="${BC_ROLES[c.role].name}"></div>`;
+    return `<div class="bc-card revealed-img"><img src="${BC_CARD_IMG(c.role)}" alt="${BC_ROLES_ALL[c.role].name}"></div>`;
   }
   return `<div class="bc-card back">✸</div>`;
 }
 function _bcmpHandCard(c) {
   if (!c.role) return `<div class="bc-hand-card back-lg">✸</div>`;
-  const r = BC_ROLES[c.role];
+  const r = BC_ROLES_ALL[c.role];
   return `<div class="bc-hand-card ${c.revealed ? 'dead' : ''}" title="${r.name} — ${r.power}">
     <img src="${BC_CARD_IMG(c.role)}" alt="${r.name}"></div>`;
 }
@@ -1228,7 +1287,7 @@ function _bcmpTracker(s) {
   // Each role has three copies. Filled pips = copies still hidden somewhere in
   // the Court; hollow pips = copies already revealed (cast out). So a role with
   // three hollow pips can no longer be truthfully claimed by anyone.
-  const roles = Object.entries(BC_ROLES).map(([k, r]) => {
+  const roles = _bcRoster(s).map(k => [k, BC_ROLES_ALL[k]]).map(([k, r]) => {
     const d = dead[k] || 0;
     const remain = 3 - d;
     const pips = [0, 1, 2].map(i => `<span class="bc-pip ${i < remain ? 'live' : 'spent'}"></span>`).join('');
@@ -1249,15 +1308,19 @@ function _bcmpPrompt(s, me, myTurn) {
   if (myTurn) {
     const rivals = s.players.filter(p => p.alive && p.seat !== me.seat);
     const opts = [];
+    // Costs/yields come from the view, so Seasons (Frost, Harvest Moon) show true.
+    const costs = s.costs || { sting: 3, ward: 2, banish: 7 };
     if (me.acorns < 10) {
-      opts.push(_b('🌰 Forage (+1)', `bcmpAct('forage')`));
-      opts.push(_b('🌾 Gather (+2)', `bcmpAct('gather')`));
-      opts.push(_b(`${BC_ROLES.elder.icon} Decree (+3)`, `bcmpAct('decree')`));
-      opts.push(_b(`${BC_ROLES.magpie.icon} Pilfer`, `bcmpTarget('pilfer')`));
-      if (me.acorns >= 3) opts.push(_b(`${BC_ROLES.adder.icon} Sting (3)`, `bcmpTarget('sting')`));
-      opts.push(_b(`${BC_ROLES.owl.icon} Consult`, `bcmpAct('consult')`));
+      opts.push(_b(`🌰 Forage (+${s.forageGain || 1})`, `bcmpAct('forage')`));
+      opts.push(_b(`🌾 Gather (+2)${s.gatherBlockable === false ? ' · unblockable' : ''}`, `bcmpAct('gather')`));
+      opts.push(_b(`${BC_ROLES_ALL.elder.icon} Decree (+3)`, `bcmpAct('decree')`));
+      opts.push(_b(`${BC_ROLES_ALL.magpie.icon} Pilfer`, `bcmpTarget('pilfer')`));
+      if (me.acorns >= costs.sting) opts.push(_b(`${BC_ROLES_ALL.adder.icon} Sting (${costs.sting})`, `bcmpTarget('sting')`));
+      opts.push(_b(`${BC_ROLES_ALL.owl.icon} Consult`, `bcmpAct('consult')`));
+      if (me.acorns >= costs.ward) opts.push(_b(`🛡️ Ward (${costs.ward})`, `bcmpTarget('ward')`));
+      if (_bcRoster(s).includes('heron')) opts.push(_b(`${BC_ROLES_ALL.heron.icon} Tithe`, `bcmpAct('tithe')`));
     }
-    if (me.acorns >= 7) opts.push(_b('⚖ Banish (7)', `bcmpTarget('banish')`));
+    if (me.acorns >= costs.banish) opts.push(_b(`⚖ Banish (${costs.banish})`, `bcmpTarget('banish')`));
     const q = me.acorns >= 10 ? 'Ten acorns — you MUST banish someone:' : 'Your move at Court:';
     return `<div class="bc-question">${q}</div><div class="bc-options">${opts.join('')}</div>`;
   }
@@ -1267,7 +1330,7 @@ function _bcmpPrompt(s, me, myTurn) {
   // Challenge an action claim (anyone but the actor who hasn't yet decided)
   if (s.phase === 'challengeAction' && P.actorSeat !== me.seat && !(P.passes || []).includes(me.seat)) {
     const actor = s.players.find(p => p.seat === P.actorSeat);
-    return `<div class="bc-question">${_esc(actor.name)} claims the ${BC_ROLES[P.claim].name}. Challenge?</div>
+    return `<div class="bc-question">${_esc(actor.name)} claims the ${BC_ROLES_ALL[P.claim].name}. Challenge?</div>
       <div class="bc-options">${_b('⚔ Challenge', `bcmpReact('challengeAction',true)`)}${_b('Let it pass', `bcmpReact('challengeAction',false)`, 'secondary')}</div>`;
   }
 
@@ -1276,7 +1339,7 @@ function _bcmpPrompt(s, me, myTurn) {
     const actor = s.players.find(p => p.seat === P.actorSeat);
     const roles = P.action === 'gather' ? ['elder'] : (P.action === 'pilfer' ? ['magpie', 'owl'] : ['hedgewitch']);
     const onYou = P.targetSeat === me.seat;
-    const opts = roles.map(r => _b(`🛡 Block as ${BC_ROLES[r].name}`, `bcmpBlock('${r}')`)).join('')
+    const opts = roles.map(r => _b(`🛡 Block as ${BC_ROLES_ALL[r].name}`, `bcmpBlock('${r}')`)).join('')
       + _b('Allow it', `bcmpBlock('')`, 'secondary');
     return `<div class="bc-question">${_esc(actor.name)} uses ${P.action.toUpperCase()}${onYou ? ' on you' : ''}. Block?</div><div class="bc-options">${opts}</div>`;
   }
@@ -1284,7 +1347,7 @@ function _bcmpPrompt(s, me, myTurn) {
   // Challenge a block (only the actor decides)
   if (s.phase === 'challengeBlock' && P.actorSeat === me.seat) {
     const blocker = s.players.find(p => p.seat === P.blockerSeat);
-    return `<div class="bc-question">${_esc(blocker.name)} blocks as the ${BC_ROLES[P.blockRole].name}. Challenge the block?</div>
+    return `<div class="bc-question">${_esc(blocker.name)} blocks as the ${BC_ROLES_ALL[P.blockRole].name}. Challenge the block?</div>
       <div class="bc-options">${_b('⚔ Challenge', `bcmpReact('challengeBlock',true)`)}${_b('Accept', `bcmpReact('challengeBlock',false)`, 'secondary')}</div>`;
   }
 
@@ -1292,12 +1355,21 @@ function _bcmpPrompt(s, me, myTurn) {
   if (s.phase === 'loseInfluence' && P.loserSeat === me.seat) {
     const hidden = me.cards.map((c, i) => ({ c, i })).filter(x => !x.c.revealed && x.c.role);
     return `<div class="bc-question">${_esc(P.why || 'Choose a card to reveal')}:</div>
-      <div class="bc-options">${hidden.map(x => _b(`${BC_ROLES[x.c.role].icon} ${BC_ROLES[x.c.role].name}`, `bcmpLose(${x.i})`)).join('')}</div>`;
+      <div class="bc-options">${hidden.map(x => _b(`${BC_ROLES_ALL[x.c.role].icon} ${BC_ROLES_ALL[x.c.role].name}`, `bcmpLose(${x.i})`)).join('')}</div>`;
   }
 
   // Consult (Owl) — only the actor, with the revealed pool
   if (s.phase === 'consult' && P.actorSeat === me.seat && P.consultPool) {
     return _bcmpConsultPrompt(P);
+  }
+
+  // Heron tithe — every non-actor who hasn't answered: pay 1, or refuse by
+  // claiming the Heron (unchallengeable in v1, but the Court remembers).
+  if (s.phase === 'titheBlock' && P.actorSeat !== me.seat && !(P.responded || []).includes(me.seat)) {
+    const actor = s.players.find(p => p.seat === P.actorSeat);
+    return `<div class="bc-question">${_esc(actor.name)} claims the Heron and demands a tithe of 1 acorn.</div>
+      <div class="bc-options">${_b('🌰 Pay 1 acorn', `bcmpTithe(true)`)}${_b(`🛡 Refuse — claim the ${BC_ROLES_ALL.heron.name}`, `bcmpTithe(false)`, 'secondary')}</div>
+      <div class="bc-claim-warn">Refusing is a claim the whole Court will remember.</div>`;
   }
 
   return _waiting(s);
@@ -1312,6 +1384,7 @@ function _waiting(s) {
     challengeBlock: 'Awaiting the challenge decision…',
     loseInfluence: 'A courtier is choosing what to reveal…',
     consult: 'The Owl is consulted…',
+    titheBlock: 'The Court answers the Heron\'s tithe…',
   }[s.phase] || 'Waiting…';
   return `<div class="bc-question bc-waiting">${phaseLabel}</div>`;
 }
@@ -1323,8 +1396,8 @@ function _bcmpConsultPrompt(P) {
   const need = P.consultKeep;
   const cards = P.consultPool.map((r, i) => {
     const sel = chosen.includes(i) ? ' selected' : '';
-    return `<div class="bc-hand-card${sel}" onclick="bcmpConsultPick(${i})" title="${BC_ROLES[r].name}">
-      <img src="${BC_CARD_IMG(r)}" alt="${BC_ROLES[r].name}"></div>`;
+    return `<div class="bc-hand-card${sel}" onclick="bcmpConsultPick(${i})" title="${BC_ROLES_ALL[r].name}">
+      <img src="${BC_CARD_IMG(r)}" alt="${BC_ROLES_ALL[r].name}"></div>`;
   }).join('');
   const ready = chosen.length === need;
   return `<div class="bc-question">The Owl shows you the cards. Keep ${need} (${chosen.length}/${need} chosen):</div>
@@ -1381,15 +1454,23 @@ function bcmpBlock(role) {
   _bcmpAwait(role ? 'You declare your block…' : 'You allow it. Waiting for the others…');
 }
 function bcmpLose(i) { _bcmp.channel.send({ kind: 'loseInfluence', cardIndex: i }); }
+function bcmpTithe(pay) {
+  _bcmp.channel.send({ kind: 'titheRespond', pay: !!pay });
+  _bcmpAwait(pay ? 'You pay the tithe. Waiting for the others…' : 'You refuse, claiming the Heron. Waiting for the others…');
+}
 
 // Targeted action: ask for a target first
 function bcmpTarget(action) {
   const s = _bcmp.state;
-  const rivals = s.players.filter(p => p.alive && p.seat !== _bcmp.mySeat);
+  // Ward may shield anyone, including yourself; every other targeted action is rivals only.
+  const self = action === 'ward';
+  const targets = s.players.filter(p => p.alive && (self || p.seat !== _bcmp.mySeat));
   const area = document.querySelector('#bcmp-game .bc-prompt');
   if (!area) return;
-  area.innerHTML = `<div class="bc-question">Choose a target for ${action}:</div>
-    <div class="bc-options">${rivals.map(r => _b(`${_esc(r.name)} (🌰${r.acorns})`, `bcmpActOn('${action}',${r.seat})`)).join('')}
+  const label = r => r.seat === _bcmp.mySeat ? 'Yourself' : _esc(r.name);
+  const shield = r => (s.ward && s.ward.protectedSeat === r.seat) ? ' 🛡️' : '';
+  area.innerHTML = `<div class="bc-question">${self ? 'Whom will you ward?' : `Choose a target for ${action}:`}</div>
+    <div class="bc-options">${targets.map(r => _b(`${label(r)} (🌰${r.acorns})${shield(r)}`, `bcmpActOn('${action}',${r.seat})`)).join('')}
     ${_b('← Back', 'bcmpBack()', 'secondary')}</div>`;
 }
 function bcmpActOn(action, targetSeat) { _bcmp.channel.send({ kind: 'action', action, targetSeat }); _bcmpAwait('Your move is in…'); }
@@ -1426,6 +1507,8 @@ function _bcmpSounds(s) {
   const last = s.log[s.log.length - 1] || '';
   if (/pilfers|\+\d|Decree|gathers|forages/.test(last)) _bcSfx('coins.mp3');
   if (/Adder strikes|Sting/.test(last)) _bcSfx('stab.wav');
+  if (/ward flares|wards /.test(last)) _bcSfx('bowl.wav');
+  if (/tithe|estate/.test(last)) _bcSfx('coins.mp3');
   if (/block stands|truly holds/.test(last)) _bcSfx('bowl.wav');
   if (s.turnSeat === _bcmp.mySeat && s.phase === 'action') _bcSfx('next.wav');
 }
@@ -1457,14 +1540,19 @@ function _bcRecordResult(won, mode, difficulty) {
 // local BriarEngine instance, then re-pushes state — identical to how the
 // server pushes game_state. AI is driven by the same _bcmpMaybeDriveAI tick;
 // in solo mode that tick resolves locally. One code path, no divergence.
-function startBriarCourtSolo(difficulty) {
+// opts: { players: 2–6 (default 4), seasons: bool }. A table of 5–6 deals
+// the Heron; Bramblefoot and Quill are personality-neutral fillers.
+const BC_SOLO_COURTIERS = ['Old Bracken', 'Sly Whisper', 'Marigold', 'Thorn', 'Bramblefoot', 'Quill'];
+function startBriarCourtSolo(difficulty, opts) {
   if (!window.BriarEngine) { console.error('BriarEngine not loaded'); return; }
-  const names = ['Old Bracken', 'Sly Whisper', 'Marigold', 'Thorn'];
+  opts = opts || {};
+  const players = Math.max(2, Math.min(6, parseInt(opts.players, 10) || 4));
+  const seasons = !!opts.seasons;
   const seats = [
     { seat: 0, id: 'you', name: 'You', isAI: false },
-    ...names.slice(0, 3).map((n, i) => ({ seat: i + 1, id: 'ai' + i, name: n, isAI: true })),
+    ...BC_SOLO_COURTIERS.slice(0, players - 1).map((n, i) => ({ seat: i + 1, id: 'ai' + i, name: n, isAI: true })),
   ];
-  _spGame = window.BriarEngine.create(seats, { difficulty: difficulty || 'smart' });
+  _spGame = window.BriarEngine.create(seats, { difficulty: difficulty || 'smart', seasons });
 
   // Local channel mirrors the network one. send() applies my intent to the
   // local engine and re-pushes state, exactly like the server round-trip.
@@ -1473,7 +1561,8 @@ function startBriarCourtSolo(difficulty) {
     chat: () => {}, typing: () => {},
   };
   _bcmp = { code: null, channel, seats, mySeat: 0, isHost: true, state: null,
-            lastPhaseSig: '', solo: true, _seenLog: 0, difficulty: difficulty || 'smart' };
+            lastPhaseSig: '', solo: true, _seenLog: 0, difficulty: difficulty || 'smart',
+            soloOpts: { players, seasons } };
   _bcMultiplayer = null;
   _bcOpenTable();
   const chat = document.getElementById('bcmp-chat');
@@ -1515,7 +1604,15 @@ function _spDispatch(g, E, seat, payload) {
     case 'challengeBlock': E.challengeBlock(g, seat, !!payload.challenge); break;
     case 'loseInfluence': E.resolveLoss(g, seat, payload.cardIndex | 0); break;
     case 'consult': E.resolveConsult(g, seat, payload.keepIndices || []); break;
+    case 'titheRespond': E.titheRespond(g, seat, !!payload.pay); break;
   }
+}
+
+// Same difficulty, table size and Seasons setting as the game just finished.
+function bcSoloAgain() {
+  const d = _bcmp ? _bcmp.difficulty : 'smart';
+  const o = _bcmp ? _bcmp.soloOpts : null;
+  startBriarCourtSolo(d, o);
 }
 
 function _spOver() {
@@ -1532,7 +1629,7 @@ function _spOver() {
     const p = area.querySelector('.bc-prompt');
     if (p) p.innerHTML = `<div class="card-game-message">${banner}</div>
       <div class="bc-options">
-        <button class="cg-btn" onclick="startBriarCourtSolo('${g.difficulty}')">Play Again</button>
+        <button class="cg-btn" onclick="bcSoloAgain()">Play Again</button>
         <button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave</button>
       </div>`;
   }
