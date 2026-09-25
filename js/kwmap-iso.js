@@ -246,9 +246,12 @@
       if (t.outpost) c |= 64 | (t.outpost.mine ? 128 : 0);
       if (t.claimed_by_me) c |= 256;
       if (t.claim_owner) c |= 512;
-      // Clan territory (spec 016): owner + mine flag, so a claim refetch
-      // rebuilds the buffered ground.
-      if (t.clan_territory) c ^= (1024 | (t.clan_territory.mine ? 2048 : 0)) + t.clan_territory.clan_id * 4096;
+      // Clan territory (spec 016): owner, mine flag and banner look, so a
+      // claim or banner edit rebuilds the buffered ground.
+      if (t.clan_territory) {
+        c ^= (1024 | (t.clan_territory.mine ? 2048 : 0)) + t.clan_territory.clan_id * 4096;
+        if (window.ClanTerritory) c ^= window.ClanTerritory.bannerHash(t.clan_territory);   // banner edits
+      }
       const tc = t.terrain ? t.terrain.charCodeAt(0) : 0;
       h = (h ^ (((t.q * 73856093) ^ (t.r * 19349663) ^ (c * 97 + tc)) >>> 0)) >>> 0;
       h = Math.imul(h, 16777619) >>> 0;
@@ -325,6 +328,9 @@
   // Settlement / outpost token (disc + emoji), now a shadowed TALL drawable.
   function _drawSettlementToken(ctx, cx, cy, ctx3) {
     const { g, t } = ctx3;
+    // Tiered miniature (js/kwmap-settlements.js), footed just below the face
+    // centre so it sits on the tile; the disc token below is the fallback.
+    if (window.KWSettlements) { window.KWSettlements.draw(ctx, t, cx, cy + g.faceH * 0.22, g.hexW); return; }
     const s = t.settlement;
     const sType = s.settlement_type || (s.is_kingdom ? 'kingdom' : s.disposition === 'hostile' ? 'hostile' : (s.isOwn ? 'player' : 'npc'));
     let fill = 'rgba(60,90,150,0.9)', ring = 'rgba(255,210,120,0.95)', glyph = '🏘';
@@ -804,6 +810,13 @@
         if (cand && elevationOf(terrainAt(cand.wq, cand.wr)) >= e) return cand;
       }
       return baseInverse(px, py, g);       // flat/recessed ground plane
+    },
+
+    // Settlement footing on screen (lifted by elevation, matching where the
+    // settlement miniature is drawn) — nameplate anchoring.
+    labelAnchor(wq, wr, cam, W, H) {
+      const p = isoFirstVisibleCopy(wq, wr, W, H, true);
+      return p ? { x: p.cx, y: p.cy + p.faceH * 0.22, hexW: p.hexW } : null;
     },
 
     // Ground-plane tile centre (no elevation) — overlay/panel anchoring (§2.3).

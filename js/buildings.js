@@ -595,7 +595,7 @@ function _renderQaList() {
   const row = q => '<div class="qa-row' + (q.archived ? ' qa-archived' : '') + '">'
     + '<span class="qa-row-icon">' + (q.icon||'📜') + '</span>'
     + '<span class="qa-row-type qa-type-' + q.quest_type + '">' + (q.quest_type === 'party' ? '👥' : '🗡') + '</span>'
-    + '<span class="qa-row-title">' + q.title + '</span>'
+    + '<span class="qa-row-title">' + q.title + (q.quest_source === 'clan' ? ' <span class="qa-src-tag" title="Clan quest (min clan level ' + (q.clan_min_level || 1) + ')">🛡️ Clan L' + (q.clan_min_level || 1) + '</span>' : q.quest_source === 'settlement' ? ' <span class="qa-src-tag">🏡</span>' : '') + '</span>'
     + '<span class="qa-row-diff">' + Math.round(q.base_success*100) + '%</span>'
     + '<div class="qa-row-btns">'
     + '<button class="qa-btn" data-id="' + q.id + '" onclick="qa_showForm(this.dataset.id)">✏</button>'
@@ -659,6 +659,7 @@ function qa_showForm(id) {
     + '<select class="ce-input" id="qa-source" onchange="_qaToggleSourceFields()">'
     + '<option value="tavern"' + (q?.quest_source!=='settlement'?' selected':'') + '>🍺 Tavern (Notice Board)</option>'
     + '<option value="settlement"' + (q?.quest_source==='settlement'?' selected':'') + '>🏡 Settlement Quest</option>'
+    + '<option value="clan"' + (q?.quest_source==='clan'?' selected':'') + '>🛡️ Clan Quest (Clan panel board)</option>'
     + '</select></div>'
     + '<div class="ce-field"><label>Quest Type</label>'
     + '<select class="ce-input" id="qa-type">'
@@ -671,6 +672,13 @@ function qa_showForm(id) {
     + '<div class="ce-field"><label>Given by NPC ' + tip('Which settlement gives this quest? Only shown when Source = Settlement.') + '</label><select class="ce-input" id="qa-npc">' + npcOpts + '</select></div>'
     + '<div class="ce-field"><label>Min Trust ' + tip('Trust level required (0-100). 0=anyone, 21=Familiar, 41=Friendly, 71=Allied') + '</label><input class="ce-input" type="number" id="qa-min-trust" min="0" max="100" value="' + (q?.min_trust||0) + '"></div>'
     + '</div></div>'
+    + '<div id="qa-clan-fields" style="margin-top:6px">'
+    + '<div class="ce-grid">'
+    + '<div class="ce-field"><label>Min clan level ' + tip('The clan level needed before this quest can appear on its board. Party quests also need clan level 2.') + '</label><input class="ce-input" type="number" id="qa-clan-level" min="1" max="10" value="' + (q?.clan_min_level || 1) + '"></div>'
+    + '<div class="ce-field"><label>Prestige each ' + tip('Clan prestige earned per participant on success. Solo counts toward the daily cap; party is a milestone outside it.') + '</label><input class="ce-input" type="number" id="qa-clan-prestige" min="0" value="' + (q?.clan_prestige || 0) + '"></div>'
+    + '</div>'
+    + '<div class="qa-hint">Clan boards rotate daily: 3 solo + 2 party quests picked from everything a clan has unlocked. Every participant gets the resource rewards below. Clan battles auto-resolve and never injure.</div>'
+    + '</div>'
 
     // ── Skill ──
     + '<div id="qa-solo-fields">'
@@ -691,6 +699,11 @@ function qa_showForm(id) {
     + '<div class="ce-field"><label>Gold reward ' + tip('Gold awarded on success. Added directly to settlement wealth.') + '</label><input class="ce-input" type="number" id="qa-gold" value="' + (q?.reward_gold||0) + '"></div>'
     + '<div class="ce-field"><label>Sort order ' + tip('Lower numbers appear first in the quest board. Use 0 for default.') + '</label><input class="ce-input" type="number" id="qa-sort" value="' + (q?.sort_order||0) + '"></div>'
     + '</div>'
+    + '<div id="qa-rewards-fields" style="margin-top:6px">'
+    + '<div class="ce-field"><label>Resource rewards ' + tip('Added to the settlement on success (each participant for clan quests). Party quests use these instead of Gold reward.') + '</label></div>'
+    + '<div class="ce-grid ce-grid--5">'
+    + ['food','timber','stone','metal','wealth'].map(k => '<div class="ce-field"><label>' + ({food:'🌾 Food',timber:'🪵 Timber',stone:'🪨 Stone',metal:'⛓️ Metal',wealth:'🪙 Gold'})[k] + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + ((q?.rewards || {})[k] || 0) + '"></div>').join('')
+    + '</div></div>'
     + '<div class="ce-field" style="margin-top:6px"><label>Reward label ' + tip('Human-readable reward summary shown on the card. e.g. "+40 timber, +15 gold"') + '</label><input class="ce-input" id="qa-reward-label" value="' + (q?.reward_label||'') + '" placeholder="+15 gold, +2 food"></div>'
     + '<div class="ce-grid" style="margin-top:6px">'
     + '<div class="ce-field"><label>Success flavour ' + tip('Short message shown when the quest succeeds. e.g. "The pack fled into the deep wood."') + '</label><input class="ce-input" id="qa-fsuccess" value="' + (q?.flavour_success||'') + '"></div>'
@@ -720,7 +733,7 @@ function qa_showForm(id) {
     wrap.querySelector('#qa-solo-fields').style.display = isParty ? 'none' : '';
     wrap.querySelector('#qa-party-fields').style.display = isParty ? '' : 'none';
   };
-  typeEl.addEventListener('change', updateTypeFields);
+  typeEl.addEventListener('change', () => { updateTypeFields(); _qaToggleSourceFields(); });
   updateTypeFields();
   _qaToggleSourceFields();
   _qaRenderReqRows();
@@ -729,8 +742,13 @@ function qa_showForm(id) {
 
 function _qaToggleSourceFields() {
   const src = document.getElementById('qa-source')?.value;
+  const type = document.getElementById('qa-type')?.value;
   const sf = document.getElementById('qa-settlement-fields');
   if (sf) sf.style.display = src === 'settlement' ? '' : 'none';
+  const cf = document.getElementById('qa-clan-fields');
+  if (cf) cf.style.display = src === 'clan' ? '' : 'none';
+  const rf = document.getElementById('qa-rewards-fields');
+  if (rf) rf.style.display = (src === 'clan' || type === 'party') ? '' : 'none';
 }
 
 // ── Drop row system ────────────────────────────
@@ -875,6 +893,12 @@ async function qa_save(existingId) {
   }
 
   _qaSyncDropRows();
+  const source = document.getElementById('qa-source')?.value || 'tavern';
+  const rewards = {};
+  ['food','timber','stone','metal','wealth'].forEach(k => {
+    const v = parseInt(document.getElementById('qa-rw-' + k)?.value) || 0;
+    if (v > 0) rewards[k] = v;
+  });
   const body = {
     id:           document.getElementById('qa-id')?.value?.trim(),
     title:        document.getElementById('qa-title')?.value?.trim(),
@@ -883,7 +907,9 @@ async function qa_save(existingId) {
     icon:         document.getElementById('qa-icon')?.value?.trim() || '📜',
     category:     'general',
     quest_type:   type,
-    quest_source: document.getElementById('qa-source')?.value || 'tavern',
+    quest_source: source,
+    clan_min_level: Math.max(1, parseInt(document.getElementById('qa-clan-level')?.value) || 1),
+    clan_prestige: Math.max(0, parseInt(document.getElementById('qa-clan-prestige')?.value) || 0),
     given_by_npc_id: document.getElementById('qa-npc')?.value ? parseInt(document.getElementById('qa-npc').value) : null,
     min_trust:    parseInt(document.getElementById('qa-min-trust')?.value) || 0,
     skill_key:    isParty ? null : (document.getElementById('qa-skill')?.value || null),
@@ -900,6 +926,7 @@ async function qa_save(existingId) {
     requires,
     drops: (window._qaDropRows || []).filter(d => d.name),
   };
+  if (source === 'clan' || isParty) body.rewards = rewards;
 
   if (!body.id || !body.title) { _qaFeedback('⚠️ ID and title required.'); return; }
 

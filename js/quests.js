@@ -457,13 +457,17 @@ function openSoloQuestPanel(q) {
   modal.dataset.soloQuestBase = q.base_success;
 
   const busyIds = new Set((_soloInProgress || []).map(r => r.citizen_id).filter(Boolean));
+  // Everyone grown-up is listed; busy citizens stay visible (greyed, with
+  // the reason) in the picker.
   const pool = (citizensData || [])
-    .filter(c => c.life_stage !== 'child' && !busyIds.has(c.id) && !c.expedition && !c.active_quest)
+    .filter(c => c.life_stage !== 'child')
     .sort((a, b) => (b.skills?.[q.skill_key] ?? 0) - (a.skills?.[q.skill_key] ?? 0));
 
   const opts = pool.map(c => {
     const sk = c.skills?.[q.skill_key] ?? 0;
-    return '<option value="' + c.id + '" data-skill="' + sk + '">' + c.name
+    const why = _citizenBusyLabel(c, busyIds);
+    return '<option value="' + c.id + '" data-skill="' + sk + '" data-name="' + escHtml(c.name) + '"'
+      + (why ? ' data-busy="1" data-busy-label="' + escHtml(why) + '" disabled' : '') + '>' + c.name
       + ' (' + (QUEST_SKILL_LABELS[q.skill_key] || q.skill_key || 'General') + ' ' + sk + ')</option>';
   }).join('');
 
@@ -502,6 +506,16 @@ function openSoloQuestPanel(q) {
     + '<div class="qb-flash" id="sq-flash"></div>';
 
   modal.style.cssText = 'display:flex;position:fixed;inset:0;z-index:9000;background:rgba(8,5,2,0.92);backdrop-filter:blur(8px);overflow-y:auto;align-items:flex-start;justify-content:center;flex-direction:column;padding:20px 0 40px';
+  if (window.KWPicker) KWPicker.enhance(document.getElementById('sq-select'),
+    { skillLabel: QUEST_SKILL_LABELS[q.skill_key] || q.skill_key || 'Skill', base: Number(q.base_success) || 0.5 });
+}
+
+// Why a citizen can't go right now ('' = free).
+function _citizenBusyLabel(c, busyIds) {
+  if (c.active_quest) return c.active_quest.clan ? (c.active_quest.forming ? 'Waiting for a clan party' : 'On a clan quest') : 'On a quest';
+  if (c.expedition) return 'Scouting';
+  if (busyIds && busyIds.has(c.id)) return 'Busy';
+  return '';
 }
 
 function _acceptSoloFromPanel() {
@@ -1032,9 +1046,11 @@ function _renderPartyAssembly(q) {
 
     const opts = pool.map(c => {
       const sk = c.skills?.[req.skill_key] ?? 0;
-      const isBusy = busyIds.has(c.id) || !!c.expedition || !!c.active_quest;
-      const busyLabel = c.active_quest ? ' [On quest]' : c.expedition ? ' [Scouting]' : busyIds.has(c.id) ? ' [Busy]' : '';
-      return '<option value="' + c.id + '" data-skill="' + (isBusy ? 0 : sk) + '" data-busy="' + (isBusy ? '1' : '0') + '"' + (isBusy ? ' disabled' : '') + '>'
+      const why = _citizenBusyLabel(c, busyIds);
+      const isBusy = !!why;
+      const busyLabel = isBusy ? ' [' + why + ']' : '';
+      return '<option value="' + c.id + '" data-skill="' + (isBusy ? 0 : sk) + '" data-busy="' + (isBusy ? '1' : '0') + '"'
+        + ' data-name="' + escHtml(c.name) + '" data-busy-label="' + escHtml(why) + '"' + (isBusy ? ' disabled' : '') + '>'
         + c.name + ' (' + (QUEST_SKILL_LABELS[req.skill_key]||req.skill_key) + ' ' + sk + ')' + busyLabel
         + '</option>';
     }).join('');
@@ -1067,6 +1083,8 @@ function _renderPartyAssembly(q) {
     + _renderCombatBlock(q, 'pa')
     + '<button class="pa-send-btn" data-questid="' + q.id + '" data-partysize="' + requires.length + '" onclick="acceptPartyQuest(this.dataset.questid, +this.dataset.partysize)">⚔️ Send Party</button>'
     + '<div class="qb-flash" id="pa-flash"></div>';
+  if (window.KWPicker) requires.forEach((req, i) => KWPicker.enhance(document.getElementById('pa-sel-' + i),
+    { skillLabel: QUEST_SKILL_LABELS[req.skill_key] || req.skill_key || 'Skill', base: null, show: 4 }));
 }
 
 let _paCurrentQuest = null; // set when assembly modal opens

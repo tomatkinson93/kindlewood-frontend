@@ -68,27 +68,54 @@
   ];
 
   // Level table (§5). Thresholds are on prestige_lifetime; caps are derived
-  // from level here, never stored.
+  // from level here, never stored. claimRadius: claims must lie within this
+  // many hexes of the clan's HQ tile — the smallest hex disk that holds the
+  // tile cap with room to shape it (disk sizes 1/7/19/37/61/91), so no
+  // territory can be stretched into a long line.
   const CLAN_LEVELS = [
-    { level: 1,  lifetime: 0,     memberCap: 10, territoryCap: 1  },
-    { level: 2,  lifetime: 500,   memberCap: 12, territoryCap: 4  },
-    { level: 3,  lifetime: 1500,  memberCap: 15, territoryCap: 8  },
-    { level: 4,  lifetime: 3500,  memberCap: 18, territoryCap: 13 },
-    { level: 5,  lifetime: 7000,  memberCap: 22, territoryCap: 19 },
-    { level: 6,  lifetime: 12000, memberCap: 26, territoryCap: 26 },
-    { level: 7,  lifetime: 20000, memberCap: 30, territoryCap: 34 },
-    { level: 8,  lifetime: 32000, memberCap: 34, territoryCap: 43 },
-    { level: 9,  lifetime: 50000, memberCap: 38, territoryCap: 53 },
-    { level: 10, lifetime: 75000, memberCap: 40, territoryCap: 64 },
+    { level: 1,  lifetime: 0,     memberCap: 10, territoryCap: 1,  claimRadius: 0 },
+    { level: 2,  lifetime: 500,   memberCap: 12, territoryCap: 4,  claimRadius: 1 },
+    { level: 3,  lifetime: 1500,  memberCap: 15, territoryCap: 8,  claimRadius: 2 },
+    { level: 4,  lifetime: 3500,  memberCap: 18, territoryCap: 13, claimRadius: 2 },
+    { level: 5,  lifetime: 7000,  memberCap: 22, territoryCap: 19, claimRadius: 3 },
+    { level: 6,  lifetime: 12000, memberCap: 26, territoryCap: 26, claimRadius: 3 },
+    { level: 7,  lifetime: 20000, memberCap: 30, territoryCap: 34, claimRadius: 4 },
+    { level: 8,  lifetime: 32000, memberCap: 34, territoryCap: 43, claimRadius: 4 },
+    { level: 9,  lifetime: 50000, memberCap: 38, territoryCap: 53, claimRadius: 5 },
+    { level: 10, lifetime: 75000, memberCap: 40, territoryCap: 64, claimRadius: 5 },
   ];
   const FORUM_UNLOCK_LEVEL = 2;
   const CHAT_UNLOCK_LEVEL  = 4;
+  const TITLE_UNLOCK_LEVEL = 5;   // cosmetic member titles
+  const TITLE_MAX = 24;
+  // Clan honors (achievements for clans) are stubbed until that system ships.
+  const CLAN_HONORS_LIVE = false;
+
+  // What each level unlocks, for the level ladder in the UI.
+  const LEVEL_UNLOCKS = [
+    { level: 1, icon: '🏛️', label: 'Clan hall, roster & activity' },
+    { level: 1, icon: '🎨', label: 'Palette I & emblem set I' },
+    { level: 2, icon: '📜', label: 'Clan forum' },
+    { level: 2, icon: '🎨', label: 'Palette II (+4 colours)' },
+    { level: 3, icon: '👑', label: 'Emblem set II' },
+    { level: 4, icon: '💬', label: 'Clan live chat' },
+    { level: 4, icon: '🎨', label: 'Palette III (+4 colours)' },
+    { level: 5, icon: '🏷️', label: 'Member titles' },
+    { level: 6, icon: '✨', label: 'Palette IV — gilded' },
+    { level: 7, icon: '🐉', label: 'Emblem set III' },
+  ];
 
   function levelRow(level) {
     return CLAN_LEVELS[Math.max(1, Math.min(CLAN_LEVELS.length, level | 0)) - 1];
   }
   function memberCap(level)    { return levelRow(level).memberCap; }
   function territoryCap(level) { return levelRow(level).territoryCap; }
+  function claimRadius(level)  { return levelRow(level).claimRadius; }
+  // First level whose claim radius reaches `dist`, or null if none does.
+  function levelForRadius(dist) {
+    const row = CLAN_LEVELS.find(r => r.claimRadius >= dist);
+    return row ? row.level : null;
+  }
   function levelForLifetime(lifetime) {
     let lv = 1;
     for (const row of CLAN_LEVELS) if (lifetime >= row.lifetime) lv = row.level;
@@ -134,7 +161,8 @@
 
   return {
     CLAN_SWATCHES, CLAN_EMBLEMS, CLAN_LEVELS, FORUM_UNLOCK_LEVEL, CHAT_UNLOCK_LEVEL,
-    levelRow, memberCap, territoryCap, levelForLifetime, nextLevel,
+    TITLE_UNLOCK_LEVEL, TITLE_MAX, CLAN_HONORS_LIVE, LEVEL_UNLOCKS,
+    levelRow, memberCap, territoryCap, claimRadius, levelForRadius, levelForLifetime, nextLevel,
     swatch, emblem, isUnlocked, validateBanner, resolveBanner,
   };
 });

@@ -85,7 +85,9 @@ KWMap.controller.registerRenderer('topdown', {
 
     if (!t || t.terrain === 'fog') {
       // No fill — fog texture draws through
-    } else if (t.settlement) {
+    } else if (t.settlement && !window.KWSettlements) {
+      // Flat stand-in — only without the settlement miniatures, which sit on
+      // the tile's real terrain instead.
       ctx.fillStyle = t.settlement.isOwn ? '#1a3060' : '#1a2e4a';
       ctx.fill();
     } else {
@@ -699,6 +701,9 @@ KWMap.controller.registerRenderer('topdown', {
     if (!t?.settlement) continue;
     const s = t.settlement;
     const cx = x + hexW / 2, cy = y + hexH / 2;
+    // With tiered miniatures loaded, the tile keeps its relationship tint and
+    // border and the miniature replaces the emoji glyph.
+    const glyphs = showEmoji && !window.KWSettlements;
     const r2 = Math.min(hexW, hexH) * 0.46;
 
     ctx.save();
@@ -722,7 +727,7 @@ KWMap.controller.registerRenderer('topdown', {
       ctx.lineWidth = s.is_kingdom_annex ? 1.8 : 2.8;
       ctx.stroke();
       // Crown icon on main tile only
-      if (!s.is_kingdom_annex && showEmoji) {
+      if (!s.is_kingdom_annex && glyphs) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `${Math.round(hexH * 0.42)}px serif`;
@@ -741,7 +746,7 @@ KWMap.controller.registerRenderer('topdown', {
       ctx.strokeStyle = 'rgba(240,50,30,0.95)';
       ctx.lineWidth = 2.5;
       ctx.stroke();
-      if (showEmoji) {
+      if (glyphs) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `${Math.round(hexH * 0.42)}px serif`;
@@ -764,7 +769,7 @@ KWMap.controller.registerRenderer('topdown', {
       ctx.strokeStyle = isNeutral ? 'rgba(120,200,160,0.9)' : 'rgba(60,220,150,0.95)';
       ctx.lineWidth = 2;
       ctx.stroke();
-      if (showEmoji) {
+      if (glyphs) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `${Math.round(hexH * 0.38)}px serif`;
@@ -781,7 +786,7 @@ KWMap.controller.registerRenderer('topdown', {
       ctx.strokeStyle = s.isOwn ? 'rgba(255,210,120,0.95)' : 'rgba(200,160,60,0.65)';
       ctx.lineWidth = s.isOwn ? 2.5 : 1.8;
       ctx.stroke();
-      if (showEmoji) {
+      if (glyphs) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `${Math.round(hexH * 0.42)}px serif`;
@@ -790,6 +795,8 @@ KWMap.controller.registerRenderer('topdown', {
     }
 
     ctx.restore();
+    // Unclipped, so taller tiers can rise above the hex's top edge.
+    if (window.KWSettlements) window.KWSettlements.draw(ctx, t, cx, cy + hexH * 0.26, hexW);
   }
 
   // ── Pass 3.5: outpost stamps (010) ─────────────────────────────────────
@@ -849,6 +856,12 @@ KWMap.controller.registerRenderer('topdown', {
   const wq = ((rq % HEX_MAP_W) + HEX_MAP_W) % HEX_MAP_W;
   const wr = ((rr % HEX_MAP_H) + HEX_MAP_H) % HEX_MAP_H;
   return { wq, wr };
+  },
+
+  // Settlement footing on screen — nameplate anchoring (matches Pass 3).
+  labelAnchor(wq, wr, camera, W, H) {
+    const p = KWMap.geom.firstVisibleCopyXY(wq, wr, W, H);
+    return p ? { x: p.x + p.hexW / 2, y: p.y + p.hexH / 2 + p.hexH * 0.26, hexW: p.hexW } : null;
   },
 
   hexToScreen(wq, wr, camera, W, H) {

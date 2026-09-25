@@ -40,7 +40,9 @@
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
-  <link rel="stylesheet" href="/css/clans.css?v=clan4">
+  <link rel="stylesheet" href="/css/clans.css?v=cq3">
+  <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
+  <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -529,7 +531,7 @@
       <button class="comm-btn" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
       <button class="comm-btn" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
       <button class="comm-btn" id="nav-clan" onclick="openClanPanel()">🛡️ <span>Clan</span></button>
-      <button class="comm-btn" onclick="showCommunityTab('chat')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-chat"/></svg><span>Chat</span></button>
+      <button class="comm-btn" id="nav-chat" onclick="openChatHub()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-chat"/></svg><span>Chat</span></button>
       <button class="comm-btn" id="nav-online" onclick="showOnlineList()">🟢 <span>Online</span> <span id="online-count" class="online-count"></span></button>
       <button class="comm-btn" id="nav-feedback" onclick="openFeedback()">🐞 <span>Feedback</span></button>
     </div>
@@ -786,33 +788,36 @@
   <script defer src="/js/placement.js"></script>
   <script defer src="/js/arrival.js"></script>
   <script defer src="/js/citizens.js?v=1776929386"></script>
-  <script defer src="/js/buildings.js?v=clan1"></script>
+  <script defer src="/js/buildings.js?v=cq3"></script>
   <script defer src="/js/expeditions.js"></script>
   <script defer src="/js/seasons.js?v=3"></script>
   <script defer src="/js/season-atmosphere.js?v=1"></script>
   <script defer src="/js/tier.js?v=tierfix1"></script>
-  <script defer src="/js/profile.js?v=2"></script>
+  <script defer src="/js/profile.js?v=cp2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script defer src="/js/kwmap-core.js?v=3"></script>
-  <script defer src="/js/clan-territory.js?v=clan6"></script>
-  <script defer src="/js/kwmap-topdown.js?v=clan6"></script>
+  <script defer src="/js/kwmap-core.js?v=np1"></script>
+  <script defer src="/js/clan-territory.js?v=clan9"></script>
+  <script defer src="/js/kwmap-settlements.js?v=np1"></script>
+  <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
+  <script defer src="/js/kwmap-topdown.js?v=np2"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
   <script defer src="/js/kwmap-assets.js?v=1"></script>
-  <script defer src="/js/kwmap-iso.js?v=clan6"></script>
+  <script defer src="/js/kwmap-iso.js?v=np1"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
-  <script defer src="/js/main.js?v=clan4"></script>
+  <script defer src="/js/main.js?v=chat1"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
-  <script defer src="/js/leaderboard.js?v=clan4"></script>
+  <script defer src="/js/leaderboard.js?v=cp1"></script>
   <script defer src="/js/briar_engine.js?v=8"></script>
   <script defer src="/js/squirrel_engine.js?v=16"></script>
   <script defer src="/js/games-meta.js?v=1"></script>
   <script defer src="/js/lobby.js?v=14"></script>
   <script defer src="/js/tavern.js?v=38"></script>
-  <script defer src="/js/quests.js?v=1778441000"></script>
+  <script defer src="/js/citizen-picker.js?v=kwp1"></script>
+  <script defer src="/js/quests.js?v=kwp1"></script>
   <script defer src="/js/fishing.js"></script>
   <script defer src="/js/housing.js"></script>
   <script defer src="/js/events.js"></script>
@@ -832,12 +837,15 @@
   <script defer src="/js/feedback.js?v=1778500800"></script>
   <script defer src="/js/combat-ui.js?v=1778502800"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
-  <script defer src="/js/clan-palette.js?v=clan1"></script>
-  <script defer src="/js/clans.js?v=clan7"></script>
-  <script defer src="/js/realtime.js?v=clan4"></script>
+  <script defer src="/js/clan-palette.js?v=cp2"></script>
+  <script defer src="/js/clans.js?v=cq1"></script>
+  <script defer src="/js/clan-profile.js?v=cp2"></script>
+  <script defer src="/js/clan-quests.js?v=cq3"></script>
+  <script defer src="/js/chat-hub.js?v=cp1"></script>
+  <script defer src="/js/realtime.js?v=cq3"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
-  <script defer src="/js/mobile-shell.js?v=clan1"></script>
+  <script defer src="/js/mobile-shell.js?v=cp1"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->
@@ -965,6 +973,10 @@
           <button class="cheat-res-btn" onclick="cheatClanPrestige(parseInt(document.getElementById('cheat-clan-prestige').value, 10))">Apply</button>
         </div>
         <div class="cheat-rel-feedback" id="cheat-clan-prestige-feedback">Adding raises lifetime prestige too (can level the clan up); removing only lowers the spendable balance.</div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="cheat-res-btn" style="flex:1" onclick="cheatFinishClanQuests()">Finish my clan quests now</button>
+        </div>
+        <div class="cheat-rel-feedback" id="cheat-clan-quests-feedback">Brings every clan quest you're part of to its end and resolves it.</div>
       </div>
 
       <!-- ── TAB: Citizens ── -->
@@ -1316,6 +1328,7 @@
           <div class="pm-username" id="pm-username">—</div>
           <div class="pm-title" id="pm-title" hidden></div>
           <div class="pm-species" id="pm-species"></div>
+          <div class="pm-clan" id="pm-clan" hidden></div>
           <div class="pm-joined" id="pm-joined"></div>
         </div>
       </div>
@@ -1386,6 +1399,7 @@
           <div class="pm-username" id="vp-username">—</div>
           <div class="pm-title" id="vp-title" hidden></div>
           <div class="pm-species" id="vp-species"></div>
+          <div class="pm-clan" id="vp-clan" hidden></div>
         </div>
       </div>
 

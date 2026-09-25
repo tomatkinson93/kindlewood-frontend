@@ -43,6 +43,7 @@
       // Events may have been missed while disconnected (phones suspend
       // EventSource in the background) — catch the clan panel up.
       if (global.ClanUI && ev.clan_id) global.ClanUI.onClanEvent({ type: 'reconnected' });
+      if (global.ChatHub) global.ChatHub.onReconnect();
     },
 
     // A quest finished — completed or failed. Reload quest list so the
@@ -101,21 +102,49 @@
     // clan channel, then refresh the clan panel/badge.
     clan_membership_changed(ev) {
       restart();
+      if (global.ChatHub) global.ChatHub.onLevelOrMembership();
       if (global.ClanUI) global.ClanUI.onMembershipChanged(ev);
     },
     clan_invite_received(ev) {
       if (global.ClanUI) global.ClanUI.onInviteReceived(ev);
     },
+    // A clan quest you took part in finished (your settlement channel).
+    clan_quest_resolved(ev) { if (global.ClanQuests) global.ClanQuests.onResolved(ev); },
+    clan_quest_battle(ev) { if (global.ClanQuests) global.ClanQuests.onBattle(ev); },
+    clan_request_declined(ev) {
+      if (global.ClanUI && global.ClanUI.onRequestDeclined) global.ClanUI.onRequestDeclined(ev);
+    },
     clan_disbanded(ev) {
       if (global.ClanUI) global.ClanUI.onDisbanded(ev);
+    },
+
+    // Chat hub (clan channel): chat lines arrive inline; forum changes are
+    // notify-then-fetch.
+    clan_chat(ev) { if (global.ChatHub) global.ChatHub.onChat(ev); },
+    clan_chat_deleted(ev) { if (global.ChatHub) global.ChatHub.onChatDeleted(ev); },
+    clan_forum_updated(ev) { if (global.ChatHub) global.ChatHub.onForumUpdated(ev); },
+    // Realm channels (Town Square boards + Realm Chat), on the "global" bus key.
+    chat_message(ev) { if (global.ChatHub) global.ChatHub.onChat(ev); },
+    chat_message_deleted(ev) { if (global.ChatHub) global.ChatHub.onChatDeleted(ev); },
+    forum_updated(ev) { if (global.ChatHub) global.ChatHub.onForumUpdated(ev); },
+    // Moderation: open-report count for staff (on the "staff" bus key), and
+    // a role change, which reconnects to pick up or drop that key.
+    mod_reports(ev) { if (global.ChatHub) global.ChatHub.onModReports(ev); },
+    site_role_changed(ev) {
+      restart();
+      if (global.ChatHub) global.ChatHub.onLevelOrMembership();
     },
   };
 
   // Clan-channel events (clan:<id>) — all notify-then-fetch.
   ['clan_prestige', 'clan_level_up', 'clan_member_joined', 'clan_member_left',
    'clan_member_kicked', 'clan_rank_changed', 'clan_profile_updated',
-   'clan_leadership_transferred', 'clan_territory_claimed'].forEach(type => {
-    HANDLERS[type] = ev => { if (global.ClanUI) global.ClanUI.onClanEvent(ev); };
+   'clan_leadership_transferred', 'clan_territory_claimed', 'clan_member_updated', 'clan_join_requested', 'clan_quest_updated'].forEach(type => {
+    HANDLERS[type] = ev => {
+      if (global.ClanUI) global.ClanUI.onClanEvent(ev);
+      // A level-up can unlock the forum / live chat tabs.
+      if (type === 'clan_level_up' && global.ChatHub) global.ChatHub.onLevelOrMembership();
+    };
   });
 
   function _buildStreamUrl() {
