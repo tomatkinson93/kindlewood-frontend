@@ -224,7 +224,7 @@ const run = (env, stmt) => vm.runInContext(stmt, env.context);
 
 // ── G. Grep gates (kwmap-*.js are read-only consumers) ─────────────────────
 {
-  const files = ['kwmap-core.js', 'kwmap-topdown.js', 'kwmap-assets.js', 'kwmap-iso.js'];
+  const files = ['kwmap-core.js', 'kwmap-topdown.js', 'kwmap-assets.js', 'kwmap-iso.js', 'kwmap-atmosphere.js'];
   const forbidden = [
     [/\bapiFetch\b/, 'apiFetch'],
     [/Math\.random/, 'Math.random'],

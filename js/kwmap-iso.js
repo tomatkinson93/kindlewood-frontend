@@ -643,8 +643,13 @@
       ctx.fillStyle = '#3a2e22';
       ctx.fillRect(0, 0, W, H);
 
-      // 2. Fog cloud backdrop — verbatim treatment from top-down.
-      _drawFogBackdrop(ctx, W, H);
+      // 2. Fog of war — the uncharted-map chart, anchored to the world and
+      //    squashed onto the ground plane (kwmap-atmosphere.js). Legacy
+      //    drifting fog texture as the fallback.
+      const atmo = KW.atmosphere;
+      if (!(atmo && atmo.drawBackdrop(ctx, W, H, g.camPxX, g.camPxY, { yScale: ISO.K }))) {
+        _drawFogBackdrop(ctx, W, H);
+      }
 
       // 3. GROUND + TALL buffers — rebuild if needed, then blit in order.
       this._ensureBuffers(g, W, H, dpr, seasonId, data, det);
@@ -660,6 +665,10 @@
       // 4. Atmospheric haze + vignette — one radial gradient per frame (spec §7).
       //    Ladder step 3 disables it (and the explicit _hazeOn override).
       if (this._hazeOn && det.haze) _drawHaze(ctx, W, H);
+
+      // 5. Clouds drifting above the map (with ground shadows) — above the
+      //    haze, since they sit between the land and the viewer.
+      if (atmo) atmo.drawClouds(ctx, W, H, g.camPxX, g.camPxY, frame.now, { yScale: ISO.K });
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);

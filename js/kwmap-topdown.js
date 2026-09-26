@@ -49,8 +49,12 @@ KWMap.controller.registerRenderer('topdown', {
   const qStart = camera.q - Math.ceil(colsVisible / 2);
   const rStart = camera.r - Math.ceil(rowsVisible / 2);
 
-  // ── Fog texture — scaled up, drifts via sin/cos, no tiling so no seams ──
-  if (_fogImg.complete && _fogImg.naturalWidth > 0) {
+  // ── Fog of war — the uncharted-map chart, anchored to the world
+  //    (kwmap-atmosphere.js). Legacy drifting fog texture as the fallback. ──
+  const _atmo = (typeof KWMap !== 'undefined') && KWMap.atmosphere;
+  if (_atmo && _atmo.drawBackdrop(ctx, W, H, camPxX, camPxY)) {
+    // drawn
+  } else if (_fogImg.complete && _fogImg.naturalWidth > 0) {
     const driftRange = Math.max(W, H) * 0.08;  // drift by up to 8% of canvas
     // drawSize must be canvas + 2× driftRange so edges never go out of frame
     const drawSize = Math.max(W, H) + driftRange * 2;
@@ -828,6 +832,9 @@ KWMap.controller.registerRenderer('topdown', {
     }
     ctx.restore();
   }
+
+  // ── Clouds drifting above the map (kwmap-atmosphere.js) ─────────────────
+  if (_atmo) _atmo.drawClouds(ctx, W, H, camPxX, camPxY, frame.now);
   },
 
   screenToHex(mouseX, mouseY, camera, W, H) {
