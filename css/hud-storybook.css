@@ -4552,3 +4552,44 @@ body.kw-shell .bc-you-seat .bc-hand-card:last-child { transform: none; }
 body.kw-shell .bc-you-seat { padding-top: 5px !important; }
 body.kw-shell .card-game.briar .bc-prompt { padding: 2px !important; gap: 4px !important; }
 body.kw-shell .card-game.briar .bc-question { font-size: 13px; margin: 0; }
+
+/* ── Briar table v3: nothing moves while people decide ─────────────── */
+/* The modal is a FIXED size again. v2 let it shrink to fit its content, so
+   every prompt change (buttons ↔ "waiting…") resized the modal and the
+   backdrop re-centred it — the whole table bobbed up and down. Now the table
+   fills the modal and the decision area absorbs any change inside it. */
+body:not(.kw-shell) .bcmp-shell { height: min(780px, 92vh); min-height: 0; }
+body:not(.kw-shell) .bcmp-game .card-game.briar { align-self: stretch; min-height: 100%; box-sizing: border-box; }
+@media (min-width: 769px) {
+  body:not(.kw-shell) .card-game.briar > .bc-season { min-height: 44px; align-self: center; }
+  body:not(.kw-shell) .card-game.briar > .bc-prompt { align-self: stretch; }
+}
+
+/* The ✕ (leave game) and the chat drawer's close share the top-right corner:
+   while table talk is open, the ✕ steps aside so it can't be hit by mistake. */
+.bcmp-shell.chat-open .bcmp-x { display: none; }
+
+/* Leave confirmation */
+.bc-confirm .bc-options { margin-top: 10px; }
+.bc-confirm .bc-options .cg-btn { margin-top: 0; }
+
+/* Rejoin / forfeit rows (tavern game select + table browser) */
+.kw-gs-resume:empty, #lobby-resume:empty { display: none; }
+.kw-gs-resume { width: 100%; max-width: 720px; margin: 0 auto 12px; }
+.lobby-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-deep);
+  border-radius: 8px;
+  box-shadow: 0 0 12px var(--kw-gold-dim);
+}
+.lobby-resume-text { font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--kw-cream); }
+.lobby-resume-text b { font-family: 'Playfair Display', serif; color: var(--kw-gold); }
+.lobby-resume-actions { display: inline-flex; gap: 8px; }
+.lobby-resume-actions .cg-btn { margin: 0; padding: 6px 14px; }

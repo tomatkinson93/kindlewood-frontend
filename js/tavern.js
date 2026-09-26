@@ -124,9 +124,12 @@ function renderGameSelect(el) {
         <div class="kw-gs-bramble-av">🦔</div>
         <div class="kw-gs-bramble-line">Fancy a game, friend? Pull up a stool and try your luck.</div>
       </div>
+      <div id="kw-gs-resume" class="kw-gs-resume"></div>
       <div class="kw-gs-crests">${cards}</div>
       <button class="kw-gs-back" onclick="closeCardGameMenu()">← Back to the Tavern</button>
     </div>`;
+  // Any game you still hold a seat in gets a Rejoin / Forfeit row up top.
+  if (typeof LobbySystem !== 'undefined' && LobbySystem.renderResume) LobbySystem.renderResume(document.getElementById('kw-gs-resume'));
 }
 
 function closeCardGameMenu() {
@@ -276,6 +279,46 @@ function _bcOpenTable() {
     input.onkeydown = e => { if (e.key === 'Enter') bcSendChat(); };
     input.onblur = () => _bcTyping(false);
   }
+}
+
+// The ✕ on the table. Mid-game it asks first: leaving a live multiplayer game
+// forfeits your seat to an AI (and if you were the last human there, the game
+// ends and counts as a loss). Solo leaves count as a loss too. After the game
+// ends it just closes.
+function bcRequestLeave() {
+  const s = _bcmp && _bcmp.state;
+  const live = s && s.phase !== 'gameover' && !_bcmp.over;
+  if (!live) { bcLeaveTable(); return; }
+  const me = s.players.find(p => p.seat === _bcmp.mySeat);
+  const out = me && !me.alive;
+  const text = _bcmp.solo
+    ? 'Leave this game? It will count as a loss.'
+    : (out ? 'Leave the table? You\'re already out — the courtiers will finish without you.'
+           : 'Leave this game? An AI takes your seat for the rest of the game, and it counts as a loss.');
+  _bcConfirm(text, 'Leave game', bcForfeitAndLeave);
+}
+function bcForfeitAndLeave() {
+  if (_bcmp && _bcmp.solo) {
+    if (_spGame && _spGame.phase !== 'gameover') _bcRecordResult(false, 'solo', _bcmp.difficulty);
+  } else if (_bcmp && _bcmp.code && typeof LobbySystem !== 'undefined' && LobbySystem.forfeit) {
+    LobbySystem.forfeit(_bcmp.code);
+  }
+  bcLeaveTable();
+}
+// Small in-table confirm (body-level overlay, reuses the help overlay panel look).
+function _bcConfirm(text, okLabel, onOk) {
+  const el = _bcOverlay();
+  el.dataset.kind = 'confirm';
+  el.innerHTML = `<div class="bc-overlay-panel bc-confirm">
+    <div class="bc-help-title">Are you sure?</div>
+    <div class="bc-help-note">${_esc(text)}</div>
+    <div class="bc-options">
+      <button class="cg-btn" id="bc-confirm-ok">${_esc(okLabel)}</button>
+      <button class="cg-btn secondary" onclick="bcCloseOverlay()">Stay</button>
+    </div>
+  </div>`;
+  el.classList.add('open');
+  document.getElementById('bc-confirm-ok').onclick = () => { bcCloseOverlay(); onOk(); };
 }
 
 function bcLeaveTable() {
@@ -1070,6 +1113,7 @@ function _bcmpEndOptions() {
 
 function bcmpOnOver(msg) {
   if (!_bcmp) return;
+  _bcmp.over = true;   // leaving now just closes (no forfeit prompt)
   if (msg.ended) {
     const g = document.getElementById('bcmp-game');
     if (g) g.innerHTML = '<div class="bc-wait">The host ended the game.</div>'
@@ -1398,7 +1442,13 @@ function _bcmpTracker(s) {
 
 // ── Decide what this player can do in the current phase ──
 function _bcmpPrompt(s, me, myTurn) {
-  if (!me.alive) return '<div class="bc-question">You have been cast out. Watch the Court conclude…</div>';
+  if (!me.alive) {
+    if (_bcmp.spectating) return `<div class="bc-question bc-waiting">👁 Spectating — the Court plays on without you.</div>
+      <div class="bc-options">${_b('← Leave table', 'bcForfeitAndLeave()', 'secondary')}</div>`;
+    const humansIn = s.players.some(p => p.alive && !p.isAI);
+    return `<div class="bc-question">🍂 You have been cast out of the Court.${humansIn ? '' : ' Only courtiers remain.'}</div>
+      <div class="bc-options">${_b('👁 Spectate', 'bcSpectate()')}${_b('← Leave table', 'bcForfeitAndLeave()', 'secondary')}</div>`;
+  }
   const P = s.pending;
 
   // My action turn
@@ -1569,6 +1619,7 @@ function bcmpBlock(role) {
   _bcmp.channel.send({ kind: 'block', blockRole: role || null });
   _bcmpAwait(role ? 'You declare your block…' : 'You allow it. Waiting for the others…');
 }
+function bcSpectate() { if (_bcmp) { _bcmp.spectating = true; _bcmpRender(); } }
 function bcmpLose(i) { _bcmp.channel.send({ kind: 'loseInfluence', cardIndex: i }); }
 function bcmpTithe(pay) {
   _bcmp.channel.send({ kind: 'titheRespond', pay: !!pay });
