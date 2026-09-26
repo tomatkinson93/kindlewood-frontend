@@ -141,7 +141,7 @@ const LobbySystem = (() => {
       <div class="lobby-room-row">
         <div class="lobby-room-info">
           <div class="lobby-room-host">${_esc(host)}'s table</div>
-          <div class="lobby-room-meta"><span class="lobby-pips">${pips}</span> ${filled}/${cap} \u00b7 code ${r.code}${r.seasons ? ' \u00b7 \u{1F343} Court Seasons' : ''}</div>
+          <div class="lobby-room-meta"><span class="lobby-pips">${pips}</span> ${filled}/${cap} \u00b7 code ${r.code}</div>
         </div>
         <button class="cg-btn" onclick="LobbySystem.join('${r.code}')">Join</button>
       </div>`;
@@ -270,7 +270,9 @@ const LobbySystem = (() => {
     const r = current;
     _themeGame = r.gameType;
     const isHost = (myId != null && r.hostId === myId);
-    const canStart = r.players.length >= (games[r.gameType]?.minPlayers || 2);
+    const minPlayers = games[r.gameType]?.minPlayers || 2;
+    const canStart = r.players.length >= minPlayers;
+    const openSeats = r.maxPlayers - r.players.length;
     const seats = [];
     for (let i = 0; i < r.maxPlayers; i++) {
       const p = r.players[i];
@@ -292,13 +294,14 @@ const LobbySystem = (() => {
         Room code <strong>${r.code}</strong>
         <button class="lobby-copy" onclick="LobbySystem.invite()" title="Copy invite">\u{1F4CB} Invite</button>
         <span class="lobby-vis-tag">${r.visibility === 'private' ? '\u{1F512} Private' : '\u{1F310} Public'}</span>
-        ${r.seasons ? '<span class="lobby-vis-tag">\u{1F343} Court Seasons</span>' : ''}
       </div>
       <div class="lobby-seats">${seats.join('')}</div>
       <div class="lobby-actions">
+        ${isHost && openSeats > 0
+          ? `<button class="cg-btn secondary" onclick="LobbySystem.fillAI('${r.code}')" title="Seat a random courtier in every empty chair">\u{1F916} Fill with AI</button>` : ''}
         ${isHost
           ? `<button class="cg-btn" onclick="LobbySystem.start('${r.code}')" ${canStart ? '' : 'disabled'}>
-               ${canStart ? 'Start game' : 'Need 2+ players'}</button>`
+               ${canStart ? 'Start game' : (minPlayers === r.maxPlayers ? `Fill all ${minPlayers} seats` : `Need ${minPlayers}+ players`)}</button>`
           : `<div class="lobby-waiting">Waiting for the host to start\u2026</div>`}
         <button class="cg-btn secondary" onclick="LobbySystem.leave('${r.code}')">Leave</button>
       </div>`);
@@ -314,6 +317,10 @@ const LobbySystem = (() => {
 
   async function addAI(code, name) {
     try { await _api('/' + code + '/ai/add', { method: 'POST', body: name ? { name } : {} }); }
+    catch (e) { _flash(e.message); }
+  }
+  async function fillAI(code) {
+    try { await _api('/' + code + '/ai/fill', { method: 'POST', body: {} }); }
     catch (e) { _flash(e.message); }
   }
   async function removeAI(code, id) { try { await _api('/' + code + '/ai/remove', { method: 'POST', body: { id } }); } catch (e) { _flash(e.message); } }
@@ -437,7 +444,7 @@ const LobbySystem = (() => {
   _deriveMyId();
 
   return { register, choose, browse, createForm, create, join, joinByInput,
-           invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, removeAI, close,
+           invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, fillAI, removeAI, close,
            openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary,
            get current() { return current; } };
 })();
@@ -456,27 +463,14 @@ LobbySystem.register({
   onEvent: (msg) => { if (typeof sqOnRoomEvent === 'function') sqOnRoomEvent(msg); },
 });
 
-// Register Briarwood Court with the lobby
+// Register Briarwood Court with the lobby. A Court is always six seats (the
+// Heron is always dealt); solo means you plus five AI courtiers.
 LobbySystem.register({
   type: 'briar',
   name: (window.KWGames && KWGames.name('briar')) || 'Briarwood Court',
-  minPlayers: 2,
+  minPlayers: 6,
   maxPlayers: 6,
-  onSingle: (difficulty, opts) => { if (typeof startBriarCourtSolo === 'function') startBriarCourtSolo(difficulty || 'smart', opts); else startCardGame('briar'); },
-  // Briar-only table options: the Court Seasons variant, and a note that the
-  // Heron is dealt at 5–6 seats. Shared by the host form and the solo screen.
-  createOptionsHtml: () => _briarSeasonsField(),
-  readCreateOptions: () => ({ seasons: !!(document.getElementById('lobby-seasons') || {}).checked }),
-  soloOptionsHtml: () => `
-    <label class="lobby-field"><span>Table size</span>
-      <select id="lobby-solo-size" class="ac-role-select">
-        ${[6, 5, 4, 3, 2].map(n => `<option value="${n}"${n === 4 ? ' selected' : ''}>${n} players</option>`).join('')}
-      </select></label>
-    ${_briarSeasonsField()}`,
-  readSoloOptions: () => ({
-    players: +((document.getElementById('lobby-solo-size') || {}).value || 4),
-    seasons: !!(document.getElementById('lobby-seasons') || {}).checked,
-  }),
+  onSingle: (difficulty) => { if (typeof startBriarCourtSolo === 'function') startBriarCourtSolo(difficulty || 'smart'); else startCardGame('briar'); },
   onStart: ({ seats, code, channel, isHost }) => {
     // Networked, server-authoritative game. The host's client drives AI seats.
     if (typeof startBriarCourtMultiplayerNet === 'function') {
@@ -487,13 +481,5 @@ LobbySystem.register({
     if (typeof bcOnRoomEvent === 'function') bcOnRoomEvent(msg);
   },
 });
-
-function _briarSeasonsField() {
-  return `
-    <div class="lobby-note">\u{1FAB6} The Heron joins tables of 5\u20136.</div>
-    <label class="lobby-field lobby-check"><span>Court Seasons</span>
-      <input type="checkbox" id="lobby-seasons">
-      <em>Each round a season turns \u2014 cheaper forage, costlier stings, festivals\u2026</em></label>`;
-}
 
 // Identity is derived from the JWT inside the module (see _deriveMyId).
