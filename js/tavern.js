@@ -1127,14 +1127,21 @@ function _bcmpRender() {
   const me = s.players.find(p => p.seat === meSeat) || s.players[0];
   const myTurn = s.turnSeat === meSeat && s.phase === 'action';
 
+  // A seat's reaction badge (wax seal / pill) animates only when that seat's
+  // reaction CHANGES. The table re-renders on every state push — several a
+  // second while AIs answer — and replaying the stamp on every seal each time
+  // made the whole table pulse.
+  const rxSeen = _bcmp._rxSeen || (_bcmp._rxSeen = {});
   const seatHtml = s.players.filter(p => p.seat !== meSeat).map(p => {
     const acting = p.seat === s.turnSeat;
     const typingBubble = (_bc && _bc._typing && p.id && _bc._typing[p.id])
       ? '<div class="bc-bubble whisper">{ whispering… }</div>' : '';
     const rx = _bcReactionClass(p);
     const rxLabel = _bcReactionLabel(p);
+    const rxNew = !!p.reaction && rxSeen[p.seat] !== p.reaction;
+    rxSeen[p.seat] = p.reaction || null;
     const warded = s.ward && s.ward.protectedSeat === p.seat;
-    return `<div class="bc-seat ${!p.alive ? 'out' : ''} ${acting ? 'acting' : ''} ${warded ? 'warded' : ''} ${rx}" data-seat="${p.seat}">
+    return `<div class="bc-seat ${!p.alive ? 'out' : ''} ${acting ? 'acting' : ''} ${warded ? 'warded' : ''} ${rx} ${rxNew ? 'rx-new' : ''}" data-seat="${p.seat}">
       ${typingBubble}
       ${rxLabel ? `<div class="bc-seat-react">${rxLabel}</div>` : ''}
       ${warded ? _bcWardBadge(s) : ''}
@@ -1214,6 +1221,10 @@ const BC_SEASON_FX = {
   shadows:  { n: 30, glyphs: ['✧', '·', '✦'],         mode: 'wisp' },
   quiet:    { n: 14, glyphs: ['🍃', '🍂'],             mode: 'drift' },
 };
+// While a reveal plays the table holds still: solo AI timers wait for it
+// (multiplayer: the server holds AI for the same window, see game_rooms).
+let _bcRevealUntil = 0;
+const BC_REVEAL_MS = 3300, BC_REVEAL_MS_REDUCED = 2100;
 function _bcSeasonReveal(s) {
   if (!s.seasonsEnabled || !s.season || !BC_SEASONS[s.season]) return;
   if (_bcmp._revealSeq === s.seasonSeq) return;
@@ -1244,10 +1255,29 @@ function _bcSeasonReveal(s) {
       <div class="bc-season-reveal-name">${k.name}</div>
       <div class="bc-season-reveal-text">${k.text}</div>
     </div>`;
-  el.addEventListener('click', () => el.remove());   // tap to dismiss early
+  const total = reduced ? BC_REVEAL_MS_REDUCED : BC_REVEAL_MS;
+  _bcRevealUntil = Date.now() + total;
+  const finish = () => {
+    if (!el.isConnected) return;
+    el.remove();
+    _bcRevealUntil = 0;
+    // Solo: re-plan AI timers now that the table is live again.
+    if (_bcmp && _bcmp.solo) { _bcmpClearAi(); _bcmpMaybeDriveAI(_bcmp.state); }
+  };
+  el.addEventListener('click', finish);   // tap to dismiss early
   document.body.appendChild(el);
-  setTimeout(() => el.classList.add('leaving'), reduced ? 1600 : 2600);
-  setTimeout(() => el.remove(), reduced ? 2100 : 3300);
+  setTimeout(() => {
+    // Fly the card into the season banner at the centre of the table.
+    const banner = document.querySelector('#bcmp-game .bc-season');
+    const card = el.querySelector('.bc-season-reveal-card');
+    if (banner && card) {
+      const b = banner.getBoundingClientRect(), c = card.getBoundingClientRect();
+      card.style.setProperty('--tx', `${Math.round(b.left + b.width / 2 - (c.left + c.width / 2))}px`);
+      card.style.setProperty('--ty', `${Math.round(b.top + b.height / 2 - (c.top + c.height / 2))}px`);
+    }
+    el.classList.add('leaving');
+  }, total - 700);
+  setTimeout(finish, total);
 }
 
 // ── Decision-timer countdown (§3.2) ──
@@ -1585,10 +1615,11 @@ function _bcmpMaybeDriveAI(s) {
   const sig = [g.phase, g.turn, P.action, P.actorSeat, P.targetSeat, P.blockerSeat, P.loserSeat].join('|');
   if (sig !== _bcmpAiSig) { _bcmpClearAi(); _bcmpAiSig = sig; }
   const react = ['challengeAction', 'block', 'titheBlock'].includes(g.phase);
+  const hold = Math.max(0, _bcRevealUntil - Date.now());   // let a season reveal finish first
   for (const seat of E.pendingSeats(g)) {
     const o = _bcmp.seats.find(x => x.seat === seat);
     if (!o || !o.isAI || _bcmpAiTimers[seat]) continue;
-    const delay = react ? 350 + Math.random() * 1300 : 1400 + Math.random() * 1800;
+    const delay = hold + (react ? 350 + Math.random() * 1300 : 1400 + Math.random() * 1800);
     _bcmpAiTimers[seat] = setTimeout(() => {
       if (!_bcmp || !_bcmp.solo || !_spGame) return;
       if (!E.pendingSeats(_spGame).includes(seat)) return;   // window moved on

@@ -4426,3 +4426,129 @@
   .bc-season-reveal-card { animation: none; }
   .bc-sfx-p { display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Briar Court — table layout v2 (fits without scrolling)
+   ════════════════════════════════════════════════════════════════ */
+/* A wider modal, and the table pinned to the top of it. It used to be
+   vertically centred (margin:auto in a flex scroller), so any change in the
+   prompt's height re-centred — and visibly shifted — the whole table. */
+.bcmp-shell { width: min(1240px, 96vw); height: min(800px, 92vh); }
+.bcmp-game { align-items: flex-start; }
+.bcmp-game .card-game.briar { max-width: 1180px; width: 100%; margin: 0 auto; padding: 16px 20px; }
+
+/* The ✕ keeps the top-right corner; table talk moves to the bottom-right. */
+.bcmp-chat-toggle { top: auto; bottom: 14px; right: 14px; }
+.bcmp-x { z-index: 10; font-size: 20px; }
+
+/* Season banner sits in the middle of the table, not the right edge. */
+.bc-season { align-self: center; margin: 0 auto; }
+
+/* Wax seal / reaction pill: stamp only when the reaction is new (see
+   _bcmpRender's rx-new). Re-renders no longer replay it. */
+.bc-seat.react-passed .bc-seat-react { animation: none; }
+.bc-seat.rx-new.react-passed .bc-seat-react { animation: bcWaxStamp .28s cubic-bezier(.34,1.56,.64,1); }
+
+/* Season reveal: the card flies into the banner's measured position. */
+.bc-season-reveal.leaving .bc-season-reveal-card {
+  transform: translate(var(--tx, 0), var(--ty, -38vh)) scale(.22);
+}
+
+/* Wide desktop: three columns — your seat | season + decision | ledger.
+     title  title   title
+     seats  seats   seats
+     you    season  log
+     you    prompt  log
+     you    prompt  tracker                                           */
+@media (min-width: 1100px) {
+  body:not(.kw-shell) .bcmp-game .card-game.briar {
+    display: grid;
+    grid-template-columns: minmax(240px, 290px) minmax(0, 1fr) minmax(250px, 310px);
+    grid-template-areas:
+      "title  title  title"
+      "absent absent absent"
+      "seats  seats  seats"
+      "you    season log"
+      "you    prompt log"
+      "you    prompt tracker";
+    grid-template-rows: auto auto auto auto 1fr auto;
+    column-gap: 18px;
+    row-gap: 12px;
+    align-items: start;
+  }
+  body:not(.kw-shell) .card-game.briar .bc-log-scribe .bc-log { height: 200px; }
+}
+/* Mid-size desktop: two columns. */
+@media (min-width: 769px) and (max-width: 1099px) {
+  body:not(.kw-shell) .bcmp-game .card-game.briar {
+    display: grid;
+    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+    grid-template-areas:
+      "title   title"
+      "absent  absent"
+      "seats   seats"
+      "you     season"
+      "you     prompt"
+      "log     tracker";
+    grid-template-rows: auto auto auto auto 1fr auto;
+    column-gap: 16px;
+    row-gap: 10px;
+    align-items: start;
+  }
+  body:not(.kw-shell) .card-game.briar .bc-log-scribe .bc-log { height: 120px; }
+}
+@media (min-width: 769px) {
+  body:not(.kw-shell) .card-game.briar > .card-game-title { grid-area: title; margin: 0; width: 100%; }
+  body:not(.kw-shell) .card-game.briar > .bcmp-absent     { grid-area: absent; }
+  body:not(.kw-shell) .card-game.briar > .bc-season       { grid-area: season; justify-self: center; }
+  body:not(.kw-shell) .card-game.briar > .bc-seats        { grid-area: seats; flex-wrap: nowrap; justify-content: center; }
+  body:not(.kw-shell) .card-game.briar > .bc-tracker-wrap { grid-area: tracker; justify-self: center; }
+  body:not(.kw-shell) .card-game.briar > .bc-log-scribe   { grid-area: log; margin: 0; width: 100%; }
+  body:not(.kw-shell) .card-game.briar > .bc-you-seat     { grid-area: you; margin: 0; width: 100%; min-width: 0; }
+  body:not(.kw-shell) .card-game.briar > .bc-prompt       { grid-area: prompt; margin: 0; width: 100%; min-height: 150px; }
+  body:not(.kw-shell) .card-game.briar .bc-tracker { flex-wrap: wrap; justify-content: center; }
+  body:not(.kw-shell) .card-game.briar .bc-you-seat .bc-hand-card { width: 104px; }
+}
+
+/* ── Mobile (kw-shell) additions for the newer pieces ─────────────── */
+body.kw-shell .card-game.briar > .bc-season {
+  order: 1; flex: 0 0 auto;
+  margin: 2px auto 4px; padding: 3px 10px 3px 6px;
+}
+body.kw-shell .bc-season-thumb img { width: 22px; height: 30px; }
+body.kw-shell .bc-season-name { font-size: 12px; }
+body.kw-shell .bc-season-text { font-size: 11px; }
+/* Safe / Bluff groups: compact two-up buttons so the decision fits. */
+body.kw-shell .bc-act-group { margin-top: 2px; gap: 2px; }
+body.kw-shell .bc-act-group .bc-options {
+  display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; width: 100%;
+}
+body.kw-shell .bc-act-group .cg-btn { min-height: 40px !important; font-size: 13px !important; padding: 6px 8px !important; margin: 0 !important; }
+body.kw-shell .bc-act-group-label { font-size: 10px; }
+body.kw-shell .bc-season-reveal-card { width: 170px; padding: 10px; }
+body.kw-shell .bc-season-reveal-art img { width: 140px; height: 186px; }
+body.kw-shell .bc-season-reveal-art .bc-season-art-fallback { font-size: 72px; }
+body.kw-shell .bcmp-chat-toggle { bottom: calc(10px + var(--kw-safe-b, 0px)); width: 36px; height: 36px; }
+
+/* Desktop: the modal shrinks to its content instead of a fixed tall box. */
+body:not(.kw-shell) .bcmp-shell { height: auto; max-height: min(800px, 92vh); min-height: 520px; }
+
+/* Phone: give the decision the room. */
+body.kw-shell .bc-seats { justify-content: safe center !important; padding-top: 10px !important; }
+body.kw-shell .card-game.briar .bc-prompt { justify-content: safe center !important; }
+body.kw-shell .bc-tracker-legend { display: none !important; }
+body.kw-shell .bc-tracker { flex-wrap: nowrap !important; gap: 6px !important; padding: 3px 8px !important; font-size: 11px; }
+body.kw-shell .bc-tracker .bc-pip { width: 5px; height: 9px; }
+body.kw-shell .bc-you-seat {
+  display: flex !important; align-items: center; justify-content: center; gap: 12px;
+  width: 100% !important; min-width: 0 !important; margin: 0 !important;
+}
+body.kw-shell .bc-you-seat .bc-hand { margin-top: 0 !important; }
+body.kw-shell .bc-you-seat .bc-hand-card { width: 54px !important; }
+body.kw-shell .card-game.briar { gap: 6px !important; padding: 8px 10px !important; }
+body.kw-shell .bc-you-seat .bc-hand { flex-wrap: nowrap !important; }
+body.kw-shell .bc-you-seat .bc-hand-card:first-child,
+body.kw-shell .bc-you-seat .bc-hand-card:last-child { transform: none; }
+body.kw-shell .bc-you-seat { padding-top: 5px !important; }
+body.kw-shell .card-game.briar .bc-prompt { padding: 2px !important; gap: 4px !important; }
+body.kw-shell .card-game.briar .bc-question { font-size: 13px; margin: 0; }
