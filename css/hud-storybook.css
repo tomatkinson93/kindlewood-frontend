@@ -4593,3 +4593,28 @@ body:not(.kw-shell) .bcmp-game .card-game.briar { align-self: stretch; min-heigh
 .lobby-resume-text b { font-family: 'Playfair Display', serif; color: var(--kw-gold); }
 .lobby-resume-actions { display: inline-flex; gap: 8px; }
 .lobby-resume-actions .cg-btn { margin: 0; padding: 6px 14px; }
+
+/* Season thumbnail: a fixed frame whether it holds the art or the icon, so
+   the banner never changes size between renders. */
+.bc-season-thumb { width: 30px; height: 40px; flex: 0 0 30px; }
+.bc-season-thumb .bc-season-art-fallback { font-size: 22px; line-height: 40px; }
+body.kw-shell .bc-season-thumb { width: 22px; height: 30px; flex-basis: 22px; }
+body.kw-shell .bc-season-thumb .bc-season-art-fallback { font-size: 17px; line-height: 30px; }
+
+/* Heron tithe: stacked refusals, each challengeable. */
+.bc-refusals { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 460px; margin: 4px auto; }
+.bc-refusal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 6px 5px 12px;
+  background: var(--kw-wood-2);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 8px;
+  animation: bcRefusalIn .25s ease-out;
+}
+.bc-refusal-text { font-family: 'Crimson Pro', serif; font-size: 14px; color: var(--kw-cream); }
+.bc-refusal-text b { font-family: 'Playfair Display', serif; color: var(--kw-gold); }
+.bc-refusal .cg-btn { margin: 0; padding: 5px 12px; font-size: 13px; }
+@keyframes bcRefusalIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

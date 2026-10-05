@@ -238,9 +238,20 @@ const BC_SEASONS = {
 };
 const BC_SEASON_IMG = key => `/assets/images/season_${key}.png`;
 // Season art (or the icon stand-in if the image isn't there yet).
+// Art that failed to load is remembered, so later renders draw the icon
+// straight away. (The table re-renders on every pass; re-trying a missing
+// image each time flashed a broken image before the icon and made the
+// season box jump.)
+const _bcArtMissing = new Set();
+function _bcSeasonArtMissing(img, key) {
+  _bcArtMissing.add(key);
+  if (img.parentNode) img.parentNode.classList.add('noart');
+  img.remove();
+}
 function _bcSeasonArt(key, cls) {
   const k = BC_SEASONS[key];
-  return `<span class="${cls}"><img src="${BC_SEASON_IMG(key)}" alt="${k.name}" onerror="this.parentNode.classList.add('noart');this.remove()"><span class="bc-season-art-fallback">${k.icon}</span></span>`;
+  if (_bcArtMissing.has(key)) return `<span class="${cls} noart"><span class="bc-season-art-fallback">${k.icon}</span></span>`;
+  return `<span class="${cls}"><img src="${BC_SEASON_IMG(key)}" alt="${k.name}" onerror="_bcSeasonArtMissing(this,'${key}')"><span class="bc-season-art-fallback">${k.icon}</span></span>`;
 }
 
 // Which role backs each claim-bearing action (for Safe vs Bluff labelling).
@@ -1523,15 +1534,38 @@ function _bcmpPrompt(s, me, myTurn) {
     return _bcmpConsultPrompt(P);
   }
 
-  // Heron tithe — every non-actor who hasn't answered: pay 1, or refuse by
-  // claiming the Heron (unchallengeable in v1, but the Court remembers).
-  if (s.phase === 'titheBlock' && P.actorSeat !== me.seat && !(P.responded || []).includes(me.seat)) {
+  // Heron tithe. Two independent parts, shown together:
+  //  • answer the tithe (everyone but the tither): pay 1, or refuse by
+  //    claiming the Heron;
+  //  • refusals stack up as they come in — challenge any one of them, or
+  //    pass on all you've seen (a later refusal asks again).
+  if (s.phase === 'titheBlock') {
     const actor = s.players.find(p => p.seat === P.actorSeat);
-    return `<div class="bc-question">${_esc(actor.name)} claims the Heron and demands a tithe of 1 acorn.</div>
-      <div class="bc-options">${_b('🌰 Pay 1 acorn', `bcmpTithe(true)`)}${_bcHolds(me, 'heron')
-        ? _bt(`🛡 Refuse — claim the ${BC_ROLES_ALL.heron.name}`, `bcmpTithe(false)`, 'bc-safe-claim', 'Safe — you hold the Heron')
-        : _bt(`🛡 Refuse — claim the ${BC_ROLES_ALL.heron.name}`, `bcmpTithe(false)`, 'bc-bluff', "Bluff — you don't hold the Heron (refusals can't be challenged, but the Court remembers)")}</div>
-      <div class="bc-claim-warn">Refusing is a claim the whole Court will remember.</div>`;
+    const mustAnswer = P.actorSeat !== me.seat && !(P.responded || []).includes(me.seat);
+    const open = P.titheOpen || [];
+    if (mustAnswer || open.length) {
+      let html = '';
+      if (open.length) {
+        const rows = open.map(r => {
+          const who = s.players.find(p => p.seat === r);
+          return `<div class="bc-refusal">
+            <span class="bc-refusal-text">${BC_ROLES_ALL.heron.icon} <b>${_esc(who.name)}</b> refuses, claiming the Heron</span>
+            ${_b(`⚔ Challenge`, `bcmpTitheChallenge(${r})`)}
+          </div>`;
+        }).join('');
+        html += `<div class="bc-question">${open.length === 1 ? 'A refusal — challenge it?' : 'Refusals — challenge one?'}</div>
+          <div class="bc-refusals">${rows}</div>
+          <div class="bc-options">${_b(open.length === 1 ? 'Let it stand' : 'Let them stand', 'bcmpTithePass()', 'secondary')}</div>`;
+      }
+      if (mustAnswer) {
+        html += `<div class="bc-question">${_esc(actor.name)} claims the Heron and demands a tithe of 1 acorn.</div>
+          <div class="bc-options">${_b('🌰 Pay 1 acorn', `bcmpTithe(true)`)}${_bcHolds(me, 'heron')
+            ? _bt(`🛡 Refuse — claim the ${BC_ROLES_ALL.heron.name}`, `bcmpTithe(false)`, 'bc-safe-claim', 'Safe — you hold the Heron')
+            : _bt(`🛡 Refuse — claim the ${BC_ROLES_ALL.heron.name}`, `bcmpTithe(false)`, 'bc-bluff', "Bluff — you don't hold the Heron. Anyone may challenge a refusal.")}</div>
+          <div class="bc-claim-warn">Anyone may challenge a refusal — caught bluffing, you lose a card and pay anyway.</div>`;
+      }
+      return html;
+    }
   }
 
   return _waiting(s);
@@ -1621,6 +1655,14 @@ function bcmpBlock(role) {
 }
 function bcSpectate() { if (_bcmp) { _bcmp.spectating = true; _bcmpRender(); } }
 function bcmpLose(i) { _bcmp.channel.send({ kind: 'loseInfluence', cardIndex: i }); }
+function bcmpTitheChallenge(seat) {
+  _bcmp.channel.send({ kind: 'titheChallenge', targetSeat: seat });
+  _bcmpAwait('Your challenge is in…');
+}
+function bcmpTithePass() {
+  _bcmp.channel.send({ kind: 'tithePass' });
+  _bcmpAwait('You let the refusals stand. Waiting for the others…');
+}
 function bcmpTithe(pay) {
   _bcmp.channel.send({ kind: 'titheRespond', pay: !!pay });
   _bcmpAwait(pay ? 'You pay the tithe. Waiting for the others…' : 'You refuse, claiming the Heron. Waiting for the others…');
@@ -1672,6 +1714,7 @@ function _bcmpMaybeDriveAI(s) {
     if (!o || !o.isAI || _bcmpAiTimers[seat]) continue;
     const delay = hold + (react ? 350 + Math.random() * 1300 : 1400 + Math.random() * 1800);
     _bcmpAiTimers[seat] = setTimeout(() => {
+      delete _bcmpAiTimers[seat];   // a later decision in this window (a new refusal) gets its own timer
       if (!_bcmp || !_bcmp.solo || !_spGame) return;
       if (!E.pendingSeats(_spGame).includes(seat)) return;   // window moved on
       const d = E.aiResolve(_spGame, seat);
@@ -1784,6 +1827,8 @@ function _spDispatch(g, E, seat, payload) {
     case 'loseInfluence': E.resolveLoss(g, seat, payload.cardIndex | 0); break;
     case 'consult': E.resolveConsult(g, seat, payload.keepIndices || []); break;
     case 'titheRespond': E.titheRespond(g, seat, !!payload.pay); break;
+    case 'titheChallenge': E.titheChallenge(g, seat, payload.targetSeat); break;
+    case 'tithePass': E.tithePass(g, seat); break;
   }
 }
 
