@@ -1138,8 +1138,7 @@ function bcmpOnOver(msg) {
     const banner = mineWon
       ? '👑 You hold the last seat at the Briarwood Court! <strong>+4 gold</strong>'
       : `👑 ${_esc(msg.winnerName || 'A rival')} holds the last seat.`;
-    g.querySelector('.bc-prompt')?.insertAdjacentHTML('beforeend',
-      `<div class="card-game-message">${banner}</div>${_bcmpEndOptions()}`);
+    _bcPromptSet(`<div class="card-game-message">${banner}</div>${_bcmpEndOptions()}`, true, true);
   }
 }
 
@@ -1207,6 +1206,19 @@ function _bcmpRender() {
   }).join('');
 
   const prompt = _bcmpPrompt(s, me, myTurn);
+  // A prompt with buttons is a decision for you. On phones it becomes a bottom
+  // sheet over the table (with your cards in its header), collapsible so you
+  // can look at the table first; elsewhere it sits in the centre column.
+  const hasDecision = /<button/.test(prompt);
+  const sheetSig = [s.phase, s.turnSeat, P_sig(s)].join('|');
+  if (_bcmp._sheetSig !== sheetSig) { _bcmp._sheetSig = sheetSig; _bcmp.sheetMin = false; }
+  const sheetHead = hasDecision ? `<div class="bc-sheet-head" onclick="bcSheetToggle()">
+      <span class="bc-sheet-hand">${me.cards.map(c => c.role
+        ? `<img class="${c.revealed ? 'dead' : ''}" src="${BC_CARD_IMG(c.role)}" alt="${BC_ROLES_ALL[c.role].name}">` : '').join('')}</span>
+      <span class="bc-sheet-acorns">🌰 ${me.acorns}</span>
+      <span class="bc-sheet-label">${_bcmp.sheetMin ? 'Your move — tap to decide' : ''}</span>
+      <span class="bc-sheet-min">${_bcmp.sheetMin ? '▴' : '▾'}</span>
+    </div>` : '';
 
   const absent = _bcmp.absent && Object.keys(_bcmp.absent).length ? Object.values(_bcmp.absent) : null;
   const absentBanner = absent ? `<div class="bcmp-absent">⚠ ${absent.map(_esc).join(', ')} disconnected — waiting for them to return…${_bcmp.isHost ? ' <button class="cg-btn secondary" onclick="bcmpEndGame()">End game</button>' : ''}</div>` : '';
@@ -1220,7 +1232,6 @@ function _bcmpRender() {
         <span class="bc-title-tools"><button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</span>
       </div>
       ${absentBanner}
-      ${_bcSeasonBanner(s)}
       <div class="bc-seats">${seatHtml}</div>
       ${_bcmpTracker(s)}
       <div class="bc-log-scribe">
@@ -1233,7 +1244,10 @@ function _bcmpRender() {
         <div class="bc-seat-acorns">🌰 ${me.acorns}</div>
         <div class="bc-hand">${me.cards.map(c => _bcmpHandCard(c)).join('')}</div>
       </div>
-      <div class="bc-prompt">${prompt}</div>
+      <div class="bc-center">
+        ${_bcSeasonBanner(s)}
+        <div class="bc-prompt ${hasDecision ? 'has-decision' : 'waiting'} ${hasDecision && _bcmp.sheetMin ? 'min' : ''}">${sheetHead}<div class="bc-prompt-body">${prompt}</div></div>
+      </div>
     </div>`;
   const lg = area.querySelector('.bc-log');
   if (lg) lg.scrollTop = lg.scrollHeight;
@@ -1241,6 +1255,64 @@ function _bcmpRender() {
   _bcFlashFromLog(s);
   _bcmpEnsureDeadlineTimer();
   _bcSeasonReveal(s);
+  _bcChallengeFx(s);
+}
+
+// Phone decision sheet: collapse to peek at the table, tap again to decide.
+function P_sig(s) { const P = s.pending || {}; return [P.action, P.actorSeat, P.targetSeat, P.blockerSeat, P.loserSeat].join(','); }
+function bcSheetToggle() {
+  if (!_bcmp || !document.body.classList.contains('kw-shell')) return;
+  _bcmp.sheetMin = !_bcmp.sheetMin;
+  _bcmpRender();
+}
+
+// ── Challenge arrow ──
+// When anyone challenges anyone (AI vs AI included), draw a purple
+// "⚔ Challenge" arrow from challenger to challenged, then stamp the result on
+// the challenged seat: green "holds the X" or red "Bluff!". Driven by the
+// engine's lastChallenge event (deduped on seq), on a body-level layer so
+// table re-renders underneath don't cut it short.
+function _bcChallengeFx(s) {
+  const ev = s.lastChallenge;
+  // First render of this table: note where we start, so joining mid-game
+  // doesn't replay an old challenge (but a fresh game's first one still shows).
+  if (_bcmp._chSeq === undefined) { _bcmp._chSeq = ev ? ev.seq : 0; return; }
+  if (!ev || ev.seq <= _bcmp._chSeq) return;
+  _bcmp._chSeq = ev.seq;
+  const seatEl = seat => document.querySelector(`#bcmp-game .bc-seat[data-seat="${seat}"]`);
+  const a = seatEl(ev.challengerSeat), b = seatEl(ev.targetSeat);
+  if (!a || !b) return;
+  const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+  const x1 = ra.left + ra.width / 2, y1 = ra.top + ra.height / 2;
+  const x2 = rb.left + rb.width / 2, y2 = rb.top + rb.height / 2;
+  // Stop the arrow at the target plaque's edge rather than its centre.
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const pad = Math.min(rb.width, rb.height) * 0.45;
+  const ex = x2 - (x2 - x1) / len * pad, ey = y2 - (y2 - y1) / len * pad;
+  // Arc it (bowing up/left) so it passes over the seats in between rather
+  // than through them; the label sits on the arc's midpoint.
+  let nx = -(ey - y1), ny = ex - x1;
+  const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+  if (ny > 0 || (ny === 0 && nx > 0)) { nx = -nx; ny = -ny; }
+  const bow = Math.min(90, len * 0.35);
+  const cx = (x1 + ex) / 2 + nx * bow, cy = (y1 + ey) / 2 + ny * bow;
+  const mx = 0.25 * x1 + 0.5 * cx + 0.25 * ex, my = 0.25 * y1 + 0.5 * cy + 0.25 * ey;
+  const role = (BC_ROLES_ALL[ev.role] || { name: ev.role }).name;
+  const layer = document.createElement('div');
+  layer.className = 'bc-fx-layer';
+  layer.innerHTML = `
+    <svg class="bc-fx-svg" width="100%" height="100%">
+      <defs><marker id="bcfx-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" class="bc-fx-head"></path></marker></defs>
+      <path class="bc-fx-line" d="M${x1},${y1} Q${cx},${cy} ${ex},${ey}" pathLength="100" fill="none"
+        marker-end="url(#bcfx-head)" style="--len:100"></path>
+    </svg>
+    <div class="bc-fx-label" style="left:${mx}px;top:${my}px">⚔ Challenge</div>
+    <div class="bc-fx-result ${ev.held ? 'held' : 'bluff'}" style="left:${x2}px;top:${rb.top}px">
+      ${ev.held ? `✓ Holds the ${_esc(role)}` : '✗ Bluff!'}</div>`;
+  document.body.appendChild(layer);
+  setTimeout(() => layer.classList.add('leaving'), 2400);
+  setTimeout(() => layer.remove(), 3000);
 }
 
 // Shield badge on a warded seat plaque (the ward was cast in the open).
@@ -1592,12 +1664,12 @@ function _bcmpConsultPrompt(P) {
   const need = P.consultKeep;
   const cards = P.consultPool.map((r, i) => {
     const sel = chosen.includes(i) ? ' selected' : '';
-    return `<div class="bc-hand-card${sel}" onclick="bcmpConsultPick(${i})" title="${BC_ROLES_ALL[r].name}">
+    return `<div class="bc-consult-card${sel}" onclick="bcmpConsultPick(${i})" title="${BC_ROLES_ALL[r].name}">
       <img src="${BC_CARD_IMG(r)}" alt="${BC_ROLES_ALL[r].name}"></div>`;
   }).join('');
   const ready = chosen.length === need;
   return `<div class="bc-question">The Owl shows you the cards. Keep ${need} (${chosen.length}/${need} chosen):</div>
-    <div class="bc-hand" style="position:static">${cards}</div>
+    <div class="bc-consult-pool" style="--n:${P.consultPool.length}">${cards}</div>
     <div class="bc-options">${_b('Confirm', `bcmpConsultConfirm()`, ready ? '' : 'secondary disabled')}</div>`;
 }
 function bcmpConsultPick(i) {
@@ -1633,8 +1705,21 @@ function _bcmpAwait(text) {
   // so an await message would just clobber it. Only show it in multiplayer,
   // where there's a real network round-trip to wait on.
   if (_bcmp && _bcmp.solo) return;
+  _bcPromptSet(`<div class="bc-question bc-waiting">${_esc(text)}</div>`, false);
+}
+
+// Write into the decision area outside a full render (waiting notes, the
+// target picker, game-over banners), keeping the phone sheet's state right:
+// decision → sheet open; waiting → plain status line.
+function _bcPromptSet(html, decision, append) {
   const el = document.querySelector('#bcmp-game .bc-prompt');
-  if (el) el.innerHTML = `<div class="bc-question bc-waiting">${_esc(text)}</div>`;
+  if (!el) return;
+  const body = el.querySelector('.bc-prompt-body') || el;
+  if (append) body.insertAdjacentHTML('beforeend', html); else body.innerHTML = html;
+  el.classList.toggle('has-decision', !!decision);
+  el.classList.toggle('waiting', !decision);
+  el.classList.remove('min');
+  if (!decision) { const h = el.querySelector('.bc-sheet-head'); if (h) h.remove(); }
 }
 
 function _bcmpCanBlock(s, me) {
@@ -1674,13 +1759,11 @@ function bcmpTarget(action) {
   // Ward may shield anyone, including yourself; every other targeted action is rivals only.
   const self = action === 'ward';
   const targets = s.players.filter(p => p.alive && (self || p.seat !== _bcmp.mySeat));
-  const area = document.querySelector('#bcmp-game .bc-prompt');
-  if (!area) return;
   const label = r => r.seat === _bcmp.mySeat ? 'Yourself' : _esc(r.name);
   const shield = r => (s.ward && s.ward.protectedSeat === r.seat) ? ' 🛡️' : '';
-  area.innerHTML = `<div class="bc-question">${self ? 'Whom will you ward?' : `Choose a target for ${action}:`}</div>
+  _bcPromptSet(`<div class="bc-question">${self ? 'Whom will you ward?' : `Choose a target for ${action}:`}</div>
     <div class="bc-options">${targets.map(r => _b(`${label(r)} (🌰${r.acorns})${shield(r)}`, `bcmpActOn('${action}',${r.seat})`)).join('')}
-    ${_b('← Back', 'bcmpBack()', 'secondary')}</div>`;
+    ${_b('← Back', 'bcmpBack()', 'secondary')}</div>`, true);
 }
 function bcmpActOn(action, targetSeat) { _bcmp.channel.send({ kind: 'action', action, targetSeat }); _bcmpAwait('Your move is in…'); }
 function bcmpBack() { _bcmpRender(); }
@@ -1846,12 +1929,11 @@ function _spOver() {
     const banner = won
       ? '👑 You hold the last seat at the Briarwood Court! <strong>+4 gold</strong>'
       : `👑 ${_esc((g.players.find(p=>p.seat===g.winner)||{}).name || 'A rival')} holds the last seat.`;
-    const p = area.querySelector('.bc-prompt');
-    if (p) p.innerHTML = `<div class="card-game-message">${banner}</div>
+    _bcPromptSet(`<div class="card-game-message">${banner}</div>
       <div class="bc-options">
         <button class="cg-btn" onclick="bcSoloAgain()">Play Again</button>
         <button class="cg-btn secondary" onclick="bcLeaveTable()">← Leave</button>
-      </div>`;
+      </div>`, true);
   }
 }
 
