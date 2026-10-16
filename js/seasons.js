@@ -198,7 +198,9 @@ function renderSeasonPanel() {
 
       <div class="sp-day">
         <span>📅 Year ${currentSeason.dayNumber}</span>
-        <span class="sp-day-note">28 real hours = 1 in-game year · each season 7 hours</span>
+        <span class="sp-day-note">${_seasonNow() >= SEASON_CUTOVER_MS
+          ? '28 real hours = 1 in-game year · each season 7 hours'
+          : '1 real day = 1 in-game year'}</span>
       </div>
 
       <div class="sp-settings">
