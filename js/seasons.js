@@ -29,10 +29,10 @@ const SEASON_LEGACY_YEAR_MS = 24 * SEASON_HOUR_MS;
 const SEASON_CUTOVER_MS     = Date.parse('2026-11-02T00:00:00Z');
 const SEASON_YEAR_EPOCH_MS  = Date.parse('2025-01-01T00:00:00Z');
 
-// The one place the season clock is read. Phase 2 switches this to the
-// server-synced KWClock.wallNow().
+// The one place the season clock is read: the server-synced wall clock when
+// KWClock is loaded (never the dev visual override — seasons are economy).
 function _seasonNow() {
-  return Date.now();
+  return (window.KWClock && typeof KWClock.wallNow === 'function') ? KWClock.wallNow() : Date.now();
 }
 
 function calcCurrentSeason() {
