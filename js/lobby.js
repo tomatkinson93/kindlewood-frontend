@@ -148,6 +148,7 @@ const LobbySystem = (() => {
     }).join('') : '<div class="lobby-empty">No open tables right now \u2014 host one and courtiers will fill the empty seats.</div>';
     _show(`
       <div class="lobby-title">${_esc(g.name)} \u2014 Tables</div>
+      <div id="lobby-resume"></div>
       <div class="lobby-rooms">${rows}</div>
       <div class="lobby-join-code">
         <input id="lobby-code-input" class="ac-search" placeholder="Enter room code\u2026" maxlength="6"
@@ -158,6 +159,7 @@ const LobbySystem = (() => {
         <button class="cg-btn" onclick="LobbySystem.createForm('${gameType}')">+ Host a table</button>
         <button class="cg-btn secondary" onclick="LobbySystem.browse('${gameType}')">\u21BB Refresh</button>
       </div>`);
+    renderResume(document.getElementById('lobby-resume'));
   }
 
   // ── Create form ──
@@ -199,7 +201,47 @@ const LobbySystem = (() => {
     try {
       const { room } = await _api('/create', { method: 'POST', body: { gameType, maxPlayers, visibility, difficulty, ...extra } });
       _enterRoom(room.code);
-    } catch (e) { _error(e.message, () => createForm(gameType)); }
+    } catch (e) {
+      // "You're already in a game (table XXXXXX)…" — offer the way back in.
+      const busy = /table ([A-Z0-9]{6})/.exec(e.message || '');
+      if (busy) { _busyPrompt(busy[1], gameType); return; }
+      _error(e.message, () => createForm(gameType));
+    }
+  }
+
+  // ── Games in progress (rejoin / forfeit) ────────────────────────────
+  // The server keeps your seat when you close a live game (it pauses for you,
+  // or hands your seat to an AI if others are playing). These let you find it
+  // again from the tavern.
+  async function mine() {
+    try { return (await _api('/mine')).rooms || []; } catch (e) { return []; }
+  }
+  function rejoin(code) { _enterRoom(code); }
+  async function forfeit(code, after) {
+    try { await _api('/' + code + '/forfeit', { method: 'POST', body: {} }); } catch (e) {}
+    if (typeof after === 'function') after();
+  }
+  function _busyPrompt(code, gameType) {
+    _show(`<div class="lobby-title">A game is still in progress</div>
+      <div class="lobby-empty">You still hold a seat at table <strong>${_esc(code)}</strong>. Rejoin it, or forfeit it (an AI takes your seat and it counts as a loss) to host a new one.</div>
+      <div class="lobby-actions">
+        <button class="cg-btn" onclick="LobbySystem.rejoin('${code}')">\u21A9 Rejoin game</button>
+        <button class="cg-btn secondary" onclick="LobbySystem.forfeit('${code}', () => LobbySystem.createForm('${gameType}'))">Forfeit it</button>
+      </div>`);
+  }
+  // Banner for the tavern / table browser: one row per live game you're in.
+  async function renderResume(el) {
+    if (!el) return;
+    const list = await mine();
+    const live = list.filter(r => r.status === 'playing' || r.status === 'lobby');
+    el.innerHTML = live.map(r => `
+      <div class="lobby-resume">
+        <span class="lobby-resume-text">\u{1F3B2} ${r.status === 'playing' ? 'Game in progress' : 'Waiting at a table'}: <b>${_esc(r.gameName)}</b> \u00b7 table ${_esc(r.code)}</span>
+        <span class="lobby-resume-actions">
+          <button class="cg-btn" onclick="LobbySystem.rejoin('${r.code}')">\u21A9 Rejoin</button>
+          ${r.status === 'playing' ? `<button class="cg-btn secondary" onclick="LobbySystem.forfeit('${r.code}', () => { const e = document.getElementById('${el.id}'); if (e) LobbySystem.renderResume(e); })">Forfeit</button>` : ''}
+        </span>
+      </div>`).join('');
   }
 
   async function join(code) {
@@ -231,7 +273,19 @@ const LobbySystem = (() => {
   function _handle(code, msg) {
     if (msg.type === 'snapshot') {
       if (msg.room.youId != null) myId = msg.room.youId;     // authoritative
-      current = msg.room; _lastGame = msg.room.gameType; _renderRoom(code);
+      current = msg.room; _lastGame = msg.room.gameType;
+      // Cold resume: reconnecting to a match already underway (the server
+      // includes the seating) reopens the game table directly — the current
+      // state follows on this same stream.
+      if (msg.room.status === 'playing' && msg.room.seats) {
+        const g = games[msg.room.gameType];
+        const m = document.getElementById('lobby-modal');
+        if (m) m.classList.remove('open');
+        const amHost = (myId != null && String(msg.room.hostId) === String(myId));
+        if (g && g.onStart) g.onStart({ seats: msg.room.seats, code, myId, isHost: amHost, players: msg.room.players, channel: _channel(code) });
+        return;
+      }
+      _renderRoom(code);
     } else if (msg.type === 'lobby_update') {
       // A rematch drops a finished match back to the lobby room view; close any
       // open game modal so the room shows through (no-op outside a match).
@@ -445,6 +499,7 @@ const LobbySystem = (() => {
 
   return { register, choose, browse, createForm, create, join, joinByInput,
            invite, start, leave, setMyId, _single, soloChoose, soloStart, addAI, fillAI, removeAI, close,
+           mine, rejoin, forfeit, renderResume,
            openCourtierPicker, closeCourtierPicker, pickCourtier, unpickCourtier, summary,
            get current() { return current; } };
 })();
