@@ -17,9 +17,29 @@ const SEASON_EFFECTS = {
   winter: ['🌾 Farming -60%', '🪵 Wood use +50%', '🍖 Food use +20%'],
 };
 
+// Spec 021 D1: 28 real hours = 1 in-game year, 4 seasons of 7 hours each.
+// Before the cutover the legacy 6h/24h formula applies unchanged. Mirrors
+// kindlewood-server seasons.js seasonAt exactly — keep in step (the server's
+// scripts/season_cutover_test.js loads this file and asserts parity).
+const SEASON_HOUR_MS        = 60 * 60 * 1000;
+const SEASON_DURATION_MS    = 7 * SEASON_HOUR_MS;
+const SEASON_YEAR_MS        = 28 * SEASON_HOUR_MS;
+const SEASON_LEGACY_MS      = 6 * SEASON_HOUR_MS;
+const SEASON_LEGACY_YEAR_MS = 24 * SEASON_HOUR_MS;
+const SEASON_CUTOVER_MS     = Date.parse('2026-11-02T00:00:00Z');
+const SEASON_YEAR_EPOCH_MS  = Date.parse('2025-01-01T00:00:00Z');
+
+// The one place the season clock is read. Phase 2 switches this to the
+// server-synced KWClock.wallNow().
+function _seasonNow() {
+  return Date.now();
+}
+
 function calcCurrentSeason() {
-  const SEASON_DURATION_MS = 6 * 60 * 60 * 1000;
-  const YEAR_DURATION_MS = 24 * 60 * 60 * 1000;
+  return calcSeasonAt(_seasonNow());
+}
+
+function calcSeasonAt(now) {
   const SEASON_IDS = ['spring','summer','autumn','winter'];
   const SEASON_NAMES = ['Spring','Summer','Autumn','Winter'];
   const SEASON_EMOJIS = ['🌸','☀️','🍂','❄️'];
@@ -29,21 +49,30 @@ function calcCurrentSeason() {
     'The harvest is in. Prepare for the cold.',
     'Harsh cold grips the realm. Guard your stores.',
   ];
-  const now = Date.now();
-  const msIntoDay = now % YEAR_DURATION_MS;
-  const index = Math.floor(msIntoDay / SEASON_DURATION_MS);
-  const msIntoSeason = msIntoDay % SEASON_DURATION_MS;
-  const epoch = new Date('2025-01-01T00:00:00Z').getTime();
-  const dayNumber = Math.floor((now - epoch) / YEAR_DURATION_MS) + 1;
+  const legacyYearAt = ms => Math.floor((ms - SEASON_YEAR_EPOCH_MS) / SEASON_LEGACY_YEAR_MS) + 1;
+  let msIntoYear, seasonLen, year;
+  if (now < SEASON_CUTOVER_MS) {
+    msIntoYear = now % SEASON_LEGACY_YEAR_MS;
+    seasonLen  = SEASON_LEGACY_MS;
+    year       = legacyYearAt(now);
+  } else {
+    const since = now - SEASON_CUTOVER_MS;
+    msIntoYear = since % SEASON_YEAR_MS;
+    seasonLen  = SEASON_DURATION_MS;
+    year       = legacyYearAt(SEASON_CUTOVER_MS) + Math.floor(since / SEASON_YEAR_MS);
+  }
+  const index = Math.floor(msIntoYear / seasonLen);
+  const msIntoSeason = msIntoYear % seasonLen;
   return {
     id: SEASON_IDS[index],
     name: SEASON_NAMES[index],
     emoji: SEASON_EMOJIS[index],
     flavor: SEASON_FLAVORS[index],
     index,
-    progress: msIntoSeason / SEASON_DURATION_MS,
-    msRemaining: SEASON_DURATION_MS - msIntoSeason,
-    dayNumber,
+    progress: msIntoSeason / seasonLen,
+    msRemaining: seasonLen - msIntoSeason,
+    dayNumber: year,
+    year,
   };
 }
 
@@ -169,7 +198,7 @@ function renderSeasonPanel() {
 
       <div class="sp-day">
         <span>📅 Year ${currentSeason.dayNumber}</span>
-        <span class="sp-day-note">1 real day = 1 in-game year</span>
+        <span class="sp-day-note">28 real hours = 1 in-game year · each season 7 hours</span>
       </div>
 
       <div class="sp-settings">
