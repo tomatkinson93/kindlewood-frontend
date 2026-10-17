@@ -657,6 +657,7 @@
       if (gr) {
         const blitX = Math.round(g.cx + gr.bufWX - g.camPxX);
         const blitY = Math.round(g.cy + gr.bufWY - g.camPxY);
+        this._blit = { x: blitX, y: blitY, g };
         ctx.drawImage(gr.canvas, blitX, blitY, gr.bwCss, gr.bhCss);           // ground
         if (this._tall && this._tall.canvas)
           ctx.drawImage(this._tall.canvas, blitX, blitY, gr.bwCss, gr.bhCss); // tall (depth-sorted)
@@ -669,6 +670,11 @@
       // 5. Clouds drifting above the map (with ground shadows) — above the
       //    haze, since they sit between the land and the viewer.
       if (atmo) atmo.drawClouds(ctx, W, H, g.camPxX, g.camPxY, frame.now, { yScale: ISO.K });
+
+      // 6. Night lighting (kwmap-daylight.js, spec 021 §3) — after clouds, never
+      //    baked into the buffers; a no-op by day. Positions: the TALL buffer's
+      //    drawables + this frame's blit offset (visibleSettlements()).
+      if (window.KWDaylight) window.KWDaylight.draw(ctx, W, H, dpr, this, frame.now);
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);
@@ -791,6 +797,7 @@
     _rebuildTall(tctx, g, visible, view, data) {
       const shadows = !view.detail || view.detail.shadows;   // ladder step 4 off
       const items = _collectTallItems(g, visible, view, data);
+      this._tallItems = items;                               // read by visibleSettlements()
       for (const it of items) {
         if (shadows) _contactShadow(tctx, it.cx, it.groundCentreY, g);
         it.draw(tctx, it.cx, it.cy, it.ctx3);
@@ -806,6 +813,21 @@
       const bufWX = g.camPxX - g.cx - PERF.margin, bufWY = g.camPxY - g.cy - PERF.margin;
       const { visible, view } = _collectVisible(g, bufWX, bufWY, bwCss, bhCss, null);
       return _collectTallItems(g, visible, view, data).map(it => ({ wq: it.wq, wr: it.wr, layer: it.layer }));
+    },
+
+    // Read-only: settlement / outpost drawables from the last TALL rebuild, at
+    // the screen position this frame blitted them (buffer px + blit offset).
+    // baseY = the footing _drawSettlementToken passed to KWSettlements.draw().
+    visibleSettlements() {
+      const items = this._tallItems, b = this._blit;
+      if (!items || !b) return [];
+      const out = [];
+      for (const it of items) {
+        if (it.layer !== L.BUILDING && it.layer !== L.OUTPOST) continue;
+        const cx = it.cx + b.x, cy = it.cy + b.y;
+        out.push({ wq: it.wq, wr: it.wr, t: it.ctx3.t, cx, cy, baseY: cy + b.g.faceH * 0.22, hexW: b.g.hexW, ys: ISO.K });
+      }
+      return out;
     },
 
     // ── Interaction ─────────────────────────────────────────────────────────

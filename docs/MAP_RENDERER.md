@@ -133,12 +133,31 @@ top-down golden is unaffected).
 - `verify/iso_demo.html` takes `?fogr=N` (fog beyond N hexes of home) and
   `?t=seconds` (cloud clock offset) for screenshots.
 
+## Night lighting (`KWDaylight`, spec 021 §3)
+
+`js/kwmap-daylight.js` runs last in both renderers' `render()`, after clouds:
+a 0.5×-resolution shade (tint at `darkness`, `multiply`), `destination-out`
+light pools, additive (`lighter`) halos, then lit windows via
+`KWSettlements.drawGlow()`. Lighting values come from `KWClock.lighting()`
+(server-synced, dev-overridable, tweened). By day (`darkness === 0 &&
+lightLevel === 0`) it returns before touching a canvas, so goldens are
+unaffected. It is never baked into the iso buffers.
+
+Positions come from each renderer's read-only `visibleSettlements()` (top-down:
+this frame's `visibleTiles`; iso: the last TALL rebuild's drawables + this
+frame's blit offset). Tiles that are missing or `terrain === 'fog'` emit no
+light. The `LIGHTS` table at the top of the file holds radii and colours.
+Window masks are cached next to each settlement sprite (`<key>:glow`); each
+window lights at its own `lightLevel` from `hash32(q, r, i)`, and about 15%
+never light.
+
 ## Settings
 
 The season panel's "✦ Map & Atmosphere" block has a **Map View** select
 (persists `kw_map_view`; restored on init) and a **Reduce map detail** toggle
-(persists `kw_map_low_detail`) and a **Drifting clouds** toggle (persists
-`kw_map_clouds`). Default renderer is `topdown`; flip it by
+(persists `kw_map_low_detail`), a **Drifting clouds** toggle (persists
+`kw_map_clouds`) and **Night lighting** On / Soft / Off (persists
+`kw_night_lighting`). Default renderer is `topdown`; flip it by
 changing `controller.activeId`'s initial value once iso has been lived with.
 
 ## Verification
@@ -156,4 +175,6 @@ node verify/phase2_proofs.js   # projection, hit-testing, buffers, determinism, 
 `verify/phase1_topdown_golden.json` is the top-down oracle (regenerate with
 `verify/_gen_golden.js` only if the top-down path legitimately changes — it
 should not without an explicit decision). `verify/iso_demo.html` is a
-no-backend visual harness (`?season=`, `?sel=q,r`, `?view=topdown`).
+no-backend visual harness (`?season=`, `?sel=q,r`, `?view=topdown`,
+`?at=<ISO time>` to pin the clock, `?night=soft|off`). Lighting proofs:
+`node verify/daylight_proofs.js`.
