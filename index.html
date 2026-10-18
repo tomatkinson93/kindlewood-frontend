@@ -31,7 +31,7 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=021demo">
+  <link rel="stylesheet" href="/css/main.css?v=021away">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
@@ -822,8 +822,9 @@
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
-  <script defer src="/js/settings-panel.js?v=021ui"></script>
-  <script defer src="/js/main.js?v=021adm"></script>
+  <script defer src="/js/settings-panel.js?v=021away"></script>
+  <script defer src="/js/main.js?v=021away"></script>
+  <script defer src="/js/away-report.js?v=021away"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
   <script defer src="/js/leaderboard.js?v=cp1"></script>
@@ -1587,7 +1588,7 @@
     </div>
   </div>
 
-  <!-- Settings modal — Audio / Graphics tabs (js/audio.js + js/settings-panel.js) -->
+  <!-- Settings modal — Audio / Graphics / General tabs (js/audio.js + js/settings-panel.js) -->
   <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettingsPopover(event)">
     <div class="settings-card kw-ornate-frame" onclick="event.stopPropagation()">
       <div class="settings-header">
@@ -1597,6 +1598,7 @@
       <div class="settings-tabs" role="tablist">
         <button class="settings-tab active" role="tab" data-settings-tab="audio" onclick="settingsSwitchTab('audio')">🔊 Audio</button>
         <button class="settings-tab" role="tab" data-settings-tab="graphics" onclick="settingsSwitchTab('graphics')">🖼 Graphics</button>
+        <button class="settings-tab" role="tab" data-settings-tab="general" onclick="settingsSwitchTab('general')">🧭 General</button>
       </div>
 
       <div class="settings-body" data-settings-panel="audio">
@@ -1666,6 +1668,14 @@
         <label class="settings-line" data-atmo-row>
           <span class="settings-line-text"><span class="settings-label">Seasonal particles</span><span class="settings-hint">Blossom, leaves and snow drifting over the map.</span></span>
           <input type="checkbox" class="settings-switch" data-atmo-setting="particles">
+        </label>
+      </div>
+
+      <div class="settings-body" data-settings-panel="general" style="display:none">
+        <div class="settings-eyebrow">On load</div>
+        <label class="settings-line" data-away-row>
+          <span class="settings-line-text"><span class="settings-label">"Since you were gone…" summary</span><span class="settings-hint">When you come back, show what happened while you were away.</span></span>
+          <input type="checkbox" class="settings-switch" data-away-setting>
         </label>
       </div>
     </div>
