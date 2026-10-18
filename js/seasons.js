@@ -163,7 +163,7 @@ function renderSeasonPanel() {
   const nextName = { spring:'Spring', summer:'Summer', autumn:'Autumn', winter:'Winter' }[nextId];
 
   panel.innerHTML = `
-    <div class="season-panel-inner" onclick="event.stopPropagation()">
+    <div class="season-panel-inner kw-ornate-frame" onclick="event.stopPropagation()">
       <div class="sp-header">
         <div class="sp-title">
           <span class="sp-emoji">${currentSeason.emoji}</span>

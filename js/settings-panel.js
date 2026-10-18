@@ -21,7 +21,7 @@
   function _card() { return root.document.getElementById('settings-backdrop'); }
   function _q(sel) { const c = _card(); return c ? c.querySelector(sel) : null; }
   function _qa(sel) { const c = _card(); return c ? Array.prototype.slice.call(c.querySelectorAll(sel)) : []; }
-  function _show(el, on) { const row = el && (el.closest('.sp-toggle') || el); if (row) row.style.display = on ? '' : 'none'; }
+  function _show(el, on) { const row = el && (el.closest('.settings-line') || el); if (row) row.style.display = on ? '' : 'none'; }
 
   function switchTab(id) {
     _qa('[data-settings-tab]').forEach(b => b.classList.toggle('active', b.dataset.settingsTab === id));
