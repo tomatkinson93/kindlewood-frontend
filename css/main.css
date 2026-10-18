@@ -11583,7 +11583,30 @@ body.kw-shell #screen-game .map-zoom-ctrls { display: none !important; }   /* ph
    modal shell (.qm-*) plus its own content. Sits just under the citizen
    profile (3100) so a name clicked in the report opens on top of it. */
 .qm-backdrop.ar-backdrop { z-index: 3050; }
-.ar-card { width: 600px; max-height: 86vh; }
+.ar-card { width: 640px; height: min(660px, 86vh); max-height: 86vh; }
+.ar-tabs { display: flex; gap: 0; padding: 0 8px; border-bottom: 1px solid var(--kw-gold-dim, #6e5836); overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.ar-tabs::-webkit-scrollbar { display: none; }
+.ar-tab {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 9px 8px 8px; cursor: pointer; white-space: nowrap;
+  background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-family: 'Crimson Pro', serif; font-size: 13.5px; color: var(--kw-muted, #a8987a);
+}
+.ar-tab:hover { color: var(--kw-cream, #efe4cd); }
+.ar-tab.active { color: var(--kw-gold, #e8c87a); border-bottom-color: var(--kw-gold-deep, #c9a45c); }
+.ar-tab-none { opacity: .55; }
+.ar-tab-n { font-size: 11px; line-height: 1; padding: 2px 6px; border-radius: 999px; background: rgba(201,164,92,.18); color: var(--kw-gold, #e8c87a); }
+.ar-empty { text-align: center; padding: 40px 16px; font-family: 'Crimson Pro', serif; font-style: italic; font-size: 15px; color: var(--kw-muted, #a8987a); }
+.ar-sum-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 6px; cursor: pointer; text-align: left;
+  background: none; border: none; border-bottom: 1px solid rgba(201,164,92,.08); color: var(--kw-cream, #efe4cd); font: inherit; font-size: 14px;
+}
+.ar-sum-row:hover { background: rgba(201,164,92,.06); }
+.ar-sum-label { flex: 1; }
+.ar-sum-n { color: var(--kw-gold, #e8c87a); font-size: 13px; }
+.ar-sum-none .ar-sum-n { color: var(--kw-muted, #a8987a); font-style: italic; }
+.ar-sum-go { color: var(--kw-muted, #a8987a); font-size: 16px; }
+.ar-more { display: block; margin: 8px auto 2px; padding: 5px 14px; border-radius: 6px; cursor: pointer; background: rgba(201,164,92,.12); border: 1px solid rgba(201,164,92,.35); color: var(--kw-gold, #e8c87a); font-size: 12px; }
+.ar-more:hover { background: rgba(201,164,92,.24); }
 .ar-head { flex: 1; min-width: 0; }
 .ar-away { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 13px; color: var(--kw-muted, #a8987a); margin-top: 2px; }
 .ar-res-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 4px 0 8px; }
@@ -11626,5 +11649,8 @@ body.kw-shell #screen-game .map-zoom-ctrls { display: none !important; }   /* ph
 .ar-ok { padding: 7px 16px; cursor: pointer; }
 @media (max-width: 560px) {
   .ar-res-grid { grid-template-columns: repeat(3, 1fr); }
+  .ar-tabs { justify-content: space-between; }
+  .ar-tab { padding: 9px 5px 8px; }
+  .ar-tab:not(.active) .ar-tab-label { display: none; }   /* phones: icon + count, label on the active tab */
   .ar-ev-when { display: none; }
 }
