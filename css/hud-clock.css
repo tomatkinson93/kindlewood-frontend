@@ -198,3 +198,25 @@
   .hc-label { display: none; }
   .hud-clock { padding: 1px 6px; }
 }
+
+/* Admin Happening demo banner (KWHappenings.demo) — this screen only. */
+.kw-hap-demo {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 9000;
+  display: flex; align-items: center; gap: 10px; max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 10px 8px 14px; border-radius: 12px;
+  background: rgba(30, 22, 14, 0.92); border: 1px solid rgba(239, 159, 39, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); color: #efe4cd; font-size: 13px;
+}
+.kw-hap-demo-icon { font-size: 22px; line-height: 1; }
+.kw-hap-demo-main { display: flex; flex-direction: column; min-width: 0; }
+.kw-hap-demo-title { font-weight: 600; }
+.kw-hap-demo-left { color: #efb04a; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.kw-hap-demo .hc-fx { color: rgba(239, 228, 205, 0.7); }
+.kw-hap-demo .hc-fx-good { color: #9fc97a; }
+.kw-hap-demo .hc-fx-bad { color: #e8907a; }
+.kw-hap-demo-note { font-size: 11px; color: rgba(239, 228, 205, 0.5); font-style: italic; margin-top: 2px; }
+.kw-hap-demo-stop {
+  margin-left: auto; flex: none; width: 28px; height: 28px; border-radius: 8px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(239, 228, 205, 0.2); color: #efe4cd;
+}
+.kw-hap-demo-stop:hover { background: rgba(255, 255, 255, 0.12); }

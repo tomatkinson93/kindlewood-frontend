@@ -11562,3 +11562,19 @@ body.login-mode .hero-text-welcome {
   background: rgba(120,90,180,.3);
   border-color: rgba(150,120,200,.7);
 }
+.ha-demo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+
+/* Native dropdown lists: the open list used the OS default (white) behind
+   our light-green option text. Match the closed control's dark brown. */
+select option, select optgroup { background-color: #241a10; color: #efe4cd; }
+select optgroup { color: #efb04a; font-style: normal; }
+select option:disabled { color: rgba(239, 228, 205, 0.4); }
+
+/* Iso zoom buttons — bottom-right of the map frame, above the action bar. */
+.map-zoom-ctrls { position: absolute; right: 6px; bottom: 50px; z-index: 10; display: flex; flex-direction: column; gap: 4px; }
+.map-zoom-ctrls .map-ctrl-btn {
+  width: 30px; height: 30px; padding: 0; font-size: 16px; line-height: 1;
+  background: rgba(20,16,10,.85) !important; border: 1px solid rgba(255,210,120,.2) !important; backdrop-filter: blur(4px);
+}
+.map-zoom-ctrls .map-ctrl-btn:disabled { opacity: .35; cursor: default; }
+body.kw-shell #screen-game .map-zoom-ctrls { display: none !important; }   /* phones: pinch instead */
