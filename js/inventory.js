@@ -228,13 +228,6 @@ async function invDiscard(itemId) {
   await loadInventory();
 }
 
-// ── Helper: add item to inventory (called from quest collect, raids etc.) ──
-async function awardInventoryItem(itemDef) {
-  try {
-    await apiFetch('/api/inventory/add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(itemDef),
-    });
-  } catch(e) { console.error('Failed to award item:', e); }
-}
+// Items are only ever granted by the server (fishing lands via
+// /api/fishing/land; quests and battles grant on the server). There is no
+// client-side "add item" call.
