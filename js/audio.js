@@ -4,7 +4,14 @@
 //  Volumes:
 //    - Music volume  (key 'kindlewood_music_vol')  — battle/tavern/menu loops
 //    - SFX volume    (key 'kindlewood_sfx_vol')    — one-shot effects
-//  Both are exposed to settings sliders and persisted to localStorage.
+//    - Ambient volume (key 'kindlewood_ambient_vol') — day/night beds (spec 021 §4.2)
+//  All three are exposed to settings sliders and persisted to localStorage.
+//
+//  Ambient beds (/assets/audio/ambient/{dawn,day,dusk,night}.mp3) follow
+//  KWClock's phase and crossfade over 8s on a change. They play only on the
+//  game screen (world map / settlement view), only after a user gesture, and
+//  duck to 20% while battle, tavern or menu music is playing. A missing file
+//  is silent (one console warning per file).
 //
 //  Menu music (welcome.mp3) plays on the main menu / pre-game screen and is
 //  ducked/stopped when other music (battle, tavern) takes over.
@@ -126,6 +133,131 @@
     }, 16);
   }
 
+  // ── Ambient beds (spec 021 §4.2) ─────────────────────────────────────────
+  const AMBIENT_KEY = 'kindlewood_ambient_vol';
+  const DEFAULT_AMBIENT = 0.35;
+  const AMBIENT_BEDS = {
+    dawn: '/assets/audio/ambient/dawn.mp3', day: '/assets/audio/ambient/day.mp3',
+    dusk: '/assets/audio/ambient/dusk.mp3', night: '/assets/audio/ambient/night.mp3',
+  };
+  const AMB_XFADE_MS = 8000;
+  const AMB_DUCK = 0.2;               // share of ambient volume under other music
+  const AMB_DUCK_MS = 1000;           // duck / restore ease
+  const AMB_TICK_MS = 200;
+  let _ambientVolume = _loadVol(AMBIENT_KEY, DEFAULT_AMBIENT);
+  const _amb = {
+    layers: [],                       // { phase, audio, from, to, start, dead }, newest last
+    duck: 1, lastTick: 0, gestured: false, crossfades: 0, timer: null, warned: {},
+  };
+
+  function _ambNow() { return performance.now(); }
+
+  // A layer's fade gain (0..1) at time t: linear from → to over AMB_XFADE_MS.
+  function _ambGain(L, t) {
+    const k = Math.min(1, Math.max(0, (t - L.start) / AMB_XFADE_MS));
+    return L.from + (L.to - L.from) * k;
+  }
+
+  function _ambOpen(phase) {
+    const url = AMBIENT_BEDS[phase];
+    const a = new Audio();
+    const L = { phase, audio: a, from: 0, to: 1, start: _ambNow(), dead: false };
+    a.addEventListener('error', () => {
+      L.dead = true;
+      if (!_amb.warned[url]) { _amb.warned[url] = true; console.warn('[ambient] missing or unplayable bed:', url); }
+    });
+    a.loop = true; a.preload = 'none'; a.volume = 0; a.src = url;   // fetched on first play()
+    return L;
+  }
+
+  // Crossfade to `phase`'s bed. No-op if it's already the newest layer.
+  function setAmbientPhase(phase) {
+    if (!AMBIENT_BEDS[phase]) return false;
+    const top = _amb.layers[_amb.layers.length - 1];
+    if (top && top.phase === phase) return false;
+    const t = _ambNow();
+    for (const L of _amb.layers) { L.from = _ambGain(L, t); L.to = 0; L.start = t; }
+    _amb.layers.push(_ambOpen(phase));
+    if (top) _amb.crossfades++;
+    _ambTick();
+    return true;
+  }
+
+  // Battle (playMusic), tavern games (Briarwood / Squirrel's Stash) or the
+  // menu track (#bg-music) audible right now?
+  function _otherMusicPlaying() {
+    const on = (a) => !!(a && !a.paused);
+    if (on(_activeAudio)) return true;
+    if (typeof document !== 'undefined' && on(document.getElementById('bg-music'))) return true;
+    if (typeof _briarMusic !== 'undefined' && on(_briarMusic)) return true;   // tavern.js
+    if (typeof _sqMusic !== 'undefined' && on(_sqMusic)) return true;         // tavern.js
+    return false;
+  }
+
+  // Beds sound only on the game screen (world map / settlement view), in a
+  // visible tab, after a user gesture (autoplay rules).
+  function _ambAllowed() {
+    if (!_amb.gestured || typeof document === 'undefined' || document.hidden) return false;
+    const g = document.getElementById('screen-game');
+    return !!(g && g.classList.contains('active'));
+  }
+
+  function _ambTick() {
+    const t = _ambNow();
+    const dt = _amb.lastTick ? t - _amb.lastTick : AMB_TICK_MS;
+    _amb.lastTick = t;
+    const target = _otherMusicPlaying() ? AMB_DUCK : 1;
+    const step = dt / AMB_DUCK_MS * (1 - AMB_DUCK);
+    _amb.duck = _amb.duck < target ? Math.min(target, _amb.duck + step) : Math.max(target, _amb.duck - step);
+    const allowed = _ambAllowed();
+    const keep = [];
+    for (const L of _amb.layers) {
+      const g = _ambGain(L, t);
+      if (L.to === 0 && g <= 0) { try { L.audio.pause(); L.audio.src = ''; } catch (e) {} continue; }
+      keep.push(L);
+      if (L.dead) continue;
+      try {
+        L.audio.volume = Math.max(0, Math.min(1, _ambientVolume * _amb.duck * g));
+        if (allowed && L.audio.paused) { const p = L.audio.play(); if (p && p.catch) p.catch(() => {}); }
+        else if (!allowed && !L.audio.paused) L.audio.pause();
+      } catch (e) {}
+    }
+    _amb.layers = keep;
+  }
+
+  function startAmbient() {
+    if (_amb.timer) return;
+    const C = global.KWClock;
+    if (C) {
+      setAmbientPhase(C.phase().phase);
+      C.onChange(() => setAmbientPhase(C.phase().phase));
+    }
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      const g = () => { _amb.gestured = true; _ambTick(); };
+      document.addEventListener('pointerdown', g, { once: true, capture: true });
+      document.addEventListener('keydown', g, { once: true, capture: true });
+    }
+    _amb.timer = setInterval(_ambTick, AMB_TICK_MS);
+  }
+
+  function getAmbientVolume() { return _ambientVolume; }
+  function setAmbientVolume(v) {
+    _ambientVolume = _clamp(v);
+    _saveVol(AMBIENT_KEY, _ambientVolume);
+    _ambTick();
+  }
+
+  global.KWAmbient = {
+    BEDS: AMBIENT_BEDS, XFADE_MS: AMB_XFADE_MS, DUCK: AMB_DUCK,
+    start: startAmbient, setPhase: setAmbientPhase, tick: _ambTick,
+    getVolume: getAmbientVolume, setVolume: setAmbientVolume,
+    state: () => ({
+      duck: _amb.duck, crossfades: _amb.crossfades, gestured: _amb.gestured,
+      layers: _amb.layers.map(L => ({ phase: L.phase, gain: _ambGain(L, _ambNow()), volume: L.audio.volume, paused: L.audio.paused, dead: L.dead })),
+    }),
+    _gesture() { _amb.gestured = true; _ambTick(); },   // test hook
+  };
+
   // ── Expose ─────────────────────────────────────────────────────────────
   global.preloadAllAudio = preloadAll;
   global.playMusic       = playMusic;
@@ -151,6 +283,10 @@
     const sp = document.getElementById('settings-sfx-volume-pct');
     if (ss) ss.value = Math.round(_sfxVolume * 100);
     if (sp) sp.textContent = Math.round(_sfxVolume * 100) + '%';
+    const as = document.getElementById('settings-ambient-volume');
+    const ap = document.getElementById('settings-ambient-volume-pct');
+    if (as) as.value = Math.round(_ambientVolume * 100);
+    if (ap) ap.textContent = Math.round(_ambientVolume * 100) + '%';
     if (global.KWSettingsPanel) global.KWSettingsPanel.onOpen();   // tabs + Graphics tab
   }
   function closeSettingsPopover() {
@@ -173,6 +309,12 @@
     if (pct) pct.textContent = Math.round(v * 100) + '%';
     // tiny preview tick so the user hears the level
     playSfx('card-flip.wav');
+  }
+  function onAmbientVolumeSlide(val) {
+    const v = (parseFloat(val) || 0) / 100;
+    setAmbientVolume(v);
+    const pct = document.getElementById('settings-ambient-volume-pct');
+    if (pct) pct.textContent = Math.round(v * 100) + '%';
   }
   // ── Compact in-game audio control (mute toggle + music slider) ──
   // Returns an HTML string; call wireGameAudioControl() after inserting it.
@@ -221,6 +363,11 @@
   global.closeSettingsPopover = closeSettingsPopover;
   global.onMusicVolumeSlide   = onMusicVolumeSlide;
   global.onSfxVolumeSlide     = onSfxVolumeSlide;
+  global.onAmbientVolumeSlide = onAmbientVolumeSlide;
+  global.getAmbientVolume     = getAmbientVolume;
+  global.setAmbientVolume     = setAmbientVolume;
+
+  if (!global.__KW_NO_AUTOSTART) startAmbient();
 
   // ── Menu music ──────────────────────────────────────────────────────────
   // NOTE (spec 20 §B5 / audio bug fix): audio.js used to auto-start a SEPARATE
