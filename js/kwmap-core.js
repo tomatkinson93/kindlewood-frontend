@@ -140,6 +140,41 @@ window.KWMap = (() => {
     return null;
   }
 
+  // ── Iso zoom ─────────────────────────────────────────────────────────────
+  // A factor on the tile size, used by the iso renderer only (top-down stays
+  // at the fixed TILE_PX). The camera is the screen centre, so zooming keeps
+  // it in view. Persisted per browser (kw_iso_zoom).
+  const ZOOM_MIN = 0.6, ZOOM_MAX = 1.8;
+  const zoom = {
+    min: ZOOM_MIN, max: ZOOM_MAX,
+    level: (() => {
+      try { const v = parseFloat(localStorage.getItem('kw_iso_zoom')); return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1; }
+      catch (e) { return 1; }
+    })(),
+    enabled() { return controller.activeId === 'iso'; },
+    factor() { return this.enabled() ? this.level : 1; },
+    tilePx() { return TILE_PX() * this.factor(); },
+    set(v) {
+      v = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)) * 20) / 20;   // 0.05 steps
+      if (v === this.level) return;
+      this.level = v;
+      try { localStorage.setItem('kw_iso_zoom', String(v)); } catch (e) {}
+      this.syncButtons();
+      if (this.enabled()) controller.invalidate('all');
+    },
+    step(dir) { this.set(this.level * (dir > 0 ? 1.15 : 1 / 1.15)); },
+    reset() { this.set(1); },
+    // On-map ＋/－ buttons: shown in iso only; disabled at the limits.
+    syncButtons() {
+      const box = document.getElementById('map-zoom-ctrls');
+      if (!box) return;
+      box.style.display = this.enabled() ? '' : 'none';
+      const inB = box.querySelector('[data-zoom="in"]'), outB = box.querySelector('[data-zoom="out"]');
+      if (inB) inB.disabled = this.level >= ZOOM_MAX;
+      if (outB) outB.disabled = this.level <= ZOOM_MIN;
+    },
+  };
+
   // ── MapViewController ────────────────────────────────────────────────────
   const controller = {
     camera,        // the shared global — same object, one source of truth
@@ -163,6 +198,7 @@ window.KWMap = (() => {
       try { localStorage.setItem('kw_map_view', id); } catch (e) {}
       const r = this._renderers[id];
       if (r.invalidate) r.invalidate('all');
+      zoom.syncButtons();
       this.requestRender();
     },
 
@@ -448,7 +484,12 @@ window.KWMap = (() => {
       canvas._dragInit = true;
       const self = this;
 
-      // Zoom removed — scroll wheel disabled
+      // Scroll-wheel zoom — iso view only (top-down has a fixed tile size).
+      canvas.addEventListener('wheel', e => {
+        if (!zoom.enabled()) return;
+        e.preventDefault();
+        zoom.set(zoom.level * Math.exp(-Math.max(-100, Math.min(100, e.deltaY)) * 0.0015));
+      }, { passive: false });
 
       // Click — hit test hex
       canvas.addEventListener('click', e => {
@@ -507,7 +548,7 @@ window.KWMap = (() => {
 
       window.addEventListener('mousemove', e => {
         if (!_drag) return;
-        const tpx = TILE_PX();
+        const tpx = zoom.tilePx();
         const hexVert = Math.round(tpx * 1.1547 * 0.75);
         const dx = Math.round((_drag.startX - e.clientX) / tpx);
         const dy = Math.round((_drag.startY - e.clientY) / hexVert);
@@ -530,13 +571,17 @@ window.KWMap = (() => {
       // keep running byte-for-byte on desktop. Panning reuses the *exact* same
       // integer-axial math as the mouse drag; tap reuses the mouse click path
       // (via a synthetic click) so screen→world→axial conversion and tile
-      // selection live in exactly one place (constraint 4). NOTE: this map has
-      // no zoom (scroll wheel disabled above), so there is no pinch-zoom target
-      // — a second finger simply suspends the pan. #map-canvas sets
-      // touch-action:none in CSS, so the page never pans/zooms underneath.
+      // selection live in exactly one place (constraint 4). A second finger
+      // suspends the pan and, in the iso view, pinches to zoom. #map-canvas
+      // sets touch-action:none in CSS, so the page never pans/zooms underneath.
       const _touchPointers = new Map();   // pointerId → last {x,y}
       let _touchPan = null;               // { startX, startY, camX, camY, id }
       let _tapStart = null;               // { x, y, t } for tap detection
+      let _pinch = null;                  // { dist, level } while two fingers are down
+      const _pinchDist = () => {
+        const [a, b] = Array.from(_touchPointers.values());
+        return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      };
 
       canvas.addEventListener('pointerdown', e => {
         if (e.pointerType === 'mouse') return;
@@ -548,9 +593,11 @@ window.KWMap = (() => {
           _tapStart = { x: e.clientX, y: e.clientY, t: Date.now() };
           _wasDrag = false;
         } else {
-          // Multi-touch → abandon pan + tap (no zoom to hand off to).
+          // Multi-touch → abandon pan + tap; two fingers pinch-zoom (iso).
           _touchPan = null;
           _tapStart = null;
+          _wasDrag = true;
+          _pinch = (_touchPointers.size === 2 && zoom.enabled()) ? { dist: _pinchDist(), level: zoom.level } : null;
         }
         e.preventDefault();
       });
@@ -558,8 +605,13 @@ window.KWMap = (() => {
       canvas.addEventListener('pointermove', e => {
         if (e.pointerType === 'mouse') return;
         if (_touchPointers.has(e.pointerId)) _touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (_pinch && _touchPointers.size === 2) {
+          zoom.set(_pinch.level * _pinchDist() / _pinch.dist);
+          e.preventDefault();
+          return;
+        }
         if (!_touchPan || e.pointerId !== _touchPan.id || _touchPointers.size !== 1) return;
-        const tpx = TILE_PX();
+        const tpx = zoom.tilePx();
         const hexVert = Math.round(tpx * 1.1547 * 0.75);
         const dx = Math.round((_touchPan.startX - e.clientX) / tpx);
         const dy = Math.round((_touchPan.startY - e.clientY) / hexVert);
@@ -592,6 +644,7 @@ window.KWMap = (() => {
           }
         }
         if (_touchPan && e.pointerId === _touchPan.id) _touchPan = null;
+        if (_touchPointers.size < 2) _pinch = null;
         _tapStart = null;
         try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
       };
@@ -601,6 +654,18 @@ window.KWMap = (() => {
       // Keyboard panning (moved verbatim from main.js top level)
       const _keysHeld = {};
       let _panInterval = null;
+
+      // + / - zoom the iso view (0 resets).
+      document.addEventListener('keydown', e => {
+        if (!zoom.enabled() || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!document.getElementById('screen-game')?.classList.contains('active')) return;
+        if (['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
+        if (e.key === '+' || e.key === '=') zoom.step(1);
+        else if (e.key === '-' || e.key === '_') zoom.step(-1);
+        else if (e.key === '0') zoom.reset();
+        else return;
+        e.preventDefault();
+      });
 
       document.addEventListener('keydown', e => {
         const mapKeys = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','A','d','D','w','W','s','S'];
@@ -636,8 +701,9 @@ window.KWMap = (() => {
         const saved = localStorage.getItem('kw_map_view');
         if (saved && saved !== this.activeId && this._renderers[saved]) this.setRenderer(saved);
       } catch (e) {}
+      zoom.syncButtons();
     },
   };
 
-  return { L, controller, geom: { geomParams, firstVisibleCopyXY } };
+  return { L, controller, zoom, geom: { geomParams, firstVisibleCopyXY } };
 })();

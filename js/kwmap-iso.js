@@ -42,7 +42,8 @@
 
   // ── Geometry (matches core's hex constants; iso squashes Y by ISO.K) ──────
   function geo(W, H) {
-    const tpx = TILE_PX();
+    const z = KW.zoom ? KW.zoom.factor() : 1;     // iso zoom (wheel / pinch / ＋－)
+    const tpx = Math.round(TILE_PX() * z);
     const hexW = tpx;
     const hexH = Math.round(tpx * 1.1547);
     const hexVert = Math.round(hexH * 0.75);
@@ -50,7 +51,8 @@
     const cx = W / 2, cy = H / 2;
     const camPxX = hexW * (camera.q + camera.r / 2);
     const camPxY = hexVert * ISO.K * camera.r;
-    return { tpx, hexW, hexH, hexVert, faceH, cx, cy, camPxX, camPxY, W, H };
+    // ep / sp: elevation step and skirt height in px, scaled with the zoom.
+    return { tpx, hexW, hexH, hexVert, faceH, cx, cy, camPxX, camPxY, W, H, ep: ISO.ELEV_PX * tpx / TILE_PX(), sp: ISO.SKIRT_PX * tpx / TILE_PX() };
   }
 
   // Forward transform (spec §2.3) — world-pixel ground plane (no elevation).
@@ -115,7 +117,7 @@
         if (cq !== wq || cr !== wr) continue;
         const elev = elevInclude ? elevationOf(terrainAt(cq, cr)) : 0;
         const x = g.cx + isoGroundX(aq, ar, g) - g.camPxX - g.hexW / 2;
-        const y = g.cy + isoGroundY(aq, ar, g) - g.camPxY - g.faceH / 2 - elev * ISO.ELEV_PX;
+        const y = g.cy + isoGroundY(aq, ar, g) - g.camPxY - g.faceH / 2 - elev * g.ep;
         if (x < -g.hexW * 2 || x > W + g.hexW || y < -g.hexH * 2 || y > H + g.hexH) continue;
         return { x: Math.round(x), y: Math.round(y), cx: Math.round(x + g.hexW / 2), cy: Math.round(y + g.faceH / 2), hexW: g.hexW, faceH: g.faceH, g };
       }
@@ -215,7 +217,7 @@
         const ox = d.ox || 0, oy = d.oy || 0;
         const cx = vt.gx + g.hexW / 2 + ox;
         const groundCentreY = vt.gy + g.faceH / 2 + oy;         // ground plane → sort + shadow
-        const faceCentreY = groundCentreY - elev * ISO.ELEV_PX;  // lifted face → sprite anchor
+        const faceCentreY = groundCentreY - elev * g.ep;  // lifted face → sprite anchor
         items.push({
           wq: d.wq, wr: d.wr, groundY: groundCentreY, layer: p.layer, x: cx,
           cx, cy: faceCentreY, groundCentreY, draw,
@@ -387,7 +389,7 @@
       const terrain = t.terrain;
       const elev = elevationOf(terrain);
       const face = KWMap.assets.terrainFace(terrain, t.q, t.r, seasonId);
-      const skirtH = ISO.SKIRT_PX + Math.max(0, elev) * ISO.ELEV_PX;
+      const skirtH = g.sp + Math.max(0, elev) * g.ep;
 
       // Skirt (side wall) behind the face.
       if (skirtH > 0.5) {
@@ -486,7 +488,7 @@
       const rowStep = g.hexVert * ISO.K;
       const place = (dq, dr) => ({
         x: x + g.hexW * (dq + dr / 2),
-        y: y + rowStep * dr - ((elev.get(dq + ',' + dr) ?? base) - base) * ISO.ELEV_PX,
+        y: y + rowStep * dr - ((elev.get(dq + ',' + dr) ?? base) - base) * g.ep,
       });
       window.ClanTerritory.drawEmblem(ctx, grp, place, g.hexW, g.faceH, rowStep, ISO.K);
     },
@@ -693,6 +695,7 @@
       const need = this._invalid || !gr
         || gr.W !== W || gr.H !== H || gr.dpr !== dpr
         || gr.seasonKey !== seasonId
+        || gr.tpx !== g.tpx                             // zoom changed
         || gr.detailLevel !== det.level                 // ladder changed → repaint
         || Math.abs(camWX - gr.camWX0) > PERF.margin
         || Math.abs(camWY - gr.camWY0) > PERF.margin;
@@ -717,7 +720,7 @@
 
       this._ground = {
         canvas: gc.canvas, ctx: gc.ctx, bufWX, bufWY, bwCss, bhCss,
-        camWX0: camWX, camWY0: camWY, dpr, W, H, seasonKey: seasonId, detailLevel: det.level,
+        camWX0: camWX, camWY0: camWY, dpr, W, H, seasonKey: seasonId, detailLevel: det.level, tpx: g.tpx,
       };
       this._tall = { canvas: tc.canvas, ctx: tc.ctx };
       this._invalid = false;
@@ -767,7 +770,7 @@
           const t = map.get(vt.wq + ',' + vt.wr);
           if (!t) continue;
           const elev = elevationOf(t.terrain);
-          const x = vt.gx, y = vt.gy - elev * ISO.ELEV_PX;   // face top-left (lifted)
+          const x = vt.gx, y = vt.gy - elev * g.ep;   // face top-left (lifted)
           ctx3base.t = t; ctx3base.wq = vt.wq; ctx3base.wr = vt.wr;
           for (const d of arr) {
             ctx3base.d = d;
@@ -839,7 +842,7 @@
     screenToHex(px, py, cam, W, H) {
       const g = geo(W, H);
       for (const e of ELEV_PLANES) {
-        const cand = baseInverse(px, py + e * ISO.ELEV_PX, g);
+        const cand = baseInverse(px, py + e * g.ep, g);
         if (cand && elevationOf(terrainAt(cand.wq, cand.wr)) >= e) return cand;
       }
       return baseInverse(px, py, g);       // flat/recessed ground plane

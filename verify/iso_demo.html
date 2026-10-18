@@ -102,6 +102,8 @@
     effects: qs.get('fx').split(',').map(k => ({ type: 'map_flourish', kind: k })) }]);
   const view = qs.get('view') === 'topdown' ? 'topdown' : 'iso';
   KWMap.controller.setRenderer(view);
+  // ?zoom=1.4 — iso zoom factor (KWMap.zoom; 0.6 … 1.8).
+  if (qs.get('zoom') && KWMap.zoom) KWMap.zoom.set(Number(qs.get('zoom')));
   // Optional selection/hover injection for verifying uifx placement:
   //   ?sel=q,r   ?hov=q,r
   const parseQR = (s) => { if (!s) return null; const [q, r] = s.split(',').map(Number); return { wq: q, wr: r }; };

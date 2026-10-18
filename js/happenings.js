@@ -61,6 +61,7 @@
   function activeVisuals(ms) {
     const at = ms == null ? _now() : ms, kinds = [];
     for (const a of FX.activeAt(_defs, at)) for (const e of a.effects) if (e.type === 'map_flourish' && kinds.indexOf(e.kind) < 0) kinds.push(e.kind);
+    if (ms == null && _demoOn()) for (const e of _demo.h.effects || []) if (e.type === 'map_flourish' && kinds.indexOf(e.kind) < 0) kinds.push(e.kind);
     return kinds;
   }
   function flourishActive(kind) { return activeVisuals().indexOf(kind) >= 0; }
@@ -75,6 +76,49 @@
   // Summed modifiers in force now (visual clock), e.g. for other panels.
   function modifiersNow() { return FX.modifiersAt(_defs, _now()); }
 
+
+  // ── Admin demo: preview a Happening's visuals on this screen only ──────
+  // Nothing goes to the server, so modifiers are listed, not applied.
+  let _demo = null, _demoTimer = null;
+  function _demoOn() {
+    if (_demo && Date.now() >= _demo.until) stopDemo();
+    return !!_demo;
+  }
+  // Night override for the FX pass while a demo forces the night look.
+  function demoNight() { return _demoOn() && _demo.night ? 1 : null; }
+
+  function demo(h, seconds, opts) {
+    stopDemo();
+    const secs = Math.max(1, Math.min(600, Number(seconds) || 15));
+    _demo = { h: { id: h.id || 'demo', title: h.title || 'Demo', icon: h.icon || '🏮', effects: h.effects || [] },
+              until: Date.now() + secs * 1000, night: !!(opts && opts.night) };
+    const doc = root.document;
+    if (!doc) return;
+    const el = doc.createElement('div');
+    el.id = 'kw-hap-demo';
+    el.className = 'kw-hap-demo';
+    const lines = effectLines(_demo.h, _wall()).filter(l => l.tone !== 'neutral');
+    el.innerHTML = '<span class="kw-hap-demo-icon">' + _esc(_demo.h.icon) + '</span>'
+      + '<span class="kw-hap-demo-main"><span class="kw-hap-demo-title">Demo: ' + _esc(_demo.h.title) + ' <span class="kw-hap-demo-left"></span></span>'
+      + _fxHtml(lines) + (lines.length ? '<span class="kw-hap-demo-note">Preview only: modifiers are not applied</span>' : '') + '</span>'
+      + '<button type="button" class="kw-hap-demo-stop" title="Stop the demo">✕</button>';
+    el.querySelector('.kw-hap-demo-stop').onclick = stopDemo;
+    doc.body.appendChild(el);
+    const tick = () => {
+      if (!_demoOn()) return;
+      const left = el.querySelector('.kw-hap-demo-left');
+      if (left) left.textContent = Math.ceil((_demo.until - Date.now()) / 1000) + 's';
+    };
+    tick();
+    _demoTimer = setInterval(tick, 250);
+  }
+
+  function stopDemo() {
+    _demo = null;
+    if (_demoTimer) { clearInterval(_demoTimer); _demoTimer = null; }
+    const el = root.document && root.document.getElementById('kw-hap-demo');
+    if (el) el.remove();
+  }
 
   function _dur(ms) {
     const m = Math.max(0, Math.round(ms / 60000));
@@ -140,6 +184,7 @@
 
   root.KWHappenings = {
     load, upcoming, activeAt, activeVisuals, flourishActive, effectLines, modifiersNow, hudHtml,
+    demo, stopDemo, demoNight,
     defs: () => _defs.slice(),
     _setDefsForTest(d) { _defs = d || []; }, _checkToasts, _resetToastsForTest(at) { _lastToastCheck = at == null ? null : at; },
   };

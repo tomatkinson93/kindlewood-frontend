@@ -301,7 +301,8 @@
     if (!kinds.length) return false;
     const reduced = opts.reduced != null ? !!opts.reduced : reducedMotion();
     const t = reduced ? 0 : (typeof now === 'number' ? now : 0) / 1000;
-    const night = opts.night != null ? opts.night : nightFactor();
+    const Hd = root.KWHappenings && root.KWHappenings.demoNight ? root.KWHappenings.demoNight() : null;
+    const night = opts.night != null ? opts.night : Hd != null ? Hd : nightFactor();
     const A = anchors(renderer, W, H);
     for (const k of kinds) if (TINTS[k]) drawTint(ctx, W, H, k, night);           // tints first, under the particles
     if (kinds.includes('mist')) drawMist(ctx, W, H, t);

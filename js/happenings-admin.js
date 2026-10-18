@@ -116,6 +116,12 @@ function ha_showForm(id) {
     + '<div class="qa-section-label" style="margin-top:14px">Coverage — this week, UTC hours</div>'
     + '<div id="ha-preview"></div>'
 
+    + '<div class="qa-section-label" style="margin-top:14px">Demo <span class="qa-tip" title="Plays this Happening\'s visuals on your screen only, using the effects above (saved or not). Closes Dev Tools while it runs. Modifiers are listed but not applied, and nothing is sent to the server.">?</span></div>'
+    + '<div class="ha-demo">'
+    +   '<input type="number" id="ha-demo-secs" class="ce-input" min="1" max="600" value="20" style="width:80px"> seconds'
+    +   '<label class="ha-check"><input type="checkbox" id="ha-demo-night" checked> Night look</label>'
+    +   '<button class="qa-btn" type="button" onclick="ha_demo()">▶ Demo</button>'
+    + '</div>'
     + '<div class="cheat-rel-feedback" id="ha-form-feedback" style="margin-top:8px"></div>'
     + '<button class="cheat-all-btn" style="margin-top:12px" onclick="ha_save(' + (isNew ? 'null' : "'" + String(cur.id).replace(/'/g, "\\'") + "'") + ')">💾 ' + (isNew ? 'Create Happening' : 'Save Changes') + '</button>'
     + '</div>';
@@ -312,6 +318,21 @@ function ha_preview() {
     + (next.length ? next.map(w => '<div class="ha-next">' + (w.startMs <= now ? '<b>On now</b> → ' + _haEsc(_haLocal(w.endMs))
         : _haEsc(_haLocal(w.startMs)) + ' → ' + _haEsc(_haLocal(w.endMs))) + '</div>').join('') : '<div class="ha-msg">None in the next 30 days.</div>');
   box.innerHTML = grid + fair + nextHtml;
+}
+
+// Admin-only preview: close Dev Tools and play the form's effects locally.
+function ha_demo() {
+  const fx = _haParseEffects();
+  if (!fx.ok) { _haFeedback('⚠️ Effects: ' + fx.error, false); return; }
+  if (!window.KWHappenings || !KWHappenings.demo) return;
+  const secs = parseInt(document.getElementById('ha-demo-secs').value, 10) || 20;
+  KWHappenings.demo({
+    id: (document.getElementById('ha-id').value || '').trim().toLowerCase() || 'demo',
+    title: document.getElementById('ha-title').value.trim() || 'Untitled Happening',
+    icon: document.getElementById('ha-icon').value.trim() || '🏮',
+    effects: fx.effects,
+  }, secs, { night: document.getElementById('ha-demo-night').checked });
+  if (typeof closeCheatMenu === 'function') closeCheatMenu();
 }
 
 function ha_cancelForm() {
