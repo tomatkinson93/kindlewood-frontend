@@ -11,6 +11,7 @@
 //    Drifting clouds   KWMap.atmosphere.setClouds     (kw_map_clouds)
 //    Colour grading /  SeasonAtmosphere.setAtmosphere / setParticles
 //    particles
+//    Away summary      KWAwayReport.setEnabled         (kw_away_splash)
 //  A row whose owner isn't loaded is hidden.
 // ══════════════════════════════════════════════════════════════════════════
 (function (root) {
@@ -27,7 +28,7 @@
     _qa('[data-settings-tab]').forEach(b => b.classList.toggle('active', b.dataset.settingsTab === id));
     _qa('[data-settings-panel]').forEach(p => { p.style.display = p.dataset.settingsPanel === id ? '' : 'none'; });
     try { root.localStorage.setItem(LS_TAB, id); } catch (e) {}
-    if (id === 'graphics') refresh();
+    if (id === 'graphics' || id === 'general') refresh();
   }
 
   function _wire() {
@@ -45,6 +46,8 @@
     if (clouds) clouds.addEventListener('change', () => { if (root.KWMap && root.KWMap.atmosphere) root.KWMap.atmosphere.setClouds(clouds.checked); });
     const night = _q('[data-daylight-setting]');
     if (night) night.addEventListener('change', () => { if (root.KWDaylight) root.KWDaylight.setSetting(night.value); });
+    const away = _q('[data-away-setting]');
+    if (away) away.addEventListener('change', () => { if (root.KWAwayReport) root.KWAwayReport.setEnabled(away.checked); });
     _qa('[data-atmo-setting]').forEach(input => input.addEventListener('change', () => {
       const A = root.SeasonAtmosphere;
       if (!A) return;
@@ -65,6 +68,8 @@
     if (clouds) { _show(clouds, !!(KW && KW.atmosphere)); if (KW && KW.atmosphere) clouds.checked = !!KW.atmosphere.clouds; }
     const night = _q('[data-daylight-setting]');
     if (night) { _show(night, !!root.KWDaylight); if (root.KWDaylight) night.value = root.KWDaylight.setting(); }
+    const away = _q('[data-away-setting]');
+    if (away) { _show(away, !!root.KWAwayReport); if (root.KWAwayReport) away.checked = root.KWAwayReport.enabled(); }
     const A = root.SeasonAtmosphere;
     _qa('[data-atmo-setting]').forEach(input => {
       _show(input, !!A);
@@ -76,7 +81,7 @@
   function onOpen() {
     let tab = 'audio';
     try { tab = root.localStorage.getItem(LS_TAB) || 'audio'; } catch (e) {}
-    switchTab(tab === 'graphics' ? 'graphics' : 'audio');
+    switchTab(tab === 'graphics' || tab === 'general' ? tab : 'audio');
     refresh();
   }
 

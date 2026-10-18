@@ -372,6 +372,9 @@ async function loadGame(force = false) {
       setLoadingProgress(100, 'Welcome back!');
       setTimeout(hideLoadingScreen, 400);
     }, 600);
+    // "Since you were gone…" splash + the last-seen heartbeat (js/away-report.js).
+    // After GET /settlement above, so the server's away ledger is up to date.
+    if (window.KWAwayReport) setTimeout(() => window.KWAwayReport.start(), 1200);
 
     _loadGameLock = false;
   } catch (err) {
