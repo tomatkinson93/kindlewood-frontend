@@ -183,7 +183,7 @@
     _panel = doc.createElement('div');
     _panel.id = 'hud-clock-panel';
     _panel.className = 'season-panel hc-panel';
-    _panel.innerHTML = '<div class="season-panel-inner" onclick="event.stopPropagation()"></div>';
+    _panel.innerHTML = '<div class="season-panel-inner kw-ornate-frame" onclick="event.stopPropagation()"></div>';
     _panel.addEventListener('click', close);
     doc.body.appendChild(_panel);
 

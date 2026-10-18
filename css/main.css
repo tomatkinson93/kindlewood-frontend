@@ -11164,13 +11164,16 @@ body.login-mode .hero-text-welcome {
 .cm-result-injury-icon { flex-shrink: 0; opacity: .85; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   SETTINGS POPOVER — music volume + future toggles
+   SETTINGS MODAL — Audio / Graphics tabs. Same look as the modern modals
+   (Active Quests): ink card in .kw-ornate-frame, Playfair title, Crimson gold
+   eyebrows, cream labels, muted italic hints, quiet gold close. Every row is
+   label (+ hint) left, control right; sliders sit under their label.
    ══════════════════════════════════════════════════════════════════════════ */
 .settings-backdrop {
   position: fixed;
   inset: 0;
   z-index: 9100;
-  background: rgba(6,4,2,.78);
+  background: rgba(6,4,2,.75);
   backdrop-filter: blur(4px);
   display: none;
   align-items: center;
@@ -11178,111 +11181,186 @@ body.login-mode .hero-text-welcome {
 }
 .settings-backdrop.visible { display: flex; }
 .settings-card {
-  background: rgba(16,11,6,.98);
-  border: 1px solid rgba(192,221,151,.18);
-  border-radius: 12px;
-  width: 380px;
+  background: rgba(29, 21, 13, .98);
+  width: 440px;
   max-width: 94vw;
-  box-shadow: 0 14px 50px rgba(0,0,0,.7);
+  max-height: 86vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 48px rgba(0,0,0,.7);
 }
 .settings-header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(192,221,151,.12);
+  padding: 6px 6px 12px;
+  margin: 0 6px;
+  border-bottom: 1px solid var(--kw-gold-dim, #6e5836);
 }
 .settings-title {
   flex: 1;
   font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  color: #f0e8c8;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--kw-cream, #efe4cd);
 }
 .settings-close {
   background: none;
-  border: 1px solid rgba(192,221,151,.18);
-  color: rgba(192,221,151,.55);
-  width: 26px;
-  height: 26px;
+  border: none;
   border-radius: 6px;
+  color: var(--kw-muted, #a8946f);
+  font-size: 18px;
+  padding: 2px 7px;
   cursor: pointer;
-  font-size: 13px;
+  transition: color .15s, background .15s;
 }
-.settings-close:hover { background: rgba(192,221,151,.08); color: rgba(192,221,151,.85); }
+.settings-close:hover { background: rgba(201,164,92,.12); color: var(--kw-gold, #e8c87a); }
 
-.settings-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-.settings-body[data-settings-panel="graphics"] { gap: 9px; }
 .settings-tabs {
   display: flex;
-  gap: 2px;
-  padding: 0 12px;
-  border-bottom: 1px solid rgba(192,221,151,.12);
+  gap: 4px;
+  margin: 0 6px;
+  border-bottom: 1px solid var(--kw-border, #3a2c1b);
 }
 .settings-tab {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  padding: 9px 12px 7px;
+  padding: 10px 12px 8px;
   font-family: 'Crimson Pro', serif;
-  font-size: 13px;
-  color: rgba(220,205,170,.6);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--kw-muted, #a8946f);
   cursor: pointer;
+  transition: color .15s, border-color .15s;
 }
-.settings-tab:hover { color: #f0e2bf; }
-.settings-tab.active { color: #e8c76a; border-bottom-color: #e8c76a; }
-.settings-row { display: flex; flex-direction: column; gap: 6px; }
-.settings-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .3px;
-  color: #f0e2bf;
+.settings-tab:hover { color: var(--kw-cream, #efe4cd); }
+.settings-tab.active { color: var(--kw-gold, #e8c87a); border-bottom-color: var(--kw-gold-deep, #c9a45c); }
+
+.settings-body { padding: 6px 12px 4px; display: flex; flex-direction: column; }
+.settings-eyebrow {
+  font-family: 'Crimson Pro', serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .2em;
+  color: var(--kw-gold-deep, #c9a45c);
+  padding: 12px 0 4px;
 }
-.settings-slider-row {
+.settings-row,
+.settings-line {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--kw-border, #3a2c1b);
+}
+.settings-row:last-child,
+.settings-line:last-child { border-bottom: none; }
+.settings-row { display: flex; flex-direction: column; gap: 7px; }
+.settings-row-top { display: flex; align-items: baseline; justify-content: space-between; }
+.settings-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
 }
+.settings-line-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.settings-label {
+  font-family: 'Crimson Pro', serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--kw-cream, #efe4cd);
+}
+.settings-hint {
+  font-family: 'Crimson Pro', serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--kw-muted, #a8946f);
+}
+.settings-slider-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--kw-gold, #e8c87a);
+}
+
+/* Slider */
 .settings-slider {
-  flex: 1;
+  width: 100%;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
   border-radius: 2px;
-  background: rgba(192,221,151,.18);
+  background: var(--kw-border, #3a2c1b);
   outline: none;
   cursor: pointer;
 }
 .settings-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: #e8c76a;
-  border: 1px solid rgba(60,40,20,.8);
+  background: var(--kw-gold-btn, #cda451);
+  border: 1px solid var(--kw-gold, #e8c87a);
   cursor: pointer;
 }
 .settings-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--kw-gold-btn, #cda451);
+  border: 1px solid var(--kw-gold, #e8c87a);
+  cursor: pointer;
+}
+.settings-slider:focus-visible { box-shadow: 0 0 0 2px rgba(201,164,92,.35); }
+
+/* Select */
+.settings-select {
+  flex-shrink: 0;
+  min-width: 118px;
+  background: var(--kw-wood-2, #2c2013);
+  color: var(--kw-cream, #efe4cd);
+  border: 1px solid var(--kw-gold-dim, #6e5836);
+  border-radius: 6px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 14px;
+  padding: 4px 8px;
+  cursor: pointer;
+  outline: none;
+}
+.settings-select:hover,
+.settings-select:focus { border-color: var(--kw-gold-deep, #c9a45c); }
+.settings-select option { background: #241a10; color: #efe4cd; }
+
+/* Toggle switch (a styled checkbox) */
+.settings-switch {
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--kw-wood-2, #2c2013);
+  border: 1px solid var(--kw-gold-dim, #6e5836);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.settings-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #e8c76a;
-  border: 1px solid rgba(60,40,20,.8);
-  cursor: pointer;
+  background: var(--kw-muted, #a8946f);
+  transition: transform .15s, background .15s;
 }
-.settings-slider-value {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: rgba(220,205,170,.85);
-  min-width: 36px;
-  text-align: right;
-}
-.settings-hint {
-  font-size: 10.5px;
-  color: rgba(192,221,151,.45);
-  font-style: italic;
-}
+.settings-switch:checked { background: rgba(205,164,81,.35); border-color: var(--kw-gold-deep, #c9a45c); }
+.settings-switch:checked::after { transform: translateX(16px); background: var(--kw-gold, #e8c87a); }
+.settings-switch:focus-visible { box-shadow: 0 0 0 2px rgba(201,164,92,.35); }
 
 /* ══════════════════════════════════════════════════════════════════════════
    QUEST CARD — paused-for-combat + view-battle button

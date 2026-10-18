@@ -28,13 +28,13 @@ function env7() { const e = makeEnv(); H.loadTree(e, P7_FILES); setUi(e, null, n
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'settings-panel.js'), 'utf8');
   const gfx = html.slice(html.indexOf('data-settings-panel="graphics"'), html.indexOf('data-settings-panel="graphics"') + 4000);
-  check('A. Graphics tab holds the "✦ Map & Atmosphere" block', /Map\s*&amp;\s*Atmosphere/.test(gfx));
+  check('A. Graphics tab holds the Map and Atmosphere sections', /settings-eyebrow">Map</.test(gfx) && /settings-eyebrow">Atmosphere</.test(gfx));
   check('A. Map View <select> with topdown + iso options', /data-kwmap-view/.test(gfx) && /value="topdown"/.test(gfx) && /value="iso"/.test(gfx));
   check('A. "Reduce map detail" checkbox present', /data-kwmap-setting="lowdetail"/.test(gfx) && /Reduce map detail/.test(gfx));
   check('A. select wired to controller.setRenderer', /KWMap\.controller\.setRenderer\(sel\.value\)/.test(src));
   check('A. low-detail wired to perf.setLowDetail', /KWMap\.perf\.setLowDetail\(low\.checked\)/.test(src));
-  const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'hud-storybook.css'), 'utf8');
-  check('A. hud-storybook.css styles the .sp-select', /\.sp-select\b/.test(css));
+  const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'main.css'), 'utf8');
+  check('A. main.css styles the settings select + switch', /\.settings-select\b/.test(css) && /\.settings-switch\b/.test(css));
 }
 
 // ── B. setRenderer switch + persistence + restore ──────────────────────────
