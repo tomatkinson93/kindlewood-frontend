@@ -9687,6 +9687,26 @@ body.login-mode .hero-text-welcome {
   font-weight: 400;
   text-align: left;
 }
+/* js/kw-tooltip.js draws the tooltip on <body> instead (never clipped by the
+   card's overflow); the ::after above stays only as a no-JS fallback. */
+.kw-tip-js .qa-tip:hover::after { content: none; display: none; }
+.kw-float-tip {
+  display: none;
+  position: fixed;
+  z-index: 100000;
+  max-width: 240px;
+  background: rgba(12,8,4,.97);
+  border: 1px solid rgba(192,221,151,.2);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(220,205,170,.9);
+  box-shadow: 0 4px 20px rgba(0,0,0,.6);
+  pointer-events: none;
+  text-align: left;
+  white-space: normal;
+}
 .qa-section-label {
   font-size: 9px;
   text-transform: uppercase;
