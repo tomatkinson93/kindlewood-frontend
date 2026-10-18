@@ -246,6 +246,29 @@
     ctx.drawImage(spr, x - rad, y - rad * ys, rad * 2, rad * 2 * ys);
   }
 
+  // Lantern points: LANTERNS_PER settlement (not hostile / outposts), placed
+  // deterministically from hash32(q, r, k) on a ring 0.55–1.0 hexW out,
+  // each a small warm halo with its own flicker. Additive.
+  const LANTERNS_PER = 5;
+  function drawLanterns(ctx, src, tSec, reduced, level) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const s of src) {
+      if (!s.light.settlement || s.light.id === 'hostile') continue;
+      for (let k = 0; k < LANTERNS_PER; k++) {
+        const h = hash32(s.q, s.r, 101 + k);
+        const ang = (h & 0xffff) / 65536 * TAU;
+        const dist = s.hexW * (0.55 + ((h >>> 16) & 0xff) / 255 * 0.45);
+        const x = s.x + Math.cos(ang) * dist, y = s.y + Math.sin(ang) * dist * s.ys + s.hexW * 0.12;
+        const f = flicker(tSec, s.q * 7 + k, s.r * 13 + k, 'fire', reduced);
+        const rad = s.hexW * 0.16 * f.radius;
+        ctx.globalAlpha = Math.min(1, 0.85 * level * f.alpha);
+        blitSprite(ctx, glowSprite('lantern', bucket(rad), 4, '#ffb347'), x, y, rad, 1);
+      }
+    }
+    ctx.restore();
+  }
+
   // ── the pass ─────────────────────────────────────────────────────────────
   // Returns false on the day no-op (no canvas touched), true otherwise.
   // opts.lighting / opts.mode / opts.reduced override for tests.
@@ -296,6 +319,13 @@
         }
         ctx.restore();
       }
+    }
+
+    // 5b. Happening flourish: lanterns (spec 021 §6.3) — extra warm points
+    //     around each lit settlement while a 'lanterns' Happening runs.
+    const Hap = root.KWHappenings;
+    if (lvl > 0 && src.length && Hap && Hap.flourishActive && Hap.flourishActive('lanterns')) {
+      drawLanterns(ctx, src, tSec, reduced, mode === 'off' ? lvl * 0.5 : lvl);
     }
 
     // 6. lit windows — emissive, on top of the shade

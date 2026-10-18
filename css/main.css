@@ -9687,6 +9687,44 @@ body.login-mode .hero-text-welcome {
   font-weight: 400;
   text-align: left;
 }
+/* js/kw-tooltip.js draws the tooltip on <body> instead (never clipped by the
+   card's overflow); the ::after above stays only as a no-JS fallback. */
+.kw-tip-js .qa-tip:hover::after { content: none; display: none; }
+.kw-float-tip {
+  display: none;
+  position: fixed;
+  z-index: 100000;
+  max-width: 240px;
+  background: rgba(12,8,4,.97);
+  border: 1px solid rgba(192,221,151,.2);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(220,205,170,.9);
+  box-shadow: 0 4px 20px rgba(0,0,0,.6);
+  pointer-events: none;
+  text-align: left;
+  white-space: normal;
+}
+/* ── Dev Tools → 🏮 Happenings (js/happenings-admin.js) ── */
+.ha-empty { color: rgba(192,221,151,.35); font-size: 11px; padding: 8px; }
+.ha-rule { display: block; font-size: 10px; color: rgba(192,221,151,.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ha-badge { font-size: 9px; padding: 1px 6px; margin-left: 4px; border-radius: 999px; border: 1px solid rgba(192,221,151,.2); color: rgba(192,221,151,.6); white-space: nowrap; }
+.ha-badge-on { border-color: rgba(232,200,122,.6); color: #e8c87a; }
+.ha-badge-warn { border-color: rgba(232,160,106,.6); color: #e8a06a; }
+.ha-check { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--leaf); cursor: pointer; }
+.ha-check input { accent-color: #d4af50; }
+.ha-hint { font-size: 10px; color: rgba(192,221,151,.4); margin-top: 3px; font-family: monospace; }
+.ha-msg { font-size: 11px; color: rgba(192,221,151,.6); margin-top: 6px; line-height: 1.5; }
+.ha-msg-ok { color: #9fc97a; }
+.ha-msg-warn { color: #e8a06a; }
+.ha-next { font-size: 12px; color: rgba(220,205,170,.85); padding: 2px 0; }
+.ha-heat { display: grid; grid-template-columns: 30px repeat(24, 1fr); gap: 2px; margin-top: 4px; }
+.ha-heat-h { font-size: 8px; color: rgba(192,221,151,.4); text-align: center; }
+.ha-heat-d { font-size: 9px; color: rgba(192,221,151,.5); line-height: 12px; }
+.ha-heat-c { height: 12px; border-radius: 2px; background: rgba(255,255,255,.05); }
+.ha-heat-c.on { background: rgba(232,190,100,.75); }
 .qa-section-label {
   font-size: 9px;
   text-transform: uppercase;

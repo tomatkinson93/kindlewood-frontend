@@ -171,6 +171,25 @@
 .hc-moon-name { margin-top: 8px; font-family: 'Crimson Pro', serif; font-size: 13px; color: var(--kw-cream); text-align: center; }
 .hc-empty { font-family: 'Crimson Pro', serif; font-size: 13px; font-style: italic; color: var(--kw-muted); }
 
+/* Upcoming Happenings (js/happenings.js) */
+.hc-hap {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 6px;
+  margin: 0 -6px;
+  border-radius: 6px;
+  font-family: 'Crimson Pro', serif;
+}
+.hc-hap-active { background: rgba(201, 164, 92, .12); border: 1px solid var(--kw-gold-dim); }
+.hc-hap-icon { font-size: 16px; text-align: center; }
+.hc-hap-main { display: flex; flex-direction: column; min-width: 0; }
+.hc-hap-title { font-size: 14px; font-weight: 500; color: var(--kw-cream); }
+.hc-hap-when { font-size: 12px; color: var(--kw-muted); }
+.hc-hap-active .hc-hap-when { color: var(--kw-gold); }
+.hc-hap-in { font-size: 12px; font-style: italic; color: var(--kw-muted); white-space: nowrap; }
+
 @media (max-width: 700px) {
   .hc-label { display: none; }
   .hud-clock { padding: 1px 6px; }

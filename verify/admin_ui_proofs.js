@@ -19,6 +19,23 @@ check('2. openCheatMenu returns early for non-admins', /function openCheatMenu\(
 check('3. loadGame re-syncs KWClock after login', /showScreen\('game'\);\s*renderTopbar\(\);\s*if \(window\.KWClock\) KWClock\.sync\(\);/.test(main));
 check('4. Dev Tools item adds use /api/inventory/cheat/add', (b.match(/\/api\/inventory\/cheat\/add/g) || []).length === 2 && !/'\/api\/inventory\/add'/.test(b));
 
+// 5. Admin "?" tooltips float on <body> (never clipped by the card), clamped to the viewport.
+{
+  const css = read('css/main.css');
+  check('5. CSS ::after fallback is switched off once js/kw-tooltip.js runs; the floating tip is position:fixed',
+        /\.kw-tip-js \.qa-tip:hover::after \{ content: none; display: none; \}/.test(css) && /\.kw-float-tip \{[^}]*position: fixed;[^}]*z-index: 100000;/.test(css) &&
+        /\/js\/kw-tooltip\.js\?v=/.test(html));
+  const box = { document: { readyState: 'loading', addEventListener() {} }, innerWidth: 900, innerHeight: 700 };
+  box.window = box;
+  vm.runInContext(read('js/kw-tooltip.js'), vm.createContext(box), { filename: 'kw-tooltip.js' });
+  const P = box.KWTooltip.place;
+  const r = (l, t) => ({ left: l, top: t, right: l + 14, bottom: t + 14, width: 14, height: 14 });
+  const leftEdge = P(r(2, 100), 240, 60, 900, 700), rightEdge = P(r(890, 100), 240, 60, 900, 700), bottom = P(r(400, 680), 240, 60, 900, 700);
+  check('5b. placement stays inside the viewport at the left / right edges and flips above near the bottom',
+        leftEdge.left === 8 && rightEdge.left === 900 - 240 - 8 && bottom.above && bottom.top + 60 <= 680,
+        JSON.stringify({ l: leftEdge.left, r: rightEdge.left, b: bottom.top }));
+}
+
 // 3b. behaviour: an admin /time/me is adopted, then dropped once signed out.
 (async () => {
   const store = { kw_token: 'tok' };
