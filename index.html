@@ -31,7 +31,7 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=tierfix1">
+  <link rel="stylesheet" href="/css/main.css?v=021set">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
@@ -792,7 +792,7 @@
   <script defer src="/js/citizens.js?v=1776929386"></script>
   <script defer src="/js/buildings.js?v=cq3"></script>
   <script defer src="/js/expeditions.js"></script>
-  <script defer src="/js/seasons.js?v=021p3"></script>
+  <script defer src="/js/seasons.js?v=021set"></script>
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=tierfix1"></script>
@@ -811,7 +811,8 @@
   <script defer src="/js/kwmap-iso.js?v=021p3"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
-  <script defer src="/js/audio.js?v=spec20b"></script>
+  <script defer src="/js/audio.js?v=021set"></script>
+  <script defer src="/js/settings-panel.js?v=021set"></script>
   <script defer src="/js/main.js?v=chat1"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
@@ -1561,14 +1562,18 @@
     </div>
   </div>
 
-  <!-- Settings popover (audio volume etc.) -->
+  <!-- Settings modal — Audio / Graphics tabs (js/audio.js + js/settings-panel.js) -->
   <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettingsPopover(event)">
     <div class="settings-card" onclick="event.stopPropagation()">
       <div class="settings-header">
         <div class="settings-title">⚙️ Settings</div>
         <button class="settings-close" onclick="closeSettingsPopover()">✕</button>
       </div>
-      <div class="settings-body">
+      <div class="settings-tabs" role="tablist">
+        <button class="settings-tab active" role="tab" data-settings-tab="audio" onclick="settingsSwitchTab('audio')">🔊 Audio</button>
+        <button class="settings-tab" role="tab" data-settings-tab="graphics" onclick="settingsSwitchTab('graphics')">🖼 Graphics</button>
+      </div>
+      <div class="settings-body" data-settings-panel="audio">
         <div class="settings-row">
           <label class="settings-label" for="settings-music-volume">🎵 Music Volume</label>
           <div class="settings-slider-row">
@@ -1589,6 +1594,41 @@
           </div>
           <div class="settings-hint">Card flips, coins, and other one-shot sounds.</div>
         </div>
+      </div>
+      <div class="settings-body" data-settings-panel="graphics" style="display:none">
+        <div class="settings-label">✦ Map &amp; Atmosphere</div>
+        <label class="sp-toggle sp-select-row" data-kwmap-row>
+          <span>Map view</span>
+          <select class="sp-select" data-kwmap-view>
+            <option value="topdown">Top-Down</option>
+            <option value="iso">Isometric</option>
+          </select>
+        </label>
+        <label class="sp-toggle sp-select-row" data-daylight-row>
+          <span>Night lighting</span>
+          <select class="sp-select" data-daylight-setting>
+            <option value="on">On</option>
+            <option value="soft">Soft</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+        <label class="sp-toggle" data-kwmap-row>
+          <input type="checkbox" data-kwmap-setting="lowdetail">
+          <span>Reduce map detail</span>
+        </label>
+        <label class="sp-toggle" data-kwmap-row>
+          <input type="checkbox" data-kwmap-setting="clouds">
+          <span>Drifting clouds</span>
+        </label>
+        <label class="sp-toggle" data-atmo-row>
+          <input type="checkbox" data-atmo-setting="atmosphere">
+          <span>Seasonal colour grading</span>
+        </label>
+        <label class="sp-toggle" data-atmo-row>
+          <input type="checkbox" data-atmo-setting="particles">
+          <span>Seasonal particles</span>
+        </label>
+        <div class="settings-hint">Saved in this browser. Night lighting Soft halves the darkness; Off keeps only lit windows.</div>
       </div>
     </div>
   </div>

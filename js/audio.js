@@ -151,6 +151,7 @@
     const sp = document.getElementById('settings-sfx-volume-pct');
     if (ss) ss.value = Math.round(_sfxVolume * 100);
     if (sp) sp.textContent = Math.round(_sfxVolume * 100) + '%';
+    if (global.KWSettingsPanel) global.KWSettingsPanel.onOpen();   // tabs + Graphics tab
   }
   function closeSettingsPopover() {
     const back = document.getElementById('settings-backdrop');
