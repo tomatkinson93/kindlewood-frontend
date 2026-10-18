@@ -106,14 +106,20 @@
       moon.glyph + ' ' + moon.name + ' · ' + PHASE_NAMES[ph.phase] + ' ends in ' + dur(ph.msToNext);
   }
 
-  // The next n phase changes after ms: [{ phase, at }].
+  // The next n phase changes after ms: [{ phase, at }]. Each boundary is an
+  // exact UTC hour from the phase table (phaseStartBefore), and phases are
+  // walked in table order, so float error can't repeat a phase or land a
+  // boundary a millisecond early.
   function upcoming(ms, n) {
     const out = [];
-    let t = ms;
+    let t = Math.floor(ms);
+    let cur = D.phaseAt(t).phase;
     for (let i = 0; i < n; i++) {
-      const ph = D.phaseAt(t);
-      t += ph.msToNext;
-      out.push({ phase: ph.nextPhase, at: t });
+      const next = D.PHASE_IDS[(D.PHASE_IDS.indexOf(cur) + 1) % D.PHASE_IDS.length];
+      let at = D.phaseStartBefore(next, t);
+      if (at <= t) at += 24 * 3600000;
+      out.push({ phase: next, at });
+      t = at; cur = next;
     }
     return out;
   }
@@ -137,9 +143,12 @@
   function renderPanel() {
     const ms = _now();
     const ph = D.phaseAt(ms), moon = D.moonAt(ms);
-    const rows = upcoming(ms, 6).map(u =>
-      '<div class="hc-row"><span>' + esc(PHASE_NAMES[u.phase]) + '</span><span>' + esc(localHM(u.at)) +
-      '</span><span class="hc-in">in ' + dur(u.at - ms) + '</span></div>').join('');
+    // Hearth (UTC) time first — it's the same for everyone; the player's own
+    // clock alongside.
+    const rows = '<div class="hc-row hc-row-head"><span></span><span>Hearth</span><span>Your time</span><span></span></div>' +
+      upcoming(ms, 6).map(u =>
+        '<div class="hc-row"><span>' + esc(PHASE_NAMES[u.phase]) + '</span><span class="hc-utc">' + utcHM(u.at) +
+        '</span><span class="hc-local">' + esc(localHM(u.at)) + '</span><span class="hc-in">in ' + dur(u.at - ms) + '</span></div>').join('');
     const moons = D.MOON_GLYPHS.map((g, i) =>
       '<span class="hc-moon-cell' + (i === moon.index ? ' hc-today' : '') + '" title="' + esc(D.MOON_NAMES[i]) + '">' + g + '</span>').join('');
     let hap = '';

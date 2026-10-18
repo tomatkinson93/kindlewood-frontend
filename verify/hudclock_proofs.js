@@ -102,6 +102,21 @@ function makeEnv(opts) {
   const want = [['dawn', '09:00'], ['day', '11:00'], ['dusk', '23:00'], ['night', '01:00'], ['dawn', '09:00'], ['day', '11:00']];
   check('3c. next 6 phase changes', up.length === 6 && up.every((u, i) => u.phase === want[i][0] && new Date(u.at).toISOString().slice(11, 16) === want[i][1]),
         up.map(u => u.phase + '@' + new Date(u.at).toISOString().slice(11, 16)).join(' '));
+  // Fractional / random start times (KWClock.now() used to carry a fractional
+  // sync offset): never a repeated phase, always the table order, every
+  // boundary on an exact hour, the first one in the future.
+  let stable = true, bad = '';
+  for (let k = 0; k < 3000; k++) {
+    const ms = Date.parse('2026-11-01T00:00:00Z') + k * 7919.37 * 61 + (k % 7) * 0.4999;
+    const u6 = K.upcoming(ms, 6);
+    const p0 = D.phaseAt(Math.floor(ms)).phase;
+    for (let i = 0; i < 6; i++) {
+      const prev = i ? u6[i - 1].phase : p0;
+      const want = D.PHASE_IDS[(D.PHASE_IDS.indexOf(prev) + 1) % 4];
+      if (u6[i].phase !== want || u6[i].at % H !== 0 || u6[i].at <= (i ? u6[i - 1].at : ms)) { stable = false; bad = new Date(ms).toISOString(); }
+    }
+  }
+  check('3d. upcoming(): 3000 fractional start times → no repeats, table order, exact-hour boundaries', stable, bad);
 }
 
 // ── 4–6. Ambient ───────────────────────────────────────────────────────────

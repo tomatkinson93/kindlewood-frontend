@@ -309,7 +309,25 @@ async function cheatHealAllInjuries() {
   }
 }
 
+// Dev Tools are admin-only. The ⚗ button stays hidden until /api/game/time/me
+// (KWClock.me()) says this user is an admin; every Dev Tools route also checks
+// requireAdmin on the server, so bypassing the UI gets a 403.
+function _kwIsAdmin() {
+  const me = window.KWClock && window.KWClock.me && window.KWClock.me();
+  return !!(me && me.isAdmin);
+}
+function _syncCheatButton() {
+  const admin = _kwIsAdmin();
+  document.querySelectorAll('.btn-cheat').forEach(b => { b.style.display = admin ? '' : 'none'; });
+  if (!admin) document.getElementById('cheat-modal')?.classList.remove('open');
+}
+document.addEventListener('DOMContentLoaded', () => {
+  _syncCheatButton();
+  if (window.KWClock) window.KWClock.onChange(e => { if (e && e.reason === 'sync') _syncCheatButton(); });
+});
+
 function openCheatMenu() {
+  if (!_kwIsAdmin()) return;
   document.getElementById('cheat-modal').classList.add('open');
   _populateCheatCitizenDropdowns();
 }
@@ -1006,7 +1024,7 @@ async function debugAddInventoryItem() {
 
   const def = DEBUG_ALL_ITEMS.find(i => i.item_key === item_key) || {};
 
-  await apiFetch('/api/inventory/add', {
+  await apiFetch('/api/inventory/cheat/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1030,7 +1048,7 @@ async function debugAddAllItems() {
   const fb = document.getElementById('debug-inv-feedback');
   if (fb) { fb.textContent = 'Adding all items…'; fb.style.color = '#e8c76a'; }
   for (const item of DEBUG_ALL_ITEMS) {
-    await apiFetch('/api/inventory/add', {
+    await apiFetch('/api/inventory/cheat/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

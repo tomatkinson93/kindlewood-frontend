@@ -56,6 +56,7 @@ function _eaRenderList() {
       +   stat('CMB', enemy.combat_skill)
       +   stat('🪙w', enemy.reward_weight)
       + '</span>'
+      + _eaGateBadge(enemy)
       + '<div class="qa-row-btns">'
       +   '<button class="qa-btn" data-key="' + enemy.id + '" onclick="ea_showForm(this.dataset.key)" title="Edit">✏</button>'
       +   '<button class="qa-btn qa-btn-archive" data-key="' + enemy.id + '" onclick="ea_delete(this.dataset.key)" title="' + (enemy.archived ? 'Hard delete' : 'Archive') + '">🗑</button>'
@@ -69,6 +70,51 @@ function _eaRenderList() {
       + archived.map(renderRow).join('');
   }
   el.innerHTML = html;
+}
+
+// ── Time gates (spec 021 Phase 5) ───────────────────────────────────────────
+// active_phases / moon_phases: ids from KWDayCycle; none ticked = any time /
+// any moon (stored as NULL). Gates apply to RANDOM picks only — an enemy named
+// in a quest's encounter list appears whatever the hour.
+const EA_PHASES = [['dawn', 'Dawn'], ['day', 'Day'], ['dusk', 'Dusk'], ['night', 'Night']];
+function _eaMoonIds() { return (window.KWDayCycle && KWDayCycle.MOON_IDS) || ['new', 'waxing_crescent', 'first_quarter', 'waxing_gibbous', 'full', 'waning_gibbous', 'last_quarter', 'waning_crescent']; }
+function _eaMoonGlyph(i) { return (window.KWDayCycle && KWDayCycle.MOON_GLYPHS[i]) || '●'; }
+function _eaMoonName(i) { return (window.KWDayCycle && KWDayCycle.MOON_NAMES[i]) || _eaMoonIds()[i]; }
+
+function _eaGateBadge(enemy) {
+  const ph = Array.isArray(enemy.active_phases) ? enemy.active_phases : null;
+  const mo = Array.isArray(enemy.moon_phases) ? enemy.moon_phases : null;
+  if (!ph && !mo) return '';
+  const ids = _eaMoonIds();
+  const label = [
+    ph ? ph.map(p => (EA_PHASES.find(x => x[0] === p) || [p, p])[1]).join('/') : '',
+    mo ? mo.map(m => _eaMoonGlyph(ids.indexOf(m))).join('') : '',
+  ].filter(Boolean).join(' · ');
+  return '<span class="ea-stat" title="Only picked at random during these times" style="font-size:11px;white-space:nowrap;margin-left:6px;color:rgba(232,200,122,.85)">🕯 ' + _eaEsc(label) + '</span>';
+}
+
+function _eaGateFields(cur) {
+  const ph = Array.isArray(cur.active_phases) ? cur.active_phases : [];
+  const mo = Array.isArray(cur.moon_phases) ? cur.moon_phases : [];
+  const ids = _eaMoonIds();
+  return '<div class="qa-section-label" style="margin-top:14px">Time of Day '
+    +   '<span class="qa-tip" title="Random encounters only pick this creature during the ticked phases. None ticked = any time. Enemies named in a quest\'s encounter list ignore this.">?</span></div>'
+    + '<div style="display:flex;gap:12px;flex-wrap:wrap">'
+    +   EA_PHASES.map(([id, name]) =>
+          '<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--leaf);cursor:pointer">'
+          + '<input type="checkbox" class="ea-phase" style="accent-color:#d4af50" value="' + id + '"' + (ph.indexOf(id) >= 0 ? ' checked' : '') + '> ' + name + '</label>').join('')
+    + '</div>'
+    + '<div class="qa-section-label" style="margin-top:10px">Moon '
+    +   '<span class="qa-tip" title="Only picked at random on these moon days (a moon day runs 11:00→11:00 UTC). None ticked = any moon.">?</span></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px">'
+    +   ids.map((id, i) =>
+          '<label title="' + _eaEsc(_eaMoonName(i)) + '" style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:16px;cursor:pointer">'
+          + _eaMoonGlyph(i) + '<input type="checkbox" class="ea-moon" style="accent-color:#d4af50" value="' + id + '"' + (mo.indexOf(id) >= 0 ? ' checked' : '') + '></label>').join('')
+    + '</div>';
+}
+
+function _eaCheckedValues(cls) {
+  return Array.prototype.map.call(document.querySelectorAll('#ea-form-wrap .' + cls + ':checked'), el => el.value);
 }
 
 function ea_showForm(key) {
@@ -114,6 +160,8 @@ function ea_showForm(key) {
     +   numField('Combat Skill', 'ea-cmb', cur.combat_skill, 0, 20)
     +   numField('Reward Weight', 'ea-rw', cur.reward_weight, 0, 10)
     + '</div>'
+
+    + _eaGateFields(cur)
 
     + '<div class="qa-section-label" style="margin-top:14px">Display</div>'
     + '<div class="ce-grid" style="grid-template-columns:1fr">'
@@ -273,6 +321,8 @@ async function ea_save(existingId) {
       sfx: (m.sfx || '').trim(),
     })),
     drops:         (_eaDrops || []).filter(d => d.item),
+    active_phases: _eaCheckedValues('ea-phase'),   // [] → stored as NULL (any time)
+    moon_phases:   _eaCheckedValues('ea-moon'),    // [] → stored as NULL (any moon)
   };
   if (!body.name) { _eaFormFeedback('Name is required.', false); return; }
   if (isNew && !body.id) { _eaFormFeedback('Id is required.', false); return; }

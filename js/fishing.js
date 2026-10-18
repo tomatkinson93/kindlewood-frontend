@@ -1,16 +1,4 @@
 
-// ── Fish inventory values ─────────────────────
-const FISH_FOOD_VALUE = {
-  common: 3, uncommon: 8, rare: 18, legendary: 40, junk: 0
-};
-const FISH_SELL_VALUE = {
-  common: 2, uncommon: 8, rare: 22, legendary: 55, junk: 1
-};
-const FISH_SIZE_LABEL = {
-  common: 'Small', uncommon: 'Medium', rare: 'Large', legendary: 'Trophy', junk: 'Junk'
-};
-
-
 function toggleCatchInventory() {
   const modal = document.getElementById('fp-inventory-modal');
   if (!modal) return;
@@ -22,41 +10,34 @@ function toggleCatchInventory() {
 // ══════════════════════════════════════════════
 
 // ── Fish data ────────────────────────────────
+// Server-authoritative (spec: fishing server-auth). The server holds the fish
+// table, rolls every catch on POST /api/fishing/cast and grants the item on
+// POST /api/fishing/land after checking the timing. This file only runs the
+// cast UI and the reeling minigame; it never chooses a fish or builds an item.
+// _fishPool comes from GET /api/fishing/pool: { season, fish, catalogue }.
+let _fishPool = { season: null, fish: [], catalogue: [] };
+let _pendingCatch = null;   // { catchId, catch } from /cast
 
-const FISH_TABLE = [
-  { id:'minnow',     name:'Minnow',      icon:'🐟', rarity:'common',    difficulty:1,  seasons:['spring','summer','autumn','winter'], river_only:true, value:2,   weight:60, flavour:'A small, darting thing. Common but plentiful.' },
-  { id:'gudgeon',    name:'Gudgeon',     icon:'🐟', rarity:'common',    difficulty:1,  seasons:['spring','summer','autumn'],          river_only:true, value:2,   weight:55, flavour:'Barely worth the trouble, but the river is full of them.' },
-  { id:'dace',       name:'Dace',        icon:'🐠', rarity:'common',    difficulty:2,  seasons:['spring','summer','winter'],          river_only:true, value:4,   weight:45, flavour:'Quick and silver-sided. Slips the hook easily.' },
-  { id:'perch',      name:'Perch',       icon:'🐠', rarity:'common',    difficulty:2,  seasons:['spring','summer','autumn'],          river_only:true, value:5,   weight:40, flavour:'Spiny and stubborn. Puts up a decent fight.' },
-  { id:'roach',      name:'Roach',       icon:'🐟', rarity:'common',    difficulty:2,  seasons:['spring','autumn','winter'],          river_only:true, value:4,   weight:42, flavour:'Red-finned and restless. A staple of the river.' },
-  { id:'trout',      name:'Trout',       icon:'🐡', rarity:'uncommon',  difficulty:4,  seasons:['spring','autumn','winter'],          river_only:true, value:10,  weight:22, flavour:'A strong swimmer. Worth the effort.' },
-  { id:'chub',       name:'Chub',        icon:'🐡', rarity:'uncommon',  difficulty:3,  seasons:['summer','autumn'],                   river_only:true, value:8,   weight:28, flavour:'Thick-bodied and suspicious. Pulls hard when hooked.' },
-  { id:'catfish',    name:'Catfish',     icon:'🐊', rarity:'uncommon',  difficulty:5,  seasons:['summer','autumn'],                   river_only:true, value:14,  weight:18, flavour:'Bottom-dwelling and fierce. Hunts at dusk.' },
-  { id:'bream',      name:'Bream',       icon:'🐡', rarity:'uncommon',  difficulty:4,  seasons:['spring','summer'],                   river_only:true, value:11,  weight:20, flavour:'Deep-bodied and slow to start, then suddenly wild.' },
-  { id:'pike',       name:'Pike',        icon:'🦷', rarity:'uncommon',  difficulty:6,  seasons:['autumn','winter'],                   river_only:true, value:18,  weight:14, flavour:'Teeth like needles and a temper to match.' },
-  { id:'salmon',     name:'Salmon',      icon:'🍣', rarity:'rare',      difficulty:7,  seasons:['autumn'],                            river_only:true, value:28,  weight:8,  flavour:'Runs against the current with furious strength.' },
-  { id:'eel',        name:'River Eel',   icon:'〰️', rarity:'rare',     difficulty:7,  seasons:['summer','autumn'],                   river_only:true, value:25,  weight:9,  flavour:'Writhes and twists. Keeping it on the line takes nerve.' },
-  { id:'golden_carp',name:'Golden Carp', icon:'✨', rarity:'rare',      difficulty:8,  seasons:['winter'],                            river_only:true, value:35,  weight:5,  flavour:'Gleams beneath the ice. Legends say it brings fortune.' },
-  { id:'shadowfin',  name:'Shadowfin',   icon:'🌑', rarity:'legendary', difficulty:9,  seasons:['autumn','winter'],                   river_only:true, value:60,  weight:2,  flavour:'Dark as river-bottom mud. Few have seen one. Fewer have caught one.' },
-  { id:'moontrout',  name:'Moontrout',   icon:'🌕', rarity:'legendary', difficulty:10, seasons:['winter'],                            river_only:true, value:100, weight:1,  flavour:'Said to swim only on clear winter nights. Landing one is the stuff of legend.' },
-];
+async function _loadFishPool() {
+  try {
+    const r = await apiFetch('/api/fishing/pool');
+    if (r.ok) { const d = await r.json(); if (d && d.ok) _fishPool = d; }
+  } catch (e) {}
+}
 
-const JUNK_TABLE = [
-  { id:'old_boot',    name:'Old Boot',     icon:'👢', flavour:'Waterlogged and falling apart. Not yours, hopefully.' },
-  { id:'tin_can',     name:'Tin Can',      icon:'🥫', flavour:'Rusted through. Something once lived inside it.' },
-  { id:'soggy_hat',   name:'Soggy Hat',    icon:'🎩', flavour:'A fine hat, once. The river has had its way with it.' },
-  { id:'tangled_net', name:'Tangled Net',  icon:'🕸',  flavour:'Someone lost this long ago. Easy to see why.' },
-  { id:'river_stone', name:'Smooth Stone', icon:'🪨', flavour:'Perfectly round. The river shaped it over centuries.' },
-  { id:'broken_rod',  name:'Broken Rod',   icon:'🎣', flavour:"Another fisher's misfortune. Maybe it snapped on a big one." },
-  { id:'old_coin',    name:'Old Coin',     icon:'🪙', flavour:'Worn smooth. The face on it is unrecognisable.' },
-];
+async function _fishingPost(path, body) {
+  try {
+    const r = await apiFetch('/api/fishing/' + path, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+    });
+    const d = await r.json().catch(() => ({}));
+    return r.ok ? d : { ok: false, error: d.error || 'The river is quiet (server error).', status: r.status };
+  } catch (e) { return { ok: false, error: 'Could not reach the river (offline?).' }; }
+}
 
 const RARITY_COLORS = {
   common:'#a0c880', uncommon:'#70b8e0', rare:'#e8a020', legendary:'#e060f0', junk:'#807060',
 };
-
-const JUNK_CHANCE_NORMAL = 0.07;
-const JUNK_CHANCE_RIPPLE = 0.03;
 
 // ── Session catch log ─────────────────────────
 
@@ -74,27 +55,9 @@ function _getCatchCounts() {
   return _loadCatchLog().reduce((acc, e) => { acc[e.fishId] = (acc[e.fishId] || 0) + 1; return acc; }, {});
 }
 
-// ── Season pool ───────────────────────────────
+// ── Season pool (from the server) ─────────────
 
-function _getSeasonalPool() {
-  const season = (typeof calcCurrentSeason === 'function') ? calcCurrentSeason().id
-               : (typeof currentSeason !== 'undefined' && currentSeason?.id) || 'spring';
-  return FISH_TABLE.filter(f => f.seasons.includes(season));
-}
-
-function _rollFish(inRippleZone) {
-  const junkChance = inRippleZone ? JUNK_CHANCE_RIPPLE : JUNK_CHANCE_NORMAL;
-  if (Math.random() < junkChance) {
-    const junk = JUNK_TABLE[Math.floor(Math.random() * JUNK_TABLE.length)];
-    return { ...junk, rarity:'junk', difficulty:1, value:0, weight:0, seasons:[] };
-  }
-  const pool = _getSeasonalPool();
-  if (!pool.length) return FISH_TABLE[0];
-  const totalWeight = pool.reduce((s, f) => s + f.weight, 0);
-  let roll = Math.random() * totalWeight;
-  for (const fish of pool) { roll -= fish.weight; if (roll <= 0) return fish; }
-  return pool[pool.length - 1];
-}
+function _getSeasonalPool() { return _fishPool.fish || []; }
 
 // ── Open / Close ──────────────────────────────
 
@@ -104,6 +67,7 @@ async function visitFishingPost() {
   overlay.style.display = 'flex';
   _resetFishingState();
   if (typeof loadCitizens === 'function') await loadCitizens();
+  await _loadFishPool();
   _renderFishingHome();
   _updateCatchDisplay();
 }
@@ -120,7 +84,7 @@ function leaveFishingPost() {
 function _renderFishingHome() {
   const area = document.getElementById('fishing-main-area');
   if (!area) return;
-  const season = (typeof calcCurrentSeason === 'function') ? calcCurrentSeason() : { name:'Spring', emoji:'🌸' };
+  const season = _fishPool.season || ((typeof calcCurrentSeason === 'function') ? calcCurrentSeason() : { name:'Spring', emoji:'🌸' });
   const pool = _getSeasonalPool();
 
   const fishers = (typeof citizensData !== 'undefined' ? citizensData : [])
@@ -272,8 +236,32 @@ function _startWaiting() {
       '<div class="fp-waiting-dots"><span></span><span></span><span></span></div>' +
       '</div>';
   }
-  const biteDelay = 2000 + Math.random() * 3000;
-  _biteTimeout = setTimeout(function() { _fishBite(); }, biteDelay);
+  _pendingCatch = null;
+  _fishingPost('cast', { ripple: _castInRippleZone }).then(function (d) {
+    if (_fishState !== 'waiting') return;           // left / recast meanwhile
+    if (!d.ok) { _showFishingError(d.error); return; }
+    _pendingCatch = { catchId: d.catchId, catch: d.catch };
+    _biteTimeout = setTimeout(function() { _fishBite(); }, d.biteDelayMs);
+  });
+}
+
+// Tell the server the catch is gone (fire-and-forget; it expires anyway).
+function _reportLost() {
+  if (_pendingCatch) _fishingPost('land', { catchId: _pendingCatch.catchId, outcome: 'lost' });
+  _pendingCatch = null;
+}
+
+function _showFishingError(msg) {
+  _fishState = 'fail';
+  var area = document.getElementById('fishing-main-area');
+  if (!area) return;
+  area.innerHTML =
+    '<div class="fp-result fp-result-fail">' +
+    '<div class="fp-result-splash">🌊 ' + (msg || 'The river is quiet.') + '</div>' +
+    '<div class="fp-result-actions">' +
+    '<button class="fp-cast-btn" onclick="startFishingAgain()">🎣 Try Again</button>' +
+    '<button class="fp-leave-btn" onclick="leaveFishingPost()">← Leave</button>' +
+    '</div></div>';
 }
 
 // ══════════════════════════════════════════════
@@ -371,14 +359,15 @@ function _resetFishingState() {
 
 function _fishBite() {
   if (_fishState !== 'waiting') return;
+  if (!_pendingCatch) return;
   _fishState = 'biting';
-  _currentFish = _rollFish(_castInRippleZone);
+  _currentFish = _pendingCatch.catch;
   _playBiteSound();
   var bobber = document.getElementById('fp-bobber-float');
   if (bobber) bobber.classList.add('biting');
   _renderBiteAlert();
   _biteTimeout = setTimeout(function() {
-    if (_fishState === 'biting') { _fishState = 'fail'; _playFailSound(); _renderGotAway(); }
+    if (_fishState === 'biting') { _fishState = 'fail'; _playFailSound(); _reportLost(); _renderGotAway(); }
   }, 1000);
 }
 
@@ -405,7 +394,13 @@ function confirmBite() {
   clearTimeout(_biteTimeout); _biteTimeout = null;
   var bobber = document.getElementById('fp-bobber-float');
   if (bobber) bobber.classList.remove('biting');
-  if (_currentFish.rarity === 'junk') { _fishState = 'success'; _showJunkResult(); return; }
+  if (_currentFish.rarity === 'junk') {
+    _fishState = 'success';
+    if (_pendingCatch) _fishingPost('land', { catchId: _pendingCatch.catchId, outcome: 'caught' });
+    _pendingCatch = null;
+    _showJunkResult();
+    return;
+  }
   _fishState = 'active';
   _catchBarY = 50;
   _targetY   = 30 + Math.random() * 40;
@@ -598,6 +593,7 @@ function _lineSnap() {
   _fishState = 'fail';
   _reelStop();
   _stopMinigame();
+  _reportLost();
   _playFailSound();
   var area = document.getElementById('fishing-main-area');
   if (!area) return;
@@ -612,47 +608,36 @@ function _lineSnap() {
     '</div></div>';
 }
 
-function _catchSuccess() {
+async function _catchSuccess() {
   _fishState = 'success';
   _reelStop();
   _stopMinigame();
-  _playSuccessSound();
   var fish = _currentFish;
+  var pend = _pendingCatch;
+  _pendingCatch = null;
+
+  // The server checks the timing and grants the fish from its own table.
+  var area = document.getElementById('fishing-main-area');
+  if (area) area.innerHTML = '<div class="fp-cast-confirm-flash">🎣 Landing it…</div>';
+  var d = pend ? await _fishingPost('land', { catchId: pend.catchId, outcome: 'caught' })
+               : { ok: false, error: 'No catch on the line.' };
+  if (!d.ok) { _playFailSound(); _showFishingError(d.error); return; }
+  _playSuccessSound();
   _saveCatch(fish.id);
-
-  // ── Add to inventory ──────────────────────────
-  var foodVal  = FISH_FOOD_VALUE[fish.rarity]  || 3;
-  var sellVal  = fish.value || FISH_SELL_VALUE[fish.rarity] || 2;
-  var sizeLabel = FISH_SIZE_LABEL[fish.rarity] || 'Small';
-  var invDescription = sizeLabel + ' fish. Worth ' + sellVal + ' gold. Eating it restores ' + foodVal + ' food.';
-
-  if (typeof awardInventoryItem === 'function') {
-    awardInventoryItem({
-      item_key:    'fish_' + fish.id,
-      name:        fish.name,
-      description: invDescription,
-      icon:        fish.icon,
-      category:    'food',
-      rarity:      fish.rarity === 'junk' ? 'common' : fish.rarity,
-      quantity:    1,
-      source:      'fishing',
-      metadata:    { food_value: foodVal, sell_value: sellVal, flavour: fish.flavour },
-    });
+  if (typeof loadInventory === 'function' && document.getElementById('inventory-modal')?.style.display !== 'none') {
+    try { loadInventory(); } catch (e) {}
   }
 
   // ── Show result ───────────────────────────────
-  var foodBadge = fish.rarity !== 'junk'
-    ? '<div class="fp-result-inv-badge">🌿 +' + foodVal + ' food · 🪙 ' + sellVal + ' gold value</div>'
-    : '';
-
-  var area = document.getElementById('fishing-main-area');
+  var foodBadge = '<div class="fp-result-inv-badge">🌿 +' + fish.foodValue + ' food · 🪙 ' + fish.sellValue + ' gold value</div>';
+  area = document.getElementById('fishing-main-area');
   if (!area) return;
   area.innerHTML =
     '<div class="fp-result fp-result-success">' +
     '<div class="fp-result-splash">✨ Caught! ✨</div>' +
     '<div class="fp-result-fish-icon">' + fish.icon + '</div>' +
     '<div class="fp-result-fish-name" style="color:' + RARITY_COLORS[fish.rarity] + '">' + fish.name + '</div>' +
-    '<div class="fp-result-rarity">' + sizeLabel + ' · ' + fish.rarity + '</div>' +
+    '<div class="fp-result-rarity">' + fish.sizeLabel + ' · ' + fish.rarity + '</div>' +
     foodBadge +
     '<div class="fp-result-flavour"><em>' + fish.flavour + '</em></div>' +
     '<div class="fp-result-actions">' +
@@ -665,6 +650,7 @@ function _catchFail() {
   _fishState = 'fail';
   _reelStop();
   _stopMinigame();
+  _reportLost();
   _playFailSound();
   _renderGotAway();
 }
@@ -704,6 +690,7 @@ function _showJunkResult() {
 function startFishingAgain() {
   _fishState = 'idle';
   _currentFish = null;
+  _pendingCatch = null;
   _tension = 0;
   _reelStop();
   _stopMinigame();
@@ -718,7 +705,7 @@ function _updateCatchDisplay() {
   var counts = _getCatchCounts();
   var total = Object.values(counts).reduce(function(a,b){return a+b;},0);
   if (!total) { el.innerHTML = '<div class="fp-cl-empty">No catches yet.</div>'; return; }
-  el.innerHTML = FISH_TABLE.concat(JUNK_TABLE)
+  el.innerHTML = (_fishPool.catalogue || [])
     .filter(function(f){ return counts[f.id]; })
     .map(function(f){
       return '<div class="fp-cl-row"><span>' + f.icon + ' ' + f.name + '</span>' +
