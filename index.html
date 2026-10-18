@@ -31,12 +31,12 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=021tip">
+  <link rel="stylesheet" href="/css/main.css?v=021p6">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=shell9">
-  <link rel="stylesheet" href="/css/hud-clock.css?v=021ui2">
+  <link rel="stylesheet" href="/css/hud-clock.css?v=021p6">
   <link rel="stylesheet" href="/css/carousel.css?v=spec20a">
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
@@ -782,7 +782,7 @@
   <div id="toast-stack" class="toast-stack"></div>
 
   <script defer src="/js/config.js"></script>
-  <script defer src="/js/day-cycle.js?v=021a"></script>
+  <script defer src="/js/day-cycle.js?v=021p6"></script>
   <script defer src="/js/server-clock.js?v=021adm"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
   <script defer src="/js/game.js"></script>
@@ -795,6 +795,7 @@
   <script defer src="/js/expeditions.js"></script>
   <script defer src="/js/seasons.js?v=021ui"></script>
   <script defer src="/js/hud-clock.js?v=021ui2"></script>
+  <script defer src="/js/happenings.js?v=021p6"></script>
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=tierfix1"></script>
@@ -804,7 +805,7 @@
   <script defer src="/js/kwmap-core.js?v=np1"></script>
   <script defer src="/js/clan-territory.js?v=clan9"></script>
   <script defer src="/js/kwmap-settlements.js?v=021p3"></script>
-  <script defer src="/js/kwmap-daylight.js?v=021p3"></script>
+  <script defer src="/js/kwmap-daylight.js?v=021p6"></script>
   <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
   <script defer src="/js/kwmap-atmosphere.js?v=1"></script>
   <script defer src="/js/kwmap-topdown.js?v=021p3"></script>
@@ -832,6 +833,7 @@
   <script defer src="/js/inventory.js?v=021fish"></script>
   <script defer src="/js/diplomacy.js"></script>
   <script defer src="/js/item_admin.js"></script>
+  <script defer src="/js/happenings-admin.js?v=021p6"></script>
   <script defer src="/js/kw-tooltip.js?v=021tip"></script>
   <script defer src="/js/enemy_admin.js?v=021p5"></script>
   <script defer src="/js/combat-engine.js?v=1778502300"></script>
@@ -954,6 +956,7 @@
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-time',this);KWDevTime.open()">🕯 Time</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-happenings',this);loadHappeningsAdmin()">🏮 Happenings</button>
       </div>
 
       <!-- ── TAB: Resources ── -->
@@ -1273,6 +1276,18 @@
           still apply.
         </div>
         <button class="cheat-all-btn" onclick="startTestBattle()">🗡 Start Test Battle</button>
+      </div>
+
+      <!-- ── TAB: Happenings (spec 021 §6.6 — js/happenings-admin.js) ── -->
+      <div class="cheat-tab-panel" id="ct-happenings" style="display:none">
+        <div class="cheat-section-label">Happenings</div>
+        <div style="font-size:11px;color:rgba(192,221,151,.55);margin-bottom:8px;line-height:1.5">
+          Scheduled timed events, all in UTC. Players see the next 48h in the clock panel and get a toast when a banner
+          Happening starts. Windows are computed from the rule — nothing to start or stop by hand.
+        </div>
+        <button class="cheat-all-btn" style="margin-bottom:10px" onclick="ha_showForm()">＋ New Happening</button>
+        <div id="ha-form-wrap" style="display:none"></div>
+        <div id="ha-list" class="qa-list"><div class="ha-empty">Loading…</div></div>
       </div>
 
       <!-- ── TAB: Time (spec 021 §3.4 — js/dev-time.js) ── -->
