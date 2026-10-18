@@ -11,12 +11,15 @@
 //    the warped view.
 //  • Start toasts (banner effect): follow the REAL clock (KWClock.wallNow())
 //    — a dev time warp never fires toasts (decision 20).
-//  • map_flourish: 'lanterns' is drawn by the daylight pass via
-//    flourishActive(); 'fireflies' / 'aurora' are stubs for now.
+//  • map_flourish visuals: 'lanterns' is drawn by the daylight pass, every
+//    other kind by kwmap-happening-fx.js (activeVisuals()).
+//  • Effects (incl. a random_modifier's roll for this window) are resolved
+//    by the shared KWHappeningEffects — exactly what the server applies.
 // ══════════════════════════════════════════════════════════════════════════
 (function (root) {
   'use strict';
   const D = root.KWDayCycle;
+  const FX = root.KWHappeningEffects;
   const HOUR = 3600 * 1000;
   const LIST_HOURS = 48;
   const TOAST_TICK_MS = 30 * 1000;
@@ -24,7 +27,6 @@
 
   let _defs = [];
   let _lastToastCheck = null;
-  const _stubNoted = {};
 
   function _wall() { return root.KWClock ? root.KWClock.wallNow() : Date.now(); }
   function _now() { return root.KWClock ? root.KWClock.now() : Date.now(); }
@@ -55,10 +57,24 @@
 
   function activeAt(ms) { return _defs.filter(h => D.windowsBetween(h.rule, ms, ms + 1).length > 0); }
 
-  // Is a map_flourish of this kind on right now (visual clock)?
-  function flourishActive(kind) {
-    return activeAt(_now()).some(h => (h.effects || []).some(e => e.type === 'map_flourish' && e.kind === kind));
+  // Visual kinds (map_flourish) running right now (visual clock).
+  function activeVisuals(ms) {
+    const at = ms == null ? _now() : ms, kinds = [];
+    for (const a of FX.activeAt(_defs, at)) for (const e of a.effects) if (e.type === 'map_flourish' && kinds.indexOf(e.kind) < 0) kinds.push(e.kind);
+    return kinds;
   }
+  function flourishActive(kind) { return activeVisuals().indexOf(kind) >= 0; }
+
+  // Effects of h for the window starting at startMs, in words — modifiers
+  // (incl. a rolled random one) tagged good / bad for colouring.
+  function effectLines(h, startMs) {
+    return FX.resolveEffects(h, startMs)
+      .filter(e => e.type !== 'banner')
+      .map(e => ({ text: FX.describeEffect(e), tone: e.type === 'modifier' ? (FX.isGood(e.stat, e.value) ? 'good' : 'bad') : 'neutral' }));
+  }
+  // Summed modifiers in force now (visual clock), e.g. for other panels.
+  function modifiersNow() { return FX.modifiersAt(_defs, _now()); }
+
 
   function _dur(ms) {
     const m = Math.max(0, Math.round(ms / 60000));
@@ -70,6 +86,11 @@
     catch (e) { return new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; }
   }
 
+  function _fxHtml(lines) {
+    if (!lines.length) return '';
+    return '<span class="hc-hap-fx">' + lines.map(l => '<span class="hc-fx hc-fx-' + l.tone + '">' + _esc(l.text) + '</span>').join('') + '</span>';
+  }
+
   // HTML for the HUD dial panel's "Upcoming Happenings" section ('' = empty).
   function hudHtml(ms) {
     const list = upcoming(ms, LIST_HOURS).slice(0, 8);
@@ -78,7 +99,8 @@
       '<div class="hc-hap' + (u.active ? ' hc-hap-active' : '') + '">' +
         '<span class="hc-hap-icon">' + _esc(u.h.icon || '🏮') + '</span>' +
         '<span class="hc-hap-main"><span class="hc-hap-title">' + _esc(u.h.title) + '</span>' +
-          '<span class="hc-hap-when">' + (u.active ? 'On now · ends ' + _esc(_local(u.endMs)) : _esc(_local(u.startMs))) + '</span></span>' +
+          '<span class="hc-hap-when">' + (u.active ? 'On now · ends ' + _esc(_local(u.endMs)) : _esc(_local(u.startMs))) + '</span>' +
+          _fxHtml(effectLines(u.h, u.startMs)) + '</span>' +
         '<span class="hc-hap-in">' + (u.active ? 'ends in ' + _dur(u.endMs - ms) : 'in ' + _dur(u.startMs - ms)) + '</span>' +
       '</div>').join('');
   }
@@ -95,23 +117,15 @@
       if (!_hasEffect(h, 'banner')) continue;
       for (const w of D.windowsBetween(h.rule, from, now + 1)) {
         if (w.startMs > from && w.startMs <= now && typeof root.showToastNotification === 'function') {
-          root.showToastNotification((h.icon || '🏮') + ' ' + h.title + ' has begun!' + (h.flavour ? ' ' + h.flavour : ''), 'event');
+          const fx = effectLines(h, w.startMs).filter(l => l.tone !== 'neutral').map(l => l.text);
+          root.showToastNotification((h.icon || '🏮') + ' ' + h.title + ' has begun!' + (h.flavour ? ' ' + h.flavour : '') +
+            (fx.length ? ' (' + fx.join(', ') + ')' : ''), 'event');
         }
       }
     }
   }
 
-  function _noteStubs() {
-    for (const h of activeAt(_now())) for (const e of h.effects || []) {
-      if (e.type === 'map_flourish' && e.kind !== 'lanterns' && !_stubNoted[e.kind]) {
-        _stubNoted[e.kind] = true;
-        console.info('[Happenings] map_flourish "' + e.kind + '" is not drawn yet (v1 draws lanterns only).');
-      }
-    }
-  }
-
   function _refresh() {
-    _noteStubs();
     if (root.KWHudClock && root.KWHudClock.render) root.KWHudClock.render();
   }
 
@@ -125,7 +139,7 @@
   }
 
   root.KWHappenings = {
-    load, upcoming, activeAt, flourishActive, hudHtml,
+    load, upcoming, activeAt, activeVisuals, flourishActive, effectLines, modifiersNow, hudHtml,
     defs: () => _defs.slice(),
     _setDefsForTest(d) { _defs = d || []; }, _checkToasts, _resetToastsForTest(at) { _lastToastCheck = at == null ? null : at; },
   };

@@ -25,10 +25,13 @@
 <script>window.__KW_NO_AUTOSTART = true;</script>
 <script src="/js/day-cycle.js"></script>
 <script src="/js/server-clock.js"></script>
+<script src="/js/happening-effects.js"></script>
+<script src="/js/happenings.js"></script>
 <script src="/js/pixelart.js"></script>
 <script src="/js/kwmap-core.js"></script>
 <script src="/js/kwmap-settlements.js"></script>
 <script src="/js/kwmap-daylight.js"></script>
+<script src="/js/kwmap-happening-fx.js"></script>
 <script src="/js/kwmap-atmosphere.js"></script>
 <script src="/js/kwmap-topdown.js"></script>
 <script src="/js/kwmap-assets.js"></script>
@@ -93,6 +96,10 @@
   // so the pass is a no-op); ?night=on|soft|off picks the player setting.
   if (window.KWClock) KWClock.pin(Date.parse(qs.get('at') || '2026-11-05T12:00:00Z'));
   if (window.KWDaylight && qs.get('night')) KWDaylight.setSetting(qs.get('night'));
+  // ?fx=fireworks,purple_moon — a Happening running all day with those visuals.
+  if (window.KWHappenings && qs.get('fx')) KWHappenings._setDefsForTest([{ id: 'demo', title: 'Demo', enabled: true,
+    rule: { type: 'phase', phases: ['dawn', 'day', 'dusk', 'night'] },
+    effects: qs.get('fx').split(',').map(k => ({ type: 'map_flourish', kind: k })) }]);
   const view = qs.get('view') === 'topdown' ? 'topdown' : 'iso';
   KWMap.controller.setRenderer(view);
   // Optional selection/hover injection for verifying uifx placement:
