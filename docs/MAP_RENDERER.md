@@ -153,11 +153,12 @@ never light.
 
 ## Settings
 
-The season panel's "✦ Map & Atmosphere" block has a **Map View** select
-(persists `kw_map_view`; restored on init) and a **Reduce map detail** toggle
-(persists `kw_map_low_detail`), a **Drifting clouds** toggle (persists
-`kw_map_clouds`) and **Night lighting** On / Soft / Off (persists
-`kw_night_lighting`). Default renderer is `topdown`; flip it by
+The Settings modal (profile menu → ⚙️ Settings) has a **Graphics** tab with
+the "✦ Map & Atmosphere" settings, wired by `js/settings-panel.js`: a
+**Map View** select (persists `kw_map_view`; restored on init), **Night
+lighting** On / Soft / Off (`kw_night_lighting`), **Reduce map detail**
+(`kw_map_low_detail`), **Drifting clouds** (`kw_map_clouds`) and the
+seasonal colour grading / particle toggles. Default renderer is `topdown`; flip it by
 changing `controller.activeId`'s initial value once iso has been lived with.
 
 ## Verification

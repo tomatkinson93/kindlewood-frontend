@@ -1,8 +1,8 @@
 // Phase 7 verification harness (node, no deps) — settings + persistence.
 // Run: node verify/phase7_proofs.js
 //
-//   A. Season panel gains the Map View select + Reduce-map-detail toggle in the
-//      retitled "✦ Map & Atmosphere" block, wired data-* + re-wire-on-render.
+//   A. Settings modal Graphics tab holds the Map View select + Reduce-map-detail
+//      toggle in the "✦ Map & Atmosphere" block (moved from the season panel).
 //   B. setRenderer switches + persists kw_map_view; restore-on-init re-applies.
 //   C. Camera focus preserved across a renderer switch (spec §12.9) — the same
 //      {q,r} centre lands at the screen centre in both views.
@@ -21,12 +21,16 @@ const J = (env, expr) => JSON.parse(vm.runInContext('JSON.stringify(' + expr + '
 const run = (env, stmt) => vm.runInContext(stmt, env.context);
 function env7() { const e = makeEnv(); H.loadTree(e, P7_FILES); setUi(e, null, null, null, { q: 20, r: 15 }); return e; }
 
-// ── A. Season panel markup + wiring (source) ───────────────────────────────
+// ── A. Settings markup + wiring (source) ───────────────────────────────────
+// Spec 021: the map settings moved from the season panel into the Settings
+// modal's Graphics tab (index.html markup, js/settings-panel.js wiring).
 {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'seasons.js'), 'utf8');
-  check('A. settings block retitled "✦ Map & Atmosphere"', /Map\s*&amp;\s*Atmosphere/.test(src));
-  check('A. Map View <select> with topdown + iso options', /data-kwmap-view/.test(src) && /value="topdown"/.test(src) && /value="iso"/.test(src));
-  check('A. "Reduce map detail" checkbox present', /data-kwmap-setting="lowdetail"/.test(src) && /Reduce map detail/.test(src));
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'settings-panel.js'), 'utf8');
+  const gfx = html.slice(html.indexOf('data-settings-panel="graphics"'), html.indexOf('data-settings-panel="graphics"') + 4000);
+  check('A. Graphics tab holds the "✦ Map & Atmosphere" block', /Map\s*&amp;\s*Atmosphere/.test(gfx));
+  check('A. Map View <select> with topdown + iso options', /data-kwmap-view/.test(gfx) && /value="topdown"/.test(gfx) && /value="iso"/.test(gfx));
+  check('A. "Reduce map detail" checkbox present', /data-kwmap-setting="lowdetail"/.test(gfx) && /Reduce map detail/.test(gfx));
   check('A. select wired to controller.setRenderer', /KWMap\.controller\.setRenderer\(sel\.value\)/.test(src));
   check('A. low-detail wired to perf.setLowDetail', /KWMap\.perf\.setLowDetail\(low\.checked\)/.test(src));
   const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'hud-storybook.css'), 'utf8');

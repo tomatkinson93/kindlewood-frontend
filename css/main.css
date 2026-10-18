@@ -11209,7 +11209,27 @@ body.login-mode .hero-text-welcome {
 }
 .settings-close:hover { background: rgba(192,221,151,.08); color: rgba(192,221,151,.85); }
 
-.settings-body { padding: 16px; }
+.settings-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.settings-body[data-settings-panel="graphics"] { gap: 9px; }
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(192,221,151,.12);
+}
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 9px 12px 7px;
+  font-family: 'Crimson Pro', serif;
+  font-size: 13px;
+  color: rgba(220,205,170,.6);
+  cursor: pointer;
+}
+.settings-tab:hover { color: #f0e2bf; }
+.settings-tab.active { color: #e8c76a; border-bottom-color: #e8c76a; }
 .settings-row { display: flex; flex-direction: column; gap: 6px; }
 .settings-label {
   font-size: 12px;
