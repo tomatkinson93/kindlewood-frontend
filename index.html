@@ -792,21 +792,23 @@
   <script defer src="/js/citizens.js?v=1776929386"></script>
   <script defer src="/js/buildings.js?v=cq3"></script>
   <script defer src="/js/expeditions.js"></script>
-  <script defer src="/js/seasons.js?v=021c"></script>
-  <script defer src="/js/season-atmosphere.js?v=1"></script>
+  <script defer src="/js/seasons.js?v=021p3"></script>
+  <script defer src="/js/season-atmosphere.js?v=021p3"></script>
+  <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=tierfix1"></script>
   <script defer src="/js/profile.js?v=cp2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
   <script defer src="/js/kwmap-core.js?v=np1"></script>
   <script defer src="/js/clan-territory.js?v=clan9"></script>
-  <script defer src="/js/kwmap-settlements.js?v=np1"></script>
+  <script defer src="/js/kwmap-settlements.js?v=021p3"></script>
+  <script defer src="/js/kwmap-daylight.js?v=021p3"></script>
   <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
   <script defer src="/js/kwmap-atmosphere.js?v=1"></script>
-  <script defer src="/js/kwmap-topdown.js?v=np2-clouds1"></script>
+  <script defer src="/js/kwmap-topdown.js?v=021p3"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
   <script defer src="/js/kwmap-assets.js?v=1"></script>
-  <script defer src="/js/kwmap-iso.js?v=np1-clouds1"></script>
+  <script defer src="/js/kwmap-iso.js?v=021p3"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=spec20b"></script>
@@ -947,6 +949,7 @@
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-cards',this);loadCardAdmin()">🃏 Cards</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-time',this);KWDevTime.open()">🕯 Time</button>
       </div>
 
       <!-- ── TAB: Resources ── -->
@@ -1266,6 +1269,31 @@
           still apply.
         </div>
         <button class="cheat-all-btn" onclick="startTestBattle()">🗡 Start Test Battle</button>
+      </div>
+
+      <!-- ── TAB: Time (spec 021 §3.4 — js/dev-time.js) ── -->
+      <div class="cheat-tab-panel" id="ct-time" style="display:none">
+        <div class="cheat-section-label">Clock</div>
+        <div id="kw-time-readout" style="font-size:12px;color:var(--leaf);line-height:1.45;margin-bottom:12px"></div>
+        <div class="cheat-section-label">Jump to</div>
+        <div class="cheat-resource-grid" style="grid-template-columns:repeat(3,1fr)">
+          <button class="cheat-res-btn" onclick="KWDevTime.set('live')">⏺ Live</button>
+          <button class="cheat-res-btn" onclick="KWDevTime.set('phase:dawn')">🌅 Dawn</button>
+          <button class="cheat-res-btn" onclick="KWDevTime.set('phase:day')">☀️ Day</button>
+          <button class="cheat-res-btn" onclick="KWDevTime.set('phase:dusk')">🌇 Dusk</button>
+          <button class="cheat-res-btn" onclick="KWDevTime.set('phase:night')">🌙 Night</button>
+          <button class="cheat-res-btn" onclick="KWDevTime.set('fast')">⏩ Fast cycle</button>
+        </div>
+        <div class="cheat-section-label">Hour <span id="kw-time-hour-val" style="text-transform:none;letter-spacing:0"></span></div>
+        <input type="range" id="kw-time-hour" min="0" max="23.75" step="0.25" value="12" style="width:100%;margin-bottom:12px"
+               oninput="document.getElementById('kw-time-hour-val').textContent=(Math.floor(this.value)+':'+String(Math.round(this.value%1*60)).padStart(2,'0'))+' UTC'"
+               onchange="KWDevTime.hour(this.value)">
+        <div class="cheat-section-label">Moon</div>
+        <div id="kw-time-moons" class="cheat-resource-grid" style="grid-template-columns:repeat(8,1fr);gap:4px"></div>
+        <div style="font-size:11px;color:rgba(192,221,151,.55);margin-top:6px;line-height:1.5">
+          Visual override is local to this browser. Admin overrides also shift <em>your</em> gameplay time
+          (creatures, Happenings) for 2h. Other players are never affected.
+        </div>
       </div>
 
     </div>

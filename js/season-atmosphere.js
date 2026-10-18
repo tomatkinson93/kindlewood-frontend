@@ -340,6 +340,7 @@
 
     // Step + cull. Season change: strand old-season particles into a fade.
     ctx.clearRect(0, 0, W, H);
+    if (window.KWDaylight) canvas.style.opacity = (1 - window.KWDaylight.state().darkness * 0.6).toFixed(2);   // spec 021 §3.1: particle alpha × (1 − darkness·0.6)
     const kept = [];
     // Mist first (beneath everything)
     for (const p of particles) if (p.isMist) { if (p.step(dt, W, H)) { p.draw(ctx); kept.push(p); } }

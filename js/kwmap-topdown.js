@@ -835,6 +835,25 @@ KWMap.controller.registerRenderer('topdown', {
 
   // ── Clouds drifting above the map (kwmap-atmosphere.js) ─────────────────
   if (_atmo) _atmo.drawClouds(ctx, W, H, camPxX, camPxY, frame.now);
+
+  // ── Night lighting (kwmap-daylight.js, spec 021 §3) — after clouds; a
+  //    no-op by day. Reads this frame's visibleTiles via visibleSettlements().
+  this._vis = { tiles: visibleTiles, hexW, hexH };
+  if (window.KWDaylight) window.KWDaylight.draw(ctx, W, H, frame.dpr, this, frame.now);
+  },
+
+  // Read-only: the last frame's on-screen settlement / outpost tiles at the
+  // screen positions Pass 3 / 3.5 drew them (footing = Pass 3's draw() baseY).
+  visibleSettlements() {
+    const v = this._vis;
+    if (!v) return [];
+    const out = [];
+    for (const { wq, wr, x, y, t } of v.tiles) {
+      if (!t || !(t.settlement || t.outpost)) continue;
+      const cx = x + v.hexW / 2, cy = y + v.hexH / 2;
+      out.push({ wq, wr, t, cx, cy, baseY: cy + v.hexH * 0.26, hexW: v.hexW, ys: 1 });
+    }
+    return out;
   },
 
   screenToHex(mouseX, mouseY, camera, W, H) {

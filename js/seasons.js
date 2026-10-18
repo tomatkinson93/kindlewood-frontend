@@ -220,6 +220,14 @@ function renderSeasonPanel() {
           <input type="checkbox" data-kwmap-setting="clouds">
           <span>Drifting clouds</span>
         </label>
+        <label class="sp-toggle sp-select-row" data-daylight-row>
+          <span>Night lighting</span>
+          <select class="sp-select" data-daylight-setting>
+            <option value="on">On</option>
+            <option value="soft">Soft</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
         <label class="sp-toggle" data-atmo-row>
           <input type="checkbox" data-atmo-setting="atmosphere">
           <span>Seasonal colour grading</span>
@@ -261,6 +269,15 @@ function renderSeasonPanel() {
     }
   } else {
     panel.querySelectorAll('[data-kwmap-row]').forEach(el => { el.style.display = 'none'; });
+  }
+
+  // ── Night lighting (spec 021 §3.3) — On / Soft / Off, kw_night_lighting ──
+  const night = panel.querySelector('[data-daylight-setting]');
+  if (night && window.KWDaylight) {
+    night.value = window.KWDaylight.setting();
+    night.addEventListener('change', () => window.KWDaylight.setSetting(night.value));
+  } else if (night) {
+    const row = night.closest('.sp-toggle'); if (row) row.style.display = 'none';
   }
 
   // ── Atmosphere toggles (existing) ─────────────────────────────────────────

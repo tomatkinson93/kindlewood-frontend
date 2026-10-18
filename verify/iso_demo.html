@@ -22,8 +22,13 @@
 </div>
 
 <!-- Production scripts, exact load order from index.html -->
+<script>window.__KW_NO_AUTOSTART = true;</script>
+<script src="/js/day-cycle.js"></script>
+<script src="/js/server-clock.js"></script>
 <script src="/js/pixelart.js"></script>
 <script src="/js/kwmap-core.js"></script>
+<script src="/js/kwmap-settlements.js"></script>
+<script src="/js/kwmap-daylight.js"></script>
 <script src="/js/kwmap-atmosphere.js"></script>
 <script src="/js/kwmap-topdown.js"></script>
 <script src="/js/kwmap-assets.js"></script>
@@ -52,6 +57,9 @@
   put(15,14,{ terrain:'plains', settlement:{ isOwn:true, name:'Home', tier:'village' } });
   put(18,15,{ terrain:'plains', settlement:{ settlement_type:'npc', disposition:'friendly', name:'Otterby' } });
   put(12,17,{ terrain:'hills',  settlement:{ settlement_type:'kingdom', is_kingdom:true, name:'Ironhaven' } });
+  put(19,12,{ terrain:'plains', settlement:{ settlement_type:'hostile', disposition:'hostile', name:'Withered' } });
+  put(13,15,{ terrain:'plains', settlement:{ tier:'camp', name:'Camp' } });
+  put(17,13,{ terrain:'plains', settlement:{ tier:'city', name:'Tallbridge' } });
   put(16,16,{ terrain:'forest', outpost:{ id:1, terrain:'forest', level:1, mine:true, owner:'Home' }, claimed_by_me:true });
   put(14,13,{ claimed_by_me:true });
   put(15,13,{ claimed_by_me:true });
@@ -81,6 +89,10 @@
   if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 
   const qs = new URLSearchParams(location.search);
+  // Spec 021 lighting: ?at=<ISO time> pins the clock (default noon UTC — day,
+  // so the pass is a no-op); ?night=on|soft|off picks the player setting.
+  if (window.KWClock) KWClock.pin(Date.parse(qs.get('at') || '2026-11-05T12:00:00Z'));
+  if (window.KWDaylight && qs.get('night')) KWDaylight.setSetting(qs.get('night'));
   const view = qs.get('view') === 'topdown' ? 'topdown' : 'iso';
   KWMap.controller.setRenderer(view);
   // Optional selection/hover injection for verifying uifx placement:

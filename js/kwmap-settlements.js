@@ -15,6 +15,12 @@
 //  KWSettlements.draw(ctx, t, cx, baseY, hexW, frac) draws the settlement on
 //  tile `t` with its footing centred on (cx, baseY). Swap in real sprite art
 //  later by returning an image from spriteFor(); the call sites don't change.
+//
+//  KWSettlements.drawGlow(ctx, t, cx, baseY, hexW, alpha, level) draws its lit
+//  windows (spec 021 §3.2) from an emissive mask cached beside the sprite
+//  (same key + ':glow'): one atlas cell per window/door, the campfire core for
+//  camps, nothing for the Withered. Each window switches on at its own
+//  lightLevel, from hash32(q, r, i); a fixed ~15% never light.
 // ══════════════════════════════════════════════════════════════════════════
 
 (function (global) {
@@ -24,6 +30,12 @@
 
   // Palettes: roofs per look, walls shared.
   const WALL = '#eadcbc', WALL_SHADE = '#c4b08a', STONE = '#b9b1a3', STONE_SHADE = '#8d8577', OUTLINE = 'rgba(40,26,12,0.55)';
+  // Window/door collector — set only while a glow mask records a layout.
+  let _win = null;
+  const NEVER_LIT = 0.85;           // hash share above this stays dark all night
+  const STAGGER = 0.4;              // window i lights when level > hash·STAGGER
+  const RAMP = 0.06;                // each window fades in over this much level
+
   const ROOFS = {
     camp: ['#b8764a', '#8e4f2c'], village: ['#d2a24c', '#a87a2e'], town: ['#a4452c', '#7a2f1c'],
     city: ['#3f5f86', '#2c4462'], kingdom: ['#d8ae42', '#a8801f'], npc: ['#6f8a4a', '#50663a'],
@@ -57,6 +69,10 @@
     poly(c, [[x - 2, y - h], [x + w / 2, y - h - rh], [x + w + 2, y - h]], roof[0], OUTLINE);
     poly(c, [[x + w / 2, y - h - rh], [x + w / 2 + d, y - h - rh - d * 0.45], [x + w + d + 2, y - h - d * 0.45], [x + w + 2, y - h]], roof[1], OUTLINE);
     if (!o.noDoor) poly(c, [[x + w * 0.4, y], [x + w * 0.4, y - h * 0.5], [x + w * 0.62, y - h * 0.5], [x + w * 0.62, y]], '#6b4a2b');
+    if (_win) {
+      if (!o.noDoor) _win.push({ x: x + w * 0.4, y: y - h * 0.5, w: w * 0.22, h: h * 0.5 });
+      _win.push({ x: x + w * 0.1, y: y - h * 0.8, w: w * 0.2, h: h * 0.26 });
+    }
   }
 
   function tower(c, x, y, w, h, roof, body) {
@@ -65,6 +81,7 @@
     poly(c, [[x - 2, y - h], [x + w / 2 + 1, y - h - w * 1.3], [x + w + w * 0.3 + 2, y - h - 1]], roof[0], OUTLINE);
     poly(c, [[x + w / 2 + 1, y - h - w * 1.3], [x + w + w * 0.3 + 2, y - h - 1], [x + w * 0.9, y - h]], roof[1]);
     poly(c, [[x + w * 0.35, y - h * 0.55], [x + w * 0.35, y - h * 0.7], [x + w * 0.62, y - h * 0.7], [x + w * 0.62, y - h * 0.55]], '#3a2c1c');
+    if (_win) _win.push({ x: x + w * 0.35, y: y - h * 0.7, w: w * 0.27, h: h * 0.15 });
   }
 
   function tent(c, x, y, w, h, col) {
@@ -100,6 +117,7 @@
       c.fillStyle = '#5a3a20'; c.fillRect(44, 86, 12, 3);
       c.fillStyle = '#f19a36'; c.beginPath(); c.ellipse(50, 83, 5, 6, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#ffd36e'; c.beginPath(); c.ellipse(50, 84, 2.5, 3.5, 0, 0, Math.PI * 2); c.fill();
+      if (_win) _win.push({ x: 44, y: 76, w: 12, h: 13, fire: true });
       c.fillStyle = 'rgba(210,210,210,0.55)';
       [[52, 72, 3], [49, 64, 3.8], [53, 55, 4.5]].forEach(([x, y, r]) => { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); });
     },
@@ -194,11 +212,106 @@
     ctx.drawImage(cv, cx - s * 0.5, baseY - s * 0.86, s, s);
   }
 
+  // ── Emissive masks (lit windows) ─────────────────────────────────────────
+  // A do-nothing 2d context: running a layout on it records window rects
+  // through _win without painting anything.
+  const NOOP_GRAD = { addColorStop() {} };
+  const NOOP_CTX = new Proxy({}, {
+    get: (o, k) => (k === 'createRadialGradient' || k === 'createLinearGradient') ? () => NOOP_GRAD : () => {},
+    set: () => true,
+  });
+
+  // Atlas of window cells for (look, pixel size): { canvas, cells, size }.
+  // Cell i holds window i (warm core + soft bloom), padded so neighbouring
+  // windows never bleed into each other when switched on one at a time.
+  function glowFor(t, px) {
+    const look = lookFor(t);
+    const size = Math.max(16, Math.round(px));
+    const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+    const key = look.key + '@' + size + 'x' + dpr + ':glow';
+    let m = _cache.get(key);
+    if (m) return m;
+    const rects = [];
+    if (look.key !== 'hostile') {
+      _win = rects;
+      try { (LAYOUTS[look.layout] || LAYOUTS.village)(NOOP_CTX, ROOFS[look.roof] || ROOFS.village, look); }
+      finally { _win = null; }
+    }
+    m = { canvas: null, cells: [], size };
+    if (rects.length) {
+      const k = size * dpr / 100, pad = 3;
+      let ax = 0, ah = 0;
+      const cells = rects.map(r => {
+        const uw = r.w + pad * 2, uh = r.h + pad * 2;
+        const sw = Math.ceil(uw * k), sh = Math.ceil(uh * k);
+        const cell = { fire: !!r.fire, ux: r.x - pad, uy: r.y - pad, uw: sw / k, uh: sh / k, sx: ax, sy: 0, sw, sh };
+        ax += sw + 1; ah = Math.max(ah, sh);
+        return cell;
+      });
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, ax); cv.height = Math.max(1, ah);
+      const c = cv.getContext('2d');
+      rects.forEach((r, i) => {
+        const cell = cells[i];
+        c.save();
+        c.translate(cell.sx, 0);
+        c.scale(k, k);
+        const cx = pad + r.w / 2, cy = pad + r.h / 2, rr = Math.max(r.w, r.h) / 2 + pad;
+        const g = c.createRadialGradient(cx, cy, 0, cx, cy, rr);
+        if (r.fire) {
+          g.addColorStop(0, 'rgba(255,236,150,1)'); g.addColorStop(0.45, 'rgba(255,160,60,0.75)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+          c.fillStyle = g; c.fillRect(0, 0, r.w + pad * 2, r.h + pad * 2);
+        } else {
+          g.addColorStop(0, 'rgba(255,200,110,0.55)'); g.addColorStop(1, 'rgba(255,170,80,0)');
+          c.fillStyle = g; c.fillRect(0, 0, r.w + pad * 2, r.h + pad * 2);
+          c.fillStyle = '#ffd27a'; c.fillRect(pad, pad, r.w, r.h);
+        }
+        c.restore();
+      });
+      m.canvas = cv; m.cells = cells;
+    }
+    if (_cache.size > 200) _cache.clear();
+    _cache.set(key, m);
+    return m;
+  }
+
+  // Lit windows for tile t, footing on (cx, baseY) like draw(). alpha scales
+  // the glow; level (default alpha) is the lightLevel each window's switch-on
+  // threshold is compared against. Needs KWDaylight.hash32 (no-op without).
+  function drawGlow(ctx, t, cx, baseY, hexW, alpha, level) {
+    if (!(alpha > 0)) return;
+    const D = global.KWDaylight;
+    if (!D || !D.hash32) return;
+    const look = lookFor(t);
+    if (look.key === 'hostile') return;
+    const m = glowFor(t, hexW * (TIER_SCALE[look.key] || TIER_SCALE[look.layout] || 1));
+    if (!m.cells.length) return;
+    if (level == null) level = alpha;
+    const s = m.size, k = s / 100, ox = cx - s * 0.5, oy = baseY - s * 0.86;
+    const q = t.q | 0, r = t.r | 0;
+    let saved = false;
+    for (let i = 0; i < m.cells.length; i++) {
+      const c = m.cells[i];
+      let a;
+      if (c.fire) a = Math.min(1, level / RAMP);
+      else {
+        const h = D.hash32(q, r, i) / 4294967296;
+        if (h > NEVER_LIT) continue;
+        a = Math.max(0, Math.min(1, (level - h * STAGGER) / RAMP));
+      }
+      if (a <= 0) continue;
+      if (!saved) { ctx.save(); saved = true; }
+      ctx.globalAlpha = Math.min(1, alpha * a);
+      ctx.drawImage(m.canvas, c.sx, c.sy, c.sw, c.sh, ox + c.ux * k, oy + c.uy * k, c.uw * k, c.uh * k);
+    }
+    if (saved) ctx.restore();
+  }
+
   // Height of the drawn sprite above its footing, for placing nameplates.
   function heightAbove(t, hexW) {
     const look = lookFor(t);
     return hexW * (TIER_SCALE[look.key] || TIER_SCALE[look.layout] || 1) * 0.72;
   }
 
-  global.KWSettlements = { draw, heightAbove, lookFor, spriteFor };
+  global.KWSettlements = { draw, drawGlow, glowFor, heightAbove, lookFor, spriteFor };
 })(typeof window !== 'undefined' ? window : globalThis);
