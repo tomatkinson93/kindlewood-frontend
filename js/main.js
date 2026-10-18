@@ -314,6 +314,7 @@ async function loadGame(force = false) {
 
     showScreen('game');
     renderTopbar();
+    if (window.KWClock) KWClock.sync();   // refresh /time/me for this login (admin flag → Dev Tools button)
     preloadTileImages();
     if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 

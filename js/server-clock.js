@@ -220,7 +220,7 @@
       var t1 = Date.now();
       if (r.status !== 200 || !r.body || typeof r.body.now !== 'number') throw new Error('bad /time');
       _offset = Math.round(r.body.now - (t0 + t1) / 2);   // whole ms: keeps now() off fractional boundaries
-      if (!_token()) return null;
+      if (!_token()) { _me = null; return null; }        // signed out: forget the admin flag
       return _fetchJson('/api/game/time/me').then(function (m) {
         if (m.status === 200) { _me = m.body; _reconcile(); }
       });
