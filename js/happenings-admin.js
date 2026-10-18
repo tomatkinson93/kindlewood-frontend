@@ -13,7 +13,7 @@ let _haList = [];
 const HA_TYPES = [['daily', 'Daily'], ['weekly', 'Weekly'], ['rotating', 'Rotating (moves each day)'], ['phase', 'Day phase'], ['moon', 'Moon + phase'], ['once', 'One-off']];
 const HA_PHASES = [['dawn', 'Dawn'], ['day', 'Day'], ['dusk', 'Dusk'], ['night', 'Night']];
 const HA_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const HA_EFFECTS_HELP = '[{"type":"banner"}]  ·  {"type":"enemy_pool","add":["enemy_id"]}  ·  {"type":"map_flourish","kind":"lanterns"}';
+const HA_EFFECTS_HELP = 'Pick an effect above and press ＋ Add, or edit the JSON directly. Modifier values: 0.2 = +20%.';
 
 function _haEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function _haNow() { return window.KWClock ? KWClock.now() : Date.now(); }
@@ -106,8 +106,10 @@ function ha_showForm(id) {
     + '</select></div>'
     + '<div id="ha-rule-fields" style="margin-top:8px"></div>'
 
-    + '<div class="qa-section-label" style="margin-top:14px">Effects <span class="qa-tip" title="JSON array. banner = HUD list + start toast. enemy_pool = these enemies can appear in random encounters during the window. map_flourish lanterns = extra warm lights around settlements at night. No economy multipliers in v1.">?</span></div>'
-    + '<textarea id="ha-effects" class="ce-input" rows="3" style="width:100%;font-family:monospace;font-size:11px">' + _haEsc(JSON.stringify(cur.effects || [])) + '</textarea>'
+    + '<div class="qa-section-label" style="margin-top:14px">Effects <span class="qa-tip" title="Banner: clock-panel listing + start toast. Visuals: map effects. Modifiers change game stats while it runs (economy and citizens on the real clock; quests, combat and fishing on each player\'s clock; battles keep the modifiers they started with). A random modifier rolls one stat + value per window — the same for everyone.">?</span></div>'
+    + _haPickerHtml()
+    + '<div id="ha-fx-list" class="ha-fx-list"></div>'
+    + '<textarea id="ha-effects" class="ce-input" rows="2" style="width:100%;font-family:monospace;font-size:11px;margin-top:6px">' + _haEsc(JSON.stringify(cur.effects || [])) + '</textarea>'
     + '<div class="ha-hint">' + _haEsc(HA_EFFECTS_HELP) + '</div>'
     + '<div id="ha-effects-msg" class="ha-msg"></div>'
 
@@ -119,6 +121,7 @@ function ha_showForm(id) {
     + '</div>';
   window._haEditing = cur;
   ha_renderRuleFields(cur.rule);
+  ha_pickerChanged();
 }
 
 // Rule builder fields for the selected type, pre-filled from rule (or defaults).
@@ -178,13 +181,102 @@ function _haParseEffects() {
   const raw = (document.getElementById('ha-effects') || {}).value || '[]';
   let fx;
   try { fx = JSON.parse(raw); } catch (e) { return { ok: false, error: 'Not valid JSON: ' + e.message }; }
-  if (!Array.isArray(fx)) return { ok: false, error: 'Effects must be a JSON array.' };
-  for (const e of fx) {
-    if (!e || ['banner', 'enemy_pool', 'map_flourish'].indexOf(e.type) < 0) return { ok: false, error: 'Unknown effect type "' + (e && e.type) + '".' };
-    if (e.type === 'enemy_pool' && !(Array.isArray(e.add) && e.add.length)) return { ok: false, error: 'enemy_pool needs "add": ["enemy_id", …].' };
-    if (e.type === 'map_flourish' && ['lanterns', 'fireflies', 'aurora'].indexOf(e.kind) < 0) return { ok: false, error: 'map_flourish kind must be lanterns, fireflies or aurora.' };
+  return KWHappeningEffects.validateEffects(fx);   // the same rules the server uses
+}
+
+// ── Effect picker ─────────────────────────────────────────────────────────
+function _haPickerHtml() {
+  const FX = KWHappeningEffects;
+  const groups = {};
+  FX.STAT_IDS.forEach(id => { const g = FX.STATS[id].group; (groups[g] = groups[g] || []).push(id); });
+  return '<div class="ha-picker">'
+    + '<select id="ha-fx-kind" class="ce-input" onchange="ha_pickerChanged()">'
+    +   '<option value="banner">📣 Banner — clock panel + start toast</option>'
+    +   '<optgroup label="Visuals">' + Object.keys(FX.VISUALS).map(k => '<option value="visual:' + k + '">' + FX.VISUALS[k].icon + ' ' + _haEsc(FX.VISUALS[k].label) + '</option>').join('') + '</optgroup>'
+    +   Object.keys(groups).map(g => '<optgroup label="Modifier · ' + g + '">' + groups[g].map(id => '<option value="stat:' + id + '">' + _haEsc(FX.STATS[id].label) + '</option>').join('') + '</optgroup>').join('')
+    +   '<optgroup label="Random"><option value="random:any">🎲 Random modifier (any)</option><option value="random:good">🎲 Random blessing</option><option value="random:bad">🎲 Random curse</option></optgroup>'
+    +   '<option value="enemy_pool">🐺 Enemy pool — creatures that can appear</option>'
+    + '</select>'
+    + '<input id="ha-fx-value" class="ce-input" style="width:120px">'
+    + '<button class="qa-btn" type="button" onclick="ha_addEffect()">＋ Add</button>'
+    + '</div><div id="ha-fx-hint" class="ha-hint"></div>';
+}
+
+// Percent-style input for pct stats and small chances; raw numbers otherwise.
+function _haUsesPercent(s) { return s.kind === 'pct' || s.max <= 1; }
+
+function ha_pickerChanged() {
+  const sel = document.getElementById('ha-fx-kind'), val = document.getElementById('ha-fx-value'), hint = document.getElementById('ha-fx-hint');
+  if (!sel || !val || !hint) return;
+  const v = sel.value, FX = KWHappeningEffects;
+  val.style.display = '';
+  if (v.indexOf('stat:') === 0) {
+    const s = FX.STATS[v.slice(5)], pc = _haUsesPercent(s);
+    const f = (x) => pc ? Math.round(x * 100) + '%' : x;
+    val.placeholder = pc ? 'e.g. 20 or -15 (%)' : 'e.g. ' + s.rand[1] + ' or -' + s.rand[0];
+    val.type = 'number';
+    hint.textContent = 'Range ' + f(s.min) + ' … +' + f(s.max) + ' · ' + s.where + (s.invert ? ' (higher is worse for the player)' : '');
+  } else if (v === 'enemy_pool') {
+    val.type = 'text'; val.placeholder = 'enemy ids, comma separated';
+    hint.textContent = 'These creatures can appear in random encounters during the window, whatever their own time gates.';
+  } else {
+    val.style.display = 'none';
+    hint.textContent = v.indexOf('visual:') === 0 ? FX.VISUALS[v.slice(7)].desc + (FX.VISUALS[v.slice(7)].when === 'night' ? ' (shows at night)' : '')
+      : v.indexOf('random:') === 0 ? 'Rolls one stat and value each window (deterministic — every player sees the same roll), within sensible ranges.'
+      : 'Lists the Happening in the clock panel and toasts players when it starts.';
   }
-  return { ok: true, effects: fx };
+}
+
+function _haWriteEffects(list) {
+  const ta = document.getElementById('ha-effects');
+  if (ta) ta.value = JSON.stringify(list);
+  ha_preview();
+}
+
+function ha_addEffect() {
+  const sel = document.getElementById('ha-fx-kind'), val = document.getElementById('ha-fx-value');
+  const cur = _haParseEffects();
+  const list = cur.ok ? cur.effects : [];
+  const v = sel.value, FX = KWHappeningEffects;
+  let e;
+  if (v === 'banner') e = { type: 'banner' };
+  else if (v.indexOf('visual:') === 0) e = { type: 'map_flourish', kind: v.slice(7) };
+  else if (v.indexOf('random:') === 0) e = { type: 'random_modifier', mood: v.slice(7) };
+  else if (v === 'enemy_pool') e = { type: 'enemy_pool', add: String(val.value || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean) };
+  else if (v.indexOf('stat:') === 0) {
+    const id = v.slice(5), s = FX.STATS[id], n = parseFloat(val.value);
+    e = { type: 'modifier', stat: id, value: _haUsesPercent(s) ? n / 100 : n };
+  }
+  const check = FX.validateEffects(list.concat([e]));
+  const msg = document.getElementById('ha-effects-msg');
+  if (!check.ok) { if (msg) { msg.textContent = '⚠ ' + check.error; msg.className = 'ha-msg ha-msg-warn'; } return; }
+  val.value = '';
+  _haWriteEffects(check.effects);
+}
+
+function ha_removeEffect(i) {
+  const cur = _haParseEffects();
+  if (!cur.ok) return;
+  cur.effects.splice(i, 1);
+  _haWriteEffects(cur.effects);
+}
+
+// Plain-English list of the effects; random ones show their next roll.
+function _haRenderFxList(effects, rule) {
+  const el = document.getElementById('ha-fx-list');
+  if (!el) return;
+  const FX = KWHappeningEffects;
+  if (!effects.length) { el.innerHTML = '<div class="ha-msg">No effects yet.</div>'; return; }
+  const now = _haNow();
+  const next = rule ? KWDayCycle.windowsBetween(rule, now, now + 30 * 86400000).filter(w => w.endMs > now)[0] : null;
+  const id = (document.getElementById('ha-id') || {}).value || 'preview';
+  const rolled = next ? FX.resolveEffects({ id: id.trim().toLowerCase(), effects }, next.startMs) : null;
+  el.innerHTML = effects.map((e, i) => {
+    let text = FX.describeEffect(e), tone = '';
+    if (e.type === 'modifier') tone = FX.isGood(e.stat, e.value) ? ' ha-fx-good' : ' ha-fx-bad';
+    if (e.type === 'random_modifier' && rolled) text += ' — next window: ' + FX.describeEffect(rolled[i]).replace(' (random)', '');
+    return '<div class="ha-fx-row' + tone + '"><span>' + _haEsc(text) + '</span><button class="qa-btn" type="button" onclick="ha_removeEffect(' + i + ')" title="Remove">✕</button></div>';
+  }).join('');
 }
 
 // Live heatmap + fairness + next 5 windows, from the shared day cycle.
@@ -195,6 +287,7 @@ function ha_preview() {
   const msg = document.getElementById('ha-effects-msg');
   if (msg) { msg.textContent = fx.ok ? '' : '⚠ ' + fx.error; msg.className = 'ha-msg' + (fx.ok ? '' : ' ha-msg-warn'); }
   const v = KWDayCycle.validateRule(_haFormRule());
+  if (fx.ok) _haRenderFxList(fx.effects, v.ok ? v.rule : null);
   if (!v.ok) { box.innerHTML = '<div class="ha-msg ha-msg-warn">⚠ ' + _haEsc(v.error) + '</div>'; return; }
   const now = _haNow();
   const f = KWDayCycle.fairnessOf(v.rule, now);

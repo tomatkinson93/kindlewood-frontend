@@ -9720,6 +9720,13 @@ body.login-mode .hero-text-welcome {
 .ha-msg-ok { color: #9fc97a; }
 .ha-msg-warn { color: #e8a06a; }
 .ha-next { font-size: 12px; color: rgba(220,205,170,.85); padding: 2px 0; }
+.ha-picker { display: flex; gap: 6px; align-items: center; }
+.ha-picker select { flex: 1; min-width: 0; }
+.ha-fx-list { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.ha-fx-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: rgba(220,205,170,.9);
+  padding: 3px 6px; border: 1px solid rgba(192,221,151,.12); border-radius: 5px; }
+.ha-fx-good span { color: #9fc97a; }
+.ha-fx-bad span { color: #e8907a; }
 .ha-heat { display: grid; grid-template-columns: 30px repeat(24, 1fr); gap: 2px; margin-top: 4px; }
 .ha-heat-h { font-size: 8px; color: rgba(192,221,151,.4); text-align: center; }
 .ha-heat-d { font-size: 9px; color: rgba(192,221,151,.5); line-height: 12px; }

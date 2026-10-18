@@ -840,6 +840,8 @@ KWMap.controller.registerRenderer('topdown', {
   //    no-op by day. Reads this frame's visibleTiles via visibleSettlements().
   this._vis = { tiles: visibleTiles, hexW, hexH };
   if (window.KWDaylight) window.KWDaylight.draw(ctx, W, H, frame.dpr, this, frame.now);
+  // Happening visuals (kwmap-happening-fx.js) — last; a no-op when none run.
+  if (window.KWHappeningFX) window.KWHappeningFX.draw(ctx, W, H, frame.dpr, this, frame.now);
   },
 
   // Read-only: the last frame's on-screen settlement / outpost tiles at the

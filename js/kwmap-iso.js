@@ -675,6 +675,8 @@
       //    baked into the buffers; a no-op by day. Positions: the TALL buffer's
       //    drawables + this frame's blit offset (visibleSettlements()).
       if (window.KWDaylight) window.KWDaylight.draw(ctx, W, H, dpr, this, frame.now);
+      // 7. Happening visuals (kwmap-happening-fx.js) — last; a no-op when none run.
+      if (window.KWHappeningFX) window.KWHappeningFX.draw(ctx, W, H, dpr, this, frame.now);
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);

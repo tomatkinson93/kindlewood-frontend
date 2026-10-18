@@ -26,7 +26,7 @@ function makeEnv() {
   };
   win.window = win;
   const ctx = vm.createContext(Object.assign(win, { Date, Math, JSON, Promise, Object, Number, String, Array, isFinite, parseFloat, parseInt }));
-  for (const f of ['day-cycle.js', 'server-clock.js', 'happenings.js']) vm.runInContext(read('js/' + f), ctx, { filename: f });
+  for (const f of ['day-cycle.js', 'happening-effects.js', 'server-clock.js', 'happenings.js']) vm.runInContext(read('js/' + f), ctx, { filename: f });
   return { win, toasts };
 }
 
@@ -105,7 +105,7 @@ const RULES = [
 
   // 4. lanterns in the daylight pass
   {
-    const LIT = ['day-cycle.js', 'server-clock.js', 'kwmap-core.js', 'kwmap-settlements.js', 'kwmap-daylight.js', 'happenings.js',
+    const LIT = ['day-cycle.js', 'happening-effects.js', 'server-clock.js', 'kwmap-core.js', 'kwmap-settlements.js', 'kwmap-daylight.js', 'happenings.js',
                  'kwmap-topdown.js', 'kwmap-assets.js', 'kwmap-iso.js', 'main.js'];
     const lanterns = [{ id: 'lantern_walk', title: 'Lantern Walk', rule: { type: 'phase', phases: ['night', 'dusk', 'dawn', 'day'] }, effects: [{ type: 'map_flourish', kind: 'lanterns' }] }];
     const frameAt = (ms, defs) => {
