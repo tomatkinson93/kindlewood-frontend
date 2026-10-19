@@ -31,12 +31,12 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=021tabs">
+  <link rel="stylesheet" href="/css/main.css?v=021ev">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=shell9">
-  <link rel="stylesheet" href="/css/hud-clock.css?v=021demo">
+  <link rel="stylesheet" href="/css/hud-clock.css?v=021ev">
   <link rel="stylesheet" href="/css/carousel.css?v=spec20a">
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
@@ -527,7 +527,7 @@
       <button class="comm-btn" onclick="openInventoryModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-inventory"/></svg><span>Inventory</span></button>
       <button class="comm-btn" id="nav-battles" onclick="openBattlesModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-battles"/></svg><span>Battles</span></button>
       <button class="comm-btn" id="nav-decks" onclick="openDeckBuilder()">🃏 <span>Decks</span></button>
-      <button class="comm-btn" onclick="showCommunityTab('events')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-events"/></svg><span>Events</span></button>
+      <button class="comm-btn" id="nav-events" onclick="openTimedEvents()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-events"/></svg><span>Events</span></button>
       <button class="comm-btn" onclick="openLeaderboard()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-rankings"/></svg><span>Rankings</span></button>
       <button class="comm-btn" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
       <button class="comm-btn" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
@@ -799,9 +799,10 @@
   <script defer src="/js/citizens.js?v=1776929386"></script>
   <script defer src="/js/buildings.js?v=021adm"></script>
   <script defer src="/js/expeditions.js"></script>
-  <script defer src="/js/seasons.js?v=021ui"></script>
-  <script defer src="/js/hud-clock.js?v=021ui2"></script>
-  <script defer src="/js/happenings.js?v=021demo"></script>
+  <script defer src="/js/seasons.js?v=021ev"></script>
+  <script defer src="/js/hud-clock.js?v=021ev"></script>
+  <script defer src="/js/happenings.js?v=021ev"></script>
+  <script defer src="/js/timed-events.js?v=021ev"></script>
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=tierfix1"></script>

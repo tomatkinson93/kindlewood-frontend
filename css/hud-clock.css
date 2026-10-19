@@ -220,3 +220,9 @@
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(239, 228, 205, 0.2); color: #efe4cd;
 }
 .kw-hap-demo-stop:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Link from the clock's events glance to the full Events view. */
+.hc-hap-all { display: block; margin: 6px 0 0 auto; padding: 3px 0; background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--kw-gold, #e8c87a); }
+.hc-hap-all:hover { text-decoration: underline; }
+.hc-empty .hc-hap-all { display: inline; margin: 0; }

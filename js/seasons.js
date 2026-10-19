@@ -10,12 +10,34 @@ const SEASON_COLORS = {
   winter: { bg: '#0e1a2e', accent: '#7eb8e0', text: '#b8d4f0' },
 };
 
-const SEASON_EFFECTS = {
-  spring: ['🌾 Farming +20%', '👶 Birth chance +10%'],
-  summer: ['🌾 Farming +30%', '🌿 Gathering +20%', '💰 Wealth +10%'],
-  autumn: ['🌾 Farming +10%', '🪵 Timber +10%', '📦 Storage bonus'],
-  winter: ['🌾 Farming -60%', '🪵 Wood use +50%', '🍖 Food use +20%'],
+// What each season changes — mirrors kindlewood-server seasons.js SEASONS
+// (modifiers, foodConsumption, timberConsumption, birthChanceBonus); the
+// server's scripts/season_cutover_test.js asserts they match.
+const SEASON_MODS = {
+  spring: { modifiers: { food: 1.20, timber: 1.0, stone: 1.0,  metal: 1.0, wealth: 1.0  }, foodConsumption: 1.0,  timberConsumption: 1.0, birthChanceBonus: 0.10 },
+  summer: { modifiers: { food: 1.30, timber: 1.0, stone: 1.0,  metal: 1.0, wealth: 1.10 }, foodConsumption: 1.0,  timberConsumption: 1.0, birthChanceBonus: 0 },
+  autumn: { modifiers: { food: 1.10, timber: 1.10, stone: 1.0, metal: 1.0, wealth: 1.0  }, foodConsumption: 1.0,  timberConsumption: 1.0, birthChanceBonus: 0 },
+  winter: { modifiers: { food: 0.40, timber: 1.0, stone: 0.90, metal: 1.0, wealth: 0.90 }, foodConsumption: 1.20, timberConsumption: 1.5, birthChanceBonus: -0.05 },
 };
+
+// SEASON_MODS in words: [{ text, good }] for the season panels.
+function seasonEffectLines(id) {
+  const m = SEASON_MODS[id];
+  if (!m) return [];
+  const pct = (x) => (x > 0 ? '+' : '−') + Math.round(Math.abs(x) * 100) + '%';
+  const ICON = { food: '🌾', timber: '🪵', stone: '🪨', metal: '⛏️', wealth: '💰' };
+  const NAME = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Wealth' };
+  const out = [];
+  for (const r of ['food', 'timber', 'stone', 'metal', 'wealth']) {
+    const d = m.modifiers[r] - 1;
+    if (Math.abs(d) > 1e-9) out.push({ text: ICON[r] + ' ' + NAME[r] + ' production ' + pct(d), good: d > 0 });
+  }
+  if (Math.abs(m.foodConsumption - 1) > 1e-9) out.push({ text: '🍖 Food eaten ' + pct(m.foodConsumption - 1), good: m.foodConsumption < 1 });
+  if (Math.abs(m.timberConsumption - 1) > 1e-9) out.push({ text: '🔥 Wood burned ' + pct(m.timberConsumption - 1), good: m.timberConsumption < 1 });
+  if (m.birthChanceBonus) out.push({ text: '👶 Birth chance ' + pct(m.birthChanceBonus), good: m.birthChanceBonus > 0 });
+  return out;
+}
+const SEASON_EFFECTS = Object.fromEntries(Object.keys(SEASON_MODS).map(id => [id, seasonEffectLines(id).map(l => l.text)]));
 
 // Spec 021 D1: 28 real hours = 1 in-game year, 4 seasons of 7 hours each.
 // Before the cutover the legacy 6h/24h formula applies unchanged. Mirrors
