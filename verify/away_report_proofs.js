@@ -7,6 +7,8 @@
 //      when turned off (Don't show again / Settings → General).
 //   3. Content: resource tiles, citizen names as profile links, waiting
 //      items, the season trail; HTML in event text is escaped.
+//   3g. Tabs: badges count each group, an empty tab says nothing happened,
+//       long lists are capped with "Show all".
 //   4. "Don't show me this again" turns the setting off.
 //   5. Wiring: script tag, loadGame hook, General settings tab + switch.
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -81,16 +83,32 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     check('1b. start() runs once per page load', env.calls.filter(c => /away-report/.test(c)).length === 1);
     const m = env.modal();
     check('2. a show:true report with content opens the splash', !!m && m.style.display === 'flex');
-    const body = m.querySelector('.ar-body').innerHTML;
-    check('3. resource tiles with net change (+180 food)', /data-res="food"/.test(body) && /\+180/.test(body));
-    check('3b. citizen names become profile links', /data-cid="1">Wren<\/button>/.test(body) && /data-cid="2">Pip<\/button>/.test(body));
-    check('3c. waiting items get an Open button', /data-action="quests"/.test(body));
-    check('3d. the season trail is listed', /Autumn[\s\S]*Winter/.test(body));
-    check('3e. HTML in event text is escaped', !/<img/.test(body) && /&lt;img/.test(body));
+    const R = env.win.KWAwayReport;
+    const bodyOf = (tab) => { R._setTab(tab); return m.querySelector('.ar-body').innerHTML; };
+    const summary = bodyOf('summary');
+    check('3. summary: resource tiles with net change (+180 food)', /data-res="food"/.test(summary) && /\+180/.test(summary));
+    check('3c. summary: waiting items get an Open button', /data-action="quests"/.test(summary));
+    check('3c2. summary: one row per tab, "Nothing happened" for empty ones', /data-tab="citizens"[\s\S]*1 event/.test(summary) && /data-tab="quests"[\s\S]*Nothing happened/.test(summary));
+    const cits = bodyOf('citizens');
+    check('3b. citizens tab: names become profile links', /data-cid="1">Wren<\/button>/.test(cits) && /data-cid="2">Pip<\/button>/.test(cits));
+    const world = bodyOf('world');
+    check('3d. world tab: the season trail is listed', /Autumn[\s\S]*Winter/.test(world));
+    check('3e. HTML in event text is escaped (other news → world tab)', !/<img/.test(world) && /&lt;img/.test(world));
+    check('3g. an empty tab says nothing happened', /ar-empty[\s\S]*Nothing happened among|No injuries/.test(bodyOf('hardship')) && /No quests finished/.test(bodyOf('quests').replace(/data-action[\s\S]*?<\/div>/, '')));
+    const tabs = m.querySelector('.ar-tabs').innerHTML;
+    check('3h. tab badges count each group; empty tabs dimmed', /data-tab="citizens"[^>]*>🏡<span class="ar-tab-label"> Citizens<\/span> <span class="ar-tab-n">1<\/span>/.test(tabs) && /ar-tab-none" data-tab="hardship"/.test(tabs));
     check('3f. away duration in the header', /away 9h/.test(m.querySelector('.ar-away').textContent));
     m.querySelector('.ar-dont-box').checked = true;
     env.win.KWAwayReport.close();
     check('4. "Don\'t show me this again" turns the setting off', env.store.kw_away_splash === 'off' && !env.win.KWAwayReport.enabled() && m.style.display === 'none');
+  }
+  {
+    const many = Object.assign({}, REPORT, { events: Array.from({ length: 45 }, (_, i) => ({ at: NOW - i * 60e3, category: 'citizens', icon: '🤝', text: 'Bond ' + i, citizenIds: [] })) });
+    const env = makeEnv(many);
+    await env.win.KWAwayReport.start(); await tick();
+    env.win.KWAwayReport._setTab('citizens');
+    const b = env.modal().querySelector('.ar-body').innerHTML;
+    check('3i. long lists show 30 then "Show all 45"', (b.match(/class="ar-ev"/g) || []).length === 30 && /data-more="citizens">Show all 45/.test(b));
   }
   {
     const env = makeEnv(REPORT, { storage: { kw_away_splash: 'off' } });
