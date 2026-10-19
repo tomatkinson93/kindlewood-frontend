@@ -135,18 +135,24 @@
     return '<span class="hc-hap-fx">' + lines.map(l => '<span class="hc-fx hc-fx-' + l.tone + '">' + _esc(l.text) + '</span>').join('') + '</span>';
   }
 
-  // HTML for the HUD dial panel's "Upcoming Happenings" section ('' = empty).
+  // HTML for the HUD dial panel's events section ('' = empty): the glance —
+  // what's running now plus the next one — and a link to the full view
+  // (js/timed-events.js, the community bar's Events button).
   function hudHtml(ms) {
-    const list = upcoming(ms, LIST_HOURS).slice(0, 8);
+    const all = upcoming(ms, LIST_HOURS);
+    const list = all.filter(u => u.active);
+    const next = all.find(u => !u.active);
+    if (next) list.push(next);
     if (!list.length) return '';
     return list.map(u =>
       '<div class="hc-hap' + (u.active ? ' hc-hap-active' : '') + '">' +
         '<span class="hc-hap-icon">' + _esc(u.h.icon || '🏮') + '</span>' +
         '<span class="hc-hap-main"><span class="hc-hap-title">' + _esc(u.h.title) + '</span>' +
-          '<span class="hc-hap-when">' + (u.active ? 'On now · ends ' + _esc(_local(u.endMs)) : _esc(_local(u.startMs))) + '</span>' +
+          '<span class="hc-hap-when">' + (u.active ? 'On now · ends ' + _esc(_local(u.endMs)) : 'Next · ' + _esc(_local(u.startMs))) + '</span>' +
           _fxHtml(effectLines(u.h, u.startMs)) + '</span>' +
         '<span class="hc-hap-in">' + (u.active ? 'ends in ' + _dur(u.endMs - ms) : 'in ' + _dur(u.startMs - ms)) + '</span>' +
-      '</div>').join('');
+      '</div>').join('') +
+      (root.KWEventsPanel ? '<button type="button" class="hc-hap-all" onclick="KWEventsPanel.open()">See all events →</button>' : '');
   }
 
   // Toast every banner Happening whose window started since the last check

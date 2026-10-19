@@ -7,8 +7,9 @@
 //  lighting(). Label = an in-world name for phase + progress (LABELS below).
 //  Hover: hearth (UTC) time, the player's local time, moon and time left in
 //  the phase. Click: a panel with the next 6 phase changes in local time,
-//  this moon cycle, and "Upcoming Happenings" (filled in Phase 6 through
-//  KWHudClock.setHappeningsProvider; an empty-state line until then).
+//  this moon cycle, and "Events" — what's on now and the next one (filled
+//  through KWHudClock.setHappeningsProvider by js/happenings.js; the full
+//  view is the community bar's Events button, js/timed-events.js).
 //
 //  Updates on KWClock.onChange plus a 30s tick — no per-frame loop.
 //  dialSvg(ms, lighting) is pure (no DOM) so proofs can check its geometry.
@@ -162,8 +163,9 @@
       '<div class="hc-section"><div class="sp-effects-label">Coming up</div>' + rows + '</div>' +
       '<div class="hc-section"><div class="sp-effects-label">This moon cycle</div><div class="hc-moons">' + moons + '</div>' +
         '<div class="hc-moon-name">' + moon.glyph + ' ' + esc(moon.name) + '</div></div>' +
-      '<div class="hc-section"><div class="sp-effects-label">Upcoming Happenings</div><div id="hc-happenings">' +
-        (hap || '<div class="hc-empty">No Happenings on the horizon.</div>') + '</div></div>';
+      '<div class="hc-section"><div class="sp-effects-label">Events</div><div id="hc-happenings">' +
+        (hap || '<div class="hc-empty">No events on the horizon.' +
+          (root.KWEventsPanel ? ' <button type="button" class="hc-hap-all" onclick="KWEventsPanel.open()">See the calendar →</button>' : '') + '</div>') + '</div></div>';
   }
 
   function open() {
@@ -174,7 +176,7 @@
   function close() { if (_panel) _panel.classList.remove('open'); }
   function toggle() { if (_panel && _panel.classList.contains('open')) close(); else open(); }
 
-  // Phase 6 hook: fn(ms) → HTML for the Upcoming Happenings list ('' = empty).
+  // Phase 6 hook: fn(ms) → HTML for the Events list ('' = empty).
   function setHappeningsProvider(fn) { _happenings = typeof fn === 'function' ? fn : null; render(); }
 
   function mount() {

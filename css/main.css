@@ -11654,3 +11654,48 @@ body.kw-shell #screen-game .map-zoom-ctrls { display: none !important; }   /* ph
   .ar-tab:not(.active) .ar-tab-label { display: none; }   /* phones: icon + count, label on the active tab */
   .ar-ev-when { display: none; }
 }
+
+/* ── Events (community bar → js/timed-events.js) — the away-report modal
+   shell and tabs (.qm-* / .ar-*) with event cards, rows and a week strip. */
+.ev-card-shell { height: min(680px, 88vh); }
+.ev-body { padding-top: 10px; }
+.ev-card { background: rgba(255,255,255,.03); border: 1px solid rgba(201,164,92,.2); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+.ev-card.ev-live { border-color: rgba(201,164,92,.5); background: rgba(201,164,92,.07); }
+.ev-card-head { display: flex; align-items: flex-start; gap: 10px; }
+.ev-icon { flex: none; font-size: 22px; line-height: 1.1; width: 28px; text-align: center; }
+.ev-card-main { flex: 1; min-width: 0; }
+.ev-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 15px; color: var(--kw-cream, #efe4cd); }
+.ev-flavour { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 13px; color: var(--kw-muted, #a8987a); }
+.ev-left { flex: none; text-align: right; font-size: 11px; color: var(--kw-muted, #a8987a); line-height: 1.3; }
+.ev-left b { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--kw-gold, #e8c87a); }
+.ev-fx { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 12.5px; margin-top: 5px; }
+.ev-fx-good { color: #9fc97a; } .ev-fx-bad { color: #e8907a; } .ev-fx-neutral { color: var(--kw-muted, #a8987a); }
+.ev-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); margin-top: 8px; overflow: hidden; }
+.ev-bar span { display: block; height: 100%; background: var(--kw-gold-deep, #c9a45c); }
+.ev-times { font-size: 12px; color: var(--kw-muted, #a8987a); margin-top: 2px; }
+.ev-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 2px; border-bottom: 1px solid rgba(201,164,92,.08); }
+.ev-row.ev-live { background: rgba(201,164,92,.06); border-radius: 6px; padding: 8px 6px; }
+.ev-row.ev-past { opacity: .8; }
+.ev-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.ev-in { font-size: 12px; color: var(--kw-gold, #e8c87a); white-space: nowrap; }
+.ev-badge { font-family: 'Crimson Pro', serif; font-weight: 400; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(159,201,122,.18); color: #9fc97a; vertical-align: 2px; }
+.ev-remind { padding: 3px 9px; border-radius: 6px; cursor: pointer; font-size: 11.5px; white-space: nowrap; background: rgba(255,255,255,.04); border: 1px solid rgba(201,164,92,.3); color: var(--kw-muted, #a8987a); }
+.ev-remind:hover { color: var(--kw-cream, #efe4cd); border-color: rgba(201,164,92,.55); }
+.ev-remind.on { background: rgba(201,164,92,.18); border-color: rgba(201,164,92,.6); color: var(--kw-gold, #e8c87a); }
+.ev-next { text-align: center; font-size: 13.5px; color: var(--kw-cream, #efe4cd); margin-top: -18px; }
+.ev-strip { display: grid; grid-template-columns: 46px repeat(24, 1fr); gap: 2px; margin: 2px 0 4px; }
+.ev-strip-h { font-size: 9px; color: var(--kw-muted, #a8987a); text-align: left; }
+.ev-strip-d { font-size: 11px; color: var(--kw-muted, #a8987a); line-height: 12px; }
+.ev-strip-c { height: 12px; border-radius: 2px; background: rgba(255,255,255,.05); }
+.ev-strip-c.on { background: var(--kw-gold-deep, #c9a45c); }
+.ev-strip-c.past { opacity: .3; }
+.ev-strip-c.now { outline: 1px solid #9fc97a; outline-offset: 0; }
+.ev-hint { font-size: 11.5px; color: var(--kw-muted, #a8987a); font-style: italic; margin: 4px 0 6px; }
+.ev-moons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin: 4px 0 2px; }
+.ev-moon { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 8px; background: rgba(255,255,255,.03); border: 1px solid rgba(201,164,92,.12); }
+.ev-moon.today { border-color: rgba(201,164,92,.55); background: rgba(201,164,92,.08); }
+.ev-moon-g { font-size: 20px; }
+.ev-moon-d { font-size: 10.5px; color: var(--kw-muted, #a8987a); }
+@media (max-width: 560px) {
+  .ev-strip { grid-template-columns: 34px repeat(24, 1fr); gap: 1px; }
+}
