@@ -197,7 +197,7 @@
 
   function _resourcesHtml(r) {
     if (!_resActive(r).length) return _empty('resources');
-    return _tilesHtml(r) + (_openRes ? _detailHtml(r) : '<div class="ar-note" style="text-align:center">Pick a resource to see who produced and who ate it.</div>');
+    return _tilesHtml(r) + (_openRes ? _detailHtml(r) : '<div class="ar-note" style="text-align:center">Choose a resource to see more details</div>');
   }
 
   function _worldHtml(r) {
@@ -205,8 +205,15 @@
     if (!hap.length && !seasons.length && !other.length) return _empty('world');
     let html = '';
     if (seasons.length) {
-      html += '<div class="qm-section">🍂 Seasons</div><div class="ar-seasons">' + seasons.map(s => '<span class="ar-season" title="' + _esc(_local(s.fromMs) + ' → ' + _local(s.toMs)) + '">'
-        + _esc(s.emoji) + ' ' + _esc(s.name) + '</span>').join('<span class="ar-arrow">→</span>') + '</div>';
+      // Year markers where the year turns: Year 694 · Summer → Autumn → Winter → Year 695 · Spring
+      let lastYear = null;
+      html += '<div class="qm-section">🍂 Seasons</div><div class="ar-seasons">' + seasons.map((s, i) => {
+        const year = typeof root.calcSeasonAt === 'function' ? root.calcSeasonAt(s.fromMs + 1).year : s.year;
+        const mark = year != null && year !== lastYear ? '<span class="ar-year">Year ' + _esc(year) + '</span>' : '';
+        lastYear = year;
+        return (i ? '<span class="ar-arrow">→</span>' : '') + mark
+          + '<span class="ar-season" title="' + _esc(_local(s.fromMs) + ' → ' + _local(s.toMs)) + '">' + _esc(s.emoji) + ' ' + _esc(s.name) + '</span>';
+      }).join('') + '</div>';
     }
     if (hap.length) {
       html += '<div class="qm-section">🏮 Happenings</div>' + hap.map(h => '<div class="ar-ev"><span class="ar-ev-icon">' + _esc(h.icon) + '</span><span class="ar-ev-text"><b>' + _esc(h.title) + '</b>'
@@ -283,6 +290,32 @@
     return el;
   }
 
+  // A chime when the splash opens: assets/audio/away-report.mp3 if it is
+  // uploaded, else success.mp3; at the SFX volume. Browsers block sound
+  // before the first click/tap on the page, so a blocked chime plays on the
+  // player's first interaction while the splash is still open.
+  const CHIME_FILES = ['away-report.mp3', 'success.mp3'];
+  function _chime() {
+    const vol = typeof root.getSfxVolume === 'function' ? root.getSfxVolume() : 0.6;
+    if (!(vol > 0) || typeof root.Audio !== 'function') return;
+    const tryFile = (i) => {
+      if (i >= CHIME_FILES.length) return;
+      const a = new root.Audio('/assets/audio/' + CHIME_FILES[i]);
+      a.volume = vol;
+      a.addEventListener('error', () => tryFile(i + 1), { once: true });
+      const p = a.play();
+      if (p && p.catch) p.catch((e) => {
+        if (!e || e.name !== 'NotAllowedError') return;
+        const retry = () => {
+          const el = root.document.getElementById('away-report-modal');
+          if (el && el.style.display !== 'none') a.play().catch(() => {});
+        };
+        root.document.addEventListener('pointerdown', retry, { once: true, capture: true });
+      });
+    };
+    tryFile(0);
+  }
+
   function show(report) {
     _report = report;
     _openRes = null;
@@ -292,6 +325,7 @@
     el.querySelector('.ar-dont-box').checked = false;
     _render();
     el.style.display = 'flex';
+    _chime();
   }
 
   function close() {

@@ -11699,3 +11699,5 @@ body.kw-shell #screen-game .map-zoom-ctrls { display: none !important; }   /* ph
 @media (max-width: 560px) {
   .ev-strip { grid-template-columns: 34px repeat(24, 1fr); gap: 1px; }
 }
+.ar-year { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 12px; color: var(--kw-gold, #e8c87a); margin: 0 2px 0 4px; }
+.ar-year:first-child { margin-left: 0; }
