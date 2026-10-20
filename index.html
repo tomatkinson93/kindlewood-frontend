@@ -42,6 +42,7 @@
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
   <link rel="stylesheet" href="/css/clans.css?v=cq3">
+  <link rel="stylesheet" href="/css/market.css?v=mk1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
   <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
   <script>
@@ -529,7 +530,7 @@
       <button class="comm-btn" id="nav-decks" onclick="openDeckBuilder()">🃏 <span>Decks</span></button>
       <button class="comm-btn" id="nav-events" onclick="openTimedEvents()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-events"/></svg><span>Events</span></button>
       <button class="comm-btn" onclick="openLeaderboard()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-rankings"/></svg><span>Rankings</span></button>
-      <button class="comm-btn" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
+      <button class="comm-btn" id="nav-market" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
       <button class="comm-btn" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
       <button class="comm-btn" id="nav-clan" onclick="openClanPanel()">🛡️ <span>Clan</span></button>
       <button class="comm-btn" id="nav-chat" onclick="openChatHub()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-chat"/></svg><span>Chat</span></button>
@@ -796,7 +797,7 @@
   <script defer src="/js/carousel.js?v=spec20b"></script>
   <script defer src="/js/placement.js"></script>
   <script defer src="/js/arrival.js"></script>
-  <script defer src="/js/citizens.js?v=1776929386"></script>
+  <script defer src="/js/citizens.js?v=mk1"></script>
   <script defer src="/js/buildings.js?v=021adm"></script>
   <script defer src="/js/expeditions.js"></script>
   <script defer src="/js/seasons.js?v=021ev"></script>
@@ -824,7 +825,7 @@
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=021away"></script>
-  <script defer src="/js/main.js?v=021away"></script>
+  <script defer src="/js/main.js?v=mk1"></script>
   <script defer src="/js/away-report.js?v=021chime"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
@@ -835,7 +836,7 @@
   <script defer src="/js/lobby.js?v=17"></script>
   <script defer src="/js/tavern.js?v=44"></script>
   <script defer src="/js/citizen-picker.js?v=kwp1"></script>
-  <script defer src="/js/quests.js?v=kwp1"></script>
+  <script defer src="/js/quests.js?v=mk1"></script>
   <script defer src="/js/fishing.js?v=021fish"></script>
   <script defer src="/js/housing.js"></script>
   <script defer src="/js/events.js"></script>
@@ -862,10 +863,11 @@
   <script defer src="/js/clan-profile.js?v=cp2"></script>
   <script defer src="/js/clan-quests.js?v=cq3"></script>
   <script defer src="/js/chat-hub.js?v=cp1"></script>
-  <script defer src="/js/realtime.js?v=cq3"></script>
+  <script defer src="/js/market.js?v=mk1"></script>
+  <script defer src="/js/realtime.js?v=mk1"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
-  <script defer src="/js/mobile-shell.js?v=cp1"></script>
+  <script defer src="/js/mobile-shell.js?v=mk1"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->
@@ -1682,7 +1684,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=clan2"></script>
+    <script defer src="js/settlement-view.js?v=mk1"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

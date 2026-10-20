@@ -6,7 +6,7 @@ let selectedCitizenId = null;
 const ROLE_ICONS = {
   farmer: '🌾', woodcutter: '🪓', fisher: '🎣', miner: '⛏',
   crafter: '🔨', scout: '🗺', soldier: '⚔️', idle: '💤',
-  tavernkeep: '🍺',
+  tavernkeep: '🍺', merchant: '⚖️',
 };
 const TRAIT_ICONS = {
   strong:'💪', quick:'⚡', hardy:'🛡', genius:'🧠', charming:'✨',
@@ -149,8 +149,9 @@ function renderCitizensList() {
     const genderColor = c.gender === 'female' ? '#e090c0' : '#70a8e0';
     const isOnQuest  = !!c.active_quest;
     const isOnDiplo  = !!(window._diploEnvoyIds && window._diploEnvoyIds.has(c.id));
-    const roleIcon   = isOnQuest ? '⚔️' : isOnDiplo ? '📨' : isScouting ? '🗺' : (isChild ? '🍼' : (ROLE_ICONS[c.role] || '💤'));
-    const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : (isChild ? 'Child' : (c.role.charAt(0).toUpperCase() + c.role.slice(1)));
+    const isTrading  = !!(c.trade && c.trade.on_road);
+    const roleIcon   = isOnQuest ? '⚔️' : isOnDiplo ? '📨' : isScouting ? '🗺' : isTrading ? '🐾' : (isChild ? '🍼' : (ROLE_ICONS[c.role] || '💤'));
+    const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : isTrading ? 'Trading' : (isChild ? 'Child' : (c.role.charAt(0).toUpperCase() + c.role.slice(1)));
     const houseIcon  = c.house_id ? '🏡' : '<span style="opacity:.35">🚶</span>';
     const partnerIcon = c.partner_id ? ' <span style="font-size:9px;color:#e090a0">💕</span>' : '';
     // Famine ladder badge — hunger_state comes from the server
@@ -466,6 +467,11 @@ function renderCitizenProfile(c) {
         </div>
       ` : isScouting ? `
         <div class="cp-scouting-note">🗺 On expedition — returns in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.expedition.completes_at) - Date.now()) / 1000)))}</strong></div>
+      ` : c.trade ? `
+        <div class="cp-scouting-note">${c.trade.on_road
+          ? `🐾 On a trade run — ${c.trade.status === 'returning' ? 'back home' : 'arrives'} in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.trade.completes_at) - Date.now()) / 1000)))}</strong>`
+          : '⚖️ Working as a merchant at the Market.'}
+          <button class="cp-market-btn" onclick="if(typeof openMarket==='function'){openMarket({tab:'caravans'})}">Open Market</button></div>
       ` : `
         <select class="cp-role-select" onchange="updateCitizenRoleFromProfile(${c.id}, this.value)">
           ${roleOptions}
@@ -905,6 +911,8 @@ function renderAllCitizens(sortKey, sortDir, filter) {
       ? '<td class="ac-role-child">🍼 Child</td>'
       : c.active_quest
         ? '<td class="ac-role-child">⚔️ On Quest</td>'
+      : c.trade
+        ? '<td class="ac-role-child">' + (c.trade.on_road ? '🐾 Trading' : '⚖️ Merchant') + '</td>'
         : '<td><select class="ac-role-select" onchange="updateCitizenRole(' + c.id + ', this.value)" onclick="event.stopPropagation()">' +
           getAvailableRoles().map(r => '<option value="' + r + '"' + (c.role===r?' selected':'') + '>' + (ROLE_ICONS[r]||'?') + ' ' + r + '</option>').join('') +
           '</select></td>';

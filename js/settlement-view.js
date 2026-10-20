@@ -568,6 +568,24 @@ async function openSettlementView() {
 }
 window.openSettlementView = openSettlementView;
 
+// Opens the settlement view on the plot for `buildingId` with its build panel
+// showing — the Market's "Build a Market" link uses this. The plot is the one
+// the building already sits in, else its default slot if free, else any free
+// slot in that area.
+async function openSettlementBuild(buildingId) {
+  await openSettlementView();
+  var assign = _svGetAssignments();
+  var home = SV_SLOTS.find(function(s) { return (s.accepts || []).includes(buildingId); });
+  var slot = SV_SLOTS.find(function(s) { return assign[s.id] === buildingId; })
+    || (home && !assign[home.id] ? home : null)
+    || SV_SLOTS.find(function(s) { return s.area === (home ? home.area : 'town') && !s.type && !assign[s.id]; });
+  if (!slot) return;
+  if (slot.area !== _svActiveArea) _svSwitchArea(slot.area);
+  var b = _svBuildings.find(function(x) { return x.id === buildingId; });
+  _openBuildPanel(slot, b && b.currentLevel > 0 ? b : null);
+}
+window.openSettlementBuild = openSettlementBuild;
+
 function closeSettlementView() {
   _svOpen = false;
   _closeBuildPanel();
@@ -1004,11 +1022,16 @@ function _openBuildPanel(slot, occupant) {
       + '<div class="sv-occ-lv">Level ' + occupant.currentLevel + ' / ' + occupant.maxLevel + '</div></div>'
       + (isMax
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">★ MAX</span>'
+        : occupant.nextLevelTierMet === false
+        ? '<span class="sv-bp-lv-badge" style="margin-left:auto">🔒 Lv ' + (occupant.currentLevel + 1) + ' needs a ' + _svTierLabel(occupant.nextLevelTier) + '</span>'
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div><div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
       + (occupant.id === 'guild_hall' && typeof openClanPanel === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openClanPanel()">🛡️ Open Clan</button>'
+        : '')
+      + (occupant.id === 'market' && typeof openMarket === 'function'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket()">⚖️ Open Market</button>'
         : '')
       + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
   } else {
