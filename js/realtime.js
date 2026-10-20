@@ -50,6 +50,7 @@
     // collectible cards appear; the quests poller's toast/dedupe set will
     // fire its "they returned!" toast on the refreshed data.
     quest_resolved(ev) {
+      if (global.KWTravel) global.KWTravel.soon();
       if (typeof refreshActiveQuests === 'function') {
         // refreshActiveQuests is async. The wrapping try/catch only catches
         // sync throws, so we attach .then to surface async rejections —
@@ -109,7 +110,7 @@
       if (global.ClanUI) global.ClanUI.onInviteReceived(ev);
     },
     // A clan quest you took part in finished (your settlement channel).
-    clan_quest_resolved(ev) { if (global.ClanQuests) global.ClanQuests.onResolved(ev); },
+    clan_quest_resolved(ev) { if (global.ClanQuests) global.ClanQuests.onResolved(ev); if (global.KWTravel) global.KWTravel.soon(); },
     clan_quest_battle(ev) { if (global.ClanQuests) global.ClanQuests.onBattle(ev); },
     clan_request_declined(ev) {
       if (global.ClanUI && global.ClanUI.onRequestDeclined) global.ClanUI.onRequestDeclined(ev);
@@ -132,11 +133,11 @@
     mod_reports(ev) { if (global.ChatHub) global.ChatHub.onModReports(ev); },
     // Market (your settlement channel): a lot bought, goods delivered, a
     // merchant home with gold, an order expired. Notify-then-fetch.
-    market_purchase(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
-    market_delivery(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
-    market_return(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
-    market_trip_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
-    market_order_expired(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
+    market_purchase(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
+    market_delivery(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
+    market_return(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
+    market_trip_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
+    market_order_expired(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

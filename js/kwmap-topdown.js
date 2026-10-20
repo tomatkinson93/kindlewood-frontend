@@ -897,6 +897,13 @@ KWMap.controller.registerRenderer('topdown', {
     return p ? { x: p.x + p.hexW / 2, y: p.y + p.hexH / 2 } : null;
   },
 
+  // Tile centre for an UNWRAPPED axial coordinate, no culling — the travel
+  // path layer (kwmap-travel.js) projects whole paths across the map edge.
+  projectAxial(aq, ar, camera, W, H) {
+    const g = KWMap.geom.geomParams(W, H);
+    return { x: g.cx + g.hexW * (aq + ar / 2) - g.camPxX, y: g.cy + g.hexVert * ar - g.camPxY, hexW: g.hexW };
+  },
+
   invalidate(scope) { /* Phase 1: immediate-mode renderer — nothing cached */ },
   destroy() {},
 });

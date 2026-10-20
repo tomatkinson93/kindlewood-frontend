@@ -291,6 +291,10 @@ window.KWMap = (() => {
       // Settlement nameplates (js/kwmap-nameplates.js) — additive, on top of
       // the uifx strokes; renderers opt in by implementing labelAnchor().
       if (window.KWNameplates && this._uifxCtx) window.KWNameplates.draw(this._uifxCtx, prep.W, prep.H, r, camera);
+      // Citizen travel paths (js/kwmap-travel.js) — above the nameplates so a
+      // traveller leaving home isn't hidden; draws nothing when switched off
+      // or nobody is travelling.
+      if (window.KWTravelLayer && this._uifxCtx) window.KWTravelLayer.draw(this._uifxCtx, prep.W, prep.H, r, camera, now);
     },
 
     requestRender() {

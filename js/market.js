@@ -109,9 +109,11 @@
         </div>
         <div class="mk-tabs" id="mk-tabs"></div>
         <div class="mk-body" id="mk-body"></div>
+        <div class="mk-pop" id="mk-pop" role="tooltip"></div>
         <div class="mk-sheet-wrap" id="mk-sheet-wrap"></div>
       </div>`;
-    el.addEventListener('click', e => { if (e.target === el) closeMarket(); });
+    // No backdrop-click close: a stray click mid-order would lose the form.
+    // Only ✕ (and Escape, outside form fields) closes the panel.
     el.querySelector('.mk-close').addEventListener('click', closeMarket);
     el.addEventListener('click', onAction);
     el.addEventListener('change', onChange);
@@ -234,7 +236,9 @@
       return;
     }
     byId('mk-title').textContent = `Market · Level ${st.mods.marketLevel}`;
-    sub.innerHTML = `${st.mods.merchants} merchant${st.mods.merchants === 1 ? '' : 's'} · carries ${fmt(st.mods.carryWeight)} per trip · ${Math.round(st.mods.feeRate * 100)}% fee`;
+    sub.innerHTML = `${st.mods.merchants} merchant${st.mods.merchants === 1 ? '' : 's'} · carries ${fmt(st.mods.carryWeight)} per trip · ${Math.round(st.mods.feeRate * 100)}% fee
+      <button type="button" class="mk-info" data-act="info" aria-label="How your Market grows" aria-describedby="mk-pop">ⓘ</button>`;
+    byId('mk-pop').innerHTML = `<div class="mk-pop-title">Your Market · Level ${st.mods.marketLevel}</div>${levelTableHtml(st, st.mods.marketLevel)}`;
     const tabs = [['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['caravans', '🐾 Caravans']];
     byId('mk-tabs').innerHTML = tabs.map(([k, label]) =>
       `<button type="button" class="mk-tab ${state.tab === k ? 'on' : ''}" data-act="tab" data-tab="${k}">${label}</button>`).join('');
@@ -559,11 +563,7 @@
       ${pastTrips.length || closedOrders.length ? `<div class="mk-sec">
         <h3>Last 24 hours</h3>
         <ul class="mk-list">${pastTrips.map(tripHtml).join('')}${closedOrders.map(o => myOrderHtml(o, [], st.mods, 0)).join('')}</ul>
-      </div>` : ''}
-      <div class="mk-sec">
-        <h3>Your Market</h3>
-        ${levelTableHtml(st, st.mods.marketLevel)}
-      </div>`;
+      </div>` : ''}`;
   }
 
   // ── Countdown ticker ────────────────────────────────────────────────────
@@ -606,6 +606,7 @@
     const t = e.target.closest('[data-act]');
     if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
     const act = t.dataset.act;
+    if (act === 'info') return;  // popover — see setPop
     if (act === 'tab') return switchTab(t.dataset.tab);
     if (act === 'sheet-close') return closeSheet();
     if (act === 'build-market') {
@@ -678,7 +679,39 @@
     submitSell();
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && isOpen()) closeMarket(); });
+  // Escape peels one layer: the level popover, then a confirm sheet, then the
+  // panel — but never while typing in a field.
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !isOpen()) return;
+    if (setPop(false)) return;
+    const w = byId('mk-sheet-wrap');
+    if (w && w.classList.contains('open')) return closeSheet();
+    const a = document.activeElement;
+    if (a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && byId('market-panel').contains(a)) return;
+    closeMarket();
+  });
+
+  // ⓘ level popover: hover/focus on desktop, tap to pin on phones.
+  let popPinned = false;
+  function setPop(on) {
+    const p = byId('mk-pop');
+    if (!p) return false;
+    const was = p.classList.contains('open');
+    p.classList.toggle('open', !!on);
+    if (!on) popPinned = false;
+    p.classList.toggle('pinned', !!on && popPinned);
+    return was && !on;
+  }
+  document.addEventListener('mouseover', e => {
+    if (!isOpen() || popPinned) return;
+    setPop(!!(e.target.closest && e.target.closest('.mk-info')));
+  });
+  document.addEventListener('focusin', e => { if (isOpen() && e.target.classList && e.target.classList.contains('mk-info')) setPop(true); });
+  document.addEventListener('click', e => {
+    if (!isOpen() || !e.target.closest) return;
+    if (e.target.closest('.mk-info')) { popPinned = !popPinned; setPop(popPinned); return; }
+    if (!e.target.closest('.mk-pop')) setPop(false);
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && isOpen()) softRefresh(); });
 
   // ── Realtime (js/realtime.js HANDLERS) ──────────────────────────────────

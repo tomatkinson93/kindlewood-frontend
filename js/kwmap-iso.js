@@ -855,6 +855,13 @@
       return p ? { x: p.cx, y: p.cy + p.faceH * 0.22, hexW: p.hexW } : null;
     },
 
+    // Ground-plane centre of an UNWRAPPED axial coordinate, no culling — the
+    // travel path layer (kwmap-travel.js) projects whole paths with it.
+    projectAxial(aq, ar, cam, W, H) {
+      const g = geo(W, H);
+      return { x: g.cx + isoGroundX(aq, ar, g) - g.camPxX, y: g.cy + isoGroundY(aq, ar, g) - g.camPxY, hexW: g.hexW };
+    },
+
     // Ground-plane tile centre (no elevation) — overlay/panel anchoring (§2.3).
     hexToScreen(wq, wr, cam, W, H) {
       const p = isoFirstVisibleCopy(wq, wr, W, H, false);
