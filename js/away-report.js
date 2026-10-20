@@ -290,11 +290,11 @@
     return el;
   }
 
-  // A chime when the splash opens: assets/audio/away-report.mp3 if it is
+  // A chime when the splash opens: assets/audio/away-report.wav if it is
   // uploaded, else success.mp3; at the SFX volume. Browsers block sound
   // before the first click/tap on the page, so a blocked chime plays on the
   // player's first interaction while the splash is still open.
-  const CHIME_FILES = ['away-report.mp3', 'success.mp3'];
+  const CHIME_FILES = ['away-report.wav', 'success.mp3'];
   function _chime() {
     const vol = typeof root.getSfxVolume === 'function' ? root.getSfxVolume() : 0.6;
     if (!(vol > 0) || typeof root.Audio !== 'function') return;
