@@ -1501,7 +1501,7 @@ function _selectWorldTileImpl(tile) {
     const elders   = citizens.filter(c => c.life_stage === 'elder');
     // Count diplomatic envoys from _diploRelations cache (populated by diplomacy.js)
     const diploEnvoys = (typeof _diploEnvoyIds !== 'undefined' ? _diploEnvoyIds : new Set());
-    const onMission = adults.filter(c => c.expedition || c.active_quest || diploEnvoys.has(c.id)).length;
+    const onMission = adults.filter(c => c.expedition || c.active_quest || (c.trade && c.trade.on_road) || diploEnvoys.has(c.id)).length;
     const idle      = adults.filter(c => !c.expedition && !c.active_quest && !diploEnvoys.has(c.id) && (!c.role || c.role === 'idle')).length;
 
     // Attention pills — citizen states that may need the player's eye.
@@ -1586,7 +1586,14 @@ function _selectWorldTileImpl(tile) {
       + '</div>'
       + '<div class="sett-actions" style="margin-top:10px">'
       + '<button class="sett-action-btn vp-trigger" data-username="' + (s.username||'') + '" data-species="' + (s.species||'') + '" data-name="' + (s.name||'') + '" data-tier="' + (s.tier||'village') + '" data-q="' + tile.q + '" data-r="' + tile.r + '" onclick="openProfileForUser(this.dataset.username,this.dataset.species,this.dataset.name,this.dataset.tier,this.dataset.q,this.dataset.r)">👤 View Profile</button>'
+      // Market: towns that have discovered each other (or clanmates) can trade.
+      + (s.can_trade && s.settlement_id && typeof openMarket === 'function'
+        ? '<button class="sett-action-btn" data-sid="' + s.settlement_id + '" data-name="' + escHtml(s.name||'') + '" onclick="openMarket({seller:this.dataset.sid,sellerName:this.dataset.name})">⚖️ Trade</button>'
+        : '')
       + '</div>'
+      + (!s.can_trade && s.settlement_id
+        ? '<div class="sett-trade-note">⚖️ You can trade once they have discovered your town too.</div>'
+        : '')
       + '</div>';
     title.textContent = '';
     sub.innerHTML = '';
@@ -1793,6 +1800,7 @@ const COMM_TITLES = {
   board: '📌 Notice Board',
   chat: '💬 Chatroom',
   realms: '🌍 All Realms',
+  market: '⚖️ Market',
 };
 
 
@@ -2029,8 +2037,12 @@ async function _renderQuestsModal() {
 }
 
 function showCommunityTab(tab) {
+  if (tab === 'market' && typeof openMarket === 'function') { openMarket(); return; }
   document.querySelectorAll('.comm-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  // The click can land on the button's icon or label — mark the button.
+  const btn = window.event && window.event.target && window.event.target.closest
+    ? window.event.target.closest('.comm-btn') : null;
+  if (btn) btn.classList.add('active');
   document.getElementById('community-title').textContent = COMM_TITLES[tab] || tab;
   document.getElementById('community-modal').classList.add('open');
 }

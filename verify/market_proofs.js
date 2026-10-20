@@ -1,0 +1,200 @@
+'use strict';
+// Market panel (community bar → js/market.js).
+//   node verify/market_proofs.js
+//   1. No Market: requirements (tier, buildings, cost chips that go red when
+//      short), the level ladder, and a Build link that opens the Market plot.
+//   2. Buy: orders with lot / price / per-unit / distance / ETA, paused
+//      orders can't be bought, sort + filter go to the server, confirm sheet.
+//   3. Sell: per-delivery cap from carry weight, guide price, fee preview,
+//      over-cap / over-stock warnings.
+//   4. Caravans: trips with countdowns, own orders with merchants + cancel.
+//   5. Wiring: Market button → openMarket, map Trade button, realtime
+//      handlers, mobile overlay list, versioned script/css tags.
+const fs = require('fs'), path = require('path'), vm = require('vm');
+const ROOT = path.join(__dirname, '..');
+const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+let pass = 0, fail = 0;
+const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
+
+// ── Tiny DOM: elements by id are created on demand; the panel's listeners
+// are kept so tests can fire actions at it. ──
+function makeEl(id) {
+  const classes = new Set();
+  const listeners = {};
+  return {
+    id, innerHTML: '', textContent: '', style: {}, dataset: {}, className: '',
+    classList: {
+      add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c),
+      toggle: (c, on) => (on === undefined ? (classes.has(c) ? classes.delete(c) : classes.add(c)) : on ? classes.add(c) : classes.delete(c)),
+    },
+    _classes: classes, _listeners: listeners,
+    addEventListener(t, fn) { (listeners[t] = listeners[t] || []).push(fn); },
+    querySelector: () => makeEl(), querySelectorAll: () => [],
+    contains: () => false, appendChild() {},
+  };
+}
+function makeEnv(routes) {
+  const els = {}, toasts = [], calls = [], built = [];
+  const getEl = id => (els[id] = els[id] || makeEl(id));
+  let panel = null;
+  const doc = {
+    getElementById: id => (id === 'market-panel' ? panel : getEl(id)),
+    createElement: () => (panel = makeEl('market-panel')),
+    querySelectorAll: () => [], querySelector: () => null,
+    addEventListener() {}, body: { appendChild() {} }, activeElement: null, hidden: false,
+  };
+  const win = {
+    document: doc, console, URLSearchParams, Date, Math, JSON, Number, String, Object, Array, Set,
+    setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
+    escHtml: s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+    showBuildToast: (m, t) => toasts.push([m, t || 'success']),
+    _liveResources: () => ({ food: 500, timber: 40, stone: 0, metal: 10, wealth: 120 }),
+    _costChips: (cost, have) => Object.entries(cost).map(([r, v]) => `<span class="op-chip ${(have[r] ?? 0) < v ? 'op-chip-short' : ''}">${r} ${v}</span>`).join(''),
+    openSettlementBuild: id => built.push(id),
+    confirm: () => true,
+    apiFetch: async (p, opts) => {
+      calls.push([opts && opts.method || 'GET', p, opts && opts.body ? JSON.parse(opts.body) : null]);
+      const key = Object.keys(routes).find(k => p.startsWith(k));
+      const v = key ? routes[key] : { error: 'nope' };
+      const body = typeof v === 'function' ? v(p, opts) : v;
+      return { ok: !body.error, json: async () => body };
+    },
+  };
+  win.window = win;
+  vm.createContext(win);
+  vm.runInContext(read('js/market.js'), win, { filename: 'js/market.js' });
+  const body = () => getEl('mk-body').innerHTML;
+  const fire = async (type, target) => { for (const fn of panel._listeners[type] || []) await fn({ target, preventDefault() {} }); };
+  const btn = (act, data) => {
+    const t = { tagName: 'BUTTON', dataset: { act, ...(data || {}) } };
+    t.closest = () => t;
+    return t;
+  };
+  return { win, getEl, body, fire, btn, toasts, calls, built, panel: () => panel };
+}
+const tick = () => new Promise(r => setImmediate(r));
+
+const CAPS = { 1: { carryWeight: 100, maxOrders: 2 }, 2: { carryWeight: 200, maxOrders: 3 }, 3: { carryWeight: 350, maxOrders: 4 }, 4: { carryWeight: 550, maxOrders: 5 }, 5: { carryWeight: 800, maxOrders: 6 } };
+const BASE = {
+  ok: true, placed: true, tier: 'camp', activeOrders: 0, merchantsAssigned: 0,
+  tradeable: ['food', 'timber', 'stone', 'metal'],
+  unitWeight: { food: 0.5, timber: 1, stone: 1, metal: 2 },
+  referencePrice: { food: 0.3, timber: 0.7, stone: 1, metal: 2 },
+  levelCaps: CAPS,
+  building: { id: 'market', label: 'Market', icon: '⚖️', desc: 'Traders bring wealth.', imgFile: 'market.png', maxLevel: 5,
+    minTier: 'camp', levelTierReq: { 2: 'village', 3: 'town', 4: 'city', 5: 'city' }, cost: { timber: 60, food: 30 }, requires: [] },
+  resources: { food: 500, timber: 40, stone: 0, metal: 10, wealth: 120 },
+};
+const LOCKED = { ...BASE, unlocked: false, mods: { marketLevel: 0, carryWeight: 0, merchants: 0, maxOrders: 0, feeRate: 0.05, expiryHours: 168 } };
+const OPEN = { ...BASE, unlocked: true, mods: { marketLevel: 1, carryWeight: 100, merchants: 1, maxOrders: 2, feeRate: 0.05, expiryHours: 168, speedMult: 1 } };
+const ORDERS = { ok: true, orders: [
+  { id: 7, resource: 'timber', lot_size: 100, lot_price: 70, next_lot_qty: 100, next_lot_price: 70, unit_price: 0.7, qty_available: 250, qty_total: 250,
+    seller: { id: 3, name: 'Oakhollow', username: 'bramble', species: 'Mice', tier: 'camp' }, distance: 6, merchants: 1, paused: false, eta_seconds: 270 },
+  { id: 8, resource: 'metal', lot_size: 50, lot_price: 200, next_lot_qty: 50, next_lot_price: 200, unit_price: 4, qty_available: 50, qty_total: 100,
+    seller: { id: 4, name: 'Stonebrook', username: 'flint', species: 'Moles', tier: 'town' }, distance: 11, merchants: 1, paused: true,
+    next_free_at: new Date(Date.now() + 200e3).toISOString(), eta_seconds: 700 },
+] };
+const MINE = { ok: true, now: new Date().toISOString(),
+  orders: [{ id: 5, resource: 'food', lot_size: 200, lot_price: 60, unit_price: 0.3, qty_total: 600, qty_escrowed: 400, status: 'active',
+    expires_at: new Date(Date.now() + 5 * 86400e3).toISOString(), merchants: [{ id: 21, name: 'Ash', scouting: 2, on_road: true }] }],
+  trips: [
+    { id: 1, order_id: 5, resource: 'food', qty: 200, gold_paid: 60, fee: 3, distance: 4, status: 'outbound', direction: 'selling',
+      departs_at: new Date(Date.now() - 60e3).toISOString(), arrives_at: new Date(Date.now() + 120e3).toISOString(), returns_at: new Date(Date.now() + 300e3).toISOString(),
+      seller_name: 'Home', buyer_name: 'Oakhollow', citizen_name: 'Ash' },
+    { id: 2, order_id: 9, resource: 'stone', qty: 80, gold_paid: 90, fee: 4, distance: 9, status: 'outbound', direction: 'buying',
+      departs_at: new Date(Date.now() - 60e3).toISOString(), arrives_at: new Date(Date.now() + 400e3).toISOString(), returns_at: new Date(Date.now() + 860e3).toISOString(),
+      seller_name: 'Stonebrook', buyer_name: 'Home', citizen_name: 'Flint' },
+  ],
+  candidates: [{ id: 21, name: 'Ash', role: 'merchant', scouting: 2, busy: 'Ash is already a merchant.' }, { id: 22, name: 'Birch', role: 'farmer', scouting: 1, busy: null }],
+};
+
+(async () => {
+  // 1 — locked
+  {
+    const env = makeEnv({ '/api/market/status': LOCKED });
+    await env.win.openMarket();
+    const b = env.body();
+    check('1. no Market: "Build a Market" prompt', /Build a Market to start trading/.test(b) && /data-act="build-market"/.test(b));
+    check('1b. lists the settlement level requirement', /Settlement level: any \(Camp or higher\)/.test(b));
+    check('1c. cost chips from the server, red when short (40 timber < 60)', /op-chip op-chip-short">timber 60/.test(b) && /op-chip ">food 30/.test(b));
+    check('1d. level ladder: tier gates, carry and merchants', /<td>Lv 2<\/td><td>Village<\/td>[\s\S]*?<td>200<\/td>/.test(b) && /<td>Lv 5<\/td><td>City<\/td>/.test(b));
+    check('1e. no tabs while locked', env.getEl('mk-tabs').innerHTML === '');
+    await env.fire('click', env.btn('build-market'));
+    check('1f. Build link opens the Market plot', env.built[0] === 'market');
+  }
+  // 2 — buy
+  {
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/orders?': ORDERS, '/api/market/orders/7/buy': { ok: true, wealth: 50, merchant: 'Ash', seller: 'Oakhollow', trip: { qty: 100, resource: 'timber' } } });
+    await env.win.openMarket();
+    const b = env.body();
+    check('2. buy list: lot, price, per-unit, amount left', /🪵 100 timber[\s\S]*?🪙 70/.test(b) && /0\.70 gold \/ unit/.test(b) && /250 left/.test(b));
+    check('2b. seller, distance and arrival time', /Oakhollow/.test(b) && /6 hexes away/.test(b) && /Arrives in ~4m 30s/.test(b));
+    check('2c. paused order shows why and cannot be bought', /⏸ Paused — merchant back in/.test(b) && !/data-act="buy" data-id="8"/.test(b));
+    check('2d. sort options: distance / price per unit / amount / arrival', /value="distance"[\s\S]*value="unit_price"[\s\S]*value="amount"[\s\S]*value="eta"/.test(b));
+    await env.fire('change', { dataset: { act: 'sort' }, value: 'unit_price' });
+    await env.fire('change', { dataset: { act: 'filter-resource' }, value: 'timber' });
+    const last = env.calls.filter(c => c[1].startsWith('/api/market/orders?')).pop()[1];
+    check('2e. sort + filter go to the server', /sort=unit_price/.test(last) && /resource=timber/.test(last) && /dir=asc/.test(last));
+    await env.fire('click', env.btn('filter-seller', { id: '3', name: 'Oakhollow' }));
+    const sellerCall = env.calls.filter(c => c[1].startsWith('/api/market/orders?')).pop()[1];
+    check('2f. clicking a seller filters to their town', /seller=3/.test(sellerCall) && /Only Oakhollow/.test(env.body()));
+    await env.fire('click', env.btn('buy', { id: '7' }));
+    const sh = env.getEl('mk-sheet-wrap').innerHTML;
+    check('2g. confirm sheet: pay now, per unit, distance, arrival', /You pay now<\/span><b><span class="mk-gold">🪙 70/.test(sh) && /0\.70 gold/.test(sh) && /6 hexes/.test(sh) && /~4m 30s/.test(sh));
+    await env.fire('click', env.btn('buy-confirm', { id: '7' }));
+    await tick();
+    check('2h. buying posts to the order and toasts the merchant', env.calls.some(c => c[0] === 'POST' && c[1] === '/api/market/orders/7/buy') && /Ash of Oakhollow is on the way/.test(env.toasts.map(t => t[0]).join()));
+  }
+  // 3 — sell
+  {
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/mine': MINE });
+    await env.win.openMarket({ tab: 'sell' });
+    const b = env.body();
+    check('3. sell form: per-delivery cap from carry weight (100 timber)', /Per delivery <em class="mk-muted">\(max 100\)/.test(b));
+    check('3b. caps shown: orders, merchants, carry', /Orders <b>0 \/ 2/.test(b) && /Merchants <b>0 \/ 1/.test(b));
+    const birch = (b.match(/<input[^>]*value="22"[^>]*>/) || [''])[0];
+    check('3c. busy citizens are listed but cannot be picked', /mk-cand busy[\s\S]*?value="21"[^>]*disabled/.test(b) && birch && !/disabled/.test(birch));
+    const sum = env.getEl('mk-sell-summary').innerHTML;
+    check('3d. guide price for timber', /about <b>0\.70<\/b> gold per timber/.test(sum));
+    // Price a draft and check the fee preview.
+    env.win.document.querySelector = () => ({ resource: { value: 'timber' }, qty_total: { value: '500' }, lot_size: { value: '100' }, lot_price: { value: '80' } });
+    await env.fire('input', { dataset: { act: 'draft' } });
+    const s2 = env.getEl('mk-sell-summary').innerHTML;
+    check('3e. 5 deliveries, 0.80 per unit, keep 76 after the 5% fee', /5 deliveries of up to 100/.test(s2) && /0\.80 gold per unit · you keep 76/.test(s2));
+    check('3f. warns when listing more than you have (40 timber)', /You only have 40/.test(s2));
+    env.win.document.querySelector = () => ({ resource: { value: 'metal' }, qty_total: { value: '10' }, lot_size: { value: '60' }, lot_price: { value: '80' } });
+    await env.fire('input', { dataset: { act: 'draft' } });
+    check('3g. warns when a delivery is over the carry limit (metal weighs 2)', /carries at most 50 metal/.test(env.getEl('mk-sell-summary').innerHTML));
+  }
+  // 4 — caravans
+  {
+    const env = makeEnv({ '/api/market/status': { ...OPEN, activeOrders: 1, merchantsAssigned: 1 }, '/api/market/mine': MINE, '/api/market/orders/5/cancel': { ok: true, refunded: 400 } });
+    await env.win.openMarket({ tab: 'caravans' });
+    const b = env.body();
+    check('4. merchant carrying goods out, with a progress bar', /Ash is carrying 200 food to Oakhollow/.test(b) && /mk-bar-fill/.test(b));
+    check('4b. incoming goods from another town', /80 stone on the way from Stonebrook/.test(b));
+    check('4c. own order: waiting amount, expiry, merchant on the road', /400 of 600 waiting/.test(b) && /expires in 5d/.test(b) && /mk-merchant road/.test(b));
+    check('4d. no "add merchant" when every slot is used', !/data-act="add-merchant"/.test(b));
+    await env.fire('click', env.btn('cancel', { id: '5' }));
+    check('4e. cancel posts and reports the refund', env.calls.some(c => c[1] === '/api/market/orders/5/cancel') && /400 returned/.test(env.toasts.map(t => t[0]).join()));
+  }
+  // 4f — realtime event while closed lights the dot
+  {
+    const env = makeEnv({ '/api/market/status': OPEN });
+    env.win.MarketUI.onEvent({ type: 'market_return', gold: 67, resource: 'timber', qty: 100 });
+    check('4f. realtime: merchant home → toast, dot on the Market button', /home with 67 gold/.test(env.toasts[0][0]) && env.getEl('nav-market')._classes.has('has-dot'));
+  }
+
+  // 5 — wiring
+  const html = read('index.html'), main = read('js/main.js'), rt = read('js/realtime.js'), shell = read('js/mobile-shell.js');
+  check('5. Market button has an id and still routes through showCommunityTab', /id="nav-market" onclick="showCommunityTab\('market'\)"/.test(html));
+  check('5b. showCommunityTab opens the Market panel', /tab === 'market' && typeof openMarket === 'function'/.test(main));
+  check('5c. map town panel offers Trade when the server says so', /s\.can_trade && s\.settlement_id/.test(main) && /openMarket\(\{seller:/.test(main));
+  check('5d. realtime handlers for every market event', ['market_purchase', 'market_delivery', 'market_return', 'market_trip_update', 'market_order_expired'].every(t => rt.includes(t + '(ev)')));
+  check('5e. mobile shell hides the tab bar over the panel', /'market-panel'/.test(shell));
+  check('5f. versioned market.js + market.css tags', /\/js\/market\.js\?v=\w+/.test(html) && /\/css\/market\.css\?v=\w+/.test(html));
+  check('5g. settlement view exposes openSettlementBuild', /window\.openSettlementBuild = openSettlementBuild/.test(read('js/settlement-view.js')));
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

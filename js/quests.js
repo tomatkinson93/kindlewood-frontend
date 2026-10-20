@@ -514,6 +514,7 @@ function openSoloQuestPanel(q) {
 function _citizenBusyLabel(c, busyIds) {
   if (c.active_quest) return c.active_quest.clan ? (c.active_quest.forming ? 'Waiting for a clan party' : 'On a clan quest') : 'On a quest';
   if (c.expedition) return 'Scouting';
+  if (c.trade) return c.trade.on_road ? 'On a trade run' : 'Working as a merchant';
   if (busyIds && busyIds.has(c.id)) return 'Busy';
   return '';
 }

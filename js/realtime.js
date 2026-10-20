@@ -130,6 +130,13 @@
     // Moderation: open-report count for staff (on the "staff" bus key), and
     // a role change, which reconnects to pick up or drop that key.
     mod_reports(ev) { if (global.ChatHub) global.ChatHub.onModReports(ev); },
+    // Market (your settlement channel): a lot bought, goods delivered, a
+    // merchant home with gold, an order expired. Notify-then-fetch.
+    market_purchase(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
+    market_delivery(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
+    market_return(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
+    market_trip_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
+    market_order_expired(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();
