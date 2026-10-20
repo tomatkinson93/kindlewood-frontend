@@ -399,6 +399,19 @@
         ctx.fill();
         ctx.restore();
       }
+      // Sunken water sits |elev|·ep below ground, deeper than the neighbours'
+      // skirts reach (SKIRT_PX), which left a strip of bare parchment under
+      // the tiles behind a river. Line the recess: fill the ground-level
+      // footprint in the bank colour, but only where nothing is drawn yet
+      // (destination-over), so neighbouring faces and skirts are untouched.
+      if (elev < 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-over';
+        isoHexPath(ctx, x, y + elev * g.ep, g.hexW, g.faceH);
+        ctx.fillStyle = face.skirt;
+        ctx.fill();
+        ctx.restore();
+      }
       // Top face — squashed art clipped to the iso hex, 1px overdraw kills seams.
       ctx.save();
       isoHexPath(ctx, x, y, g.hexW, g.faceH);

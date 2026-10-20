@@ -40,7 +40,7 @@
     sort: 'distance',
     dir: 'asc',
     seller: null,          // { id, name } — buy tab filtered to one town
-    draft: { resource: 'timber', qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
+    draft: { mode: 'resource', resource: 'timber', inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
     busy: false,
     unseen: false,         // red dot on the comm-btn
   };
@@ -83,6 +83,26 @@
   const now = () => Date.now() + state.clockSkew;
   const resChip = (res, n) => `<span class="mk-res">${RES_ICON[res] || ''} ${fmt(n)} ${esc((RES_LABEL[res] || res).toLowerCase())}</span>`;
   const gold = n => `<span class="mk-gold">🪙 ${fmt(n)}</span>`;
+  // An order / trip's goods: resources as "🪵 100 timber", items as
+  // "🐟 10× Trout" in their rarity colour.
+  function goodsChip(o, n) {
+    if (o.kind === 'item' && o.item) {
+      return `<span class="mk-res mk-item-chip" style="color:${rarityColor(o.item.rarity)}">${esc(o.item.icon || '📦')} ${fmt(n)}× ${esc(o.item.name)}</span>`;
+    }
+    return resChip(o.resource, n);
+  }
+  function goodsName(o, n) {
+    if (o.kind === 'item' && o.item) return `${fmt(n)}× ${o.item.name}`;
+    return `${fmt(n)} ${(RES_LABEL[o.resource] || o.resource || 'goods').toLowerCase()}`;
+  }
+  function statsLine(it) {
+    if (!it) return '';
+    const bits = Object.entries(it.stat_bonuses || {}).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`);
+    if (it.metadata && it.metadata.armor_class) bits.push(`AC ${it.metadata.armor_class}`);
+    if (it.metadata && it.metadata.damage_dice) bits.push(`${it.metadata.damage_dice} dmg`);
+    const tag = it.equip_slot ? it.equip_slot : (it.category || '').replace('_', ' ');
+    return `<div class="mk-order-meta mk-item-meta">${esc(tag)}${it.rarity ? ' · ' + esc(it.rarity) : ''}${bits.length ? ' · ' + esc(bits.join(', ')) : ''}</div>`;
+  }
 
   function liveResources() {
     if (typeof global._liveResources === 'function') return global._liveResources() || {};
@@ -303,7 +323,8 @@
   function buyHtml() {
     const st = state.status;
     const resOpts = ['<option value="">All goods</option>']
-      .concat(st.tradeable.map(r => `<option value="${r}" ${state.resource === r ? 'selected' : ''}>${RES_ICON[r]} ${RES_LABEL[r]}</option>`)).join('');
+      .concat(st.tradeable.map(r => `<option value="${r}" ${state.resource === r ? 'selected' : ''}>${RES_ICON[r]} ${RES_LABEL[r]}</option>`))
+      .concat([`<option value="items" ${state.resource === 'items' ? 'selected' : ''}>🎒 Items</option>`]).join('');
     const sortOpts = SORTS.map(([k, l]) => `<option value="${k}" ${state.sort === k ? 'selected' : ''}>${l}</option>`).join('');
     const sellerChip = state.seller
       ? `<div class="mk-filter-chip">Only ${esc(state.seller.name)} <button type="button" data-act="clear-seller" aria-label="Show all towns">✕</button></div>`
@@ -320,7 +341,8 @@
         : `<span>Arrives in ~${dur(o.eta_seconds)}</span>`;
       return `<li class="mk-order ${o.paused ? 'paused' : ''}">
         <div class="mk-order-main">
-          <div class="mk-order-line">${resChip(o.resource, o.next_lot_qty)} <span class="mk-for">for</span> ${gold(o.next_lot_price)}</div>
+          <div class="mk-order-line">${goodsChip(o, o.next_lot_qty)} <span class="mk-for">for</span> ${gold(o.next_lot_price)}</div>
+          ${o.kind === 'item' ? statsLine(o.item) : ''}
           <div class="mk-order-meta">
             <span>${price2(o.unit_price)} gold / unit</span> ·
             <span>${fmt(o.qty_available)} left</span> ·
@@ -350,7 +372,7 @@
 
   function openBuySheet(order) {
     sheet(`
-      <h3>Buy ${RES_ICON[order.resource]} ${fmt(order.next_lot_qty)} ${esc(RES_LABEL[order.resource].toLowerCase())}?</h3>
+      <h3>Buy ${order.kind === 'item' && order.item ? esc(order.item.icon || '📦') : RES_ICON[order.resource]} ${esc(goodsName(order, order.next_lot_qty))}?</h3>
       <div class="mk-sum">
         <div><span>From</span><b>${esc(order.seller.name)}</b></div>
         <div><span>You pay now</span><b>${gold(order.next_lot_price)}</b></div>
@@ -371,7 +393,7 @@
     try {
       const r = await call('POST', `/api/market/orders/${id}/buy`);
       closeSheet();
-      toast(`🐾 ${r.merchant} of ${r.seller} is on the way with ${fmt(r.trip.qty)} ${RES_LABEL[r.trip.resource].toLowerCase()}.`);
+      toast(`🐾 ${r.merchant} of ${r.seller} is on the way with ${goodsName(r.trip, r.trip.qty)}.`);
       if (typeof global.refreshResources === 'function') global.refreshResources();
       await softRefresh();
     } catch (e) {
@@ -383,13 +405,55 @@
 
   // ── Sell ────────────────────────────────────────────────────────────────
 
+  // What's being sold in the Sell form: resource or one inventory stack.
+  function sellItem() {
+    const d = state.draft, mine = state.mine || {};
+    return d.mode === 'item' ? (mine.items || []).find(i => i.id === d.inventory_id) || null : null;
+  }
+  // Caps and labels for the current selection (shared by form + summary).
+  function goodsSpec() {
+    const st = state.status, d = state.draft;
+    if (d.mode === 'item') {
+      const it = sellItem();
+      if (!it) return { maxLot: 0, have: 0, label: 'items', equip: false, it: null };
+      return { maxLot: it.max_lot, have: it.quantity, label: it.name, equip: !!it.equip_slot, it };
+    }
+    return {
+      maxLot: Math.floor(st.mods.carryWeight / st.unitWeight[d.resource]),
+      have: liveResources()[d.resource] ?? st.resources[d.resource],
+      label: RES_LABEL[d.resource].toLowerCase(), equip: false, it: null,
+    };
+  }
+
+  function rarityColor(r) {
+    return { common: '#a0c880', uncommon: '#70b8e0', rare: '#e8a020', epic: '#c060e0', legendary: '#ff8020' }[r] || '#b0a890';
+  }
+
+  function itemPickerHtml() {
+    const d = state.draft, items = (state.mine && state.mine.items) || [];
+    if (!items.length) return '<div class="mk-muted">Your inventory is empty.</div>';
+    return `<div class="mk-items">${items.map(i => {
+      const on = d.inventory_id === i.id;
+      const why = !i.tradeable ? i.reason : i.max_lot < 1 ? 'Too heavy for your merchants' : '';
+      return `<button type="button" class="mk-item ${on ? 'on' : ''} ${why ? 'off' : ''}" data-act="pick-item" data-id="${i.id}"
+          ${why ? 'disabled' : ''} title="${esc(why || i.description || i.name)}">
+        <span class="mk-item-icon">${esc(i.icon)}</span>
+        <span class="mk-item-name" style="color:${rarityColor(i.rarity)}">${esc(i.name)}</span>
+        <span class="mk-item-qty">×${fmt(i.quantity)}</span>
+        ${why ? `<span class="mk-item-why">${esc(why)}</span>` : ''}
+      </button>`;
+    }).join('')}</div>`;
+  }
+
   function sellHtml() {
     const st = state.status, d = state.draft, mods = st.mods;
     const mine = state.mine || { candidates: [] };
     const have = liveResources();
+    const isItem = d.mode === 'item';
+    const spec = goodsSpec();
     const resOpts = st.tradeable.map(r =>
       `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_ICON[r]} ${RES_LABEL[r]} (have ${fmt(have[r] ?? st.resources[r])})</option>`).join('');
-    const maxLot = Math.floor(mods.carryWeight / st.unitWeight[d.resource]);
+    const maxLot = spec.maxLot;
     const free = mods.merchants - st.merchantsAssigned;
     const atOrderCap = st.activeOrders >= mods.maxOrders;
     const cands = mine.candidates.map(c => {
@@ -406,6 +470,10 @@
       : free <= 0
         ? `<div class="mk-warn">All ${mods.merchants} merchant slot${mods.merchants === 1 ? ' is' : 's are'} in use. Upgrade the Market for more.</div>`
         : '';
+    const lockOne = spec.equip;   // equipment: one piece per order
+    const goods = isItem
+      ? `<div class="mk-field"><span>Item <em class="mk-muted">(greyed items can't be traded)</em></span>${itemPickerHtml()}</div>`
+      : `<label class="mk-field"><span>Goods</span><select name="resource" data-act="draft">${resOpts}</select></label>`;
     return `
       <form class="mk-form" data-form="sell">
         <div class="mk-caps">
@@ -414,19 +482,22 @@
           <span>Carry <b>${fmt(mods.carryWeight)}</b> per trip</span>
         </div>
         ${blocked}
-        <label class="mk-field"><span>Goods</span>
-          <select name="resource" data-act="draft">${resOpts}</select></label>
-        <label class="mk-field"><span>Total to sell</span>
-          <input name="qty_total" type="number" min="1" step="1" inputmode="numeric" value="${esc(d.qty_total)}" placeholder="e.g. 500" data-act="draft"></label>
-        <label class="mk-field"><span>Per delivery <em class="mk-muted">(max ${fmt(maxLot)})</em></span>
-          <input name="lot_size" type="number" min="1" max="${maxLot}" step="1" inputmode="numeric" value="${esc(d.lot_size)}" placeholder="${maxLot}" data-act="draft"></label>
+        <div class="mk-mode" role="tablist">
+          <button type="button" class="${isItem ? '' : 'on'}" data-act="sell-mode" data-mode="resource">🪵 Resources</button>
+          <button type="button" class="${isItem ? 'on' : ''}" data-act="sell-mode" data-mode="item">🎒 Items</button>
+        </div>
+        ${goods}
+        <label class="mk-field"><span>Total to sell${isItem && spec.it ? ` <em class="mk-muted">(have ${fmt(spec.have)})</em>` : ''}</span>
+          <input name="qty_total" type="number" min="1" step="1" inputmode="numeric" value="${esc(lockOne ? 1 : d.qty_total)}" placeholder="e.g. ${isItem ? 10 : 500}" data-act="draft" ${lockOne ? 'readonly' : ''}></label>
+        <label class="mk-field"><span>Per delivery <em class="mk-muted">(${lockOne ? 'equipment travels one piece at a time' : 'max ' + fmt(maxLot)})</em></span>
+          <input name="lot_size" type="number" min="1" max="${maxLot}" step="1" inputmode="numeric" value="${esc(lockOne ? 1 : d.lot_size)}" placeholder="${maxLot}" data-act="draft" ${lockOne ? 'readonly' : ''}></label>
         <label class="mk-field"><span>Price per delivery <em class="mk-muted">(gold)</em></span>
           <input name="lot_price" type="number" min="1" step="1" inputmode="numeric" value="${esc(d.lot_price)}" placeholder="gold" data-act="draft"></label>
         <div class="mk-summary" id="mk-sell-summary"></div>
         <div class="mk-field"><span>Merchants <em class="mk-muted">(${Math.max(0, free)} slot${free === 1 ? '' : 's'} free — more merchants means fewer pauses)</em></span>
           <div class="mk-cands">${cands}</div></div>
-        <p class="mk-muted mk-small">Goods leave your stores when you list them and come back if you cancel or the order expires (after ${Math.round(mods.expiryHours / 24)} days). Merchants stop their usual work while they trade.</p>
-        <button type="submit" class="mk-btn mk-btn-primary mk-wide" ${blocked ? 'disabled' : ''}>📦 List for sale</button>
+        <p class="mk-muted mk-small">Goods leave your ${isItem ? 'inventory' : 'stores'} when you list them and come back if you cancel or the order expires (after ${Math.round(mods.expiryHours / 24)} days). Merchants stop their usual work while they trade.</p>
+        <button type="submit" class="mk-btn mk-btn-primary mk-wide" ${blocked || (isItem && !spec.it) ? 'disabled' : ''}>📦 List for sale</button>
       </form>`;
   }
 
@@ -434,7 +505,7 @@
     const f = document.querySelector('#market-panel form[data-form="sell"]');
     if (!f) return;
     const d = state.draft;
-    d.resource = f.resource.value;
+    if (f.resource) d.resource = f.resource.value;
     d.qty_total = f.qty_total.value;
     d.lot_size = f.lot_size.value;
     d.lot_price = f.lot_price.value;
@@ -444,15 +515,21 @@
   function updateSellSummary() {
     const el = byId('mk-sell-summary');
     if (!el) return;
-    const st = state.status, d = state.draft;
-    const maxLot = Math.floor(st.mods.carryWeight / st.unitWeight[d.resource]);
-    const total = parseInt(d.qty_total, 10) || 0;
-    const lot = parseInt(d.lot_size, 10) || Math.min(maxLot, total || maxLot);
+    const st = state.status, d = state.draft, spec = goodsSpec();
+    if (d.mode === 'item' && !spec.it) { el.innerHTML = '<div>Pick an item to sell.</div>'; return; }
+    const maxLot = spec.maxLot;
+    const total = spec.equip ? 1 : parseInt(d.qty_total, 10) || 0;
+    const lot = spec.equip ? 1 : parseInt(d.lot_size, 10) || Math.min(maxLot, total || maxLot);
     const lotPrice = parseInt(d.lot_price, 10) || 0;
-    const ref = st.referencePrice[d.resource];
-    const have = liveResources()[d.resource] ?? st.resources[d.resource];
     const lines = [];
-    lines.push(`Market guide price: about <b>${price2(ref)}</b> gold per ${RES_LABEL[d.resource].toLowerCase()} (≈ ${fmt(Math.max(1, Math.round(ref * lot)))} for ${fmt(lot)}).`);
+    if (spec.it) {
+      lines.push(spec.it.sell_value
+        ? `Town merchants pay <b>${fmt(spec.it.sell_value)}</b> gold each (≈ ${fmt(spec.it.sell_value * lot)} for ${fmt(lot)}).`
+        : 'Town merchants won’t buy this — set what you think it’s worth.');
+    } else {
+      const ref = st.referencePrice[d.resource];
+      lines.push(`Market guide price: about <b>${price2(ref)}</b> gold per ${spec.label} (≈ ${fmt(Math.max(1, Math.round(ref * lot)))} for ${fmt(lot)}).`);
+    }
     if (total && lot) {
       const lots = Math.ceil(total / lot);
       lines.push(`${lots} deliver${lots === 1 ? 'y' : 'ies'} of up to ${fmt(lot)}.`);
@@ -462,8 +539,8 @@
       lines.push(`${price2(lotPrice / lot)} gold per unit · you keep ${fmt(lotPrice - fee)} per delivery after the ${Math.round(st.mods.feeRate * 100)}% fee.`);
     }
     const warn = [];
-    if (lot > maxLot) warn.push(`A merchant carries at most ${fmt(maxLot)} ${RES_LABEL[d.resource].toLowerCase()}.`);
-    if (total > have) warn.push(`You only have ${fmt(have)}.`);
+    if (lot > maxLot) warn.push(`A merchant carries at most ${fmt(maxLot)} ${esc(spec.label)}.`);
+    if (total > spec.have) warn.push(`You only have ${fmt(spec.have)}.`);
     if (total && lot > total) warn.push('Per delivery can’t be more than the total.');
     el.innerHTML = lines.map(l => `<div>${l}</div>`).join('') + warn.map(w => `<div class="mk-warn-text">${w}</div>`).join('');
   }
@@ -472,21 +549,24 @@
     if (state.busy) return;
     readDraft();
     const d = state.draft;
-    const st = state.status;
-    const maxLot = Math.floor(st.mods.carryWeight / st.unitWeight[d.resource]);
-    const qty_total = parseInt(d.qty_total, 10);
-    const lot_size = parseInt(d.lot_size, 10) || Math.min(maxLot, qty_total || 0);
+    const spec = goodsSpec();
+    const isItem = d.mode === 'item';
+    if (isItem && !spec.it) return toast('Pick an item to sell.', 'error');
+    const qty_total = spec.equip ? 1 : parseInt(d.qty_total, 10);
+    const lot_size = spec.equip ? 1 : parseInt(d.lot_size, 10) || Math.min(spec.maxLot, qty_total || 0);
     const lot_price = parseInt(d.lot_price, 10);
     if (!qty_total || !lot_price) return toast('Set how much to sell and the price per delivery.', 'error');
     if (!d.citizen_ids.length) return toast('Choose at least one merchant.', 'error');
     state.busy = true;
     try {
-      await call('POST', '/api/market/orders', {
-        resource: d.resource, qty_total, lot_size, lot_price, citizen_ids: d.citizen_ids,
-      });
-      toast(`📦 Listed ${fmt(qty_total)} ${RES_LABEL[d.resource].toLowerCase()} for sale.`);
-      state.draft = { resource: d.resource, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] };
+      const body = isItem
+        ? { kind: 'item', inventory_id: spec.it.id, qty_total, lot_size, lot_price, citizen_ids: d.citizen_ids }
+        : { resource: d.resource, qty_total, lot_size, lot_price, citizen_ids: d.citizen_ids };
+      await call('POST', '/api/market/orders', body);
+      toast(`📦 Listed ${fmt(qty_total)} ${isItem ? '× ' + spec.it.name : spec.label} for sale.`);
+      state.draft = { mode: d.mode, resource: d.resource, inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] };
       if (typeof global.refreshResources === 'function') global.refreshResources();
+      if (isItem && typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
       state.tab = 'caravans';
       await refresh();
     } catch (e) {
@@ -497,20 +577,20 @@
   // ── Caravans & my orders ────────────────────────────────────────────────
 
   function tripHtml(t) {
-    const res = RES_LABEL[t.resource].toLowerCase();
+    const what = esc(goodsName(t, t.qty));
     const who = esc(t.citizen_name || 'A merchant');
     let text, from, to;
     if (t.direction === 'selling') {
-      if (t.status === 'outbound') { text = `${who} is carrying ${fmt(t.qty)} ${res} to ${esc(t.buyer_name)}`; from = t.departs_at; to = t.arrives_at; }
+      if (t.status === 'outbound') { text = `${who} is carrying ${what} to ${esc(t.buyer_name)}`; from = t.departs_at; to = t.arrives_at; }
       else if (t.status === 'returning') { text = `${who} is heading home with 🪙 ${fmt(t.gold_paid - t.fee)}`; from = t.arrives_at; to = t.returns_at; }
-      else text = `${who} sold ${fmt(t.qty)} ${res} to ${esc(t.buyer_name)} for 🪙 ${fmt(t.gold_paid - t.fee)}`;
+      else text = `${who} sold ${what} to ${esc(t.buyer_name)} for 🪙 ${fmt(t.gold_paid - t.fee)}`;
     } else {
-      if (t.status === 'outbound') { text = `${fmt(t.qty)} ${res} on the way from ${esc(t.seller_name)}`; from = t.departs_at; to = t.arrives_at; }
-      else text = `Received ${fmt(t.qty)} ${res} from ${esc(t.seller_name)} for 🪙 ${fmt(t.gold_paid)}`;
+      if (t.status === 'outbound') { text = `${what} on the way from ${esc(t.seller_name)}`; from = t.departs_at; to = t.arrives_at; }
+      else text = `Received ${what} from ${esc(t.seller_name)} for 🪙 ${fmt(t.gold_paid)}`;
     }
     const live = !!to;
     return `<li class="mk-trip ${live ? 'live' : 'done'}">
-      <div class="mk-trip-icon">${t.direction === 'selling' ? (t.status === 'returning' ? '🪙' : '🐾') : RES_ICON[t.resource]}</div>
+      <div class="mk-trip-icon">${t.direction === 'selling' ? (t.status === 'returning' ? '🪙' : '🐾') : (t.kind === 'item' && t.item ? esc(t.item.icon || '📦') : RES_ICON[t.resource])}</div>
       <div class="mk-trip-main">
         <div>${text}</div>
         ${live ? `<div class="mk-bar"><div class="mk-bar-fill" data-from="${esc(from)}" data-to="${esc(to)}"></div></div>
@@ -534,7 +614,7 @@
         </select>` : '';
     const sold = o.qty_total - o.qty_escrowed;
     return `<li class="mk-mine ${active ? '' : 'closed'}">
-      <div class="mk-order-line">${resChip(o.resource, o.lot_size)} <span class="mk-for">for</span> ${gold(o.lot_price)}
+      <div class="mk-order-line">${goodsChip(o.kind === 'item' ? { ...o, item: o.item_snapshot } : o, o.lot_size)} <span class="mk-for">for</span> ${gold(o.lot_price)}
         <span class="mk-status mk-status-${o.status}">${statusLabel}</span></div>
       <div class="mk-order-meta">${price2(o.unit_price)} gold / unit · ${fmt(o.qty_escrowed)} of ${fmt(o.qty_total)} waiting${sold && active ? ` · ${fmt(sold)} dispatched` : ''}${active ? ` · expires in ${untilLong(o.expires_at)}` : ''}</div>
       ${active ? `<div class="mk-merchants">${merchants}</div>
@@ -608,6 +688,18 @@
     const act = t.dataset.act;
     if (act === 'info') return;  // popover — see setPop
     if (act === 'tab') return switchTab(t.dataset.tab);
+    if (act === 'sell-mode') {
+      readDraft();
+      state.draft.mode = t.dataset.mode;
+      state.draft.qty_total = state.draft.lot_size = '';
+      return render();
+    }
+    if (act === 'pick-item') {
+      readDraft();
+      state.draft.inventory_id = Number(t.dataset.id);
+      state.draft.qty_total = state.draft.lot_size = '';
+      return render();
+    }
     if (act === 'sheet-close') return closeSheet();
     if (act === 'build-market') {
       closeMarket();
@@ -717,13 +809,17 @@
   // ── Realtime (js/realtime.js HANDLERS) ──────────────────────────────────
 
   function onMarketEvent(ev) {
-    const res = RES_LABEL[ev.resource] ? RES_LABEL[ev.resource].toLowerCase() : '';
+    const res = ev.item ? `× ${ev.item.name}` : RES_LABEL[ev.resource] ? RES_LABEL[ev.resource].toLowerCase() : '';
     if (ev.type === 'market_purchase') toast(`⚖️ ${ev.buyer || 'Someone'} bought ${fmt(ev.qty)} ${res} — your merchant has set off.`);
     else if (ev.type === 'market_delivery') toast(`📦 ${fmt(ev.qty)} ${res} arrived from the market.`);
     else if (ev.type === 'market_return') toast(`🪙 Your merchant is home with ${fmt(ev.gold)} gold.`);
-    else if (ev.type === 'market_order_expired') toast(`⌛ A sell order expired — ${fmt(ev.qty)} ${res} returned to your stores.`);
+    else if (ev.type === 'market_order_expired') toast(`⌛ A sell order expired — ${fmt(ev.qty)} ${res} returned to you.`);
     if (['market_delivery', 'market_return', 'market_order_expired'].includes(ev.type) && typeof global.refreshResources === 'function') {
       global.refreshResources();
+    }
+    // Items landed in (or came back to) the inventory.
+    if (ev.item && ['market_delivery', 'market_order_expired'].includes(ev.type) && typeof global.loadInventory === 'function') {
+      try { global.loadInventory(); } catch (_) {}
     }
     if (isOpen()) scheduleRefresh(400);
     else if (ev.type !== 'market_trip_update') setDot(true);

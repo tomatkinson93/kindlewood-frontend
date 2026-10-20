@@ -184,3 +184,21 @@
 .mk-pop.open { display: block; animation: fadeIn .15s ease; }
 .mk-pop.pinned { pointer-events: auto; }
 .mk-pop-title { font-family: 'Playfair Display', serif; color: #f4c95d; font-size: 14px; margin-bottom: 6px; }
+
+/* Items (Market phase 3) */
+.mk-mode { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: rgba(255,255,255,.04); border: 1px solid rgba(200,148,26,.2); align-self: flex-start; }
+.mk-mode button { font: inherit; font-size: 13.5px; cursor: pointer; padding: 5px 12px; border-radius: 7px; border: none; background: none; color: rgba(242,230,201,.65); }
+.mk-mode button.on { background: rgba(244,201,93,.16); color: #f4c95d; }
+.mk-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; }
+.mk-item {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 6px; text-align: left;
+  font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(200,148,26,.15); color: #f2e6c9;
+}
+.mk-item.on { border-color: #f4c95d; background: rgba(244,201,93,.1); }
+.mk-item.off { opacity: .45; cursor: not-allowed; }
+.mk-item-icon { font-size: 18px; grid-row: span 2; }
+.mk-item-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-item-qty { font-size: 12px; color: rgba(242,230,201,.6); }
+.mk-item-why { grid-column: 2 / 4; font-size: 11px; color: #f0a080; }
+.mk-item-meta { text-transform: capitalize; }

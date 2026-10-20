@@ -51,6 +51,7 @@ function _iaRenderList() {
         + '<span style="font-size:9px;color:' + rc + ';min-width:60px">' + item.rarity + '</span>'
         + '<span class="qa-row-title">' + item.name + '</span>'
         + '<span style="font-size:9px;color:rgba(220,185,80,.5)">' + (item.sell_value ? '🪙' + item.sell_value : '') + '</span>'
+        + (item.tradeable === false ? '<span style="font-size:9px;color:#e07a6a" title="Not tradeable">🚫⚖️</span>' : '')
         + '<div class="qa-row-btns">'
         + '<button class="qa-btn" data-key="' + item.item_key + '" onclick="ia_showForm(this.dataset.key)">✏</button>'
         + '<button class="qa-btn" data-key="' + item.item_key + '" onclick="ia_spawn(this.dataset.key)" title="Add to inventory">⬇</button>'
@@ -96,6 +97,10 @@ function ia_showForm(key) {
     + '<div class="ce-field"><label>Rarity</label>' + sel('ia-rarity', IA_RARITIES, item?.rarity||'common') + '</div>'
     + '<div class="ce-field"><label>Sell Value 🪙</label><input class="ce-input" type="number" id="ia-sell" value="' + (item?.sell_value||0) + '"></div>'
     + '</div>'
+    + '<label class="ia-check" style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;cursor:pointer">'
+    + '<input type="checkbox" id="ia-tradeable"' + (item?.tradeable === false ? '' : ' checked') + '> Tradeable '
+    + tip('Unticked: this item can never be listed at the Market or traded in any other way. Applies to every copy players already own.')
+    + '</label>'
 
     // ── Category-specific sections ──
     + '<div id="ia-fish-section">'
@@ -174,6 +179,7 @@ async function ia_save(existingKey) {
     rarity:      document.getElementById('ia-rarity')?.value || 'common',
     quality:     document.getElementById('ia-quality')?.value || 'basic',
     sell_value:  parseInt(document.getElementById('ia-sell')?.value) || 0,
+    tradeable:   document.getElementById('ia-tradeable') ? document.getElementById('ia-tradeable').checked : true,
     equip_slot:  slot || null,
     stat_bonuses,
     // Fish
@@ -192,9 +198,11 @@ async function ia_save(existingKey) {
 
   if (!body.item_key || !body.name) { _iaFeedback('⚠️ Key and name required.'); return; }
 
-  const url    = isNew ? '/api/item-admin' : '/api/item-admin/' + existingKey;
+  // Through /api/game/items like the rest of this tab (the old
+  // /api/item-admin route isn't mounted, so saves used to 404).
+  const path   = isNew ? '' : '/' + encodeURIComponent(existingKey);
   const method = isNew ? 'POST' : 'PATCH';
-  const r = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await _iaFetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const d = await r.json();
   if (!r.ok) { _iaFeedback('⚠️ ' + (d.error || 'Failed')); return; }
   _iaFeedback('✓ Saved: ' + body.name);
