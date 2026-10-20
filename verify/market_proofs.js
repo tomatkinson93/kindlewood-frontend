@@ -96,7 +96,7 @@ const ORDERS = { ok: true, orders: [
 ] };
 const MINE = { ok: true, now: new Date().toISOString(),
   orders: [{ id: 5, resource: 'food', lot_size: 200, lot_price: 60, unit_price: 0.3, qty_total: 600, qty_escrowed: 400, status: 'active',
-    expires_at: new Date(Date.now() + 5 * 86400e3).toISOString(), merchants: [{ id: 21, name: 'Ash', scouting: 2, on_road: true }] }],
+    expires_at: new Date(Date.now() + 5 * 86400e3 + 3600e3).toISOString(), merchants: [{ id: 21, name: 'Ash', scouting: 2, on_road: true }] }],
   trips: [
     { id: 1, order_id: 5, resource: 'food', qty: 200, gold_paid: 60, fee: 3, distance: 4, status: 'outbound', direction: 'selling',
       departs_at: new Date(Date.now() - 60e3).toISOString(), arrives_at: new Date(Date.now() + 120e3).toISOString(), returns_at: new Date(Date.now() + 300e3).toISOString(),
@@ -175,6 +175,10 @@ const MINE = { ok: true, now: new Date().toISOString(),
     check('4b. incoming goods from another town', /80 stone on the way from Stonebrook/.test(b));
     check('4c. own order: waiting amount, expiry, merchant on the road', /400 of 600 waiting/.test(b) && /expires in 5d/.test(b) && /mk-merchant road/.test(b));
     check('4d. no "add merchant" when every slot is used', !/data-act="add-merchant"/.test(b));
+    check('4g. Caravans no longer carries the "Your Market" section', !/<h3>Your Market<\/h3>/.test(b));
+    const pop = env.getEl('mk-pop').innerHTML;
+    check('4h. ⓘ popover holds the level table', /Your Market · Level 1/.test(pop) && /<td>Lv 3<\/td><td>Town<\/td>/.test(pop) && /data-act="info"/.test(env.getEl('mk-sub').innerHTML));
+    check('4i. clicking the backdrop does not close the panel', !(env.panel()._listeners.click || []).some(fn => /e\.target === el/.test(String(fn))));
     await env.fire('click', env.btn('cancel', { id: '5' }));
     check('4e. cancel posts and reports the refund', env.calls.some(c => c[1] === '/api/market/orders/5/cancel') && /400 returned/.test(env.toasts.map(t => t[0]).join()));
   }
@@ -193,6 +197,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
   check('5d. realtime handlers for every market event', ['market_purchase', 'market_delivery', 'market_return', 'market_trip_update', 'market_order_expired'].every(t => rt.includes(t + '(ev)')));
   check('5e. mobile shell hides the tab bar over the panel', /'market-panel'/.test(shell));
   check('5f. versioned market.js + market.css tags', /\/js\/market\.js\?v=\w+/.test(html) && /\/css\/market\.css\?v=\w+/.test(html));
+  check('5h. fixed-size window (tabs never resize it)', /\.mk-card \{[\s\S]*?height: min\(760px, 88vh\)/.test(read('css/market.css')));
   check('5g. settlement view exposes openSettlementBuild', /window\.openSettlementBuild = openSettlementBuild/.test(read('js/settlement-view.js')));
 
   console.log(`\n${pass} passed, ${fail} failed`);

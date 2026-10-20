@@ -42,7 +42,8 @@
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
   <link rel="stylesheet" href="/css/clans.css?v=cq3">
-  <link rel="stylesheet" href="/css/market.css?v=mk1">
+  <link rel="stylesheet" href="/css/market.css?v=mk3">
+  <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
   <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
   <script>
@@ -554,6 +555,9 @@
           <button class="map-ctrl-btn map-btn-down"  onclick="panCamera(0,3)">▼</button>
           <button class="map-ctrl-btn map-btn-left"  onclick="panCamera(-3,0)">◄</button>
           <button class="map-ctrl-btn map-btn-right" onclick="panCamera(3,0)">►</button>
+          <!-- Citizen travel paths on/off (js/travel.js) -->
+          <button class="map-ctrl-btn map-paths-btn on" id="map-paths-btn" aria-pressed="true" title="Hide citizen travel paths"
+                  onclick="if(window.KWTravel)KWTravel.toggle()">🐾 <span>Paths</span> <span class="map-paths-n"></span></button>
           <!-- Iso zoom (KWMap.zoom — shown in the iso view only) -->
           <div class="map-zoom-ctrls" id="map-zoom-ctrls" style="display:none">
             <button class="map-ctrl-btn" data-zoom="in" onclick="KWMap.zoom.step(1)" title="Zoom in (+)">＋</button>
@@ -810,21 +814,22 @@
   <script defer src="/js/profile.js?v=cp2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script defer src="/js/kwmap-core.js?v=021demo"></script>
+  <script defer src="/js/kwmap-core.js?v=tp1"></script>
   <script defer src="/js/clan-territory.js?v=clan9"></script>
   <script defer src="/js/kwmap-settlements.js?v=021p3"></script>
   <script defer src="/js/kwmap-daylight.js?v=021p6"></script>
   <script defer src="/js/kwmap-happening-fx.js?v=021demo"></script>
   <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
+  <script defer src="/js/kwmap-travel.js?v=tp4"></script>
   <script defer src="/js/kwmap-atmosphere.js?v=1"></script>
-  <script defer src="/js/kwmap-topdown.js?v=021fx"></script>
+  <script defer src="/js/kwmap-topdown.js?v=tp1"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
   <script defer src="/js/kwmap-assets.js?v=1"></script>
-  <script defer src="/js/kwmap-iso.js?v=021demo"></script>
+  <script defer src="/js/kwmap-iso.js?v=tp1"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
-  <script defer src="/js/settings-panel.js?v=021away"></script>
+  <script defer src="/js/settings-panel.js?v=tp1"></script>
   <script defer src="/js/main.js?v=mk1"></script>
   <script defer src="/js/away-report.js?v=021chime"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
@@ -863,8 +868,9 @@
   <script defer src="/js/clan-profile.js?v=cp2"></script>
   <script defer src="/js/clan-quests.js?v=cq3"></script>
   <script defer src="/js/chat-hub.js?v=cp1"></script>
-  <script defer src="/js/market.js?v=mk1"></script>
-  <script defer src="/js/realtime.js?v=mk1"></script>
+  <script defer src="/js/market.js?v=mk3"></script>
+  <script defer src="/js/travel.js?v=tp1"></script>
+  <script defer src="/js/realtime.js?v=tp1"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=mk1"></script>
@@ -1662,6 +1668,10 @@
         <label class="settings-line" data-kwmap-row>
           <span class="settings-line-text"><span class="settings-label">Drifting clouds</span></span>
           <input type="checkbox" class="settings-switch" data-kwmap-setting="clouds">
+        </label>
+        <label class="settings-line" data-travel-row>
+          <span class="settings-line-text"><span class="settings-label">Citizen travel paths</span><span class="settings-hint">Trails for scouts, envoys, quests and market caravans. Also the 🐾 Paths button on the map.</span></span>
+          <input type="checkbox" class="settings-switch" data-travel-setting>
         </label>
         <div class="settings-eyebrow">Atmosphere</div>
         <label class="settings-line" data-atmo-row>

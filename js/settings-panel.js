@@ -46,6 +46,8 @@
     if (clouds) clouds.addEventListener('change', () => { if (root.KWMap && root.KWMap.atmosphere) root.KWMap.atmosphere.setClouds(clouds.checked); });
     const night = _q('[data-daylight-setting]');
     if (night) night.addEventListener('change', () => { if (root.KWDaylight) root.KWDaylight.setSetting(night.value); });
+    const paths = _q('[data-travel-setting]');
+    if (paths) paths.addEventListener('change', () => { if (root.KWTravel) root.KWTravel.setEnabled(paths.checked); });
     const away = _q('[data-away-setting]');
     if (away) away.addEventListener('change', () => { if (root.KWAwayReport) root.KWAwayReport.setEnabled(away.checked); });
     _qa('[data-atmo-setting]').forEach(input => input.addEventListener('change', () => {
@@ -68,6 +70,8 @@
     if (clouds) { _show(clouds, !!(KW && KW.atmosphere)); if (KW && KW.atmosphere) clouds.checked = !!KW.atmosphere.clouds; }
     const night = _q('[data-daylight-setting]');
     if (night) { _show(night, !!root.KWDaylight); if (root.KWDaylight) night.value = root.KWDaylight.setting(); }
+    const paths = _q('[data-travel-setting]');
+    if (paths) { _show(paths, !!root.KWTravel); if (root.KWTravel) paths.checked = root.KWTravel.enabled(); }
     const away = _q('[data-away-setting]');
     if (away) { _show(away, !!root.KWAwayReport); if (root.KWAwayReport) away.checked = root.KWAwayReport.enabled(); }
     const A = root.SeasonAtmosphere;
