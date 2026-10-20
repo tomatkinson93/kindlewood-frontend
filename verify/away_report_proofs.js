@@ -46,6 +46,12 @@ function makeEnv(report, opts) {
     addEventListener() {},
     apiFetch: (p, o) => { calls.push((o && o.method || 'GET') + ' ' + p); return Promise.resolve({ ok: true, json: () => Promise.resolve(report) }); },
     showToastNotification() {},
+    getSfxVolume: () => 0.5,
+    _sounds: [],
+    Audio: function (src) {
+      const me = { src, volume: 1, _l: {}, addEventListener(k, f) { this._l[k] = f; }, play() { win._sounds.push(me); return Promise.resolve(); } };
+      return me;
+    },
   };
   win.window = win;
   const ctx = vm.createContext(Object.assign(win, { setInterval: () => 1, clearInterval() {}, console }));
@@ -69,7 +75,8 @@ const REPORT = {
   ],
   citizens: { 1: 'Wren', 2: 'Pip' },
   happenings: [],
-  seasons: [{ id: 'autumn', name: 'Autumn', emoji: '🍂', fromMs: NOW - 9 * H, toMs: NOW - 5 * H }, { id: 'winter', name: 'Winter', emoji: '❄️', fromMs: NOW - 5 * H, toMs: NOW }],
+  seasons: [{ id: 'autumn', name: 'Autumn', emoji: '🍂', year: 694, fromMs: NOW - 9 * H, toMs: NOW - 5 * H }, { id: 'winter', name: 'Winter', emoji: '❄️', year: 694, fromMs: NOW - 5 * H, toMs: NOW - H },
+            { id: 'spring', name: 'Spring', emoji: '🌸', year: 695, fromMs: NOW - H, toMs: NOW }],
   waiting: [{ icon: '🎁', text: '1 quest reward ready to collect', action: 'quests' }],
 };
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -84,6 +91,10 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     const m = env.modal();
     check('2. a show:true report with content opens the splash', !!m && m.style.display === 'flex');
     const R = env.win.KWAwayReport;
+    const snd = env.win._sounds;
+    check('2a. a chime plays when the splash opens (away-report.mp3 first, at the SFX volume)', snd.length === 1 && /\/assets\/audio\/away-report\.mp3$/.test(snd[0].src) && snd[0].volume === 0.5);
+    snd[0]._l.error();
+    check('2a2. missing away-report.mp3 → falls back to success.mp3', snd.length === 2 && /success\.mp3$/.test(snd[1].src));
     const bodyOf = (tab) => { R._setTab(tab); return m.querySelector('.ar-body').innerHTML; };
     const summary = bodyOf('summary');
     check('3. summary: resource tiles with net change (+180 food)', /data-res="food"/.test(summary) && /\+180/.test(summary));
@@ -93,6 +104,8 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     check('3b. citizens tab: names become profile links', /data-cid="1">Wren<\/button>/.test(cits) && /data-cid="2">Pip<\/button>/.test(cits));
     const world = bodyOf('world');
     check('3d. world tab: the season trail is listed', /Autumn[\s\S]*Winter/.test(world));
+    check('3d2. the year is marked where it turns: Year 694 · Autumn → Winter → Year 695 · Spring',
+          (world.match(/ar-year/g) || []).length === 2 && /Year 694<\/span><span class="ar-season"[^>]*>🍂 Autumn[\s\S]*Winter[\s\S]*Year 695<\/span><span class="ar-season"[^>]*>🌸 Spring/.test(world));
     check('3e. HTML in event text is escaped (other news → world tab)', !/<img/.test(world) && /&lt;img/.test(world));
     check('3g. an empty tab says nothing happened', /ar-empty[\s\S]*Nothing happened among|No injuries/.test(bodyOf('hardship')) && /No quests finished/.test(bodyOf('quests').replace(/data-action[\s\S]*?<\/div>/, '')));
     const tabs = m.querySelector('.ar-tabs').innerHTML;
