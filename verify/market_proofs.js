@@ -106,6 +106,12 @@ const MINE = { ok: true, now: new Date().toISOString(),
       seller_name: 'Stonebrook', buyer_name: 'Home', citizen_name: 'Flint' },
   ],
   candidates: [{ id: 21, name: 'Ash', role: 'merchant', scouting: 2, busy: 'Ash is already a merchant.' }, { id: 22, name: 'Birch', role: 'farmer', scouting: 1, busy: null }],
+  items: [
+    { id: 71, item_key: 'fish_trout', name: 'Trout', icon: '🐡', category: 'fish', rarity: 'uncommon', quantity: 40, tradeable: true, reason: null, weight: 0.5, max_lot: 200, sell_value: 10 },
+    { id: 72, item_key: 'iron_sword', name: 'Iron Sword', icon: '🗡', category: 'equipment', equip_slot: 'weapon', rarity: 'rare', quantity: 1, tradeable: true, reason: null, weight: 3, max_lot: 1, sell_value: 40 },
+    { id: 73, item_key: 'relic', name: 'Old Relic', icon: '🏺', category: 'trophy', rarity: 'epic', quantity: 1, tradeable: false, reason: 'This item cannot be traded.', weight: 1, max_lot: 100, sell_value: 0 },
+    { id: 74, item_key: 'worn', name: 'Worn Axe', icon: '🪓', category: 'equipment', equip_slot: 'tool', rarity: 'common', quantity: 1, tradeable: false, reason: 'Unequip it first.', weight: 2, max_lot: 1, sell_value: 3 },
+  ],
 };
 
 (async () => {
@@ -166,6 +172,40 @@ const MINE = { ok: true, now: new Date().toISOString(),
     await env.fire('input', { dataset: { act: 'draft' } });
     check('3g. warns when a delivery is over the carry limit (metal weighs 2)', /carries at most 50 metal/.test(env.getEl('mk-sell-summary').innerHTML));
   }
+  // 3i — selling items
+  {
+    let posted = null;
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/mine': MINE,
+      '/api/market/orders': (p, o) => { if (o && o.method === 'POST') posted = JSON.parse(o.body); return { ok: true, order: { id: 9 } }; } });
+    await env.win.openMarket({ tab: 'sell' });
+    await env.fire('click', env.btn('sell-mode', { mode: 'item' }));
+    const b = env.body();
+    check('3i. Items mode: inventory picker', /data-act="pick-item" data-id="71"/.test(b) && /Trout/.test(b) && /×40/.test(b));
+    check('3j. untradeable and equipped items are greyed with the reason',
+      /mk-item  off"[^>]*data-id="73"[\s\S]*?disabled[\s\S]*?cannot be traded/.test(b) && /data-id="74"[\s\S]*?Unequip it first/.test(b));
+    await env.fire('click', env.btn('pick-item', { id: '72' }));
+    const b2 = env.body();
+    check('3k. equipment locks to one piece', /name="qty_total"[^>]*value="1"[^>]*readonly/.test(b2) && /equipment travels one piece at a time/.test(b2));
+    check('3l. town merchant price shown as the guide', /Town merchants pay <b>40<\/b>/.test(env.getEl('mk-sell-summary').innerHTML));
+    env.win.document.querySelector = () => ({ qty_total: { value: '1' }, lot_size: { value: '1' }, lot_price: { value: '55' } });
+    await env.fire('change', { dataset: { act: 'pick-merchant' }, value: '22', checked: true });
+    await env.fire('submit', { dataset: { form: 'sell' } });
+    await tick();
+    check('3m. posts an item order', posted && posted.kind === 'item' && posted.inventory_id === 72 && posted.qty_total === 1 && posted.lot_price === 55 && posted.citizen_ids[0] === 22);
+  }
+  // 2i — buying items
+  {
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/orders?': { ok: true, orders: [
+      { id: 31, kind: 'item', resource: null, item: { name: 'Iron Sword', icon: '🗡', rarity: 'rare', equip_slot: 'weapon', stat_bonuses: { combat: 2 } },
+        lot_size: 1, lot_price: 60, next_lot_qty: 1, next_lot_price: 60, unit_price: 60, qty_available: 1, qty_total: 1,
+        seller: { id: 3, name: 'Oakhollow', username: 'bramble', species: 'Mice' }, distance: 4, merchants: 1, paused: false, eta_seconds: 180 }] } });
+    await env.win.openMarket();
+    const b = env.body();
+    check('2i. item order: icon, name in rarity colour, stats', /color:#e8a020">🗡 1× Iron Sword/.test(b) && /weapon · rare · \+2 combat/.test(b));
+    check('2j. Items filter option', /<option value="items"/.test(b));
+    await env.fire('click', env.btn('buy', { id: '31' }));
+    check('2k. confirm sheet names the item', /Buy 🗡 1× Iron Sword\?/.test(env.getEl('mk-sheet-wrap').innerHTML));
+  }
   // 4 — caravans
   {
     const env = makeEnv({ '/api/market/status': { ...OPEN, activeOrders: 1, merchantsAssigned: 1 }, '/api/market/mine': MINE, '/api/market/orders/5/cancel': { ok: true, refunded: 400 } });
@@ -197,6 +237,10 @@ const MINE = { ok: true, now: new Date().toISOString(),
   check('5d. realtime handlers for every market event', ['market_purchase', 'market_delivery', 'market_return', 'market_trip_update', 'market_order_expired'].every(t => rt.includes(t + '(ev)')));
   check('5e. mobile shell hides the tab bar over the panel', /'market-panel'/.test(shell));
   check('5f. versioned market.js + market.css tags', /\/js\/market\.js\?v=\w+/.test(html) && /\/css\/market\.css\?v=\w+/.test(html));
+  const ia = read('js/item_admin.js');
+  check('5i. Dev Tools: Tradeable checkbox, ticked unless the item says otherwise', /id="ia-tradeable"' \+ \(item\?\.tradeable === false \? '' : ' checked'\)/.test(ia));
+  check('5j. Dev Tools: save sends tradeable through /api/game/items (POST new, PATCH edit)',
+    /tradeable:\s+document\.getElementById\('ia-tradeable'\)/.test(ia) && /_iaFetch\(path, \{ method/.test(ia) && !/'\/api\/item-admin'/.test(ia));
   check('5h. fixed-size window (tabs never resize it)', /\.mk-card \{[\s\S]*?height: min\(760px, 88vh\)/.test(read('css/market.css')));
   check('5g. settlement view exposes openSettlementBuild', /window\.openSettlementBuild = openSettlementBuild/.test(read('js/settlement-view.js')));
 
