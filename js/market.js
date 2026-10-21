@@ -51,6 +51,7 @@
     itemKey: null,         // buy: one item picked from the search box
     itemName: '',
     ih: null,              // GET /ironhaven
+    shops: null,           // GET /shops
     ihPorter: null,        // porter picked on the Ironhaven tab
     focusItem: null,       // inventory id to highlight (opened from inventory)
     draft: { mode: 'resource', resource: 'timber', inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
@@ -175,6 +176,7 @@
     closeSheet();
     if (opts.seller) { state.seller = { id: Number(opts.seller), name: opts.sellerName || 'this town' }; state.tab = 'buy'; }
     if (opts.tab) state.tab = opts.tab;
+    if (opts.tab === 'shops') state.shops = null;
     state.focusItem = opts.item || null;
     if (opts.tab === 'sell' && opts.item) Object.assign(state.draft, { mode: 'item', inventory_id: opts.item, qty_total: '', lot_size: '' });
     setDot(false);
@@ -210,7 +212,7 @@
   async function refresh() {
     try {
       state.status = await call('GET', '/api/market/status');
-      if (state.status.unlocked || state.tab === 'ironhaven') await loadTab();
+      if (state.status.unlocked || state.tab === 'ironhaven' || state.tab === 'shops') await loadTab();
     } catch (e) {
       renderError(e.message);
       return;
@@ -226,6 +228,9 @@
       else if (state.cat) qs.set('category', state.cat);
       if (state.seller) qs.set('seller', state.seller.id);
       state.orders = (await call('GET', '/api/market/orders?' + qs.toString())).orders || [];
+    } else if (state.tab === 'shops') {
+      const [shops, mine] = await Promise.all([call('GET', '/api/market/shops'), call('GET', '/api/market/mine')]);
+      state.shops = shops; state.mine = mine;
     } else if (state.tab === 'ironhaven') {
       const ih = await call('GET', '/api/market/ironhaven');
       if (ih.now) state.clockSkew = new Date(ih.now).getTime() - Date.now();
@@ -253,7 +258,7 @@
     if (a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && byId('mk-body')?.contains(a)) return;
     try {
       state.status = await call('GET', '/api/market/status');
-      if (state.status.unlocked || state.tab === 'ironhaven') await loadTab();
+      if (state.status.unlocked || state.tab === 'ironhaven' || state.tab === 'shops') await loadTab();
       render();
     } catch (_) { /* next event or tick retries */ }
   }
@@ -282,8 +287,8 @@
       // Ironhaven needs no Market: anyone can send a porter.
       byId('mk-title').textContent = 'Market';
       sub.textContent = 'Trade goods with settlements you know';
-      byId('mk-tabs').innerHTML = tabsHtml([['buy', '⚖️ Market'], ['ironhaven', '🏰 Ironhaven']]);
-      byId('mk-body').innerHTML = state.tab === 'ironhaven' ? ironhavenHtml() : lockedHtml(st);
+      byId('mk-tabs').innerHTML = tabsHtml([['buy', '⚖️ Market'], ['shops', '🏪 Shops'], ['ironhaven', '🏰 Ironhaven']]);
+      byId('mk-body').innerHTML = state.tab === 'ironhaven' ? ironhavenHtml() : state.tab === 'shops' ? shopsHtml() : lockedHtml(st);
       tickCountdowns();
       return;
     }
@@ -291,10 +296,10 @@
     sub.innerHTML = `${st.mods.merchants} merchant${st.mods.merchants === 1 ? '' : 's'} · carries ${fmt(st.mods.carryWeight)} per trip · ${Math.round(st.mods.feeRate * 100)}% fee
       <button type="button" class="mk-info" data-act="info" aria-label="How your Market grows" aria-describedby="mk-pop">ⓘ</button>`;
     byId('mk-pop').innerHTML = `<div class="mk-pop-title">Your Market · Level ${st.mods.marketLevel}</div>${levelTableHtml(st, st.mods.marketLevel)}`;
-    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['caravans', '🐾 Caravans'], ['ironhaven', '🏰 Ironhaven']]);
+    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['caravans', '🐾 Caravans'], ['shops', '🏪 Shops'], ['ironhaven', '🏰 Ironhaven']]);
     const body = byId('mk-body');
     body.innerHTML = state.tab === 'buy' ? buyHtml() : state.tab === 'sell' ? sellHtml()
-      : state.tab === 'ironhaven' ? ironhavenHtml() : caravansHtml();
+      : state.tab === 'ironhaven' ? ironhavenHtml() : state.tab === 'shops' ? shopsHtml() : caravansHtml();
     if (state.tab === 'sell') updateSellSummary();
     focusRow();
     tickCountdowns();
@@ -635,6 +640,15 @@
           <input name="qty_total" type="number" min="1" max="${spec.have || 1}" step="1" inputmode="numeric" value="${esc(d.qty_total || (spec.it ? spec.have : ''))}" data-act="draft"></label>
         <label class="mk-field"><span>Price each <em class="mk-muted">(gold)</em></span>
           <input name="lot_price" type="number" min="1" step="1" inputmode="numeric" value="${esc(d.lot_price)}" placeholder="gold" data-act="draft"></label>
+        <label class="mk-field"><span>Stall</span>
+          <select name="venue" data-act="draft">
+            <option value="">Best fit (a matching shop, else the Market)</option>
+            ${Object.entries(stalls).filter(([, v]) => v.slots).map(([k, v]) => {
+              const fits = !spec.it || !v.sells || v.sells.includes(catOfItem(spec.it));
+              const why = !v.open ? ' — closed, needs a shopkeeper' : !v.free ? ' — full' : !fits ? ' — doesn’t sell this' : '';
+              return `<option value="${k}" ${d.venue === k ? 'selected' : ''} ${why ? 'disabled' : ''}>${esc(v.label)} (${v.used}/${v.slots})${why}</option>`;
+            }).join('')}
+          </select></label>
         <input type="hidden" name="lot_size" value="1">
         <div class="mk-summary" id="mk-sell-summary"></div>
         <p class="mk-muted mk-small">Listed items leave your inventory and sit on a stall. Buyers send a porter to collect; you're paid when they arrive. Unsold items come back if you cancel or after ${Math.round(st.mods.expiryHours / 24)} days.</p>
@@ -642,10 +656,17 @@
       </form>`;
   }
 
+  // Browse category of an inventory item (mirrors the server's categoryOf).
+  function catOfItem(it) {
+    if (['weapon', 'armour', 'tool', 'trinket'].includes(it.equip_slot)) return it.equip_slot;
+    return ['fish', 'food', 'material', 'trophy'].includes(it.category) ? it.category : 'misc';
+  }
+
   function readDraft() {
     const f = document.querySelector('#market-panel form[data-form="sell"]');
     if (!f) return;
     const d = state.draft;
+    if (f.venue) d.venue = f.venue.value;
     if (f.resource) d.resource = f.resource.value;
     d.qty_total = f.qty_total.value;
     d.lot_size = f.lot_size.value;
@@ -709,7 +730,7 @@
       if (!unit_price) return toast('Set a price for each item.', 'error');
       state.busy = true;
       try {
-        await call('POST', '/api/market/orders', { kind: 'item', inventory_id: spec.it.id, qty_total, unit_price });
+        await call('POST', '/api/market/orders', { kind: 'item', inventory_id: spec.it.id, qty_total, unit_price, venue: d.venue || undefined });
         toast(`🏷️ ${fmt(qty_total)}× ${spec.it.name} on a stall at ${fmt(unit_price)} each.`);
         state.draft = { ...d, inventory_id: null, qty_total: '', lot_size: '', lot_price: '' };
         if (typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
@@ -790,6 +811,55 @@
     else if (e.key === 'ArrowUp') { suggestAt = (suggestAt - 1 + suggest.length) % suggest.length; renderSuggest(); e.preventDefault(); }
     else if (e.key === 'Enter') { pickSuggest(Math.max(0, suggestAt)); e.preventDefault(); }
     else if (e.key === 'Escape') { suggest = []; renderSuggest(); e.stopPropagation(); }
+  }
+
+  // ── Shops ──────────────────────────────────────────────────────────────
+
+  const SHOP_INFO = {
+    smithy: { icon: '⚒️', building: 'smithy' }, jeweller: { icon: '💍', building: 'jeweller' },
+    fishing_post: { icon: '🎣', building: 'fishing_post' }, market: { icon: '⚖️', building: 'market' },
+  };
+
+  function shopsHtml() {
+    const sh = state.shops;
+    if (!sh) return '<div class="mk-empty">Unrolling the ledgers…</div>';
+    const free = (sh.candidates || []).filter(c => !c.busy);
+    const orders = ((state.mine && state.mine.orders) || []).filter(o => o.kind === 'item' && o.status === 'active');
+    const cards = Object.entries(sh.stalls).map(([v, st]) => {
+      const info = SHOP_INFO[v] || { icon: '🏪' };
+      const sells = st.sells ? st.sells.map(c => `<span title="${esc(c)}">${CAT_ICON[c] || ''}</span>`).join(' ') : '<span class="mk-muted">anything</span>';
+      const listings = orders.filter(o => (o.venue || 'market') === v);
+      if (!st.slots) {
+        return `<div class="mk-shop off"><div class="mk-shop-head"><span class="mk-shop-icon">${info.icon}</span>
+          <div><b>${esc(st.label)}</b><div class="mk-muted mk-small">Not built · sells ${sells}</div></div>
+          <button type="button" class="mk-btn mk-btn-sm" data-act="build-shop" data-building="${info.building}">Build</button></div></div>`;
+      }
+      const keeperSel = st.needs_keeper ? `<label class="mk-field mk-keeper"><span>Shopkeeper</span>
+          <select data-act="keeper" data-venue="${v}">
+            <option value="">— nobody (closed) —</option>
+            ${st.keeper ? `<option value="${st.keeper.id}" selected>${esc(st.keeper.name)}</option>` : ''}
+            ${free.map(c => `<option value="${c.id}">${esc(c.name)} · ${esc(c.role)}</option>`).join('')}
+          </select></label>` : '';
+      return `<div class="mk-shop ${st.open ? '' : 'closed'}">
+        <div class="mk-shop-head"><span class="mk-shop-icon">${info.icon}</span>
+          <div><b>${esc(st.label)}</b> <span class="mk-muted mk-small">Lv ${st.level}</span>
+            <div class="mk-muted mk-small">Sells ${sells} · stalls <b>${st.used} / ${st.slots}</b></div></div>
+          <span class="mk-status ${st.open ? 'mk-status-active' : ''}">${st.open ? 'Open' : 'Closed'}</span></div>
+        ${st.needs_keeper && !st.keeper ? '<div class="mk-warn">Nobody is minding this shop — its stalls are hidden from buyers until you pick a shopkeeper.</div>' : ''}
+        ${keeperSel}
+        ${listings.length ? `<ul class="mk-list">${listings.map(o => myOrderHtml(o, [], {}, 0)).join('')}</ul>` : '<div class="mk-muted mk-small">No listings here yet.</div>'}
+      </div>`;
+    }).join('');
+    return `<p class="mk-muted mk-small">Shops add item stalls for their kinds of goods. A shopkeeper must mind each shop for it to sell — later, skilled shopkeepers will run them better.</p>
+      <div class="mk-shops">${cards}</div>`;
+  }
+
+  async function setKeeper(venue, citizenId) {
+    try {
+      await call('PATCH', `/api/market/shops/${venue}/keeper`, { citizen_id: citizenId || null });
+      toast(citizenId ? 'Shopkeeper assigned — the shop is open.' : 'The shop is closed.');
+    } catch (e) { toast(e.message, 'error'); }
+    await switchTab('shops');
   }
 
   // ── Ironhaven ──────────────────────────────────────────────────────────
@@ -1017,6 +1087,11 @@
     if (act === 'clear-item') { state.itemKey = null; state.itemName = ''; return switchTab('buy'); }
     if (act === 'suggest') return pickSuggest(Number(t.dataset.i));
     if (act === 'ih-sell') return ironhavenSell(Number(t.dataset.id));
+    if (act === 'build-shop') {
+      closeMarket();
+      if (typeof global.openSettlementBuild === 'function') return global.openSettlementBuild(t.dataset.building);
+      return;
+    }
     if (act === 'tab') return switchTab(t.dataset.tab);
     if (act === 'sell-mode') {
       readDraft();
@@ -1076,6 +1151,7 @@
     const act = e.target.dataset.act;
     if (act === 'filter-resource') { state.resource = e.target.value; switchTab('buy'); }
     else if (act === 'ih-porter') { state.ihPorter = Number(e.target.value); }
+    else if (act === 'keeper') { setKeeper(e.target.dataset.venue, Number(e.target.value) || null); }
     else if (act === 'sort') { state.sort = e.target.value; state.dir = e.target.value === 'amount' ? 'desc' : 'asc'; switchTab('buy'); }
     else if (act === 'add-merchant' && e.target.value) editMerchants(e.target.dataset.order, { add: [Number(e.target.value)] });
     else if (act === 'pick-merchant') {

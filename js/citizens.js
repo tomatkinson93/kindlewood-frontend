@@ -6,7 +6,7 @@ let selectedCitizenId = null;
 const ROLE_ICONS = {
   farmer: '🌾', woodcutter: '🪓', fisher: '🎣', miner: '⛏',
   crafter: '🔨', scout: '🗺', soldier: '⚔️', idle: '💤',
-  tavernkeep: '🍺', merchant: '⚖️',
+  tavernkeep: '🍺', merchant: '⚖️', shopkeeper: '🏪',
 };
 const TRAIT_ICONS = {
   strong:'💪', quick:'⚡', hardy:'🛡', genius:'🧠', charming:'✨',
@@ -469,9 +469,10 @@ function renderCitizenProfile(c) {
         <div class="cp-scouting-note">🗺 On expedition — returns in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.expedition.completes_at) - Date.now()) / 1000)))}</strong></div>
       ` : c.trade ? `
         <div class="cp-scouting-note">${c.trade.on_road
-          ? `🐾 On a trade run — ${c.trade.status === 'returning' ? 'back home' : 'arrives'} in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.trade.completes_at) - Date.now()) / 1000)))}</strong>`
+          ? `${c.trade.porter === 'ironhaven' ? '🏰 Carrying goods to Ironhaven' : c.trade.porter ? '🧺 Collecting goods for you' : '🐾 On a trade run'} — ${c.trade.status === 'returning' ? 'back home' : 'arrives'} in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.trade.completes_at) - Date.now()) / 1000)))}</strong>`
+          : c.trade.shop ? `🏪 Minding the ${({ smithy: 'Smithy', jeweller: 'Jeweller', fishing_post: 'Fishing Post' })[c.trade.shop] || 'shop'}.`
           : '⚖️ Working as a merchant at the Market.'}
-          <button class="cp-market-btn" onclick="if(typeof openMarket==='function'){openMarket({tab:'caravans'})}">Open Market</button></div>
+          <button class="cp-market-btn" onclick="if(typeof openMarket==='function'){openMarket({tab:'${c.trade.shop ? 'shops' : 'caravans'}'})}">Open Market</button></div>
       ` : `
         <select class="cp-role-select" onchange="updateCitizenRoleFromProfile(${c.id}, this.value)">
           ${roleOptions}
@@ -912,7 +913,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
       : c.active_quest
         ? '<td class="ac-role-child">⚔️ On Quest</td>'
       : c.trade
-        ? '<td class="ac-role-child">' + (c.trade.on_road ? '🐾 Trading' : '⚖️ Merchant') + '</td>'
+        ? '<td class="ac-role-child">' + (c.trade.on_road ? (c.trade.porter ? '🧺 Porter' : '🐾 Trading') : c.trade.shop ? '🏪 Shopkeeper' : '⚖️ Merchant') + '</td>'
         : '<td><select class="ac-role-select" onchange="updateCitizenRole(' + c.id + ', this.value)" onclick="event.stopPropagation()">' +
           getAvailableRoles().map(r => '<option value="' + r + '"' + (c.role===r?' selected':'') + '>' + (ROLE_ICONS[r]||'?') + ' ' + r + '</option>').join('') +
           '</select></td>';

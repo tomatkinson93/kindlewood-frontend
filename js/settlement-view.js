@@ -43,6 +43,8 @@ const SV_SLOTS = [
   { id:'town-market',        area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Row',    size:'md' },
   { id:'town-neighbourhood', area:'town',      x:67,  y:73, type:'neighbourhood',      label:'Neighbourhood', size:'md' },
   { id:'town-guildhall',     area:'town',      x:86,  y:69, accepts:['guild_hall'],    label:'Guild Row',     size:'md' },
+  { id:'town-smithy',        area:'town',      x:36,  y:86, accepts:['smithy'],        label:'Forge Lane',    size:'md' },
+  { id:'town-jeweller',      area:'town',      x:58,  y:87, accepts:['jeweller'],      label:'Gem Corner',    size:'md' },
   { id:'out-forager',        area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',   size:'md' },
   { id:'out-farm',           area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',   size:'md' },
   { id:'out-lumber',         area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
@@ -62,6 +64,8 @@ const SV_VISUALS = {
   fishing_post:  { emoji:'\u{1F3A3}', bodyColor:'#3a6080', roofColor:'#284860', flavor:'A patient dock above the quiet water.' },
   forager_hut:   { emoji:'\u{1F344}', bodyColor:'#607850', roofColor:'#485a38', flavor:'Into the woodland, lantern in hand.' },
   guild_hall:    { emoji:'🏛️',        bodyColor:'#6a4c7d', roofColor:'#3b3f6b', flavor:'Banners hang over the long tables.' },
+  smithy:        { emoji:'⚒️',        bodyColor:'#5a4a40', roofColor:'#3a2c24', flavor:'Sparks, soot and the ring of the hammer.' },
+  jeweller:      { emoji:'💍',        bodyColor:'#5c5070', roofColor:'#3c3450', flavor:'Every stone weighed twice.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
 
@@ -1032,6 +1036,9 @@ function _openBuildPanel(slot, occupant) {
         : '')
       + (occupant.id === 'market' && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket()">⚖️ Open Market</button>'
+        : '')
+      + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
       + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
   } else {

@@ -255,3 +255,13 @@
 .mk-collect input, .mk-collect select { font: inherit; font-size: 14px; color: #f2e6c9; background: #17120c;
   border: 1px solid rgba(200,148,26,.3); border-radius: 8px; padding: 6px 8px; }
 @media (max-width: 600px) { .mk-collect { grid-template-columns: 1fr; } }
+
+/* Shops tab (Market v2) */
+.mk-shops { display: flex; flex-direction: column; gap: 10px; }
+.mk-shop { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.025); border: 1px solid rgba(200,148,26,.18); }
+.mk-shop.closed { border-style: dashed; }
+.mk-shop.off { opacity: .65; }
+.mk-shop-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.mk-shop-head > div { flex: 1; }
+.mk-shop-icon { font-size: 26px; }
+.mk-keeper { margin: 6px 0; }

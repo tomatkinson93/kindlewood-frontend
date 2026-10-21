@@ -282,6 +282,33 @@ const MINE = { ok: true, now: new Date().toISOString(),
     check('2w. Send posts item, quantity and porter', posted && posted.inventory_id === 71 && posted.qty === 10 && posted.citizen_id === 22 &&
       /Birch set off for Ironhaven/.test(env.toasts.map(t => t[0]).join()));
   }
+  // 3n — shops
+  {
+    let patched = null;
+    const STALLS = {
+      smithy: { label: 'Smithy', level: 1, slots: 4, used: 1, free: 0, sells: ['weapon', 'armour', 'tool'], needs_keeper: true, keeper: null, open: false },
+      jeweller: { label: 'Jeweller', level: 0, slots: 0, used: 0, free: 0, sells: ['trinket', 'trophy'], needs_keeper: true, keeper: null, open: false },
+      fishing_post: { label: 'Fishing Post', level: 2, slots: 4, used: 0, free: 4, sells: ['fish', 'food'], needs_keeper: true, keeper: { id: 9, name: 'Marsh' }, open: true },
+      market: { label: 'Market', level: 1, slots: 2, used: 0, free: 2, sells: null, needs_keeper: false, keeper: null, open: true },
+    };
+    const mine = { ...MINE, stalls: STALLS, orders: [{ id: 50, kind: 'item', venue: 'smithy', item_snapshot: { name: 'Iron Sword', icon: '🗡', rarity: 'rare' },
+      lot_size: 1, lot_price: 45, qty_total: 1, qty_escrowed: 1, qty_reserved: 0, status: 'active', unit_price: 45, merchants: [],
+      expires_at: new Date(Date.now() + 86400e3 * 6).toISOString() }] };
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/mine': mine,
+      '/api/market/shops/': (p, o) => { patched = [p, JSON.parse(o.body)]; return { ok: true }; },
+      '/api/market/shops': { ok: true, stalls: STALLS, candidates: MINE.candidates } });
+    await env.win.openMarket({ tab: 'shops' });
+    const b = env.body();
+    check('3n. Shops tab: each shop with stalls used and what it sells', /Smithy[\s\S]*?stalls <b>1 \/ 4/.test(b) && /Fishing Post[\s\S]*?🐟/.test(b));
+    check('3o. a shop with no keeper is closed and says why', /mk-shop closed[\s\S]*?Smithy[\s\S]*?Nobody is minding this shop/.test(b));
+    check('3p. unbuilt shops offer a Build button', /Jeweller[\s\S]*?data-act="build-shop" data-building="jeweller"/.test(b));
+    check('3q. listings show under their shop', /Smithy[\s\S]*?Iron Sword[\s\S]*?Jeweller/.test(b));
+    check('3r. keeper picker lists free citizens only', /data-act="keeper" data-venue="smithy"[\s\S]*?<option value="22">Birch/.test(b) && !/data-venue="smithy"[\s\S]*?<option value="21">/.test(b.split('Jeweller')[0]));
+    await env.fire('change', { dataset: { act: 'keeper', venue: 'smithy' }, value: '22' });
+    await tick();
+    check('3s. picking a keeper saves it', patched && /\/api\/market\/shops\/smithy\/keeper/.test(patched[0]) && patched[1].citizen_id === 22);
+    await env.fire('click', env.btn('sell-mode', { mode: 'item' }));
+  }
   // 4 — caravans
   {
     const env = makeEnv({ '/api/market/status': { ...OPEN, activeOrders: 1, merchantsAssigned: 1 }, '/api/market/mine': MINE, '/api/market/orders/5/cancel': { ok: true, refunded: 400 } });
