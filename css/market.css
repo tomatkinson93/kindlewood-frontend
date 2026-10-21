@@ -93,7 +93,7 @@
 
 /* Buy */
 .mk-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.mk-toolbar select, .mk-form select, .mk-form input, .mk-mine-act select {
+.mk-toolbar select, .mk-form select, .mk-form input, .mk-mine-act select, .mk-field select {
   font: inherit; font-size: 14px; color: #f2e6c9;
   background: #17120c; border: 1px solid rgba(200,148,26,.3); border-radius: 8px; padding: 6px 8px;
 }
@@ -202,3 +202,49 @@
 .mk-item-qty { font-size: 12px; color: rgba(242,230,201,.6); }
 .mk-item-why { grid-column: 2 / 4; font-size: 11px; color: #f0a080; }
 .mk-item-meta { text-transform: capitalize; }
+
+/* Search + categories (Market v2) */
+.mk-search { position: relative; margin-bottom: 8px; }
+.mk-search-input {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 14.5px; color: #f2e6c9;
+  background: #17120c; border: 1px solid rgba(200,148,26,.35); border-radius: 9px; padding: 8px 12px;
+}
+.mk-search-input:focus { outline: none; border-color: #f4c95d; box-shadow: 0 0 0 2px rgba(244,201,93,.15); }
+.mk-suggest {
+  display: none; position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px;
+  list-style: none; background: #1b150e; border: 1px solid rgba(244,201,93,.4); border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); max-height: 280px; overflow-y: auto;
+}
+.mk-suggest.open { display: block; }
+.mk-suggest li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.mk-suggest li.on, .mk-suggest li:hover { background: rgba(244,201,93,.12); }
+.mk-suggest li small { margin-left: auto; color: rgba(242,230,201,.55); text-transform: capitalize; }
+.mk-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; scrollbar-width: thin; }
+.mk-cat {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 58px;
+  font: inherit; cursor: pointer; padding: 6px 6px 4px; border-radius: 9px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(200,148,26,.18); color: rgba(242,230,201,.75);
+}
+.mk-cat:hover { border-color: rgba(244,201,93,.5); }
+.mk-cat.on { background: rgba(244,201,93,.14); border-color: #f4c95d; color: #f4c95d; }
+.mk-cat-icon { font-size: 20px; line-height: 1.1; }
+.mk-cat-label { font-size: 11px; }
+
+/* Ironhaven tab */
+.mk-ih-head { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 10px;
+  background: rgba(120,140,180,.08); border: 1px solid rgba(150,170,210,.25); font-size: 14px; }
+.mk-ih-crest { font-size: 30px; }
+.mk-wants { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.mk-want { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 9px;
+  background: rgba(244,201,93,.07); border: 1px dashed rgba(244,201,93,.4); }
+.mk-want-icon { font-size: 22px; }
+.mk-want-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #c8941a; color: #1c1308; font-weight: 700; }
+.mk-ih-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+  background: rgba(255,255,255,.025); border: 1px solid rgba(200,148,26,.14); }
+.mk-ih-row.off { opacity: .5; }
+.mk-ih-row.wanted { border-color: rgba(244,201,93,.45); }
+.mk-ih-row.focus { box-shadow: 0 0 0 2px #f4c95d; }
+.mk-ih-main { flex: 1; min-width: 0; }
+.mk-ih-qty { width: 64px; font: inherit; font-size: 14px; color: #f2e6c9; background: #17120c;
+  border: 1px solid rgba(200,148,26,.3); border-radius: 7px; padding: 4px 6px; }
+.mk-better { color: #9fd47a; margin-left: 4px; }

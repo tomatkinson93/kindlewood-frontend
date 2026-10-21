@@ -25,6 +25,13 @@
   const RES_ICON = { food: '🍎', timber: '🪵', stone: '🪨', metal: '⚙️', wealth: '🪙' };
   const RES_LABEL = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Gold' };
   const TIER_LABEL = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '');
+  // Buy tab category buttons. Item categories match the server's
+  // categoryOf(): equipment slot first, then the item category.
+  const CATS = [
+    ['', '✳️', 'All'], ['resources', '🪵', 'Resources'], ['weapon', '⚔️', 'Weapons'], ['armour', '🛡️', 'Armour'],
+    ['tool', '🔨', 'Tools'], ['trinket', '💍', 'Trinkets'], ['fish', '🐟', 'Fish'], ['food', '🍖', 'Food'],
+    ['material', '🪨', 'Materials'], ['trophy', '🏆', 'Trophies'], ['misc', '📦', 'Misc'],
+  ];
   const SORTS = [
     ['distance', 'Nearest'], ['unit_price', 'Price per unit'],
     ['amount', 'Amount available'], ['eta', 'Arrival time'],
@@ -40,6 +47,12 @@
     sort: 'distance',
     dir: 'asc',
     seller: null,          // { id, name } — buy tab filtered to one town
+    cat: '',               // buy: '' all | 'resources' | an item category
+    itemKey: null,         // buy: one item picked from the search box
+    itemName: '',
+    ih: null,              // GET /ironhaven
+    ihPorter: null,        // porter picked on the Ironhaven tab
+    focusItem: null,       // inventory id to highlight (opened from inventory)
     draft: { mode: 'resource', resource: 'timber', inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
     busy: false,
     unseen: false,         // red dot on the comm-btn
@@ -138,6 +151,11 @@
     el.addEventListener('click', onAction);
     el.addEventListener('change', onChange);
     el.addEventListener('input', onInput);
+    el.addEventListener('keydown', e => { if (e.target.dataset && e.target.dataset.act === 'search') onSearchKey(e); });
+    // Clicking anywhere outside the search box closes its suggestions.
+    el.addEventListener('mousedown', e => {
+      if (suggest.length && !(e.target.closest && e.target.closest('.mk-search'))) { suggest = []; suggestAt = -1; renderSuggest(); }
+    });
     el.addEventListener('submit', onSubmit);
     document.body.appendChild(el);
     return el;
@@ -157,6 +175,8 @@
     closeSheet();
     if (opts.seller) { state.seller = { id: Number(opts.seller), name: opts.sellerName || 'this town' }; state.tab = 'buy'; }
     if (opts.tab) state.tab = opts.tab;
+    state.focusItem = opts.item || null;
+    if (opts.tab === 'sell' && opts.item) Object.assign(state.draft, { mode: 'item', inventory_id: opts.item, qty_total: '', lot_size: '' });
     setDot(false);
     markCommBtn(true);
     renderLoading();
@@ -190,7 +210,7 @@
   async function refresh() {
     try {
       state.status = await call('GET', '/api/market/status');
-      if (state.status.unlocked) await loadTab();
+      if (state.status.unlocked || state.tab === 'ironhaven') await loadTab();
     } catch (e) {
       renderError(e.message);
       return;
@@ -201,9 +221,15 @@
   async function loadTab() {
     if (state.tab === 'buy') {
       const qs = new URLSearchParams({ sort: state.sort, dir: state.dir });
-      if (state.resource) qs.set('resource', state.resource);
+      if (state.itemKey) qs.set('item_key', state.itemKey);
+      else if (state.cat === 'resources') qs.set('resource', state.resource || 'resources');
+      else if (state.cat) qs.set('category', state.cat);
       if (state.seller) qs.set('seller', state.seller.id);
       state.orders = (await call('GET', '/api/market/orders?' + qs.toString())).orders || [];
+    } else if (state.tab === 'ironhaven') {
+      const ih = await call('GET', '/api/market/ironhaven');
+      if (ih.now) state.clockSkew = new Date(ih.now).getTime() - Date.now();
+      state.ih = ih;
     } else {
       const mine = await call('GET', '/api/market/mine');
       if (mine.now) state.clockSkew = new Date(mine.now).getTime() - Date.now();
@@ -222,10 +248,12 @@
   // Re-fetch the current view, without stomping on a half-typed form.
   async function softRefresh() {
     if (!isOpen()) return;
-    if (state.tab === 'sell' && document.activeElement && byId('mk-body')?.contains(document.activeElement)) return;
+    // Never re-render under a field the player is typing in.
+    const a = document.activeElement;
+    if (a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName) && byId('mk-body')?.contains(a)) return;
     try {
       state.status = await call('GET', '/api/market/status');
-      if (state.status.unlocked) await loadTab();
+      if (state.status.unlocked || state.tab === 'ironhaven') await loadTab();
       render();
     } catch (_) { /* next event or tick retries */ }
   }
@@ -248,23 +276,27 @@
     const st = state.status;
     if (!st) return;
     const sub = byId('mk-sub');
+    const tabsHtml = tabs => tabs.map(([k, label]) =>
+      `<button type="button" class="mk-tab ${state.tab === k ? 'on' : ''}" data-act="tab" data-tab="${k}">${label}</button>`).join('');
     if (!st.unlocked) {
+      // Ironhaven needs no Market: anyone can send a porter.
       byId('mk-title').textContent = 'Market';
       sub.textContent = 'Trade goods with settlements you know';
-      byId('mk-tabs').innerHTML = '';
-      byId('mk-body').innerHTML = lockedHtml(st);
+      byId('mk-tabs').innerHTML = tabsHtml([['buy', '⚖️ Market'], ['ironhaven', '🏰 Ironhaven']]);
+      byId('mk-body').innerHTML = state.tab === 'ironhaven' ? ironhavenHtml() : lockedHtml(st);
+      tickCountdowns();
       return;
     }
     byId('mk-title').textContent = `Market · Level ${st.mods.marketLevel}`;
     sub.innerHTML = `${st.mods.merchants} merchant${st.mods.merchants === 1 ? '' : 's'} · carries ${fmt(st.mods.carryWeight)} per trip · ${Math.round(st.mods.feeRate * 100)}% fee
       <button type="button" class="mk-info" data-act="info" aria-label="How your Market grows" aria-describedby="mk-pop">ⓘ</button>`;
     byId('mk-pop').innerHTML = `<div class="mk-pop-title">Your Market · Level ${st.mods.marketLevel}</div>${levelTableHtml(st, st.mods.marketLevel)}`;
-    const tabs = [['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['caravans', '🐾 Caravans']];
-    byId('mk-tabs').innerHTML = tabs.map(([k, label]) =>
-      `<button type="button" class="mk-tab ${state.tab === k ? 'on' : ''}" data-act="tab" data-tab="${k}">${label}</button>`).join('');
+    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['caravans', '🐾 Caravans'], ['ironhaven', '🏰 Ironhaven']]);
     const body = byId('mk-body');
-    body.innerHTML = state.tab === 'buy' ? buyHtml() : state.tab === 'sell' ? sellHtml() : caravansHtml();
+    body.innerHTML = state.tab === 'buy' ? buyHtml() : state.tab === 'sell' ? sellHtml()
+      : state.tab === 'ironhaven' ? ironhavenHtml() : caravansHtml();
     if (state.tab === 'sell') updateSellSummary();
+    focusRow();
     tickCountdowns();
   }
 
@@ -322,9 +354,13 @@
 
   function buyHtml() {
     const st = state.status;
-    const resOpts = ['<option value="">All goods</option>']
-      .concat(st.tradeable.map(r => `<option value="${r}" ${state.resource === r ? 'selected' : ''}>${RES_ICON[r]} ${RES_LABEL[r]}</option>`))
-      .concat([`<option value="items" ${state.resource === 'items' ? 'selected' : ''}>🎒 Items</option>`]).join('');
+    const resOpts = ['<option value="">All resources</option>']
+      .concat(st.tradeable.map(r => `<option value="${r}" ${state.resource === r ? 'selected' : ''}>${RES_ICON[r]} ${RES_LABEL[r]}</option>`)).join('');
+    const cats = CATS.map(([k, icon, label]) =>
+      `<button type="button" class="mk-cat ${!state.itemKey && state.cat === k ? 'on' : ''}" data-act="cat" data-cat="${k}" title="${label}">
+        <span class="mk-cat-icon">${icon}</span><span class="mk-cat-label">${label}</span></button>`).join('');
+    const itemChip = state.itemKey
+      ? `<div class="mk-filter-chip">Showing ${esc(state.itemName)} <button type="button" data-act="clear-item" aria-label="Show all items">✕</button></div>` : '';
     const sortOpts = SORTS.map(([k, l]) => `<option value="${k}" ${state.sort === k ? 'selected' : ''}>${l}</option>`).join('');
     const sellerChip = state.seller
       ? `<div class="mk-filter-chip">Only ${esc(state.seller.name)} <button type="button" data-act="clear-seller" aria-label="Show all towns">✕</button></div>`
@@ -360,8 +396,16 @@
       ? `${esc(state.seller.name)} has nothing for sale right now.`
       : 'No sell orders from towns you know. Scout further, or join a clan — clanmates can always trade.'}</li>`;
     return `
+      <div class="mk-search">
+        <input type="search" id="mk-search" class="mk-search-input" placeholder="🔍 Search items — type 3 letters, e.g. “iro”"
+          value="${esc(state.itemName)}" autocomplete="off" spellcheck="false" data-act="search"
+          role="combobox" aria-expanded="false" aria-controls="mk-suggest" aria-autocomplete="list">
+        <ul class="mk-suggest" id="mk-suggest" role="listbox"></ul>
+      </div>
+      <div class="mk-cats" role="toolbar" aria-label="Categories">${cats}</div>
+      ${itemChip}
       <div class="mk-toolbar">
-        <select data-act="filter-resource" aria-label="Filter goods">${resOpts}</select>
+        ${state.cat === 'resources' && !state.itemKey ? `<select data-act="filter-resource" aria-label="Which resource">${resOpts}</select>` : ''}
         <select data-act="sort" aria-label="Sort by">${sortOpts}</select>
         <button type="button" class="mk-btn mk-btn-sm" data-act="dir" title="Reverse order">${state.dir === 'asc' ? '↑ Low first' : '↓ High first'}</button>
       </div>
@@ -574,6 +618,133 @@
     } finally { state.busy = false; }
   }
 
+  // ── Search autocomplete ────────────────────────────────────────────────
+
+  let searchTimer = null, suggest = [], suggestAt = -1, searchSeq = 0;
+  const CAT_ICON = Object.fromEntries(CATS.map(([k, icon]) => [k, icon]));
+
+  function renderSuggest() {
+    const ul = byId('mk-suggest'), input = byId('mk-search');
+    if (!ul) return;
+    ul.innerHTML = suggest.map((it, i) => `<li role="option" class="${i === suggestAt ? 'on' : ''}" data-act="suggest" data-i="${i}"
+        aria-selected="${i === suggestAt}"><span>${esc(it.icon || '📦')}</span>
+        <b style="color:${rarityColor(it.rarity)}">${esc(it.name)}</b>
+        <small>${CAT_ICON[it.cat] || ''} ${esc(it.cat)}</small></li>`).join('');
+    ul.classList.toggle('open', suggest.length > 0);
+    if (input) input.setAttribute('aria-expanded', suggest.length ? 'true' : 'false');
+  }
+
+  function onSearchInput(input) {
+    clearTimeout(searchTimer);
+    const q = input.value.trim();
+    if (q.length < 3) {
+      suggest = []; suggestAt = -1; renderSuggest();
+      if (!q && state.itemKey) { state.itemKey = null; state.itemName = ''; switchTab('buy'); }
+      return;
+    }
+    const seq = ++searchSeq;
+    searchTimer = setTimeout(async () => {
+      try {
+        const r = await call('GET', '/api/market/catalog?q=' + encodeURIComponent(q));
+        if (seq !== searchSeq) return;   // a newer keystroke won
+        suggest = r.items || []; suggestAt = suggest.length ? 0 : -1;
+        renderSuggest();
+      } catch (_) {}
+    }, 180);
+  }
+
+  function pickSuggest(i) {
+    const it = suggest[i];
+    if (!it) return;
+    state.itemKey = it.item_key; state.itemName = it.name; state.cat = '';
+    suggest = []; suggestAt = -1;
+    switchTab('buy');
+  }
+
+  function onSearchKey(e) {
+    if (!suggest.length) return;
+    if (e.key === 'ArrowDown') { suggestAt = (suggestAt + 1) % suggest.length; renderSuggest(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { suggestAt = (suggestAt - 1 + suggest.length) % suggest.length; renderSuggest(); e.preventDefault(); }
+    else if (e.key === 'Enter') { pickSuggest(Math.max(0, suggestAt)); e.preventDefault(); }
+    else if (e.key === 'Escape') { suggest = []; renderSuggest(); e.stopPropagation(); }
+  }
+
+  // ── Ironhaven ──────────────────────────────────────────────────────────
+
+  function ironhavenHtml() {
+    const ih = state.ih;
+    if (!ih) return '<div class="mk-empty">Unrolling the ledgers…</div>';
+    if (!ih.ironhaven) return '<div class="mk-empty">The road to Ironhaven is closed right now.</div>';
+    const free = (ih.candidates || []).filter(c => !c.busy);
+    if (!free.some(c => c.id === state.ihPorter)) state.ihPorter = free.length ? free[0].id : null;
+    const porterOpts = free.map(c => `<option value="${c.id}" ${c.id === state.ihPorter ? 'selected' : ''}>${esc(c.name)} · scouting ${c.scouting}</option>`).join('');
+    const days = Math.max(0, Math.ceil((new Date(ih.week_ends).getTime() - now()) / 86400e3));
+    const wants = ih.wants.length ? ih.wants.map(w => `<div class="mk-want"><span class="mk-want-icon">${esc(w.icon || '📦')}</span>
+        <div><b>${esc(w.name)}</b><div class="mk-muted mk-small">${CAT_ICON[w.cat] || ''} ${esc(w.cat)} · pays ${gold(w.unit_price)} each</div></div></div>`).join('')
+      : '<div class="mk-muted">Nothing this week.</div>';
+    const rows = ih.items.length ? ih.items.map(i => {
+      const why = !i.tradeable ? i.reason : '';
+      const better = i.player_price && i.player_price > i.unit_price
+        ? `<span class="mk-better">Players list from ${price2(i.player_price)}</span>` : '';
+      return `<li class="mk-ih-row ${why ? 'off' : ''} ${i.wanted ? 'wanted' : ''} ${state.focusItem === i.id ? 'focus' : ''}" data-row="${i.id}">
+        <span class="mk-item-icon">${esc(i.icon || '📦')}</span>
+        <div class="mk-ih-main">
+          <div><b style="color:${rarityColor(i.rarity)}">${esc(i.name)}</b> <span class="mk-muted">×${fmt(i.quantity)}</span>
+            ${i.wanted ? '<span class="mk-want-tag">Wanted ×2</span>' : ''}</div>
+          <div class="mk-muted mk-small">${why ? esc(why) : `Ironhaven pays ${gold(i.unit_price)} each · a porter carries ${fmt(i.max_qty)}`} ${better}</div>
+        </div>
+        ${why ? '' : `<input type="number" class="mk-ih-qty" data-ih-qty="${i.id}" min="1" max="${i.max_qty}" value="${Math.min(i.quantity, i.max_qty)}" aria-label="How many">
+        <button type="button" class="mk-btn mk-btn-sm mk-btn-primary" data-act="ih-sell" data-id="${i.id}" ${state.ihPorter ? '' : 'disabled'}>Send</button>`}
+      </li>`;
+    }).join('') : '<li class="mk-empty">Your inventory is empty.</li>';
+    const runs = (ih.runs || []).filter(r => r.status !== 'done');
+    const runRows = runs.map(r => {
+      const back = r.status === 'returning';
+      const from = back ? r.arrives_at : r.departs_at, to = back ? r.returns_at : r.arrives_at;
+      return `<li class="mk-trip live"><div class="mk-trip-icon">${back ? '🪙' : '🏰'}</div><div class="mk-trip-main">
+        <div>${esc(r.citizen_name || 'A porter')} ${back ? `is heading home with ${gold(r.gold)}` : `is carrying ${fmt(r.qty)}× ${esc((r.item && r.item.name) || 'goods')} to Ironhaven`}</div>
+        <div class="mk-bar"><div class="mk-bar-fill" data-from="${esc(from)}" data-to="${esc(to)}"></div></div>
+        <div class="mk-muted mk-small">${back ? 'Home' : 'Arrives'} in <span data-until="${esc(to)}">…</span></div></div></li>`;
+    }).join('');
+    return `
+      <div class="mk-ih-head">
+        <div class="mk-ih-crest">🏰</div>
+        <div><b>${esc(ih.ironhaven.name)}</b> buys almost anything — cheaply. It pays ${Math.round(ih.rate * 100)}% of an item's value
+          (${Math.round(ih.want_rate * 100)}% for this week's wants). Other players usually pay far more.
+          <div class="mk-muted mk-small">${ih.ironhaven.distance} hexes away · a porter's round trip takes about ${dur(2 * ih.ironhaven.leg_seconds)} · gold arrives when they're home.</div></div>
+      </div>
+      <div class="mk-sec"><h3>Ironhaven wants this week <span class="mk-muted mk-small">new list in ${days} day${days === 1 ? '' : 's'}</span></h3>
+        <div class="mk-wants">${wants}</div></div>
+      <div class="mk-sec"><h3>Send a porter</h3>
+        <label class="mk-field"><span>Porter <em class="mk-muted">(carries ${ih.porter_carry} weight)</em></span>
+          ${free.length ? `<select data-act="ih-porter">${porterOpts}</select>` : '<div class="mk-warn">Nobody is free to carry goods right now.</div>'}</label>
+        <ul class="mk-list">${rows}</ul></div>
+      ${runRows ? `<div class="mk-sec"><h3>On the road to Ironhaven</h3><ul class="mk-list">${runRows}</ul></div>` : ''}`;
+  }
+
+  async function ironhavenSell(invId) {
+    if (state.busy) return;
+    const input = document.querySelector(`#market-panel [data-ih-qty="${invId}"]`);
+    const qty = parseInt(input && input.value, 10);
+    if (!qty || qty < 1) return toast('How many should the porter carry?', 'error');
+    state.busy = true;
+    try {
+      const r = await call('POST', '/api/market/ironhaven/sell', { inventory_id: invId, qty, citizen_id: state.ihPorter });
+      toast(`🏰 ${r.porter} set off for Ironhaven with ${fmt(r.run.qty)}× ${r.run.item.name} — ${fmt(r.gold)} gold on return.`);
+      if (typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
+      state.focusItem = null;
+      await switchTab('ironhaven');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { state.busy = false; }
+  }
+
+  // Scrolls to the row opened from the inventory screen.
+  function focusRow() {
+    if (!state.focusItem) return;
+    const row = document.querySelector(`#market-panel [data-row="${state.focusItem}"]`);
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
+  }
+
   // ── Caravans & my orders ────────────────────────────────────────────────
 
   function tripHtml(t) {
@@ -687,6 +858,10 @@
     if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
     const act = t.dataset.act;
     if (act === 'info') return;  // popover — see setPop
+    if (act === 'cat') { state.cat = t.dataset.cat; state.itemKey = null; state.itemName = ''; return switchTab('buy'); }
+    if (act === 'clear-item') { state.itemKey = null; state.itemName = ''; return switchTab('buy'); }
+    if (act === 'suggest') return pickSuggest(Number(t.dataset.i));
+    if (act === 'ih-sell') return ironhavenSell(Number(t.dataset.id));
     if (act === 'tab') return switchTab(t.dataset.tab);
     if (act === 'sell-mode') {
       readDraft();
@@ -739,6 +914,7 @@
   function onChange(e) {
     const act = e.target.dataset.act;
     if (act === 'filter-resource') { state.resource = e.target.value; switchTab('buy'); }
+    else if (act === 'ih-porter') { state.ihPorter = Number(e.target.value); }
     else if (act === 'sort') { state.sort = e.target.value; state.dir = e.target.value === 'amount' ? 'desc' : 'asc'; switchTab('buy'); }
     else if (act === 'add-merchant' && e.target.value) editMerchants(e.target.dataset.order, { add: [Number(e.target.value)] });
     else if (act === 'pick-merchant') {
@@ -760,6 +936,7 @@
   }
 
   function onInput(e) {
+    if (e.target.dataset.act === 'search') return onSearchInput(e.target);
     if (e.target.dataset.act !== 'draft') return;
     readDraft();
     updateSellSummary();

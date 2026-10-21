@@ -1,27 +1,12 @@
 
-// ── Sell items ────────────────────────────────
-async function invSellItem(itemId) {
-  const id = parseInt(itemId);
-  const item = _inventoryData.find(i => i.id === id);
-  if (!item) return;
-  const sellVal = item.metadata?.sell_value || Math.floor((item.quantity || 1) * 2);
-  if (!confirm('Sell ' + item.name + ' for ' + sellVal + ' gold?')) return;
-  try {
-    await apiFetch('/api/inventory/' + id + '/sell', { method: 'POST' });
-    document.getElementById('inv-detail-overlay')?.remove();
-    await loadInventory();
-  } catch(e) { console.error(e); }
-}
-
-async function invSellAll(category) {
-  const items = _inventoryData.filter(i => i.category === category && !i.equip_slot);
-  if (!items.length) return;
-  const totalGold = items.reduce((sum, i) => sum + (i.metadata?.sell_value || 2) * i.quantity, 0);
-  if (!confirm('Sell all ' + INV_CATEGORY_LABELS[category] + ' items for ' + totalGold + ' gold?')) return;
-  for (const item of items) {
-    await apiFetch('/api/inventory/' + item.id + '/sell', { method: 'POST' });
-  }
-  await loadInventory();
+// ── Selling ───────────────────────────────────
+// No instant selling any more: list the item at the Market for players, or
+// send a porter to sell it to Ironhaven for a low price (js/market.js).
+function invSellVia(where, itemId) {
+  if (typeof openMarket !== 'function') return;
+  document.getElementById('inv-detail-overlay')?.remove();
+  closeInventoryModal();
+  openMarket({ tab: where === 'ironhaven' ? 'ironhaven' : 'sell', item: parseInt(itemId) });
 }
 
 // ══════════════════════════════════════════════
@@ -90,14 +75,6 @@ function renderInventory() {
 
   // Group by category when showing all
   let html = '';
-  // Sell All button for single-tab view
-  if (_inventoryTab !== 'all') {
-    const sellableTotal = items.filter(i => i.metadata?.sell_value && !i.equip_slot)
-      .reduce((s, i) => s + (i.metadata.sell_value * i.quantity), 0);
-    if (sellableTotal > 0) {
-      html += '<div class="inv-sell-all-row"><button class="inv-sell-all-btn" data-cat="' + _inventoryTab + '" onclick="invSellAll(this.dataset.cat)">Sell All · 🪙 ' + sellableTotal + 'g</button></div>';
-    }
-  }
 
   if (_inventoryTab === 'all') {
     const groups = {};
@@ -105,13 +82,7 @@ function renderInventory() {
     const catOrder = ['equipment','material','food','quest_item','trophy','misc'];
     catOrder.filter(c => groups[c]).forEach(cat => {
       const catItems = groups[cat];
-      const sellableTotal = catItems
-        .filter(i => i.metadata?.sell_value && !i.equip_slot)
-        .reduce((s, i) => s + (i.metadata.sell_value * i.quantity), 0);
-      const sellAllBtn = sellableTotal > 0
-        ? '<button class="inv-sell-all-btn" data-cat="' + cat + '" onclick="invSellAll(this.dataset.cat)">Sell All · 🪙 ' + sellableTotal + 'g</button>'
-        : '';
-      html += '<div class="inv-group-label">' + (INV_CATEGORY_LABELS[cat] || cat) + ' (' + catItems.length + ')' + sellAllBtn + '</div>';
+      html += '<div class="inv-group-label">' + (INV_CATEGORY_LABELS[cat] || cat) + ' (' + catItems.length + ')</div>';
       html += '<div class="inv-grid">' + catItems.map(invItemCard).join('') + '</div>';
     });
   } else {
@@ -195,13 +166,13 @@ function openItemDetail(itemId) {
     + (item.source ? '<div class="inv-detail-source">Obtained from: ' + item.source + '</div>' : '')
     + '<div class="inv-detail-meta-row">'
     + (item.metadata?.food_value ? '<span class="inv-meta-badge">🌿 +' + item.metadata.food_value + ' food</span>' : '')
-    + (item.metadata?.sell_value ? '<span class="inv-meta-badge">🪙 ' + item.metadata.sell_value + ' gold each</span>' : '')
+    + (item.metadata?.sell_value ? '<span class="inv-meta-badge" title="Town value — Ironhaven pays a share of this">🪙 ' + item.metadata.sell_value + ' value</span>' : '')
     + '</div>'
     + '<div class="inv-detail-actions">'
     + (item.quantity > 1 ? '<span class="inv-detail-qty">×' + item.quantity + ' in stock</span>' : '')
-    + (item.metadata?.sell_value
-        ? '<button class="inv-sell-btn" data-id="' + item.id + '" onclick="invSellItem(this.dataset.id)">🪙 Sell</button>'
-        : '')
+    + (item.equipped_to ? ''
+        : '<button class="inv-sell-btn" data-id="' + item.id + '" onclick="invSellVia(\'market\', this.dataset.id)" title="Sell to other players">⚖️ List at Market</button>'
+        + '<button class="inv-sell-btn" data-id="' + item.id + '" onclick="invSellVia(\'ironhaven\', this.dataset.id)" title="Send a porter to sell it to Ironhaven for a low price">🏰 Sell to Ironhaven</button>')
     + '<button class="inv-discard-btn" data-id="' + item.id + '" onclick="invDiscard(this.dataset.id)">🗑 Discard</button>'
     + '</div>'
     + '</div>';
