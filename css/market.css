@@ -149,7 +149,7 @@
 .mk-sheet-wrap.open { display: flex; }
 .mk-sheet { width: 100%; padding: 16px 18px 18px; background: #18130d; border-top: 1px solid rgba(200,148,26,.35); border-radius: 14px 14px 0 0; }
 .mk-sheet h3 { margin: 0 0 10px; font-family: 'Playfair Display', serif; color: #f4c95d; font-size: 17px; }
-.mk-sum { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.mk-sum { display: flex; flex-direction: column; gap: 4px; font-size: 14px; margin-bottom: 10px; }
 .mk-sum div { display: flex; justify-content: space-between; gap: 12px; }
 .mk-sum span { color: rgba(242,230,201,.6); }
 .mk-sheet-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
@@ -248,3 +248,10 @@
 .mk-ih-qty { width: 64px; font: inherit; font-size: 14px; color: #f2e6c9; background: #17120c;
   border: 1px solid rgba(200,148,26,.3); border-radius: 7px; padding: 4px 6px; }
 .mk-better { color: #9fd47a; margin-left: 4px; }
+
+/* Item stalls (Market v2) */
+.mk-stall-icon { font-size: 26px; width: 34px; text-align: center; }
+.mk-collect { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.mk-collect input, .mk-collect select { font: inherit; font-size: 14px; color: #f2e6c9; background: #17120c;
+  border: 1px solid rgba(200,148,26,.3); border-radius: 8px; padding: 6px 8px; }
+@media (max-width: 600px) { .mk-collect { grid-template-columns: 1fr; } }

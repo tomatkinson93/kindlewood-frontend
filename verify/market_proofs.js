@@ -189,23 +189,36 @@ const MINE = { ok: true, now: new Date().toISOString(),
       /mk-item  off"[^>]*data-id="73"[\s\S]*?disabled[\s\S]*?cannot be traded/.test(b) && /data-id="74"[\s\S]*?Unequip it first/.test(b));
     await env.fire('click', env.btn('pick-item', { id: '72' }));
     const b2 = env.body();
-    check('3k. equipment locks to one piece', /name="qty_total"[^>]*value="1"[^>]*readonly/.test(b2) && /equipment travels one piece at a time/.test(b2));
-    check('3l. town merchant price shown as the guide', /Town merchants pay <b>40<\/b>/.test(env.getEl('mk-sell-summary').innerHTML));
+    check('3k. items: just how many and price each — no merchants or lots', /How many/.test(b2) && /Price each/.test(b2) && !/data-act="pick-merchant"/.test(b2) && /Put on a stall/.test(b2));
+    check('3l. town value and the Ironhaven price shown as a guide', /Town value <b>40<\/b> each — Ironhaven would pay about 12/.test(env.getEl('mk-sell-summary').innerHTML));
     env.win.document.querySelector = () => ({ qty_total: { value: '1' }, lot_size: { value: '1' }, lot_price: { value: '55' } });
     await env.fire('change', { dataset: { act: 'pick-merchant' }, value: '22', checked: true });
     await env.fire('submit', { dataset: { form: 'sell' } });
     await tick();
-    check('3m. posts an item order', posted && posted.kind === 'item' && posted.inventory_id === 72 && posted.qty_total === 1 && posted.lot_price === 55 && posted.citizen_ids[0] === 22);
+    check('3m. posts a stall listing', posted && posted.kind === 'item' && posted.inventory_id === 72 && posted.qty_total === 1 && posted.unit_price === 55 && !posted.citizen_ids);
   }
   // 2i — buying items
   {
+    let picked = null;
     const env = makeEnv({ '/api/market/status': OPEN, '/api/market/orders?': { ok: true, orders: [
       { id: 31, kind: 'item', resource: null, item: { name: 'Iron Sword', icon: '🗡', rarity: 'rare', equip_slot: 'weapon', stat_bonuses: { combat: 2 } },
-        lot_size: 1, lot_price: 60, next_lot_qty: 1, next_lot_price: 60, unit_price: 60, qty_available: 1, qty_total: 1,
-        seller: { id: 3, name: 'Oakhollow', username: 'bramble', species: 'Mice' }, distance: 4, merchants: 1, paused: false, eta_seconds: 180 }] } });
+        lot_size: 1, lot_price: 60, next_lot_qty: 1, next_lot_price: 60, unit_price: 60, qty_available: 3, qty_total: 3, porter_max: 3,
+        venue: 'market', venue_label: 'Market',
+        seller: { id: 3, name: 'Oakhollow', username: 'bramble', species: 'Mice' }, distance: 4, merchants: 0, paused: false, eta_seconds: 360 }] },
+      '/api/market/mine': MINE,
+      '/api/market/orders/31/pickup': (p, o) => { picked = JSON.parse(o.body); return { ok: true, porter: 'Birch', seller: 'Oakhollow', run: { qty: 2, item: { name: 'Iron Sword' } } }; } });
     await env.win.openMarket();
     const b = env.body();
-    check('2i. item order: icon, name in rarity colour, stats', /color:#e8a020">🗡 1× Iron Sword/.test(b) && /weapon · rare · \+2 combat/.test(b));
+    check('2i. stall row: name in rarity colour, price each, stats, seller\'s venue', /color:#e8a020">Iron Sword<\/b>/.test(b) && /🪙 60<\/span> <span class="mk-for">each/.test(b) &&
+      /weapon · rare · \+2 combat/.test(b) && /Oakhollow<\/button>'s Market/.test(b) && /round trip ~6m/.test(b));
+    await env.fire('click', env.btn('collect', { id: '31' }));
+    await tick();
+    const cs = env.getEl('mk-sheet-wrap').innerHTML;
+    check('2i2. Collect sheet: quantity (capped), free porters only, round trip', /id="mk-collect-qty" min="1" max="2"/.test(cs) && /<option value="22">Birch/.test(cs) && !/<option value="21"/.test(cs) && /~6m/.test(cs));
+    env.getEl('mk-collect-qty').value = '2'; env.getEl('mk-collect-porter').value = '22';
+    await env.fire('click', env.btn('collect-confirm', { id: '31' }));
+    await tick();
+    check('2i3. sends the porter for 2', picked && picked.qty === 2 && picked.citizen_id === 22 && /Birch set off for Oakhollow to collect 2× Iron Sword/.test(env.toasts.map(t => t[0]).join()));
     check('2j. category buttons with icons', ['⚔️', '🛡️', '🔨', '💍', '🐟', '🍖', '🪨', '🏆', '📦'].every(i => b.includes(i)) && /data-act="cat" data-cat="weapon"/.test(b));
     await env.fire('click', env.btn('cat', { cat: 'weapon' }));
     const cq = env.calls.filter(c => c[1].startsWith('/api/market/orders?')).pop()[1];

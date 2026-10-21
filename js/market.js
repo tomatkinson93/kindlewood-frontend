@@ -368,6 +368,7 @@
     const wealth = liveResources().wealth ?? st.resources.wealth;
     const list = (state.orders || []);
     const rows = list.length ? list.map(o => {
+      if (o.kind === 'item') return stallRowHtml(o, wealth);
       const afford = wealth >= o.next_lot_price;
       const btn = o.paused
         ? `<button type="button" class="mk-btn" disabled>On the road</button>`
@@ -410,8 +411,75 @@
         <button type="button" class="mk-btn mk-btn-sm" data-act="dir" title="Reverse order">${state.dir === 'asc' ? '↑ Low first' : '↓ High first'}</button>
       </div>
       ${sellerChip}
-      <div class="mk-muted mk-small">You have ${gold(wealth)}. Gold is paid when you buy; the goods arrive with the seller’s merchant.</div>
+      <div class="mk-muted mk-small">You have ${gold(wealth)}. Resources arrive with the seller’s merchant; items are collected by a porter you send.</div>
       <ul class="mk-list">${rows}</ul>`;
+  }
+
+  // An item stall: priced per item; the buyer's own porter collects.
+  function stallRowHtml(o, wealth) {
+    const it = o.item || {};
+    return `<li class="mk-order mk-stall">
+      <div class="mk-stall-icon">${esc(it.icon || '📦')}</div>
+      <div class="mk-order-main">
+        <div class="mk-order-line"><b style="color:${rarityColor(it.rarity)}">${esc(it.name)}</b>
+          <span class="mk-for">·</span> ${gold(o.unit_price)} <span class="mk-for">each</span></div>
+        ${statsLine(it)}
+        <div class="mk-order-meta"><span>${fmt(o.qty_available)} available</span> · <span>a porter carries ${fmt(o.porter_max)}</span></div>
+        <div class="mk-order-meta">
+          <button type="button" class="mk-link" data-act="filter-seller" data-id="${o.seller.id}" data-name="${esc(o.seller.name)}">${esc(o.seller.name)}</button>'s ${esc(o.venue_label || 'Market')}
+          <span class="mk-muted">(${esc(o.seller.username)})</span> ·
+          <span>${o.distance} hex${o.distance === 1 ? '' : 'es'} away</span> · <span>round trip ~${dur(o.eta_seconds)}</span>
+        </div>
+      </div>
+      <div class="mk-order-act"><button type="button" class="mk-btn mk-btn-primary" data-act="collect" data-id="${o.id}"
+        ${wealth >= o.unit_price ? '' : 'disabled title="Not enough gold"'}>🧺 Collect…</button></div>
+    </li>`;
+  }
+
+  // Sheet: how many, and which porter walks over to fetch them.
+  async function openCollectSheet(o) {
+    if (!state.mine) { try { state.mine = await call('GET', '/api/market/mine'); } catch (_) {} }
+    const free = ((state.mine && state.mine.candidates) || []).filter(c => !c.busy);
+    const it = o.item || {};
+    const wealth = liveResources().wealth ?? state.status.resources.wealth;
+    const max = Math.max(1, Math.min(o.porter_max, Math.floor(wealth / o.unit_price) || 1));
+    sheet(`
+      <h3>Collect ${esc(it.icon || '📦')} ${esc(it.name)} from ${esc(o.seller.name)}</h3>
+      <div class="mk-collect">
+        <label class="mk-field"><span>How many <em class="mk-muted">(up to ${fmt(max)})</em></span>
+          <input type="number" id="mk-collect-qty" min="1" max="${max}" value="1" data-act="collect-qty"></label>
+        <label class="mk-field"><span>Porter</span>
+          ${free.length ? `<select id="mk-collect-porter">${free.map(c => `<option value="${c.id}">${esc(c.name)} · scouting ${c.scouting}</option>`).join('')}</select>`
+            : '<div class="mk-warn">Nobody is free to send.</div>'}</label>
+      </div>
+      <div class="mk-sum">
+        <div><span>Price</span><b>${gold(o.unit_price)} each</b></div>
+        <div><span>You pay now</span><b id="mk-collect-total">${gold(o.unit_price)}</b></div>
+        <div><span>Round trip</span><b>~${dur(o.eta_seconds)}</b></div>
+      </div>
+      <p class="mk-muted mk-small">Your gold is held while the porter walks there; the seller is paid when they arrive, and the items are yours when they're home. The items are set aside for you meanwhile.</p>
+      <div class="mk-sheet-actions">
+        <button type="button" class="mk-btn" data-act="sheet-close">Cancel</button>
+        <button type="button" class="mk-btn mk-btn-primary" data-act="collect-confirm" data-id="${o.id}" ${free.length ? '' : 'disabled'}>🧺 Send porter</button>
+      </div>`);
+  }
+
+  async function collect(id) {
+    if (state.busy) return;
+    const o = (state.orders || []).find(x => x.id === id);
+    const qty = parseInt((byId('mk-collect-qty') || {}).value, 10);
+    const porter = parseInt((byId('mk-collect-porter') || {}).value, 10);
+    if (!o || !qty || !porter) return;
+    state.busy = true;
+    try {
+      const r = await call('POST', `/api/market/orders/${id}/pickup`, { qty, citizen_id: porter });
+      closeSheet();
+      toast(`🧺 ${r.porter} set off for ${r.seller} to collect ${fmt(r.run.qty)}× ${r.run.item.name}.`);
+      if (typeof global.refreshResources === 'function') global.refreshResources();
+      state.mine = null;
+      await softRefresh();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { state.busy = false; }
   }
 
   function openBuySheet(order) {
@@ -478,7 +546,7 @@
     if (!items.length) return '<div class="mk-muted">Your inventory is empty.</div>';
     return `<div class="mk-items">${items.map(i => {
       const on = d.inventory_id === i.id;
-      const why = !i.tradeable ? i.reason : i.max_lot < 1 ? 'Too heavy for your merchants' : '';
+      const why = !i.tradeable ? i.reason : '';
       return `<button type="button" class="mk-item ${on ? 'on' : ''} ${why ? 'off' : ''}" data-act="pick-item" data-id="${i.id}"
           ${why ? 'disabled' : ''} title="${esc(why || i.description || i.name)}">
         <span class="mk-item-icon">${esc(i.icon)}</span>
@@ -514,6 +582,7 @@
       : free <= 0
         ? `<div class="mk-warn">All ${mods.merchants} merchant slot${mods.merchants === 1 ? ' is' : 's are'} in use. Upgrade the Market for more.</div>`
         : '';
+    if (isItem) return sellItemHtml(st, spec);
     const lockOne = spec.equip;   // equipment: one piece per order
     const goods = isItem
       ? `<div class="mk-field"><span>Item <em class="mk-muted">(greyed items can't be traded)</em></span>${itemPickerHtml()}</div>`
@@ -545,6 +614,34 @@
       </form>`;
   }
 
+  // Items go on a stall: just how many and the price each. No merchants —
+  // buyers send porters to collect.
+  function sellItemHtml(st, spec) {
+    const d = state.draft;
+    const stalls = (state.mine && state.mine.stalls) || st.stalls || {};
+    const stallLine = Object.values(stalls).filter(v => v.slots).map(v =>
+      `<span>${esc(v.label)} stalls <b>${v.used} / ${v.slots}</b></span>`).join('') || '<span>No stalls yet</span>';
+    const full = !Object.values(stalls).some(v => v.free > 0);
+    return `
+      <form class="mk-form" data-form="sell">
+        <div class="mk-caps">${stallLine}</div>
+        ${full ? '<div class="mk-warn">All your stalls are full. Wait for a sale, cancel a listing, or upgrade the Market.</div>' : ''}
+        <div class="mk-mode" role="tablist">
+          <button type="button" data-act="sell-mode" data-mode="resource">🪵 Resources</button>
+          <button type="button" class="on" data-act="sell-mode" data-mode="item">🎒 Items</button>
+        </div>
+        <div class="mk-field"><span>Item <em class="mk-muted">(greyed items can't be traded)</em></span>${itemPickerHtml()}</div>
+        <label class="mk-field"><span>How many${spec.it ? ` <em class="mk-muted">(have ${fmt(spec.have)})</em>` : ''}</span>
+          <input name="qty_total" type="number" min="1" max="${spec.have || 1}" step="1" inputmode="numeric" value="${esc(d.qty_total || (spec.it ? spec.have : ''))}" data-act="draft"></label>
+        <label class="mk-field"><span>Price each <em class="mk-muted">(gold)</em></span>
+          <input name="lot_price" type="number" min="1" step="1" inputmode="numeric" value="${esc(d.lot_price)}" placeholder="gold" data-act="draft"></label>
+        <input type="hidden" name="lot_size" value="1">
+        <div class="mk-summary" id="mk-sell-summary"></div>
+        <p class="mk-muted mk-small">Listed items leave your inventory and sit on a stall. Buyers send a porter to collect; you're paid when they arrive. Unsold items come back if you cancel or after ${Math.round(st.mods.expiryHours / 24)} days.</p>
+        <button type="submit" class="mk-btn mk-btn-primary mk-wide" ${full || !spec.it ? 'disabled' : ''}>🏷️ Put on a stall</button>
+      </form>`;
+  }
+
   function readDraft() {
     const f = document.querySelector('#market-panel form[data-form="sell"]');
     if (!f) return;
@@ -566,6 +663,17 @@
     const lot = spec.equip ? 1 : parseInt(d.lot_size, 10) || Math.min(maxLot, total || maxLot);
     const lotPrice = parseInt(d.lot_price, 10) || 0;
     const lines = [];
+    if (spec.it && d.mode === 'item') {
+      const n = parseInt(d.qty_total, 10) || spec.have;
+      const each = parseInt(d.lot_price, 10) || 0;
+      const v = spec.it.sell_value || 0;
+      const out = [];
+      out.push(v ? `Town value <b>${fmt(v)}</b> each — Ironhaven would pay about ${fmt(Math.max(1, Math.floor(v * 0.3)))}.` : 'No town value — set what you think it’s worth.');
+      if (each) out.push(`${fmt(n)} × ${fmt(each)} = ${fmt(n * each)} gold · you keep ${fmt(n * each - Math.floor(n * each * st.mods.feeRate))} after the ${Math.round(st.mods.feeRate * 100)}% fee.`);
+      if (n > spec.have) out.push(`<span class="mk-warn-text">You only have ${fmt(spec.have)}.</span>`);
+      el.innerHTML = out.map(l => `<div>${l}</div>`).join('');
+      return;
+    }
     if (spec.it) {
       lines.push(spec.it.sell_value
         ? `Town merchants pay <b>${fmt(spec.it.sell_value)}</b> gold each (≈ ${fmt(spec.it.sell_value * lot)} for ${fmt(lot)}).`
@@ -596,6 +704,21 @@
     const spec = goodsSpec();
     const isItem = d.mode === 'item';
     if (isItem && !spec.it) return toast('Pick an item to sell.', 'error');
+    if (isItem) {
+      const qty_total = parseInt(d.qty_total, 10) || spec.have, unit_price = parseInt(d.lot_price, 10);
+      if (!unit_price) return toast('Set a price for each item.', 'error');
+      state.busy = true;
+      try {
+        await call('POST', '/api/market/orders', { kind: 'item', inventory_id: spec.it.id, qty_total, unit_price });
+        toast(`🏷️ ${fmt(qty_total)}× ${spec.it.name} on a stall at ${fmt(unit_price)} each.`);
+        state.draft = { ...d, inventory_id: null, qty_total: '', lot_size: '', lot_price: '' };
+        if (typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
+        state.tab = 'caravans';
+        await refresh();
+      } catch (e) { toast(e.message, 'error'); }
+      finally { state.busy = false; }
+      return;
+    }
     const qty_total = spec.equip ? 1 : parseInt(d.qty_total, 10);
     const lot_size = spec.equip ? 1 : parseInt(d.lot_size, 10) || Math.min(spec.maxLot, qty_total || 0);
     const lot_price = parseInt(d.lot_price, 10);
@@ -770,9 +893,39 @@
     </li>`;
   }
 
+  // A porter: yours collecting from a stall, or another town's coming to yours.
+  function runHtml(r) {
+    const it = r.item || {};
+    const what = `${fmt(r.qty)}× ${esc(it.name || 'goods')}`;
+    const back = r.status === 'returning';
+    let text;
+    if (r.direction === 'incoming') text = `A porter from ${esc(r.from_name)} is coming to buy ${what} (🪙 ${fmt(r.gold - r.fee)} to you)`;
+    else if (back) text = r.failed ? `${esc(r.citizen_name || 'Your porter')} found the stall empty — bringing your 🪙 ${fmt(r.gold)} back`
+      : `${esc(r.citizen_name || 'Your porter')} is bringing home ${what}`;
+    else text = `${esc(r.citizen_name || 'Your porter')} is walking to ${esc(r.target_name)} to collect ${what}`;
+    const from = back ? r.arrives_at : r.departs_at, to = back ? r.returns_at : r.arrives_at;
+    return `<li class="mk-trip live"><div class="mk-trip-icon">${r.direction === 'incoming' ? '🛒' : esc(it.icon || '🧺')}</div>
+      <div class="mk-trip-main"><div>${text}</div>
+        <div class="mk-bar"><div class="mk-bar-fill" data-from="${esc(from)}" data-to="${esc(to)}"></div></div>
+        <div class="mk-muted mk-small">${back ? 'Home' : 'Arrives'} in <span data-until="${esc(to)}">…</span> · ${r.distance} hexes</div></div></li>`;
+  }
+
   function myOrderHtml(o, candidates, mods, slotsFree) {
     const active = o.status === 'active';
     const statusLabel = { active: 'Open', sold_out: 'Sold out', cancelled: 'Cancelled', expired: 'Expired' }[o.status] || o.status;
+    if (o.kind === 'item') {
+      // A stall: no merchants; porters come to collect.
+      const it = o.item_snapshot || {};
+      const reserved = Number(o.qty_reserved) || 0;
+      const sold = o.qty_total - o.qty_escrowed;
+      return `<li class="mk-mine ${active ? '' : 'closed'}">
+        <div class="mk-order-line">${esc(it.icon || '📦')} <b style="color:${rarityColor(it.rarity)}">${esc(it.name)}</b>
+          <span class="mk-for">·</span> ${gold(o.lot_price)} <span class="mk-for">each</span>
+          <span class="mk-status mk-status-${o.status}">${statusLabel}</span></div>
+        <div class="mk-order-meta">${fmt(o.qty_escrowed - reserved)} of ${fmt(o.qty_total)} on the stall${reserved ? ` · ${fmt(reserved)} being collected` : ''}${sold ? ` · ${fmt(sold)} sold` : ''}${active ? ` · expires in ${untilLong(o.expires_at)}` : ''}</div>
+        ${active ? `<div class="mk-mine-act"><button type="button" class="mk-btn mk-btn-sm mk-btn-danger" data-act="cancel" data-id="${o.id}">Take down</button></div>` : ''}
+      </li>`;
+    }
     const merchants = o.merchants.map(m => `<span class="mk-merchant ${m.on_road ? 'road' : ''}">
         ${m.on_road ? '🐾' : '🏠'} ${esc(m.name)}${m.deceased ? ' (passed away)' : ''}
         ${active && !m.on_road && o.merchants.length > 1 ? `<button type="button" data-act="remove-merchant" data-order="${o.id}" data-id="${m.id}" aria-label="Remove ${esc(m.name)}">✕</button>` : ''}
@@ -800,10 +953,12 @@
     const slotsFree = st.mods.merchants - st.merchantsAssigned;
     const activeOrders = mine.orders.filter(o => o.status === 'active');
     const closedOrders = mine.orders.filter(o => o.status !== 'active').slice(0, 5);
+    const liveRuns = (mine.runs || []).filter(r => r.status !== 'done');
     return `
       <div class="mk-sec">
         <h3>On the road</h3>
-        <ul class="mk-list">${liveTrips.length ? liveTrips.map(tripHtml).join('') : '<li class="mk-empty">No caravans travelling.</li>'}</ul>
+        <ul class="mk-list">${liveTrips.length || liveRuns.length ? liveTrips.map(tripHtml).join('') + liveRuns.map(runHtml).join('')
+          : '<li class="mk-empty">No caravans or porters travelling.</li>'}</ul>
       </div>
       <div class="mk-sec">
         <h3>Your orders <span class="mk-muted mk-small">${activeOrders.length} / ${st.mods.maxOrders}</span></h3>
@@ -891,6 +1046,12 @@
       return;
     }
     if (act === 'buy-confirm') return buy(Number(t.dataset.id));
+    if (act === 'collect') {
+      const o = (state.orders || []).find(x => x.id === Number(t.dataset.id));
+      if (o) openCollectSheet(o);
+      return;
+    }
+    if (act === 'collect-confirm') return collect(Number(t.dataset.id));
     if (act === 'cancel') {
       if (!global.confirm('Cancel this order? Goods not yet on the road return to your stores.')) return;
       try {
@@ -937,6 +1098,14 @@
 
   function onInput(e) {
     if (e.target.dataset.act === 'search') return onSearchInput(e.target);
+    if (e.target.dataset.act === 'collect-qty') {
+      const id = Number((document.querySelector('#market-panel [data-act="collect-confirm"]') || { dataset: {} }).dataset.id);
+      const o = (state.orders || []).find(x => x.id === id);
+      const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+      const el = byId('mk-collect-total');
+      if (o && el) el.innerHTML = gold(o.unit_price * n);
+      return;
+    }
     if (e.target.dataset.act !== 'draft') return;
     readDraft();
     updateSellSummary();
@@ -990,16 +1159,20 @@
     if (ev.type === 'market_purchase') toast(`⚖️ ${ev.buyer || 'Someone'} bought ${fmt(ev.qty)} ${res} — your merchant has set off.`);
     else if (ev.type === 'market_delivery') toast(`📦 ${fmt(ev.qty)} ${res} arrived from the market.`);
     else if (ev.type === 'market_return') toast(`🪙 Your merchant is home with ${fmt(ev.gold)} gold.`);
+    else if (ev.type === 'market_pickup_coming') toast(`🛒 ${ev.buyer || 'A town'} sent a porter to buy ${fmt(ev.qty)} ${res}.`);
+    else if (ev.type === 'market_sale') toast(`🪙 Sold ${fmt(ev.qty)} ${res} from your stall — ${fmt(ev.gold)} gold.`);
+    else if (ev.type === 'market_porter_home') toast(ev.kind === 'ironhaven' ? `🏰 Your porter is back from Ironhaven with ${fmt(ev.gold)} gold.`
+      : ev.failed ? `🧺 Your porter came back empty-handed — ${fmt(ev.gold)} gold returned.` : `🧺 Your porter is home with ${fmt(ev.qty)} ${res}.`);
     else if (ev.type === 'market_order_expired') toast(`⌛ A sell order expired — ${fmt(ev.qty)} ${res} returned to you.`);
-    if (['market_delivery', 'market_return', 'market_order_expired'].includes(ev.type) && typeof global.refreshResources === 'function') {
+    if (['market_delivery', 'market_return', 'market_order_expired', 'market_sale', 'market_porter_home'].includes(ev.type) && typeof global.refreshResources === 'function') {
       global.refreshResources();
     }
     // Items landed in (or came back to) the inventory.
-    if (ev.item && ['market_delivery', 'market_order_expired'].includes(ev.type) && typeof global.loadInventory === 'function') {
+    if (ev.item && ['market_delivery', 'market_order_expired', 'market_porter_home'].includes(ev.type) && typeof global.loadInventory === 'function') {
       try { global.loadInventory(); } catch (_) {}
     }
     if (isOpen()) scheduleRefresh(400);
-    else if (ev.type !== 'market_trip_update') setDot(true);
+    else if (ev.type !== 'market_trip_update' && ev.type !== 'market_run_update') setDot(true);
   }
 
   global.openMarket = openMarket;
