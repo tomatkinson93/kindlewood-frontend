@@ -309,6 +309,51 @@ const MINE = { ok: true, now: new Date().toISOString(),
     check('3s. picking a keeper saves it', patched && /\/api\/market\/shops\/smithy\/keeper/.test(patched[0]) && patched[1].citizen_id === 22);
     await env.fire('click', env.btn('sell-mode', { mode: 'item' }));
   }
+  // 3t — wanted
+  {
+    let posted = null, filled = null;
+    const WANTS = { ok: true, wants: [
+      { id: 61, kind: 'item', item_key: 'iron_sword', item: { name: 'Iron Sword', icon: '🗡', cat: 'weapon' }, qty_total: 20, qty_open: 20, price: 30, per: 1,
+        unit_price: 30, total_open: 600, buyer: { id: 5, name: 'Thornwick', username: 'rook', species: 'Badgers' }, distance: 9, you_have: 2, carry_max: 6,
+        expires_at: new Date(Date.now() + 5 * 86400e3).toISOString() },
+      { id: 62, kind: 'resource', resource: 'stone', qty_total: 500, qty_open: 500, price: 90, per: 100, unit_price: 0.9, total_open: 450,
+        buyer: { id: 6, name: 'Cragmoor', username: 'flint', species: 'Moles' }, distance: 3, you_have: 0, carry_max: 100,
+        expires_at: new Date(Date.now() + 5 * 86400e3).toISOString() }] };
+    const mine = { ...MINE, items: [...MINE.items.filter(i => i.item_key !== 'iron_sword'), { id: 81, item_key: 'iron_sword', name: 'Iron Sword', icon: '🗡', quantity: 2, tradeable: true }],
+      wants: [{ id: 70, kind: 'resource', resource: 'timber', qty_total: 300, qty_open: 100, price: 60, per: 100, total_open: 60, status: 'active',
+        expires_at: new Date(Date.now() + 3 * 86400e3).toISOString() }] };
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/mine': mine,
+      '/api/market/wants/61/fill': (p, o) => { filled = JSON.parse(o.body); return { ok: true, porter: 'Birch', buyer: 'Thornwick', gold: 60, fee: 3, run: { qty: 2 } }; },
+      '/api/market/wants?': WANTS,
+      '/api/market/wants': (p, o) => { posted = JSON.parse(o.body); return { ok: true, gold_held: 90, want: { id: 99 } }; },
+      '/api/market/catalog': { ok: true, items: [{ item_key: 'iron_sword', name: 'Iron Sword', icon: '🗡', cat: 'weapon', rarity: 'common' }] } });
+    env.win.setTimeout = (fn) => { fn(); return 1; };
+    await env.win.openMarket({ tab: 'wanted' });
+    const b = env.body();
+    check('3t. Wanted: towns\' buy orders with price, buyer, and what you hold', /Iron Sword<\/b>[\s\S]*?wants<\/span> 20[\s\S]*?🪙 30<\/span> each/.test(b) && /Thornwick/.test(b) && /You have 2/.test(b));
+    check('3u. resources priced per 100; Fill disabled when you have none', /🪙 90<\/span> per 100/.test(b) && /data-act="fill" data-id="62" disabled/.test(b));
+    check('3v. your own wanted orders with promised / held gold and Cancel', /200 of 300 promised · 60 gold still held/.test(b) && /data-act="cancel-want" data-id="70"/.test(b));
+    await env.fire('click', env.btn('fill', { id: '61' }));
+    const fs = env.getEl('mk-sheet-wrap').innerHTML;
+    const fq = env.getEl('mk-fill-qty'); fq.value = '2'; fq.dataset.id = '61';
+    await env.fire('input', { dataset: { act: 'fill-qty' } });
+    check('3w. Fill sheet: what you hold, quantity capped (2), payout after fee', /you have 2; up to 2 per trip/.test(fs) && /id="mk-fill-qty" min="1" max="2" value="2"/.test(fs) &&
+      /You get when home<\/span><b><span class="mk-gold">🪙 57/.test(env.getEl('mk-fill-sum').innerHTML));
+    env.getEl('mk-fill-porter').value = '22';
+    await env.fire('click', env.btn('fill-confirm', { id: '61' }));
+    await tick();
+    check('3x. fill posts quantity and porter', filled && filled.qty === 2 && filled.citizen_id === 22);
+    // Post a wanted order for an item via the autocomplete.
+    const box = { dataset: { act: 'want-search' }, value: 'iro' };
+    await env.fire('input', box);
+    await tick(); await tick();
+    check('3y. the wanted form has its own autocomplete', /Iron Sword/.test(env.getEl('mk-want-suggest').innerHTML));
+    env.win.document.querySelector = (sel) => (/data-form="want"/.test(sel) ? { qty: { value: '3' }, price: { value: '30' } } : null);
+    await env.fireEv('keydown', { target: box, key: 'Enter', preventDefault() {}, stopPropagation() {} });
+    await env.fire('submit', { dataset: { form: 'want' } });
+    await tick();
+    check('3z. posting sends item, quantity and price', posted && posted.kind === 'item' && posted.item_key === 'iron_sword' && posted.qty === 3 && posted.price === 30);
+  }
   // 4 — caravans
   {
     const env = makeEnv({ '/api/market/status': { ...OPEN, activeOrders: 1, merchantsAssigned: 1 }, '/api/market/mine': MINE, '/api/market/orders/5/cancel': { ok: true, refunded: 400 } });

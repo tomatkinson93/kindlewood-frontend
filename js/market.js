@@ -52,6 +52,8 @@
     itemName: '',
     ih: null,              // GET /ironhaven
     shops: null,           // GET /shops
+    wants: null,           // GET /wants (other towns' buy orders)
+    wantDraft: { kind: 'item', item: null, resource: 'timber', qty: '', price: '' },
     ihPorter: null,        // porter picked on the Ironhaven tab
     focusItem: null,       // inventory id to highlight (opened from inventory)
     draft: { mode: 'resource', resource: 'timber', inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
@@ -152,10 +154,12 @@
     el.addEventListener('click', onAction);
     el.addEventListener('change', onChange);
     el.addEventListener('input', onInput);
-    el.addEventListener('keydown', e => { if (e.target.dataset && e.target.dataset.act === 'search') onSearchKey(e); });
+    el.addEventListener('keydown', e => {
+      if (e.target.dataset && (e.target.dataset.act === 'search' || e.target.dataset.act === 'want-search')) onSearchKey(e);
+    });
     // Clicking anywhere outside the search box closes its suggestions.
     el.addEventListener('mousedown', e => {
-      if (suggest.length && !(e.target.closest && e.target.closest('.mk-search'))) { suggest = []; suggestAt = -1; renderSuggest(); }
+      if (suggest.length && !(e.target.closest && e.target.closest('.mk-search, .mk-want-search'))) { suggest = []; suggestAt = -1; renderSuggest(); }
     });
     el.addEventListener('submit', onSubmit);
     document.body.appendChild(el);
@@ -228,6 +232,13 @@
       else if (state.cat) qs.set('category', state.cat);
       if (state.seller) qs.set('seller', state.seller.id);
       state.orders = (await call('GET', '/api/market/orders?' + qs.toString())).orders || [];
+    } else if (state.tab === 'wanted') {
+      const qs = new URLSearchParams();
+      if (state.itemKey) qs.set('item_key', state.itemKey);
+      else if (state.cat === 'resources') qs.set('resource', 'resources');
+      else if (state.cat) qs.set('category', state.cat);
+      const [wants, mine] = await Promise.all([call('GET', '/api/market/wants?' + qs.toString()), call('GET', '/api/market/mine')]);
+      state.wants = wants.wants || []; state.mine = mine;
     } else if (state.tab === 'shops') {
       const [shops, mine] = await Promise.all([call('GET', '/api/market/shops'), call('GET', '/api/market/mine')]);
       state.shops = shops; state.mine = mine;
@@ -296,10 +307,12 @@
     sub.innerHTML = `${st.mods.merchants} merchant${st.mods.merchants === 1 ? '' : 's'} · carries ${fmt(st.mods.carryWeight)} per trip · ${Math.round(st.mods.feeRate * 100)}% fee
       <button type="button" class="mk-info" data-act="info" aria-label="How your Market grows" aria-describedby="mk-pop">ⓘ</button>`;
     byId('mk-pop').innerHTML = `<div class="mk-pop-title">Your Market · Level ${st.mods.marketLevel}</div>${levelTableHtml(st, st.mods.marketLevel)}`;
-    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['caravans', '🐾 Caravans'], ['shops', '🏪 Shops'], ['ironhaven', '🏰 Ironhaven']]);
+    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['wanted', '📮 Wanted'], ['caravans', '🐾 Caravans'], ['shops', '🏪 Shops'], ['ironhaven', '🏰 Ironhaven']]);
     const body = byId('mk-body');
     body.innerHTML = state.tab === 'buy' ? buyHtml() : state.tab === 'sell' ? sellHtml()
-      : state.tab === 'ironhaven' ? ironhavenHtml() : state.tab === 'shops' ? shopsHtml() : caravansHtml();
+      : state.tab === 'ironhaven' ? ironhavenHtml() : state.tab === 'shops' ? shopsHtml()
+      : state.tab === 'wanted' ? wantedHtml() : caravansHtml();
+    if (state.tab === 'wanted') updateWantSummary();
     if (state.tab === 'sell') updateSellSummary();
     focusRow();
     tickCountdowns();
@@ -765,10 +778,12 @@
   // ── Search autocomplete ────────────────────────────────────────────────
 
   let searchTimer = null, suggest = [], suggestAt = -1, searchSeq = 0;
+  let suggestFor = 'search';   // which box: 'search' (Buy) or 'want-search' (Wanted)
   const CAT_ICON = Object.fromEntries(CATS.map(([k, icon]) => [k, icon]));
 
   function renderSuggest() {
-    const ul = byId('mk-suggest'), input = byId('mk-search');
+    const ul = byId(suggestFor === 'want-search' ? 'mk-want-suggest' : 'mk-suggest');
+    const input = byId(suggestFor === 'want-search' ? 'mk-want-search' : 'mk-search');
     if (!ul) return;
     ul.innerHTML = suggest.map((it, i) => `<li role="option" class="${i === suggestAt ? 'on' : ''}" data-act="suggest" data-i="${i}"
         aria-selected="${i === suggestAt}"><span>${esc(it.icon || '📦')}</span>
@@ -780,9 +795,11 @@
 
   function onSearchInput(input) {
     clearTimeout(searchTimer);
+    suggestFor = input.dataset.act;
     const q = input.value.trim();
     if (q.length < 3) {
       suggest = []; suggestAt = -1; renderSuggest();
+      if (suggestFor === 'want-search') { state.wantDraft.item = null; return; }
       if (!q && state.itemKey) { state.itemKey = null; state.itemName = ''; switchTab('buy'); }
       return;
     }
@@ -800,6 +817,12 @@
   function pickSuggest(i) {
     const it = suggest[i];
     if (!it) return;
+    if (suggestFor === 'want-search') {
+      readWantDraft();
+      state.wantDraft.item = it;
+      suggest = []; suggestAt = -1;
+      return render();
+    }
     state.itemKey = it.item_key; state.itemName = it.name; state.cat = '';
     suggest = []; suggestAt = -1;
     switchTab('buy');
@@ -811,6 +834,167 @@
     else if (e.key === 'ArrowUp') { suggestAt = (suggestAt - 1 + suggest.length) % suggest.length; renderSuggest(); e.preventDefault(); }
     else if (e.key === 'Enter') { pickSuggest(Math.max(0, suggestAt)); e.preventDefault(); }
     else if (e.key === 'Escape') { suggest = []; renderSuggest(); e.stopPropagation(); }
+  }
+
+  // ── Wanted (buy orders) ────────────────────────────────────────────────
+
+  function wantWhat(w, n) {
+    return w.kind === 'item' && w.item ? `${esc(w.item.icon || '📦')} ${fmt(n)}× ${esc(w.item.name)}`
+      : `${RES_ICON[w.resource] || ''} ${fmt(n)} ${esc((RES_LABEL[w.resource] || w.resource || '').toLowerCase())}`;
+  }
+  function wantPrice(w) {
+    return w.kind === 'item' ? `${gold(w.price)} each` : `${gold(w.price)} per ${w.per}`;
+  }
+
+  function wantedHtml() {
+    const st = state.status, d = state.wantDraft;
+    const mine = state.mine || {};
+    const myWants = (mine.wants || []).filter(w => w.status === 'active');
+    const cap = st.mods.marketLevel ? 2 + st.mods.marketLevel : 0;
+    const cats = CATS.map(([k, icon, label]) =>
+      `<button type="button" class="mk-cat ${!state.itemKey && state.cat === k ? 'on' : ''}" data-act="cat" data-cat="${k}" title="${label}">
+        <span class="mk-cat-icon">${icon}</span><span class="mk-cat-label">${label}</span></button>`).join('');
+    const list = (state.wants || []).map(w => `<li class="mk-order mk-want-row">
+        <div class="mk-stall-icon">${w.kind === 'item' ? esc((w.item && w.item.icon) || '📦') : RES_ICON[w.resource] || '📦'}</div>
+        <div class="mk-order-main">
+          <div class="mk-order-line"><b>${w.kind === 'item' ? esc(w.item.name) : esc(RES_LABEL[w.resource] || w.resource)}</b>
+            <span class="mk-for">· wants</span> ${fmt(w.qty_open)} <span class="mk-for">· pays</span> ${wantPrice(w)}</div>
+          <div class="mk-order-meta"><span>${esc(w.buyer.name)}</span> <span class="mk-muted">(${esc(w.buyer.username)})</span> ·
+            <span>${w.distance} hexes away</span> · <span>${fmt(w.total_open)} gold waiting</span></div>
+          <div class="mk-order-meta ${w.you_have ? 'mk-better' : 'mk-muted'}">You have ${fmt(w.you_have)}</div>
+        </div>
+        <div class="mk-order-act"><button type="button" class="mk-btn mk-btn-primary" data-act="fill" data-id="${w.id}" ${w.you_have ? '' : 'disabled'}>📮 Fill…</button></div>
+      </li>`).join('') || '<li class="mk-empty">No wanted orders from towns you know' + (state.cat || state.itemKey ? ' in this category' : '') + '.</li>';
+    const myRows = myWants.map(w => `<li class="mk-mine">
+        <div class="mk-order-line">${wantWhat(w, w.qty_total)} <span class="mk-for">at</span> ${wantPrice(w)}
+          <span class="mk-status mk-status-active">Open</span></div>
+        <div class="mk-order-meta">${fmt(w.qty_total - w.qty_open)} of ${fmt(w.qty_total)} promised · ${fmt(w.total_open)} gold still held · expires in ${untilLong(w.expires_at)}</div>
+        <div class="mk-mine-act"><button type="button" class="mk-btn mk-btn-sm mk-btn-danger" data-act="cancel-want" data-id="${w.id}">Cancel</button></div>
+      </li>`).join('');
+    const isItem = d.kind === 'item';
+    const resOpts = st.tradeable.map(r => `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_ICON[r]} ${RES_LABEL[r]}</option>`).join('');
+    return `
+      <div class="mk-sec">
+        <h3>Post a wanted order <span class="mk-muted mk-small">${myWants.length} / ${cap}</span></h3>
+        <form class="mk-form" data-form="want">
+          <div class="mk-mode" role="tablist">
+            <button type="button" class="${isItem ? 'on' : ''}" data-act="want-kind" data-kind="item">🎒 An item</button>
+            <button type="button" class="${isItem ? '' : 'on'}" data-act="want-kind" data-kind="resource">🪵 A resource</button>
+          </div>
+          ${isItem ? `<div class="mk-search mk-want-search">
+              <input type="search" id="mk-want-search" class="mk-search-input" placeholder="Which item? Type 3 letters…" autocomplete="off"
+                value="${esc(d.item ? d.item.name : '')}" data-act="want-search" role="combobox" aria-controls="mk-want-suggest" aria-expanded="false">
+              <ul class="mk-suggest" id="mk-want-suggest" role="listbox"></ul>
+            </div>`
+            : `<label class="mk-field"><span>Resource</span><select name="resource" data-act="want-draft">${resOpts}</select></label>`}
+          <div class="mk-collect">
+            <label class="mk-field"><span>How many</span><input name="qty" type="number" min="1" step="1" value="${esc(d.qty)}" data-act="want-draft" placeholder="e.g. ${isItem ? 20 : 500}"></label>
+            <label class="mk-field"><span>Pay ${isItem ? 'each' : 'per 100'} <em class="mk-muted">(gold)</em></span><input name="price" type="number" min="1" step="1" value="${esc(d.price)}" data-act="want-draft"></label>
+          </div>
+          <div class="mk-summary" id="mk-want-summary"></div>
+          <button type="submit" class="mk-btn mk-btn-primary mk-wide" ${myWants.length >= cap ? 'disabled' : ''}>📮 Post — hold the gold</button>
+        </form>
+        ${myRows ? `<ul class="mk-list">${myRows}</ul>` : ''}
+      </div>
+      <div class="mk-sec">
+        <h3>Towns want</h3>
+        <div class="mk-cats" role="toolbar" aria-label="Categories">${cats}</div>
+        <ul class="mk-list">${list}</ul>
+      </div>`;
+  }
+
+  function readWantDraft() {
+    const f = document.querySelector('#market-panel form[data-form="want"]');
+    if (!f) return;
+    const d = state.wantDraft;
+    if (f.resource) d.resource = f.resource.value;
+    d.qty = f.qty.value; d.price = f.price.value;
+  }
+
+  function updateWantSummary() {
+    const el = byId('mk-want-summary');
+    if (!el) return;
+    readWantDraft();
+    const d = state.wantDraft;
+    const qty = parseInt(d.qty, 10) || 0, price = parseInt(d.price, 10) || 0;
+    const per = d.kind === 'item' ? 1 : 100;
+    const held = Math.ceil(qty * price / per);
+    const what = d.kind === 'item' ? (d.item ? esc(d.item.name) : 'pick an item') : esc(RES_LABEL[d.resource].toLowerCase());
+    el.innerHTML = qty && price
+      ? `<div>Wanting ${fmt(qty)} ${what} — <b>${fmt(held)}</b> gold is held now and paid out as sellers deliver. Cancel any time for the rest back.</div>`
+      : `<div>Sellers in towns you know can fill it. Their porter brings the goods to you.</div>`;
+  }
+
+  async function postWant() {
+    if (state.busy) return;
+    readWantDraft();
+    const d = state.wantDraft;
+    const qty = parseInt(d.qty, 10), price = parseInt(d.price, 10);
+    if (d.kind === 'item' && !d.item) return toast('Pick the item you want from the list.', 'error');
+    if (!qty || !price) return toast('Set how many and the price.', 'error');
+    state.busy = true;
+    try {
+      const body = d.kind === 'item' ? { kind: 'item', item_key: d.item.item_key, qty, price } : { kind: 'resource', resource: d.resource, qty, price };
+      const r = await call('POST', '/api/market/wants', body);
+      toast(`📮 Wanted order posted — ${fmt(r.gold_held)} gold held.`);
+      state.wantDraft = { kind: d.kind, item: null, resource: d.resource, qty: '', price: '' };
+      if (typeof global.refreshResources === 'function') global.refreshResources();
+      await switchTab('wanted');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { state.busy = false; }
+  }
+
+  // Fill sheet: which stack (items), how many, and the porter.
+  function openFillSheet(w) {
+    const mine = state.mine || {};
+    const free = (mine.candidates || []).filter(c => !c.busy);
+    const max = Math.max(1, Math.min(w.qty_open, w.you_have, w.carry_max));
+    sheet(`
+      <h3>Fill: ${wantWhat(w, w.qty_open)} for ${esc(w.buyer.name)}</h3>
+      <div class="mk-collect">
+        <label class="mk-field"><span>How many <em class="mk-muted">(you have ${fmt(w.you_have)}; up to ${fmt(max)} per trip)</em></span>
+          <input type="number" id="mk-fill-qty" min="1" max="${max}" value="${max}" data-act="fill-qty" data-id="${w.id}"></label>
+        <label class="mk-field"><span>Porter</span>
+          ${free.length ? `<select id="mk-fill-porter">${free.map(c => `<option value="${c.id}">${esc(c.name)} · scouting ${c.scouting}</option>`).join('')}</select>`
+            : '<div class="mk-warn">Nobody is free to send.</div>'}</label>
+      </div>
+      <div class="mk-sum" id="mk-fill-sum"></div>
+      <p class="mk-muted mk-small">The goods leave your stores now. Your porter carries them to ${esc(w.buyer.name)} (${w.distance} hexes) and brings the gold home.</p>
+      <div class="mk-sheet-actions">
+        <button type="button" class="mk-btn" data-act="sheet-close">Cancel</button>
+        <button type="button" class="mk-btn mk-btn-primary" data-act="fill-confirm" data-id="${w.id}" ${free.length ? '' : 'disabled'}>📮 Send porter</button>
+      </div>`);
+    updateFillSummary();
+  }
+
+  function updateFillSummary() {
+    const input = byId('mk-fill-qty'), el = byId('mk-fill-sum');
+    if (!input || !el) return;
+    const w = (state.wants || []).find(x => x.id === Number(input.dataset.id));
+    if (!w) return;
+    const n = Math.max(0, parseInt(input.value, 10) || 0);
+    const pay = Math.ceil(w.price * n / w.per);
+    const fee = Math.floor(pay * state.status.mods.feeRate);
+    el.innerHTML = `<div><span>They pay</span><b>${gold(pay)}</b></div><div><span>Market fee</span><b>${gold(fee)}</b></div>
+      <div><span>You get when home</span><b>${gold(pay - fee)}</b></div>`;
+  }
+
+  async function fillWant(id) {
+    if (state.busy) return;
+    const w = (state.wants || []).find(x => x.id === id);
+    const qty = parseInt((byId('mk-fill-qty') || {}).value, 10);
+    const porter = parseInt((byId('mk-fill-porter') || {}).value, 10);
+    if (!w || !qty || !porter) return;
+    state.busy = true;
+    try {
+      const r = await call('POST', `/api/market/wants/${id}/fill`, { qty, citizen_id: porter });
+      closeSheet();
+      toast(`📮 ${r.porter} is taking ${fmt(r.run.qty)} to ${r.buyer} — ${fmt(r.gold - r.fee)} gold when they're home.`);
+      if (typeof global.refreshResources === 'function') global.refreshResources();
+      if (w.kind === 'item' && typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
+      await switchTab('wanted');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { state.busy = false; }
   }
 
   // ── Shops ──────────────────────────────────────────────────────────────
@@ -966,10 +1150,13 @@
   // A porter: yours collecting from a stall, or another town's coming to yours.
   function runHtml(r) {
     const it = r.item || {};
-    const what = `${fmt(r.qty)}× ${esc(it.name || 'goods')}`;
+    const what = r.resource && !r.item ? `${fmt(r.qty)} ${esc(r.resource)}` : `${fmt(r.qty)}× ${esc(it.name || 'goods')}`;
     const back = r.status === 'returning';
     let text;
-    if (r.direction === 'incoming') text = `A porter from ${esc(r.from_name)} is coming to buy ${what} (🪙 ${fmt(r.gold - r.fee)} to you)`;
+    if (r.direction === 'arriving') text = `A porter from ${esc(r.from_name)} is bringing ${what} for your wanted order`;
+    else if (r.direction === 'delivering') text = back ? `${esc(r.citizen_name || 'Your porter')} is heading home with 🪙 ${fmt(r.gold - r.fee)}`
+      : `${esc(r.citizen_name || 'Your porter')} is taking ${what} to ${esc(r.target_name)}`;
+    else if (r.direction === 'incoming') text = `A porter from ${esc(r.from_name)} is coming to buy ${what} (🪙 ${fmt(r.gold - r.fee)} to you)`;
     else if (back) text = r.failed ? `${esc(r.citizen_name || 'Your porter')} found the stall empty — bringing your 🪙 ${fmt(r.gold)} back`
       : `${esc(r.citizen_name || 'Your porter')} is bringing home ${what}`;
     else text = `${esc(r.citizen_name || 'Your porter')} is walking to ${esc(r.target_name)} to collect ${what}`;
@@ -1083,7 +1270,7 @@
     if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
     const act = t.dataset.act;
     if (act === 'info') return;  // popover — see setPop
-    if (act === 'cat') { state.cat = t.dataset.cat; state.itemKey = null; state.itemName = ''; return switchTab('buy'); }
+    if (act === 'cat') { state.cat = t.dataset.cat; state.itemKey = null; state.itemName = ''; return switchTab(state.tab === 'wanted' ? 'wanted' : 'buy'); }
     if (act === 'clear-item') { state.itemKey = null; state.itemName = ''; return switchTab('buy'); }
     if (act === 'suggest') return pickSuggest(Number(t.dataset.i));
     if (act === 'ih-sell') return ironhavenSell(Number(t.dataset.id));
@@ -1127,6 +1314,22 @@
       return;
     }
     if (act === 'collect-confirm') return collect(Number(t.dataset.id));
+    if (act === 'want-kind') { readWantDraft(); state.wantDraft.kind = t.dataset.kind; return render(); }
+    if (act === 'fill') {
+      const w = (state.wants || []).find(x => x.id === Number(t.dataset.id));
+      if (w) openFillSheet(w);
+      return;
+    }
+    if (act === 'fill-confirm') return fillWant(Number(t.dataset.id));
+    if (act === 'cancel-want') {
+      if (!global.confirm('Cancel this wanted order? Gold not yet promised comes back to you.')) return;
+      try {
+        const r = await call('POST', `/api/market/wants/${t.dataset.id}/cancel`);
+        toast(`Wanted order cancelled — ${fmt(r.refunded)} gold returned.`);
+        if (typeof global.refreshResources === 'function') global.refreshResources();
+      } catch (err) { toast(err.message, 'error'); }
+      return switchTab('wanted');
+    }
     if (act === 'cancel') {
       if (!global.confirm('Cancel this order? Goods not yet on the road return to your stores.')) return;
       try {
@@ -1152,6 +1355,7 @@
     if (act === 'filter-resource') { state.resource = e.target.value; switchTab('buy'); }
     else if (act === 'ih-porter') { state.ihPorter = Number(e.target.value); }
     else if (act === 'keeper') { setKeeper(e.target.dataset.venue, Number(e.target.value) || null); }
+    else if (act === 'want-draft') updateWantSummary();
     else if (act === 'sort') { state.sort = e.target.value; state.dir = e.target.value === 'amount' ? 'desc' : 'asc'; switchTab('buy'); }
     else if (act === 'add-merchant' && e.target.value) editMerchants(e.target.dataset.order, { add: [Number(e.target.value)] });
     else if (act === 'pick-merchant') {
@@ -1173,7 +1377,9 @@
   }
 
   function onInput(e) {
-    if (e.target.dataset.act === 'search') return onSearchInput(e.target);
+    if (e.target.dataset.act === 'search' || e.target.dataset.act === 'want-search') return onSearchInput(e.target);
+    if (e.target.dataset.act === 'want-draft') return updateWantSummary();
+    if (e.target.dataset.act === 'fill-qty') return updateFillSummary();
     if (e.target.dataset.act === 'collect-qty') {
       const id = Number((document.querySelector('#market-panel [data-act="collect-confirm"]') || { dataset: {} }).dataset.id);
       const o = (state.orders || []).find(x => x.id === id);
@@ -1188,6 +1394,7 @@
   }
 
   function onSubmit(e) {
+    if (e.target.dataset.form === 'want') { e.preventDefault(); return postWant(); }
     if (e.target.dataset.form !== 'sell') return;
     e.preventDefault();
     submitSell();
@@ -1235,6 +1442,8 @@
     if (ev.type === 'market_purchase') toast(`⚖️ ${ev.buyer || 'Someone'} bought ${fmt(ev.qty)} ${res} — your merchant has set off.`);
     else if (ev.type === 'market_delivery') toast(`📦 ${fmt(ev.qty)} ${res} arrived from the market.`);
     else if (ev.type === 'market_return') toast(`🪙 Your merchant is home with ${fmt(ev.gold)} gold.`);
+    else if (ev.type === 'market_want_filling') toast(`📮 ${ev.seller || 'A town'} is sending ${fmt(ev.qty)} ${res} for your wanted order.`);
+    else if (ev.type === 'market_want_expired') toast(`⌛ A wanted order expired — ${fmt(ev.gold)} gold returned.`);
     else if (ev.type === 'market_pickup_coming') toast(`🛒 ${ev.buyer || 'A town'} sent a porter to buy ${fmt(ev.qty)} ${res}.`);
     else if (ev.type === 'market_sale') toast(`🪙 Sold ${fmt(ev.qty)} ${res} from your stall — ${fmt(ev.gold)} gold.`);
     else if (ev.type === 'market_porter_home') toast(ev.kind === 'ironhaven' ? `🏰 Your porter is back from Ironhaven with ${fmt(ev.gold)} gold.`
