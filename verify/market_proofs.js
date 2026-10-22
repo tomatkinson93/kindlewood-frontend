@@ -210,7 +210,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
         venue: 'market', venue_label: 'Market',
         seller: { id: 3, name: 'Oakhollow', username: 'bramble', species: 'Mice' }, distance: 4, merchants: 0, paused: false, eta_seconds: 360 }] },
       '/api/market/mine': MINE,
-      '/api/market/orders/31/pickup': (p, o) => { picked = JSON.parse(o.body); return { ok: true, porter: 'Birch', seller: 'Oakhollow', run: { qty: 2, item: { name: 'Iron Sword' } } }; } });
+      '/api/market/orders/31/pickup': (p, o) => { picked = JSON.parse(o.body); return { ok: true, porter: 'Birch', seller: 'Oakhollow', run: { id: 77, qty: 2, item: { name: 'Iron Sword' }, returns_at: new Date(Date.now() + 1530e3).toISOString() } }; } });
     await env.win.openMarket();
     const b = env.body();
     check('2i. stall row: name in rarity colour, price each, stats, seller\'s venue', /color:#e8a020">Iron Sword<\/b>/.test(b) && /<img[^>]*goldicon\.png[^>]*> 60<\/span> <span class="mk-for">each/.test(b) &&
@@ -222,7 +222,8 @@ const MINE = { ok: true, now: new Date().toISOString(),
     env.getEl('mk-collect-qty').value = '2'; env.getEl('mk-collect-porter').value = '22';
     await env.fire('click', env.btn('collect-confirm', { id: '31' }));
     await tick();
-    check('2i3. sends the porter for 2', picked && picked.qty === 2 && picked.citizen_id === 22 && /Birch set off for Oakhollow to collect 2× Iron Sword/.test(env.toasts.map(t => t[0]).join()));
+    check('2i3. sends the porter for 2', picked && picked.qty === 2 && picked.citizen_id === 22 && /Birch is walking to Oakhollow to collect 2× Iron Sword — back in ~25m/.test(env.toasts.map(t => t[0]).join()) &&
+      env.calls.some(c => c[1] === '/api/market/mine'));
     check('2j. category buttons with icons, no Trophies, ten in all', ['⚔️', '🛡️', '🔨', '💍', '🐟', '🍖', '📦'].every(i => b.includes(i)) && /stoneicon\.png/.test(b) && /woodicon\.png/.test(b) && !/data-cat="trophy"/.test(b) && (b.match(/data-act="cat"/g) || []).length === 10 && /data-act="cat" data-cat="weapon"/.test(b) && !/🪵|🪨|🪙/.test(b));
     await env.fire('click', env.btn('cat', { cat: 'weapon' }));
     const cq = env.calls.filter(c => c[1].startsWith('/api/market/orders?')).pop()[1];
@@ -270,7 +271,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
         { id: 73, name: 'Old Relic', icon: '🏺', rarity: 'epic', quantity: 1, cat: 'trophy', tradeable: false, reason: 'This item cannot be traded.', unit_price: 1, max_qty: 1 }],
       candidates: [{ id: 22, name: 'Birch', scouting: 1, busy: null }, { id: 21, name: 'Ash', scouting: 2, busy: 'Ash is busy at the Market.' }],
       runs: [] };
-    const env = makeEnv({ '/api/market/status': LOCKED, '/api/market/ironhaven/sell': (p, o) => { posted = JSON.parse(o.body); return { ok: true, gold: 60, porter: 'Birch', run: { qty: 10, item: { name: 'Trout' } } }; },
+    const env = makeEnv({ '/api/market/status': LOCKED, '/api/market/ironhaven/sell': (p, o) => { posted = JSON.parse(o.body); return { ok: true, gold: 60, porter: 'Birch', run: { id: 78, qty: 10, item: { name: 'Trout' }, returns_at: new Date(Date.now() + 600e3).toISOString() } }; },
       '/api/market/ironhaven': IH });
     await env.win.openMarket({ tab: 'ironhaven', item: 71 });
     const b = env.body();
@@ -284,7 +285,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
     await env.fire('click', env.btn('ih-sell', { id: '71' }));
     await tick();
     check('2w. Send posts item, quantity and porter', posted && posted.inventory_id === 71 && posted.qty === 10 && posted.citizen_id === 22 &&
-      /Birch set off for Ironhaven/.test(env.toasts.map(t => t[0]).join()));
+      /Birch is walking to Ironhaven with 10× Trout — back in ~10m with 60 gold/.test(env.toasts.map(t => t[0]).join()));
   }
   // 3n — shops
   {
@@ -324,10 +325,13 @@ const MINE = { ok: true, now: new Date().toISOString(),
       price: 9, per: 1, unit_price: 9, qty_available: 6, qty_total: 6, carry_max: 6, you_have: 3, distance: 5, eta_seconds: 450, expires_at: ends,
       buyer: { id: null, name: 'Bramblehollow', username: 'village', species: 'mice' } };
     let posted = [];
-    const routes = { '/api/market/status': OPEN, '/api/market/mine': MINE,
+    const runAt = s => new Date(Date.now() + s * 1e3).toISOString();
+    const npcRun = { id: 501, kind: 'npc', direction: 'npc', side: 'buy', status: 'outbound', qty: 200, resource: 'food', gold: 62,
+      citizen_name: 'Birch', target_name: 'Bramblehollow', distance: 5, departs_at: runAt(-10), arrives_at: runAt(350), returns_at: runAt(710) };
+    const routes = { '/api/market/status': OPEN, '/api/market/mine': { ...MINE, runs: [npcRun] },
       '/api/market/orders?': { ok: true, orders: [...ORDERS.orders, npcSell] },
       '/api/market/wants?': { ok: true, wants: [npcBuy] },
-      '/api/market/npc/12/': (p, o) => { posted.push([p, JSON.parse(o.body)]); return { ok: true, porter: 'Birch', village: 'Bramblehollow', gold: 27 }; } };
+      '/api/market/npc/12/': (p, o) => { posted.push([p, JSON.parse(o.body)]); return { ok: true, porter: 'Birch', village: 'Bramblehollow', gold: 27, run: { id: 501, qty: 200, returns_at: runAt(720) } }; } };
     const env = makeEnv(routes);
     env.win.setTimeout = (fn) => { fn(); return 1; };
     await env.win.openMarket();
@@ -348,7 +352,10 @@ const MINE = { ok: true, now: new Date().toISOString(),
     await env.fire('click', env.btn('npc-confirm', { id: 'npc:12:s0', side: 'sell' }));
     await tick();
     check('6d. NPC: buying posts the order key, amount and porter', posted.length === 1 && posted[0][0] === '/api/market/npc/12/s0' &&
-      posted[0][1].qty === 200 && posted[0][1].citizen_id === 22 && env.toasts.some(t => /Birch set off to buy from Bramblehollow/.test(t[0])));
+      posted[0][1].qty === 200 && posted[0][1].citizen_id === 22 &&
+      env.toasts.some(t => /^🧺 Birch is walking to Bramblehollow to buy 200 food — back in ~12m with the goods\./.test(t[0])));
+    check('6d2. NPC: after sending, Caravans shows the porter on the road, highlighted', /mk-tab on" data-act="tab" data-tab="caravans"/.test(env.getEl('mk-tabs').innerHTML) &&
+      /mk-trip live mk-trip-new" data-run="501"/.test(env.body()) && /Birch is walking to Bramblehollow to buy 200 food/.test(env.body()));
     // Wanted: the village's buy order, sell to it
     await env.fire('click', { tagName: 'BUTTON', dataset: { tab: 'wanted' }, closest: function () { return this; } });
     await env.win.openMarket({ tab: 'wanted' });
@@ -365,7 +372,9 @@ const MINE = { ok: true, now: new Date().toISOString(),
     await env.fire('click', env.btn('npc-confirm', { id: 'npc:12:b0', side: 'buy' }));
     await tick();
     check('6g. NPC: selling posts to the village buy order', posted.length === 2 && posted[1][0] === '/api/market/npc/12/b0' && posted[1][1].qty === 3);
+    check('6g2. NPC: selling toast says what goes and the gold coming back', env.toasts.some(t => /^🧺 Birch is taking 3× Iron Pick to Bramblehollow — back in ~12m with 27 gold\./.test(t[0])));
     // Toggle: hide, persisted, sent as npc=0 (and remembered by a fresh panel)
+    await env.win.openMarket({ tab: 'wanted' });
     await env.fire('change', { dataset: { act: 'hide-npc' }, checked: true });
     await tick();
     check('6h. NPC: hiding NPC traders is remembered and sent as npc=0', env.store.kw_mk_hide_npc === '1' &&
