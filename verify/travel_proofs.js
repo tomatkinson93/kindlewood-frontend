@@ -142,6 +142,10 @@ for (const view of ['topdown', 'iso']) {
   check('7e. versioned tags for travel.js, kwmap-travel.js, travel.css',
     /\/js\/travel\.js\?v=\w+/.test(html) && /\/js\/kwmap-travel\.js\?v=\w+/.test(html) && /\/css\/travel\.css\?v=\w+/.test(html));
   check('7f. kwmap-travel.js: no apiFetch, no Math.random', !/apiFetch|Math\.random/.test(layer));
+  const starts = eval(read('js/travel.js').match(/const STARTS = (\/.*\/);/)[1]);
+  check('7g. every porter dispatch refreshes the paths (village, Ironhaven, fill, pickup)',
+    ['/api/market/npc/12/s0', '/api/market/ironhaven/sell', '/api/market/wants/9/fill', '/api/market/orders/4/pickup', '/api/market/orders/4/buy']
+      .every(p => starts.test(p)) && !starts.test('/api/market/wants'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -65,6 +65,7 @@
     hideNpc: (() => { try { return global.localStorage.getItem('kw_mk_hide_npc') === '1'; } catch (_) { return false; } })(),
     ihPorter: null,        // porter picked on the Ironhaven tab
     focusItem: null,       // inventory id to highlight (opened from inventory)
+    newRun: null,          // porter run just sent (highlighted in Caravans)
     draft: { mode: 'resource', resource: 'timber', inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
     busy: false,
     unseen: false,         // red dot on the comm-btn
@@ -92,6 +93,20 @@
 
   const fmt = n => Math.floor(Number(n) || 0).toLocaleString();
   const price2 = n => (Math.round(Number(n) * 100) / 100).toFixed(2);
+  // "back in ~12m" for a porter run that just left.
+  function backIn(run) {
+    const t = run && Date.parse(run.returns_at);
+    return Number.isFinite(t) ? `back in ~${dur(Math.max(0, (t - Date.now()) / 1000))}` : 'back soon';
+  }
+  // After a porter leaves: show them on the road in Caravans.
+  async function showNewRun(run) {
+    state.newRun = run && run.id;
+    state.mine = null;
+    await switchTab('caravans');
+    const row = document.querySelector(`#market-panel [data-run="${state.newRun}"]`);
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
+  }
+
   function dur(sec) {
     sec = Math.max(0, Math.round(sec));
     if (sec < 60) return sec + 's';
@@ -505,10 +520,9 @@
     try {
       const r = await call('POST', `/api/market/orders/${id}/pickup`, { qty, citizen_id: porter });
       closeSheet();
-      toast(`🧺 ${r.porter} set off for ${r.seller} to collect ${fmt(r.run.qty)}× ${r.run.item.name}.`);
+      toast(`🧺 ${r.porter} is walking to ${r.seller} to collect ${fmt(r.run.qty)}× ${r.run.item.name} — ${backIn(r.run)}.`);
       if (typeof global.refreshResources === 'function') global.refreshResources();
-      state.mine = null;
-      await softRefresh();
+      await showNewRun(r.run);
     } catch (e) { toast(e.message, 'error'); }
     finally { state.busy = false; }
   }
@@ -930,13 +944,13 @@
     try {
       const r = await call('POST', `/api/market/npc/${o.npc.id}/${o.order_key}`, { qty, citizen_id: porter });
       closeSheet();
+      const goods = o.item ? `${fmt(qty)}× ${o.item.name}` : `${fmt(qty)} ${(RES_LABEL[o.resource] || o.resource || '').toLowerCase()}`;
       toast(side === 'sell'
-        ? `🏘️ ${r.porter} set off to buy from ${r.village} — the goods come home with them.`
-        : `🏘️ ${r.porter} set off to sell to ${r.village} — ${fmt(r.gold)} gold on return.`);
+        ? `🧺 ${r.porter} is walking to ${r.village} to buy ${goods} — ${backIn(r.run)} with the goods.`
+        : `🧺 ${r.porter} is taking ${goods} to ${r.village} — ${backIn(r.run)} with ${fmt(r.gold)} gold.`);
       if (typeof global.refreshResources === 'function') global.refreshResources();
       if (o.item && typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
-      state.mine = null;
-      await switchTab(state.tab);
+      await showNewRun(r.run);
     } catch (e) { toast(e.message, 'error'); }
     finally { state.busy = false; }
   }
@@ -1095,10 +1109,10 @@
     try {
       const r = await call('POST', `/api/market/wants/${id}/fill`, { qty, citizen_id: porter });
       closeSheet();
-      toast(`📮 ${r.porter} is taking ${fmt(r.run.qty)} to ${r.buyer} — ${fmt(r.gold - r.fee)} gold when they're home.`);
+      toast(`📮 ${r.porter} is taking ${fmt(r.run.qty)} to ${r.buyer} — ${backIn(r.run)} with ${fmt(r.gold - r.fee)} gold.`);
       if (typeof global.refreshResources === 'function') global.refreshResources();
       if (w.kind === 'item' && typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
-      await switchTab('wanted');
+      await showNewRun(r.run);
     } catch (e) { toast(e.message, 'error'); }
     finally { state.busy = false; }
   }
@@ -1213,7 +1227,7 @@
     state.busy = true;
     try {
       const r = await call('POST', '/api/market/ironhaven/sell', { inventory_id: invId, qty, citizen_id: state.ihPorter });
-      toast(`🏰 ${r.porter} set off for Ironhaven with ${fmt(r.run.qty)}× ${r.run.item.name} — ${fmt(r.gold)} gold on return.`);
+      toast(`🏰 ${r.porter} is walking to Ironhaven with ${fmt(r.run.qty)}× ${r.run.item.name} — ${backIn(r.run)} with ${fmt(r.gold)} gold.`);
       if (typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} }
       state.focusItem = null;
       await switchTab('ironhaven');
@@ -1270,7 +1284,7 @@
       : `${esc(r.citizen_name || 'Your porter')} is bringing home ${what}`;
     else text = `${esc(r.citizen_name || 'Your porter')} is walking to ${esc(r.target_name)} to collect ${what}`;
     const from = back ? r.arrives_at : r.departs_at, to = back ? r.returns_at : r.arrives_at;
-    return `<li class="mk-trip live"><div class="mk-trip-icon">${r.direction === 'incoming' ? '🛒' : esc(it.icon || '🧺')}</div>
+    return `<li class="mk-trip live${r.id === state.newRun ? ' mk-trip-new' : ''}" data-run="${r.id}"><div class="mk-trip-icon">${r.direction === 'incoming' ? '🛒' : esc(it.icon || '🧺')}</div>
       <div class="mk-trip-main"><div>${text}</div>
         <div class="mk-bar"><div class="mk-bar-fill" data-from="${esc(from)}" data-to="${esc(to)}"></div></div>
         <div class="mk-muted mk-small">${back ? 'Home' : 'Arrives'} in <span data-until="${esc(to)}">…</span> · ${r.distance} hexes</div></div></li>`;

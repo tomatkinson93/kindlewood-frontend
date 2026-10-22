@@ -133,7 +133,7 @@
   // Journeys start from many places (scout, envoy, quest, clan quest, market).
   // Rather than touch each, watch apiFetch for the POSTs that start one and
   // refresh shortly after. Passive: the call and its result are untouched.
-  const STARTS = /^\/api\/(expeditions\/send|quests\/accept|diplomacy\/\d+\/(contact|goodwill|gift)|clan-quests\/runs|market\/orders)/;
+  const STARTS = /^\/api\/(expeditions\/send|quests\/accept|diplomacy\/\d+\/(contact|goodwill|gift)|clan-quests\/runs|market\/(orders|npc|ironhaven|wants\/\d+\/fill))/;
   function watchApiFetch() {
     const orig = global.apiFetch;
     if (typeof orig !== 'function' || orig._kwTravel) return;

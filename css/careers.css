@@ -1,0 +1,146 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Careers — Career tab, skill tree overlay, fork ceremony, reveal card
+   (js/careers.js, js/career-tree.js)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Profile badge + list level */
+.cr-badge { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 2px; padding: 3px 10px 3px 3px;
+  border-radius: 999px; background: rgba(244,201,93,.1); border: 1px solid rgba(244,201,93,.32); font-size: 13px; color: #f2e6c9; }
+.cr-ring { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(#f4c95d var(--deg), rgba(255,255,255,.12) 0); }
+.cr-ring > span { width: 22px; height: 22px; border-radius: 50%; background: #2a2016; display: grid; place-items: center; font-size: 13px; }
+.cr-dot { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e86f4a; color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-grid; place-items: center; animation: cr-pulse 1.6s ease-in-out infinite; }
+.cr-lv { display: inline-block; min-width: 16px; padding: 0 4px; border-radius: 8px; background: rgba(244,201,93,.18); color: #f4c95d;
+  font-size: 10px; font-weight: 700; text-align: center; position: relative; }
+.cr-lv i { position: absolute; top: -3px; right: -4px; width: 7px; height: 7px; border-radius: 50%; background: #e86f4a; }
+.cr-tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e86f4a; vertical-align: middle; }
+.cr-skill-bonus { margin-left: 3px; font-size: 10px; font-weight: 700; }
+.cr-skill-bonus.up { color: #7ecf6e; } .cr-skill-bonus.down { color: #e87a6a; }
+@keyframes cr-pulse { 50% { transform: scale(1.12); } }
+
+/* Career tab */
+.cr-card { padding: 12px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid rgba(200,148,26,.2); margin-bottom: 12px; }
+.cr-card-head { display: flex; gap: 12px; align-items: center; }
+.cr-big-icon { font-size: 34px; line-height: 1; }
+.cr-title { font-family: 'IM Fell English', Georgia, serif; font-size: 20px; color: #f4c95d; }
+.cr-sub, .cr-muted { color: rgba(242,230,201,.65); font-size: 13px; }
+.cr-small { font-size: 12px; }
+.cr-xp { height: 10px; border-radius: 6px; background: rgba(255,255,255,.08); margin: 10px 0 4px; overflow: hidden; }
+.cr-xp-fill { height: 100%; background: linear-gradient(90deg, #c8941a, #f4c95d); border-radius: 6px; transition: width .6s ease; }
+.cr-xp-txt { font-size: 12px; color: rgba(242,230,201,.75); }
+.cr-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.cr-note { font-size: 13px; margin-top: 6px; color: #f2e6c9; }
+.cr-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(200,148,26,.4); background: rgba(255,255,255,.05); color: #f2e6c9;
+  font: inherit; font-size: 13px; cursor: pointer; }
+.cr-btn:hover { background: rgba(244,201,93,.14); }
+.cr-btn:disabled { opacity: .5; cursor: default; }
+.cr-btn-primary { background: linear-gradient(#e9b949, #c8941a); color: #2a1d08; border-color: #e9b949; font-weight: 700; }
+.cr-btn-gold { background: linear-gradient(#7ccf6a, #3f9a4a); color: #102010; border-color: #8fe07d; font-weight: 700; animation: cr-pulse 1.8s ease-in-out infinite; }
+.cr-btn-danger { border-color: rgba(232,111,74,.6); color: #f0a08a; }
+.cr-pts { display: inline-grid; place-items: center; min-width: 18px; height: 18px; border-radius: 9px; background: #e86f4a; color: #fff; font-size: 11px; margin-left: 4px; }
+.cr-bonuses { color: #f2e6c9; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.025); margin-bottom: 12px; font-size: 13px; }
+.cr-bonuses ul { margin: 0 0 6px; padding-left: 18px; }
+.cr-out { font-weight: 700; color: #f4c95d; }
+.cr-srcs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.cr-src { color: #e8dcc0; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,.06); font-size: 11px; }
+.cr-others { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.cr-other { padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(200,148,26,.2); color: #f2e6c9; font: inherit; font-size: 12px; cursor: pointer; }
+.cr-history { margin: 0; padding-left: 18px; font-size: 13px; color: #f2e6c9; }
+.cr-history li { margin: 3px 0; }
+.cr-trait.cr-good { border-color: rgba(126,207,110,.45); }
+.cr-trait.cr-bad { border-color: rgba(232,122,106,.45); }
+.cr-trait-desc { font-size: 11px; color: rgba(242,230,201,.65); }
+.cr-hint { margin-top: 8px; font-size: 13px; font-style: italic; color: #d8c9a6; }
+.cr-err { color: #f0a08a; padding: 10px; }
+.cr-admin { margin-top: 14px; padding: 8px 10px; border: 1px dashed rgba(200,148,26,.4); border-radius: 10px; font-size: 13px; }
+.cr-admin summary { cursor: pointer; color: #f4c95d; }
+.cr-ad-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.cr-admin input, .cr-admin select { background: #1d160e; color: #f2e6c9; border: 1px solid rgba(200,148,26,.35); border-radius: 6px; padding: 4px 6px; font: inherit; }
+.cr-admin input { width: 56px; }
+
+/* Skill tree overlay */
+.cr-overlay { position: fixed; inset: 0; z-index: 100020; background: rgba(8,6,3,.72); display: none; align-items: center; justify-content: center; padding: 16px; }
+.cr-overlay.open { display: flex; }
+.cr-tree-panel { width: min(1180px, 100%); height: min(860px, 100%); display: flex; flex-direction: column; border-radius: 16px;
+  background: #17120b; border: 1px solid rgba(200,148,26,.45); box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; color: #f2e6c9; }
+.cr-tree-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 18px 10px; border-bottom: 1px solid rgba(200,148,26,.2); }
+.cr-tree-head h2 { margin: 0; font-family: 'IM Fell English', Georgia, serif; font-size: 22px; color: #f4c95d; }
+.cr-tree-sub { font-size: 13px; color: rgba(242,230,201,.75); margin-top: 2px; }
+.cr-x { background: none; border: none; color: #f2e6c9; font-size: 20px; cursor: pointer; padding: 4px 8px; }
+.cr-tree-body { flex: 1; display: flex; min-height: 0; }
+.cr-tree-view { flex: 1; position: relative; overflow: hidden; cursor: grab; touch-action: none;
+  background: radial-gradient(ellipse at 50% 30%, #2a3324 0%, #17120b 70%); }
+.cr-tree-view:active { cursor: grabbing; }
+.cr-tree-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
+.cr-tree-canvas .ct-svg { width: 100%; height: 100%; display: block; }
+.cr-tree-tools { position: absolute; right: 10px; bottom: 10px; }
+.cr-tree-tools button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(200,148,26,.4); background: rgba(23,18,11,.85); color: #f2e6c9; cursor: pointer; }
+.cr-node-info { width: 300px; flex-shrink: 0; padding: 16px; border-left: 1px solid rgba(200,148,26,.2); overflow-y: auto; font-size: 14px; }
+.cr-node-info ul { padding-left: 18px; margin: 4px 0 8px; }
+.cr-ni-icon { font-size: 40px; }
+.cr-ni h3 { margin: 4px 0 2px; font-family: 'IM Fell English', Georgia, serif; color: #f4c95d; font-size: 20px; }
+.cr-ni-lbl { margin-top: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: rgba(242,230,201,.55); }
+.cr-ni-why { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.04); color: rgba(242,230,201,.75); font-size: 13px; }
+.cr-learn { margin-top: 12px; width: 100%; }
+.cr-ni-empty { text-align: center; color: rgba(242,230,201,.8); }
+.cr-tree-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 18px; border-top: 1px solid rgba(200,148,26,.2); }
+.cr-legend { font-size: 12px; color: rgba(242,230,201,.7); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.cr-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50% 0; margin-right: 4px; vertical-align: -1px; }
+.cr-legend .lg-av { background: #7fcf6a; box-shadow: 0 0 6px #d9ffb8; } .cr-legend .lg-own { background: #3fa64a; }
+.cr-legend .lg-lock { background: #3a4436; } .cr-legend .lg-secret { background: #4a4038; border: 1px dashed #f4c95d; }
+
+/* Tree drawing */
+.ct-node { cursor: pointer; outline: none; }
+.ct-node .ct-leaf { transition: transform .25s ease; transform-box: fill-box; transform-origin: center; }
+.ct-node:hover .ct-leaf, .ct-node:focus .ct-leaf { transform: scale(1.12); }
+.ct-node.ct-locked { opacity: .55; }
+.ct-node.ct-closed { opacity: .35; }
+.ct-node.ct-secret .ct-leaf { stroke-dasharray: 5 4; stroke: #f4c95d; }
+.ct-glow { animation: ct-glow 2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.ct-label { fill: #f2e6c9; font-size: 15px; font-family: Georgia, serif; paint-order: stroke; stroke: #17120b; stroke-width: 4px; }
+.ct-tier { fill: #f4c95d; font-size: 11px; font-weight: 700; }
+.ct-spec { fill: #f4c95d; font-size: 22px; font-family: 'IM Fell English', Georgia, serif; paint-order: stroke; stroke: #17120b; stroke-width: 5px; }
+.ct-spec.ct-bare { fill: #7a746c; }
+.ct-level { fill: rgba(242,230,201,.6); font-size: 16px; }
+.ct-grow .ct-leaf { animation: ct-grow .7s cubic-bezier(.2,1.6,.4,1); }
+.ct-spark { animation: ct-spark .9s ease-out forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes ct-glow { 50% { opacity: .7; transform: scale(1.12); } }
+@keyframes ct-grow { 0% { transform: scale(.2); } 100% { transform: scale(1); } }
+@keyframes ct-spark { to { transform: translate(var(--dx), var(--dy)) rotate(200deg) scale(.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ct-glow, .ct-grow .ct-leaf, .cr-dot, .cr-btn-gold { animation: none; }
+}
+
+/* Fork ceremony + reveal card */
+.cr-modal { position: fixed; inset: 0; z-index: 100030; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(8,6,3,.75); }
+.cr-modal.open { display: flex; }
+.cr-fork-box { position: relative; width: min(760px, 100%); max-height: 100%; overflow-y: auto; padding: 22px; border-radius: 16px;
+  background: #1c150d; border: 1px solid rgba(200,148,26,.5); color: #f2e6c9; text-align: center; }
+.cr-fork-box .cr-x { position: absolute; top: 8px; right: 8px; }
+.cr-fork-box h2 { font-family: 'IM Fell English', Georgia, serif; color: #f4c95d; margin: 0 0 6px; }
+.cr-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+.cr-path { text-align: left; padding: 14px; border-radius: 12px; background: rgba(255,255,255,.035); border: 2px solid rgba(200,148,26,.25);
+  color: inherit; font: inherit; cursor: pointer; transition: border-color .2s, transform .2s; }
+.cr-path:hover { transform: translateY(-2px); }
+.cr-path.on { border-color: #7fcf6a; box-shadow: 0 0 22px rgba(127,207,106,.25); }
+.cr-path-icon { font-size: 40px; }
+.cr-path h3 { margin: 4px 0; color: #f4c95d; font-family: 'IM Fell English', Georgia, serif; }
+.cr-path p { font-size: 13px; color: rgba(242,230,201,.8); }
+.cr-path ul { padding-left: 18px; font-size: 13px; margin: 6px 0; }
+.cr-path-cap { font-size: 12px; color: rgba(242,230,201,.75); border-top: 1px solid rgba(200,148,26,.2); padding-top: 6px; }
+.cr-scroll { width: min(420px, 100%); padding: 26px 24px; border-radius: 6px; text-align: center; color: #3b2a14;
+  background: linear-gradient(#f4e4bd, #e6cf98); box-shadow: 0 20px 60px rgba(0,0,0,.6); animation: cr-unfurl .6s ease-out; }
+.cr-scroll-top { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; color: #7a5a24; }
+.cr-scroll-icon { font-size: 54px; margin: 8px 0; }
+.cr-scroll h2 { font-family: 'IM Fell English', Georgia, serif; margin: 4px 0 8px; }
+.cr-scroll-bad { background: linear-gradient(#e6d9c6, #cbb79a); }
+@keyframes cr-unfurl { from { transform: scaleY(.1); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+
+@media (max-width: 700px) {
+  .cr-overlay { padding: 0; }
+  .cr-tree-panel { height: 100%; border-radius: 0; }
+  .cr-tree-body { flex-direction: column; }
+  .cr-node-info { width: auto; max-height: 40%; border-left: none; border-top: 1px solid rgba(200,148,26,.2); }
+  .cr-paths { grid-template-columns: 1fr; }
+}

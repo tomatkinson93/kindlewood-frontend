@@ -282,3 +282,8 @@
   background: rgba(150,200,140,.18); color: #b6e09c; border: 1px solid rgba(150,200,140,.45); }
 .mk-npc-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(242,230,201,.7);
   margin: -2px 0 8px; cursor: pointer; }
+
+/* A porter that just left — highlighted in Caravans for a moment. */
+.mk-trip.mk-trip-new { box-shadow: 0 0 0 2px #f4c95d inset; animation: mk-new-run 2.4s ease-out 1; }
+@keyframes mk-new-run { 0% { background: rgba(244, 201, 93, .26); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .mk-trip.mk-trip-new { animation: none; } }
