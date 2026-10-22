@@ -39,6 +39,23 @@
     return h >>> 0;
   }
 
+  // Resource cargo badges use the game's icon images (newer emoji like 🪵
+  // don't draw on Windows 10).
+  const RES_SRC = { food: '/assets/foodicon.png', timber: '/assets/woodicon.png', stone: '/assets/stoneicon.png',
+                    metal: '/assets/metalicon.png', wealth: '/assets/goldicon.png' };
+  function resImg(res) {
+    if (!RES_SRC[res] || typeof Image === 'undefined') return null;
+    const k = 'res:' + res;
+    if (!(k in _img)) {
+      const im = new Image();
+      im.onerror = () => { _img[k] = null; };
+      im.src = RES_SRC[res];
+      _img[k] = im;
+    }
+    const im = _img[k];
+    return im && im.complete && im.naturalWidth ? im : null;
+  }
+
   function speciesImg(species) {
     if (!species || typeof Image === 'undefined') return null;
     const k = String(species).toLowerCase();
@@ -152,8 +169,12 @@
       const bx = p.x + r * 0.8, by = y - r * 0.8;
       ctx.fillStyle = '#2a1d10'; ctx.strokeStyle = '#e8c87a'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(bx, by, 7.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.font = '9px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(badge, bx, by + 0.5);
+      const ri = j.cargo && j.cargo.resource && !j.cargo.item ? resImg(j.cargo.resource) : null;
+      if (ri) ctx.drawImage(ri, bx - 5.5, by - 5.5, 11, 11);
+      else {
+        ctx.font = '9px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(badge, bx, by + 0.5);
+      }
     }
     ctx.restore();
     return { x: p.x, y, r: r + 3, ax: Math.round(p.x), ay: Math.round(p.y - 6 - r) };

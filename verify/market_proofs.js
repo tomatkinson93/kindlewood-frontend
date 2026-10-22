@@ -10,6 +10,8 @@
 //   4. Caravans: trips with countdowns, own orders with merchants + cancel.
 //   5. Wiring: Market button → openMarket, map Trade button, realtime
 //      handlers, mobile overlay list, versioned script/css tags.
+//   6. NPC village traders: badged rows in Buy / Wanted, buy and sell sheets,
+//      the "Hide NPC traders" toggle (remembered, sent as npc=0), return toast.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -33,8 +35,9 @@ function makeEl(id) {
     contains: () => false, appendChild() {}, setAttribute() {}, scrollIntoView() {},
   };
 }
-function makeEnv(routes) {
+function makeEnv(routes, store) {
   const els = {}, toasts = [], calls = [], built = [];
+  store = store || {};
   const getEl = id => (els[id] = els[id] || makeEl(id));
   let panel = null;
   const doc = {
@@ -52,6 +55,7 @@ function makeEnv(routes) {
     _costChips: (cost, have) => Object.entries(cost).map(([r, v]) => `<span class="op-chip ${(have[r] ?? 0) < v ? 'op-chip-short' : ''}">${r} ${v}</span>`).join(''),
     openSettlementBuild: id => built.push(id),
     confirm: () => true,
+    localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
     apiFetch: async (p, opts) => {
       calls.push([opts && opts.method || 'GET', p, opts && opts.body ? JSON.parse(opts.body) : null]);
       const key = Object.keys(routes).find(k => p.startsWith(k));
@@ -71,7 +75,7 @@ function makeEnv(routes) {
     t.closest = () => t;
     return t;
   };
-  return { win, getEl, body, fire, fireEv, btn, toasts, calls, built, panel: () => panel };
+  return { win, getEl, body, fire, fireEv, btn, toasts, calls, built, store, panel: () => panel };
 }
 const tick = () => new Promise(r => setImmediate(r));
 
@@ -135,7 +139,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
     const env = makeEnv({ '/api/market/status': OPEN, '/api/market/orders?': ORDERS, '/api/market/orders/7/buy': { ok: true, wealth: 50, merchant: 'Ash', seller: 'Oakhollow', trip: { qty: 100, resource: 'timber' } } });
     await env.win.openMarket();
     const b = env.body();
-    check('2. buy list: lot, price, per-unit, amount left', /🪵 100 timber[\s\S]*?🪙 70/.test(b) && /0\.70 gold \/ unit/.test(b) && /250 left/.test(b));
+    check('2. buy list: lot, price, per-unit, amount left', /<img[^>]*woodicon\.png[^>]*> 100 timber[\s\S]*?<img[^>]*goldicon\.png[^>]*> 70/.test(b) && /0\.70 gold \/ unit/.test(b) && /250 left/.test(b));
     check('2b. seller, distance and arrival time', /Oakhollow/.test(b) && /6 hexes away/.test(b) && /Arrives in ~4m 30s/.test(b));
     check('2c. paused order shows why and cannot be bought', /⏸ Paused — merchant back in/.test(b) && !/data-act="buy" data-id="8"/.test(b));
     check('2d. sort options: distance / price per unit / amount / arrival', /value="distance"[\s\S]*value="unit_price"[\s\S]*value="amount"[\s\S]*value="eta"/.test(b));
@@ -150,7 +154,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
     check('2f. clicking a seller filters to their town', /seller=3/.test(sellerCall) && /Only Oakhollow/.test(env.body()));
     await env.fire('click', env.btn('buy', { id: '7' }));
     const sh = env.getEl('mk-sheet-wrap').innerHTML;
-    check('2g. confirm sheet: pay now, per unit, distance, arrival', /You pay now<\/span><b><span class="mk-gold">🪙 70/.test(sh) && /0\.70 gold/.test(sh) && /6 hexes/.test(sh) && /~4m 30s/.test(sh));
+    check('2g. confirm sheet: pay now, per unit, distance, arrival', /You pay now<\/span><b><span class="mk-gold"><img[^>]*goldicon\.png[^>]*> 70/.test(sh) && /0\.70 gold/.test(sh) && /6 hexes/.test(sh) && /~4m 30s/.test(sh));
     await env.fire('click', env.btn('buy-confirm', { id: '7' }));
     await tick();
     check('2h. buying posts to the order and toasts the merchant', env.calls.some(c => c[0] === 'POST' && c[1] === '/api/market/orders/7/buy') && /Ash of Oakhollow is on the way/.test(env.toasts.map(t => t[0]).join()));
@@ -209,7 +213,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
       '/api/market/orders/31/pickup': (p, o) => { picked = JSON.parse(o.body); return { ok: true, porter: 'Birch', seller: 'Oakhollow', run: { qty: 2, item: { name: 'Iron Sword' } } }; } });
     await env.win.openMarket();
     const b = env.body();
-    check('2i. stall row: name in rarity colour, price each, stats, seller\'s venue', /color:#e8a020">Iron Sword<\/b>/.test(b) && /🪙 60<\/span> <span class="mk-for">each/.test(b) &&
+    check('2i. stall row: name in rarity colour, price each, stats, seller\'s venue', /color:#e8a020">Iron Sword<\/b>/.test(b) && /<img[^>]*goldicon\.png[^>]*> 60<\/span> <span class="mk-for">each/.test(b) &&
       /weapon · rare · \+2 combat/.test(b) && /Oakhollow<\/button>'s Market/.test(b) && /round trip ~6m/.test(b));
     await env.fire('click', env.btn('collect', { id: '31' }));
     await tick();
@@ -219,7 +223,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
     await env.fire('click', env.btn('collect-confirm', { id: '31' }));
     await tick();
     check('2i3. sends the porter for 2', picked && picked.qty === 2 && picked.citizen_id === 22 && /Birch set off for Oakhollow to collect 2× Iron Sword/.test(env.toasts.map(t => t[0]).join()));
-    check('2j. category buttons with icons', ['⚔️', '🛡️', '🔨', '💍', '🐟', '🍖', '🪨', '🏆', '📦'].every(i => b.includes(i)) && /data-act="cat" data-cat="weapon"/.test(b));
+    check('2j. category buttons with icons, no Trophies, ten in all', ['⚔️', '🛡️', '🔨', '💍', '🐟', '🍖', '📦'].every(i => b.includes(i)) && /stoneicon\.png/.test(b) && /woodicon\.png/.test(b) && !/data-cat="trophy"/.test(b) && (b.match(/data-act="cat"/g) || []).length === 10 && /data-act="cat" data-cat="weapon"/.test(b) && !/🪵|🪨|🪙/.test(b));
     await env.fire('click', env.btn('cat', { cat: 'weapon' }));
     const cq = env.calls.filter(c => c[1].startsWith('/api/market/orders?')).pop()[1];
     check('2j2. picking a category filters on the server', /category=weapon/.test(cq));
@@ -271,7 +275,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
     await env.win.openMarket({ tab: 'ironhaven', item: 71 });
     const b = env.body();
     check('2q. Ironhaven works without a Market', /buys almost anything/.test(b) && /30% of an item/.test(b));
-    check('2r. weekly wants listed at the better price', /Ironhaven wants this week/.test(b) && /new list in 3 days/.test(b) && /Trout[\s\S]*?🪙 6/.test(b));
+    check('2r. weekly wants listed at the better price', /Ironhaven wants this week/.test(b) && /new list in 3 days/.test(b) && /Trout[\s\S]*?<img[^>]*goldicon\.png[^>]*> 6/.test(b));
     check('2s. offers next to the player price; porter cap as the max', /Players list from 9\.50/.test(b) && /data-ih-qty="71" min="1" max="40" value="40"/.test(b));
     check('2t. untradeable items greyed with the reason', /mk-ih-row off[\s\S]*?cannot be traded/.test(b) && !/data-act="ih-sell" data-id="73"/.test(b));
     check('2u. only free citizens offered as porters', /<option value="22"/.test(b) && !/<option value="21"/.test(b));
@@ -309,6 +313,71 @@ const MINE = { ok: true, now: new Date().toISOString(),
     check('3s. picking a keeper saves it', patched && /\/api\/market\/shops\/smithy\/keeper/.test(patched[0]) && patched[1].citizen_id === 22);
     await env.fire('click', env.btn('sell-mode', { mode: 'item' }));
   }
+  // 3n — NPC village traders
+  {
+    const ends = new Date(Date.now() + 5 * 3600e3).toISOString();
+    const npcSell = { id: 'npc:12:s0', npc_order: true, order_key: 's0', npc: { id: 12, name: 'Bramblehollow', species: 'mice', trust: 45, tier: 'Friendly' },
+      kind: 'resource', resource: 'food', item: null, price: 31, per: 100, unit_price: 0.31, qty_available: 300, qty_total: 300, carry_max: 200,
+      distance: 5, eta_seconds: 450, expires_at: ends, seller: { id: null, name: 'Bramblehollow', username: 'village', species: 'mice' } };
+    const npcBuy = { id: 'npc:12:b0', npc_order: true, order_key: 'b0', npc: { id: 12, name: 'Bramblehollow', species: 'mice', trust: 45, tier: 'Friendly' },
+      kind: 'item', resource: null, item: { item_key: 'iron_pick', name: 'Iron Pick', icon: '⛏', rarity: 'common', cat: 'tool' }, item_key: 'iron_pick',
+      price: 9, per: 1, unit_price: 9, qty_available: 6, qty_total: 6, carry_max: 6, you_have: 3, distance: 5, eta_seconds: 450, expires_at: ends,
+      buyer: { id: null, name: 'Bramblehollow', username: 'village', species: 'mice' } };
+    let posted = [];
+    const routes = { '/api/market/status': OPEN, '/api/market/mine': MINE,
+      '/api/market/orders?': { ok: true, orders: [...ORDERS.orders, npcSell] },
+      '/api/market/wants?': { ok: true, wants: [npcBuy] },
+      '/api/market/npc/12/': (p, o) => { posted.push([p, JSON.parse(o.body)]); return { ok: true, porter: 'Birch', village: 'Bramblehollow', gold: 27 }; } };
+    const env = makeEnv(routes);
+    env.win.setTimeout = (fn) => { fn(); return 1; };
+    await env.win.openMarket();
+    let b = env.body();
+    check('6. NPC: sell order in Buy: badge, village, trust tier, ends at midnight', /mk-npc-row/.test(b) && /mk-npc-badge">NPC<\/span> <span>Bramblehollow<\/span>/.test(b) &&
+      /· Friendly/.test(b) && /sells<\/span> 300/.test(b) && /goldicon\.png[^>]*> 31<\/span> <span class="mk-for">per 100/.test(b) && new RegExp('data-until="' + ends).test(b) &&
+      /data-act="npc-trade" data-side="sell" data-id="npc:12:s0"/.test(b));
+    check('6b. NPC: "Hide NPC traders" toggle, off by default', /data-act="hide-npc" >/.test(b) && /Hide NPC traders/.test(b) &&
+      !/npc=0/.test(env.calls.filter(c => c[1].startsWith('/api/market/orders?')).pop()[1]));
+    await env.fire('click', env.btn('npc-trade', { id: 'npc:12:s0', side: 'sell' }));
+    const sh = env.getEl('mk-sheet-wrap').innerHTML;
+    const q = env.getEl('mk-npc-qty'); q.value = '200'; q.dataset.id = 'npc:12:s0'; q.dataset.side = 'sell';
+    await env.fire('input', { dataset: { act: 'npc-qty' } });
+    check('6c. NPC: buy sheet: capped by carry (200), free porters only, price for the amount', /Buy .* from Bramblehollow/.test(sh) &&
+      /id="mk-npc-qty" min="1" max="200" value="200"/.test(sh) && /<option value="22">Birch/.test(sh) && !/<option value="21">/.test(sh) &&
+      /You pay now<\/span><b><span class="mk-gold"><img[^>]*goldicon\.png[^>]*> 62/.test(env.getEl('mk-npc-sum').innerHTML) && /up to \+2 trust a day/.test(sh));
+    env.getEl('mk-npc-porter').value = '22';
+    await env.fire('click', env.btn('npc-confirm', { id: 'npc:12:s0', side: 'sell' }));
+    await tick();
+    check('6d. NPC: buying posts the order key, amount and porter', posted.length === 1 && posted[0][0] === '/api/market/npc/12/s0' &&
+      posted[0][1].qty === 200 && posted[0][1].citizen_id === 22 && env.toasts.some(t => /Birch set off to buy from Bramblehollow/.test(t[0])));
+    // Wanted: the village's buy order, sell to it
+    await env.fire('click', { tagName: 'BUTTON', dataset: { tab: 'wanted' }, closest: function () { return this; } });
+    await env.win.openMarket({ tab: 'wanted' });
+    b = env.body();
+    check('6e. NPC: buy order in Wanted: what it wants, what you have, Sell button', /Iron Pick<\/b> <span class="mk-for">· wants<\/span> 6/.test(b) &&
+      /you have 3/.test(b) && /data-act="npc-trade" data-side="buy" data-id="npc:12:b0" >/.test(b));
+    await env.fire('click', env.btn('npc-trade', { id: 'npc:12:b0', side: 'buy' }));
+    const sh2 = env.getEl('mk-sheet-wrap').innerHTML;
+    const q2 = env.getEl('mk-npc-qty'); q2.value = '3'; q2.dataset.id = 'npc:12:b0'; q2.dataset.side = 'buy';
+    await env.fire('input', { dataset: { act: 'npc-qty' } });
+    check('6f. NPC: sell sheet: capped by what you hold (3), gold on return', /Sell .*Iron Pick to Bramblehollow/.test(sh2) && /max="3" value="3"/.test(sh2) &&
+      /You get when home<\/span><b><span class="mk-gold"><img[^>]*goldicon\.png[^>]*> 27/.test(env.getEl('mk-npc-sum').innerHTML));
+    env.getEl('mk-npc-porter').value = '22';
+    await env.fire('click', env.btn('npc-confirm', { id: 'npc:12:b0', side: 'buy' }));
+    await tick();
+    check('6g. NPC: selling posts to the village buy order', posted.length === 2 && posted[1][0] === '/api/market/npc/12/b0' && posted[1][1].qty === 3);
+    // Toggle: hide, persisted, sent as npc=0 (and remembered by a fresh panel)
+    await env.fire('change', { dataset: { act: 'hide-npc' }, checked: true });
+    await tick();
+    check('6h. NPC: hiding NPC traders is remembered and sent as npc=0', env.store.kw_mk_hide_npc === '1' &&
+      /npc=0/.test(env.calls.filter(c => c[1].startsWith('/api/market/wants?')).pop()[1]));
+    const env2 = makeEnv(routes, { kw_mk_hide_npc: '1' });
+    await env2.win.openMarket();
+    check('6i. NPC: a fresh panel starts with NPC traders hidden', /npc=0/.test(env2.calls.find(c => c[1].startsWith('/api/market/orders?'))[1]) &&
+      /data-act="hide-npc" checked/.test(env2.body()));
+    // Caravans + return toast
+    await env.win.MarketUI.onEvent({ type: 'market_porter_home', kind: 'npc', side: 'buy', qty: 200, resource: 'food', target: 'Bramblehollow', trust_gained: 1 });
+    check('6j. NPC: porter home from a village: toast with the goods and the trust gained', env.toasts.some(t => /back from Bramblehollow with 200/.test(t[0]) && /\+1 trust/.test(t[0])));
+  }
   // 3t — wanted
   {
     let posted = null, filled = null;
@@ -330,15 +399,15 @@ const MINE = { ok: true, now: new Date().toISOString(),
     env.win.setTimeout = (fn) => { fn(); return 1; };
     await env.win.openMarket({ tab: 'wanted' });
     const b = env.body();
-    check('3t. Wanted: towns\' buy orders with price, buyer, and what you hold', /Iron Sword<\/b>[\s\S]*?wants<\/span> 20[\s\S]*?🪙 30<\/span> each/.test(b) && /Thornwick/.test(b) && /You have 2/.test(b));
-    check('3u. resources priced per 100; Fill disabled when you have none', /🪙 90<\/span> per 100/.test(b) && /data-act="fill" data-id="62" disabled/.test(b));
+    check('3t. Wanted: towns\' buy orders with price, buyer, and what you hold', /Iron Sword<\/b>[\s\S]*?wants<\/span> 20[\s\S]*?<img[^>]*goldicon\.png[^>]*> 30<\/span> each/.test(b) && /Thornwick/.test(b) && /You have 2/.test(b));
+    check('3u. resources priced per 100; Fill disabled when you have none', /<img[^>]*goldicon\.png[^>]*> 90<\/span> per 100/.test(b) && /data-act="fill" data-id="62" disabled/.test(b));
     check('3v. your own wanted orders with promised / held gold and Cancel', /200 of 300 promised · 60 gold still held/.test(b) && /data-act="cancel-want" data-id="70"/.test(b));
     await env.fire('click', env.btn('fill', { id: '61' }));
     const fs = env.getEl('mk-sheet-wrap').innerHTML;
     const fq = env.getEl('mk-fill-qty'); fq.value = '2'; fq.dataset.id = '61';
     await env.fire('input', { dataset: { act: 'fill-qty' } });
     check('3w. Fill sheet: what you hold, quantity capped (2), payout after fee', /you have 2; up to 2 per trip/.test(fs) && /id="mk-fill-qty" min="1" max="2" value="2"/.test(fs) &&
-      /You get when home<\/span><b><span class="mk-gold">🪙 57/.test(env.getEl('mk-fill-sum').innerHTML));
+      /You get when home<\/span><b><span class="mk-gold"><img[^>]*goldicon\.png[^>]*> 57/.test(env.getEl('mk-fill-sum').innerHTML));
     env.getEl('mk-fill-porter').value = '22';
     await env.fire('click', env.btn('fill-confirm', { id: '61' }));
     await tick();
