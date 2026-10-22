@@ -219,9 +219,10 @@
 .mk-suggest li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .mk-suggest li.on, .mk-suggest li:hover { background: rgba(244,201,93,.12); }
 .mk-suggest li small { margin-left: auto; color: rgba(242,230,201,.55); text-transform: capitalize; }
-.mk-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; scrollbar-width: thin; }
+/* 10 buttons fit the 720px window without scrolling; phones wrap to two rows. */
+.mk-cats { display: flex; gap: 4px; margin-bottom: 8px; }
 .mk-cat {
-  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 58px;
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 54px;
   font: inherit; cursor: pointer; padding: 6px 6px 4px; border-radius: 9px;
   background: rgba(255,255,255,.03); border: 1px solid rgba(200,148,26,.18); color: rgba(242,230,201,.75);
 }
@@ -265,3 +266,19 @@
 .mk-shop-head > div { flex: 1; }
 .mk-shop-icon { font-size: 26px; }
 .mk-keeper { margin: 6px 0; }
+
+/* Resource icons as images (Windows 10 can't draw 🪵 🪨 🪙) */
+.mk-ico { width: 16px; height: 16px; vertical-align: -3px; image-rendering: pixelated; }
+.mk-ico-lg { width: 22px; height: 22px; vertical-align: middle; }
+.mk-cat-icon { display: inline-flex; align-items: center; justify-content: center; height: 24px; }
+@media (max-width: 600px) {
+  .mk-cats { flex-wrap: wrap; }
+  .mk-cat { flex: 1 0 calc(20% - 4px); min-width: 0; }
+}
+
+/* NPC village traders */
+.mk-npc-row { border-color: rgba(150,200,140,.28); background: rgba(150,200,140,.04); }
+.mk-npc-badge { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 6px; border-radius: 999px;
+  background: rgba(150,200,140,.18); color: #b6e09c; border: 1px solid rgba(150,200,140,.45); }
+.mk-npc-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(242,230,201,.7);
+  margin: -2px 0 8px; cursor: pointer; }

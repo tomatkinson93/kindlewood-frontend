@@ -521,9 +521,9 @@ function _buildIdleActionsHtml({ npcId, npc, rel, data, trust, level, giftTiers,
 function _trustUnlockText(status) {
   const map = {
     contacted: 'Unlocks: Goodwill, Gifts',
-    familiar:  'Better gift returns',
-    friendly:  'Unlocks: NPC Quests',
-    allied:    'Unlocks: Alliance · Shared Scouts',
+    familiar:  'Better gift returns · 🏪 Trades at your Market',
+    friendly:  'Unlocks: NPC Quests · Market trades ×1.5, 5% better prices',
+    allied:    'Unlocks: Alliance · Shared Scouts · Market trades ×2, 10% better prices',
   };
   return map[status] || '';
 }
