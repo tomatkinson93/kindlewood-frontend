@@ -50,6 +50,7 @@ const SV_SLOTS = [
   { id:'out-lumber',         area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
   { id:'out-fishing',        area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Riverside',     size:'md' },
   { id:'out-scout',          area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'High Ground',   size:'md' },
+  { id:'out-mine',           area:'outskirts', x:65,  y:88, accepts:['mine'],          label:'Hillside',      size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const SV_VISUALS = {
   guild_hall:    { emoji:'🏛️',        bodyColor:'#6a4c7d', roofColor:'#3b3f6b', flavor:'Banners hang over the long tables.' },
   smithy:        { emoji:'⚒️',        bodyColor:'#5a4a40', roofColor:'#3a2c24', flavor:'Sparks, soot and the ring of the hammer.' },
   jeweller:      { emoji:'💍',        bodyColor:'#5c5070', roofColor:'#3c3450', flavor:'Every stone weighed twice.' },
+  mine:          { emoji:'⛏️',        bodyColor:'#5b5248', roofColor:'#3a342e', flavor:'Lamps flicker deep in the hill.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
 

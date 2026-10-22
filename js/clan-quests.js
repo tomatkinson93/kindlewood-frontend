@@ -235,10 +235,10 @@
     let body;
     if (!p.citizens) body = '<div class="clan-empty">Calling the townsfolk…</div>';
     else {
-      const list = p.citizens.slice().sort((a, b) => (b.skills?.[roleKey] ?? 0) - (a.skills?.[roleKey] ?? 0));
+      const list = p.citizens.slice().sort((a, b) => ((b.effective_skills?.[roleKey] ?? b.skills?.[roleKey]) ?? 0) - ((a.effective_skills?.[roleKey] ?? a.skills?.[roleKey]) ?? 0));
       body = list.length ? `<ul class="cq-pick">${list.map(c => {
         const busy = c.expedition ? 'Scouting' : c.active_quest ? (c.active_quest.clan ? 'On a clan quest' : 'On a quest') : '';
-        const sk = c.skills?.[roleKey] ?? 1;
+        const sk = (c.effective_skills?.[roleKey] ?? c.skills?.[roleKey]) ?? 1;
         return `<li><button type="button" class="cq-pick-btn" data-cq="pick" data-cid="${c.id}"${busy ? ' disabled' : ''}>
           <span class="cq-pick-name">${esc(c.name)}</span>
           <span class="clan-muted small">${busy ? esc(busy) : `${esc(skillLabel(roleKey))} ${sk}`}</span>

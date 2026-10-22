@@ -41,7 +41,7 @@ function selectFogTile(wx, wy) {
 
   const scoutOptions = scouts.length
     ? scouts.map(c => {
-        const skill = c.skills?.scouting || 1;
+        const skill = c.effective_skills?.scouting || c.skills?.scouting || 1;   // careers: perks and gear
         const bonus = Math.round((skill - 1) * 4);
         const estSec = Math.max(10, Math.round((dist * 14) / (1 + (skill-1)*0.04)));
         return `<option value="${c.id}">${c.name} (Scout skill ${skill}${bonus > 0 ? ` · ${bonus}% faster` : ''}) · ~${formatDuration(estSec)}</option>`;

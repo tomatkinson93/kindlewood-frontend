@@ -538,7 +538,7 @@ function _buildDiploCitizenOptions(_excludeOnDiplo) {
     .sort((a, b) => _citizenCharisma(b) - _citizenCharisma(a))
     .map(c => {
       const ch = _citizenCharisma(c);
-      const sc = (c.skills && c.skills.scouting) || 0;
+      const sc = (c.effective_skills && c.effective_skills.scouting) || (c.skills && c.skills.scouting) || 0;
       return '<option value="' + c.id + '" data-charisma="' + ch + '">'
         + c.name + ' (Charisma ' + ch + (sc ? ' · Scouting ' + sc : '') + ')</option>';
     }).join('');

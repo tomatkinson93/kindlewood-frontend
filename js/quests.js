@@ -461,10 +461,10 @@ function openSoloQuestPanel(q) {
   // the reason) in the picker.
   const pool = (citizensData || [])
     .filter(c => c.life_stage !== 'child')
-    .sort((a, b) => (b.skills?.[q.skill_key] ?? 0) - (a.skills?.[q.skill_key] ?? 0));
+    .sort((a, b) => ((b.effective_skills?.[q.skill_key] ?? b.skills?.[q.skill_key]) ?? 0) - ((a.effective_skills?.[q.skill_key] ?? a.skills?.[q.skill_key]) ?? 0));
 
   const opts = pool.map(c => {
-    const sk = c.skills?.[q.skill_key] ?? 0;
+    const sk = (c.effective_skills?.[q.skill_key] ?? c.skills?.[q.skill_key]) ?? 0;
     const why = _citizenBusyLabel(c, busyIds);
     return '<option value="' + c.id + '" data-skill="' + sk + '" data-name="' + escHtml(c.name) + '"'
       + (why ? ' data-busy="1" data-busy-label="' + escHtml(why) + '" disabled' : '') + '>' + c.name
@@ -865,9 +865,9 @@ function _buildCitizenOptions(skillKey, inProgress) {
   if (!adults.length) return '<option disabled>No citizens available</option>';
 
   return adults
-    .sort((a, b) => (b.skills?.[skillKey] ?? 0) - (a.skills?.[skillKey] ?? 0))
+    .sort((a, b) => ((b.effective_skills?.[skillKey] ?? b.skills?.[skillKey]) ?? 0) - ((a.effective_skills?.[skillKey] ?? a.skills?.[skillKey]) ?? 0))
     .map(c => {
-      const skillVal = c.skills?.[skillKey] ?? 0;
+      const skillVal = (c.effective_skills?.[skillKey] ?? c.skills?.[skillKey]) ?? 0;
       const isBusy = busySoloIds.has(c.id) || !!c.expedition || !!c.active_quest;
       const busyLabel = c.active_quest ? ' [On Quest]' : c.expedition ? ' [Scouting]' : isBusy ? ' [Busy]' : '';
       return '<option value="' + c.id + '" data-skill="' + skillVal + '"' + (isBusy ? ' disabled' : '') + '>'
@@ -887,7 +887,7 @@ function updateQuestSuccessPreview(questId, skillKey, baseSuccess) {
   const citizen = (citizensData || []).find(c => c.id === citizenId);
   if (!citizen) { preview.textContent = ''; return; }
 
-  const skillVal = citizen.skills?.[skillKey] ?? 1;
+  const skillVal = (citizen.effective_skills?.[skillKey] ?? citizen.skills?.[skillKey]) ?? 1;
   const chance = Math.min(95, Math.round((baseSuccess + (skillVal - 1) * 0.04) * 100));
   const color = chance >= 70 ? '#7ecf6e' : chance >= 45 ? '#e8c76a' : '#e87a6a';
   preview.innerHTML = `<span style="color:${color}">${chance}% success</span>`;
@@ -1043,10 +1043,10 @@ function _renderPartyAssembly(q) {
     // All citizens — busy/expedition ones shown greyed out with reason
     const pool = (citizensData||[])
       .filter(c => c.life_stage !== 'child')
-      .sort((a, b) => (b.skills?.[req.skill_key]??0) - (a.skills?.[req.skill_key]??0));
+      .sort((a, b) => ((b.effective_skills?.[req.skill_key] ?? b.skills?.[req.skill_key])??0) - ((a.effective_skills?.[req.skill_key] ?? a.skills?.[req.skill_key])??0));
 
     const opts = pool.map(c => {
-      const sk = c.skills?.[req.skill_key] ?? 0;
+      const sk = (c.effective_skills?.[req.skill_key] ?? c.skills?.[req.skill_key]) ?? 0;
       const why = _citizenBusyLabel(c, busyIds);
       const isBusy = !!why;
       const busyLabel = isBusy ? ' [' + why + ']' : '';

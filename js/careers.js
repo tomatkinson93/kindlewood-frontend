@@ -169,7 +169,7 @@
             ${cur.fork_ready ? `<button type="button" class="cr-btn cr-btn-gold" data-cr="fork" data-class="${esc(curK)}">🌿 Choose a path</button>` : ''}
             <button type="button" class="cr-btn cr-btn-primary" data-cr="tree" data-class="${esc(curK)}">🌳 Skill tree${cur.free_points ? ` <b class="cr-pts">${cur.free_points}</b>` : ''}</button>
           </div>
-          ${a && a.mentor ? `<div class="cr-note">🧑‍🏫 Learning from <b>${esc(a.mentor)}</b> (+${Math.round(20 + 0)}% XP)</div>` : ''}
+          ${a && a.mentor ? `<div class="cr-note">🧑‍🏫 Learning from <b>${esc(a.mentor)}</b> (+${Math.round((a.mentor_bonus || 0.2) * 100)}% XP)</div>` : ''}
           ${a && a.apprentices ? `<div class="cr-note">🧑‍🏫 Teaching ${a.apprentices} apprentice${a.apprentices === 1 ? '' : 's'}</div>` : ''}
           ${a && a.family_trade ? '<div class="cr-note">👪 The family trade (+10% XP)</div>' : ''}
           ${a && a.retraining ? '<div class="cr-note">📚 Retraining — no work for a little while.</div>' : ''}
