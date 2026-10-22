@@ -132,11 +132,11 @@ function openItemDetail(itemId) {
   const isEquipment = !!item.equip_slot;
 
   const availableCitizens = (typeof citizensData !== 'undefined' ? citizensData : [])
-    .filter(c => c.life_stage !== 'child');
+    .filter(c => c.life_stage !== 'child' && c.life_stage !== 'deceased');
 
   const equipSection = isEquipment
     ? '<div class="inv-detail-section">'
-      + '<div class="inv-detail-section-title">Equip to Citizen</div>'
+      + '<div class="inv-detail-section-title">Equip to Citizen <span style="opacity:.6;font-weight:400">(one per slot — adds to their skills)</span></div>'
       + '<select class="pa-select" id="inv-equip-select">'
       + '<option value="">— Unequipped —</option>'
       + availableCitizens.map(c => '<option value="' + c.id + '"' + (item.equipped_to === c.id ? ' selected' : '') + '>' + c.name + '</option>').join('')
@@ -183,13 +183,18 @@ function openItemDetail(itemId) {
 async function invEquipItem(itemId) {
   const sel = document.getElementById('inv-equip-select');
   const citizenId = sel?.value ? parseInt(sel.value) : null;
-  await apiFetch('/api/inventory/' + itemId, {
+  const res = await apiFetch('/api/inventory/' + itemId, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ equipped_to: citizenId }),
   });
+  // Gear counts now (careers): one piece per slot; refusals say why.
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) { if (typeof showBuildToast === 'function') showBuildToast(d.error || 'Could not equip that.', 'error'); return; }
+  if (d.replaced && typeof showBuildToast === 'function') showBuildToast(`${d.replaced} went back to the stores.`, 'success');
   document.getElementById('inv-detail-overlay')?.remove();
   await loadInventory();
+  if (typeof loadCitizens === 'function') loadCitizens();   // effective skills changed
 }
 
 async function invDiscard(itemId) {

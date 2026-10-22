@@ -144,6 +144,13 @@
     market_run_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_want_filling(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_want_expired(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); },
+    // Careers (js/careers.js): levels, paths, discoveries, finds.
+    career_level_up(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
+    career_fork(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
+    career_milestone(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
+    career_find(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); if (typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} } },
+    trait_hint(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
+    trait_revealed(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

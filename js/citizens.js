@@ -7,6 +7,7 @@ const ROLE_ICONS = {
   farmer: '🌾', woodcutter: '🪓', fisher: '🎣', miner: '⛏',
   crafter: '🔨', scout: '🗺', soldier: '⚔️', idle: '💤',
   tavernkeep: '🍺', merchant: '⚖️', shopkeeper: '🏪',
+  forager: '🍄', archer: '🏹', porter: '🎒',
 };
 const TRAIT_ICONS = {
   strong:'💪', quick:'⚡', hardy:'🛡', genius:'🧠', charming:'✨',
@@ -151,7 +152,8 @@ function renderCitizensList() {
     const isOnDiplo  = !!(window._diploEnvoyIds && window._diploEnvoyIds.has(c.id));
     const isTrading  = !!(c.trade && c.trade.on_road);
     const roleIcon   = isOnQuest ? '⚔️' : isOnDiplo ? '📨' : isScouting ? '🗺' : isTrading ? '🐾' : (isChild ? '🍼' : (ROLE_ICONS[c.role] || '💤'));
-    const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : isTrading ? 'Trading' : (isChild ? 'Child' : (c.role.charAt(0).toUpperCase() + c.role.slice(1)));
+    const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : isTrading ? 'Trading' : (isChild ? 'Child' : (window.KWCareers ? KWCareers.roleLabel(c.role) : (c.role.charAt(0).toUpperCase() + c.role.slice(1))))
+      + (!isChild && window.KWCareers ? ' ' + KWCareers.listBadge(c) : '');
     const houseIcon  = c.house_id ? '🏡' : '<span style="opacity:.35">🚶</span>';
     const partnerIcon = c.partner_id ? ' <span style="font-size:9px;color:#e090a0">💕</span>' : '';
     // Famine ladder badge — hunger_state comes from the server
@@ -331,7 +333,8 @@ function _adultStatsHtml(c, statBar, skillBar) {
     + '</div>'
     + '<div class="cp-col">'
     + '<div class="cp-section-label">Skills</div>'
-    + Object.entries(c.skills || {}).map(([k, v]) => skillBar(k, v)).join('')
+    // Effective skill (careers: perks and gear) with the bonus shown.
+    + Object.entries(c.skills || {}).map(([k, v]) => skillBar(k, v, c.effective_skills ? c.effective_skills[k] : null)).join('')
     + '</div></div>';
 }
 
@@ -408,19 +411,20 @@ function renderCitizenProfile(c) {
     </div>`;
 
   // Skill bars — colour intensity by value
-  const skillBar = (k, v) => {
-    const pct = (v / 10) * 100;
+  const skillBar = (k, v, eff) => {
+    const pct = (Math.min(10, v) / 10) * 100;
     const color = v >= 8 ? '#e8c76a' : v >= 5 ? '#7ecf9e' : '#5090b0';
+    const bonus = eff != null && eff !== v ? eff - v : 0;
     return `
       <div class="cp-stat-row">
         <span class="cp-stat-label">${SKILL_LABELS[k] || k}</span>
         <div class="cp-stat-track"><div class="cp-stat-fill skill" style="width:${pct}%;background:${color}"></div></div>
-        <span class="cp-stat-val">${v}</span>
+        <span class="cp-stat-val">${v}${bonus ? `<span class="cr-skill-bonus ${bonus > 0 ? 'up' : 'down'}" title="Perks and gear">${bonus > 0 ? '+' : ''}${bonus}</span>` : ''}</span>
       </div>`;
   };
 
   // Role selector
-  const roleOptions = getAvailableRoles().map(r =>
+  const roleOptions = (window.KWCareers && KWCareers.roleOptionsHtml(c)) || getAvailableRoles().map(r =>
     `<option value="${r}" ${c.role===r?'selected':''}>${ROLE_ICONS[r]||'?'} ${r.charAt(0).toUpperCase()+r.slice(1)}</option>`
   ).join('');
 
@@ -437,6 +441,7 @@ function renderCitizenProfile(c) {
       <div class="cp-header-info">
         <div class="cp-name">${c.name}</div>
         <div class="cp-meta">Gen ${c.generation} · Age ${c.life?.age ?? '?'} · ${c.gender.charAt(0).toUpperCase()+c.gender.slice(1)}${c.life_stage === 'child' ? ' · <span style="color:#f0c080">Child</span>' : ''}</div>
+        ${c.life_stage !== 'child' && window.KWCareers ? KWCareers.badgeHtml(c) : ''}
         ${partnerHtml}
         ${parentsHtml}
         ${housingHtml}
@@ -482,6 +487,7 @@ function renderCitizenProfile(c) {
 
     <div class="cp-tabs">
       <button class="cp-tab active" onclick="cpSwitchTab(this,'cp-tab-overview')">📊 Stats</button>
+      <button class="cp-tab" data-cp="career" onclick="cpSwitchTab(this,'cp-tab-career'); KWCareers.renderTab(${c.id})">🎓 Career${c.career && (c.career.fork_ready || c.career.points_free) ? ' <span class="cr-tab-dot"></span>' : ''}</button>
       <button class="cp-tab" onclick="cpSwitchTab(this,'cp-tab-traits')">✦ Traits</button>
       <button class="cp-tab" onclick="cpSwitchTab(this,'cp-tab-rels')">💛 Relationships</button>
       <button class="cp-tab" onclick="cpSwitchTab(this,'cp-tab-family'); loadFamilyTree(${c.id})">🌳 Family</button>
@@ -494,11 +500,15 @@ function renderCitizenProfile(c) {
       ${c.life_stage === 'child' ? _childStatsHtml(statBarBlurred) : _adultStatsHtml(c, statBar, skillBar)}
     </div>
 
+    <div class="cp-tab-panel" id="cp-tab-career" style="display:none">
+      <div id="cp-career-content"><div class="cp-rel-loading">Reading their record…</div></div>
+    </div>
+
     <div class="cp-tab-panel" id="cp-tab-traits" style="display:none">
       <div class="cp-section-label">Known Traits</div>
       <div class="cp-traits-grid">${traitsHtml || '<div class="cp-no-traits">No notable traits yet.</div>'}</div>
-      <div class="cp-section-label" style="margin-top:14px">Hidden Traits</div>
-      <div class="cp-hidden-note">Some traits only reveal themselves through lived experience…</div>
+      ${window.KWCareers && KWCareers.defs() ? KWCareers.traitsHtml(c) : `<div class="cp-section-label" style="margin-top:14px">Hidden Traits</div>
+      <div class="cp-hidden-note">Some traits only reveal themselves through lived experience…</div>`}
     </div>
 
     <div class="cp-tab-panel" id="cp-tab-rels" style="display:none">
@@ -774,11 +784,18 @@ async function updateCitizenRole(id, role) {
   renderCitizensList();
 
   try {
-    await apiFetch(`/api/citizens/${id}/role`, {
+    const res = await apiFetch(`/api/citizens/${id}/role`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
     });
+    if (!res.ok) {
+      // Refused (needs a building, away…): say why and show the real role.
+      const d = await res.json().catch(() => ({}));
+      if (typeof showBuildToast === 'function') showBuildToast(d.error || 'Could not change job.', 'error');
+    }
+    // Reload either way: careers settle on a job change (levels, titles).
+    await loadCitizens();
     if (typeof refreshResources === 'function') await refreshResources();
   } catch(e) { console.error(e); }
 }
