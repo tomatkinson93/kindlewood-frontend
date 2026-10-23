@@ -141,7 +141,8 @@
     if (it.metadata && it.metadata.armor_class) bits.push(`AC ${it.metadata.armor_class}`);
     if (it.metadata && it.metadata.damage_dice) bits.push(`${it.metadata.damage_dice} dmg`);
     const tag = it.equip_slot ? it.equip_slot : (it.category || '').replace('_', ' ');
-    return `<div class="mk-order-meta mk-item-meta">${esc(tag)}${it.rarity ? ' · ' + esc(it.rarity) : ''}${bits.length ? ' · ' + esc(bits.join(', ')) : ''}</div>`;
+    const mark = global.KWCrafting ? global.KWCrafting.markHtml(it.metadata) : '';   // crafted: quality + maker
+    return `<div class="mk-order-meta mk-item-meta">${esc(tag)}${it.rarity ? ' · ' + esc(it.rarity) : ''}${bits.length ? ' · ' + esc(bits.join(', ')) : ''}</div>${mark}`;
   }
 
   function liveResources() {

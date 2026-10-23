@@ -497,6 +497,7 @@ function renderCitizenProfile(c) {
     <div class="cp-tab-panel" id="cp-tab-overview">
       ${c.breeding_status ? renderFamilyStatus(c.breeding_status) : ''}
       ${c.life_stage === 'child' ? renderChildStatus(c) : ''}
+      ${c.life_stage === 'child' && c.family_hint ? `<div class="cr-hint">${c.family_hint.icon} ${c.family_hint.text}</div>` : ''}
       ${c.life_stage === 'child' ? _childStatsHtml(statBarBlurred) : _adultStatsHtml(c, statBar, skillBar)}
     </div>
 
@@ -894,6 +895,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
     else if (allCitizensSortKey === 'age')         { av = a.life?.age??0; bv = b.life?.age??0; }
     else if (allCitizensSortKey === 'generation')  { av = a.generation??0; bv = b.generation??0; }
     else if (allCitizensSortKey === 'role')        { av = a.role||''; bv = b.role||''; }
+    else if (allCitizensSortKey === 'level')       { av = a.career?.level??0; bv = b.career?.level??0; }
     else if (allCitizensSortKey === 'health')      { av = a.life?.health??0; bv = b.life?.health??0; }
     else if (allCitizensSortKey === 'happiness')   { av = a.happiness_computed??a.life?.happiness??0; bv = b.happiness_computed??b.life?.happiness??0; }
     else if (STAT_LABELS[allCitizensSortKey])      { av = a.stats?.[allCitizensSortKey]??0; bv = b.stats?.[allCitizensSortKey]??0; }
@@ -932,7 +934,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
       : c.trade
         ? '<td class="ac-role-child">' + (c.trade.on_road ? (c.trade.porter ? '🧺 Porter' : '🐾 Trading') : c.trade.shop ? '🏪 Shopkeeper' : '⚖️ Merchant') + '</td>'
         : '<td><select class="ac-role-select" onchange="updateCitizenRole(' + c.id + ', this.value)" onclick="event.stopPropagation()">' +
-          getAvailableRoles().map(r => '<option value="' + r + '"' + (c.role===r?' selected':'') + '>' + (ROLE_ICONS[r]||'?') + ' ' + r + '</option>').join('') +
+          ((window.KWCareers && KWCareers.roleOptionsHtml(c)) || getAvailableRoles().map(r => '<option value="' + r + '"' + (c.role===r?' selected':'') + '>' + (ROLE_ICONS[r]||'?') + ' ' + r + '</option>').join('')) +
           '</select></td>';
 
     return '<tr class="ac-row' + (isChild(c) ? ' ac-row--child' : '') + '" id="ac-row-' + c.id + '" onclick="openCitizenProfile(' + c.id + ')" style="cursor:pointer">'
@@ -940,6 +942,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
       + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y</td>'
       + '<td class="ac-meta">Gen ' + (c.generation??1) + '</td>'
       + roleCell
+      + '<td class="ac-stat" title="' + (c.career ? c.career.title : '') + '">' + (c.career ? c.career.level + (c.career.fork_ready || c.career.points_free ? ' <span class="cr-tab-dot"></span>' : '') : '<span style="opacity:.3">—</span>') + '</td>'
       + '<td class="ac-stat" style="color:' + happy_c + '">' + happiness + '%</td>'
       + '<td class="ac-stat" style="color:' + hc + '">' + health + '%</td>'
       + '<td class="ac-stat">' + (c.stats?.strength??'<span style="opacity:.3">—</span>') + '</td>'

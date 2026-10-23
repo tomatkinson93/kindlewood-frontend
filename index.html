@@ -44,6 +44,7 @@
   <link rel="stylesheet" href="/css/clans.css?v=cq3">
   <link rel="stylesheet" href="/css/market.css?v=mk11">
   <link rel="stylesheet" href="/css/careers.css?v=cr1">
+  <link rel="stylesheet" href="/css/crafting.css?v=cf1">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
   <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
@@ -802,12 +803,13 @@
   <script defer src="/js/carousel.js?v=spec20b"></script>
   <script defer src="/js/placement.js"></script>
   <script defer src="/js/arrival.js"></script>
-  <script defer src="/js/career-math.js?v=cr1"></script>
+  <script defer src="/js/career-math.js?v=cf1"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
-  <script defer src="/js/careers.js?v=cr1"></script>
-  <script defer src="/js/citizens.js?v=cr1"></script>
+  <script defer src="/js/careers.js?v=cf1"></script>
+  <script defer src="/js/crafting.js?v=cf1"></script>
+  <script defer src="/js/citizens.js?v=cr2"></script>
   <script defer src="/js/buildings.js?v=021adm"></script>
-  <script defer src="/js/expeditions.js"></script>
+  <script defer src="/js/expeditions.js?v=cr2"></script>
   <script defer src="/js/seasons.js?v=021ev"></script>
   <script defer src="/js/hud-clock.js?v=021ev"></script>
   <script defer src="/js/happenings.js?v=021ev"></script>
@@ -845,17 +847,17 @@
   <script defer src="/js/lobby.js?v=17"></script>
   <script defer src="/js/tavern.js?v=44"></script>
   <script defer src="/js/citizen-picker.js?v=kwp1"></script>
-  <script defer src="/js/quests.js?v=mk9"></script>
+  <script defer src="/js/quests.js?v=cr2"></script>
   <script defer src="/js/fishing.js?v=021fish"></script>
   <script defer src="/js/housing.js"></script>
   <script defer src="/js/events.js"></script>
-  <script defer src="/js/inventory.js?v=cr1"></script>
-  <script defer src="/js/diplomacy.js?v=npc1"></script>
+  <script defer src="/js/inventory.js?v=cf1"></script>
+  <script defer src="/js/diplomacy.js?v=cr2"></script>
   <script defer src="/js/item_admin.js?v=tr1"></script>
   <script defer src="/js/happenings-admin.js?v=021demo"></script>
   <script defer src="/js/kw-tooltip.js?v=021tip"></script>
   <script defer src="/js/enemy_admin.js?v=021p5"></script>
-  <script defer src="/js/combat-engine.js?v=1778502300"></script>
+  <script defer src="/js/combat-engine.js?v=cr2"></script>
   <script defer src="/js/card-definitions.js?v=1778500300"></script>
   <script defer src="/js/card-formula.js?v=1778502300"></script>
   <script defer src="/js/card-registry.js?v=1778502600"></script>
@@ -870,11 +872,11 @@
   <script defer src="/js/clan-palette.js?v=cp2"></script>
   <script defer src="/js/clans.js?v=cq1"></script>
   <script defer src="/js/clan-profile.js?v=cp2"></script>
-  <script defer src="/js/clan-quests.js?v=cq3"></script>
+  <script defer src="/js/clan-quests.js?v=cr2"></script>
   <script defer src="/js/chat-hub.js?v=cp1"></script>
-  <script defer src="/js/market.js?v=mk13"></script>
+  <script defer src="/js/market.js?v=mk14"></script>
   <script defer src="/js/travel.js?v=tp2"></script>
-  <script defer src="/js/realtime.js?v=cr1"></script>
+  <script defer src="/js/realtime.js?v=cf1"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=mk1"></script>
@@ -938,6 +940,7 @@
               <th><button class="ac-sort-btn" data-sort="age" onclick="acSort('age')">Age ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="generation" onclick="acSort('generation')">Gen ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="role" onclick="acSort('role')">Role ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="level" onclick="acSort('level')">Lv ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="happiness" onclick="acSort('happiness')">😊 ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="health" onclick="acSort('health')">HP ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="strength" onclick="acSort('strength')">STR ↕</button></th>
@@ -973,6 +976,7 @@
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-world',this);loadDiplomacyDebugNpcs()">🌍 World</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-recipes',this);loadRecipeAdmin()">🛠 Recipes</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-cards',this);loadCardAdmin()">🃏 Cards</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
@@ -1254,6 +1258,16 @@
         <div class="cheat-rel-feedback" id="ia-feedback"></div>
         <div id="ia-form-wrap" style="display:none"></div>
         <div id="ia-list" class="qa-list"><div style="color:rgba(192,221,151,.3);font-size:11px;padding:8px">Loading…</div></div>
+      </div>
+
+      <!-- ── TAB: Recipes (js/crafting.js) ── -->
+      <div class="cheat-tab-panel" id="ct-recipes" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="cheat-all-btn" style="flex:1" onclick="KWCrafting.editRecipe(null)">＋ New Recipe</button>
+        </div>
+        <div class="cheat-rel-feedback" id="ra-feedback"></div>
+        <div id="ra-form-wrap" style="display:none"></div>
+        <div id="ra-list" class="qa-list"><div class="ra-muted">Loading…</div></div>
       </div>
 
       <!-- ── TAB: Cards ── -->
@@ -1698,7 +1712,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=mk9"></script>
+    <script defer src="js/settlement-view.js?v=cf1"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

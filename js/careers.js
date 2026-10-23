@@ -168,8 +168,9 @@
           <div class="cr-actions">
             ${cur.fork_ready ? `<button type="button" class="cr-btn cr-btn-gold" data-cr="fork" data-class="${esc(curK)}">🌿 Choose a path</button>` : ''}
             <button type="button" class="cr-btn cr-btn-primary" data-cr="tree" data-class="${esc(curK)}">🌳 Skill tree${cur.free_points ? ` <b class="cr-pts">${cur.free_points}</b>` : ''}</button>
+            ${cls.station && typeof global.openCrafting === 'function' ? `<button type="button" class="cr-btn" data-cr="craft" data-station="${esc(cls.station)}">🔨 Workshop</button>` : ''}
           </div>
-          ${a && a.mentor ? `<div class="cr-note">🧑‍🏫 Learning from <b>${esc(a.mentor)}</b> (+${Math.round(20 + 0)}% XP)</div>` : ''}
+          ${a && a.mentor ? `<div class="cr-note">🧑‍🏫 Learning from <b>${esc(a.mentor)}</b> (+${Math.round((a.mentor_bonus || 0.2) * 100)}% XP)</div>` : ''}
           ${a && a.apprentices ? `<div class="cr-note">🧑‍🏫 Teaching ${a.apprentices} apprentice${a.apprentices === 1 ? '' : 's'}</div>` : ''}
           ${a && a.family_trade ? '<div class="cr-note">👪 The family trade (+10% XP)</div>' : ''}
           ${a && a.retraining ? '<div class="cr-note">📚 Retraining — no work for a little while.</div>' : ''}
@@ -235,6 +236,7 @@
     try {
       if (act === 'tree') return openTree(cid, classKey);
       if (act === 'fork') return openFork(cid, classKey);
+      if (act === 'craft') return global.openCrafting(t.dataset.station, cid);
       if (act === 'ad-level') await call('POST', `/api/careers/admin/citizen/${cid}/grant`, { class_key: classKey, level: Number(byId('cr-ad-level').value) });
       else if (act === 'ad-xp') await call('POST', `/api/careers/admin/citizen/${cid}/grant`, { class_key: classKey, xp: Number(t.dataset.v) });
       else if (act === 'ad-hours') await call('POST', `/api/careers/admin/citizen/${cid}/grant`, { class_key: classKey, hours: Number(t.dataset.v) });
