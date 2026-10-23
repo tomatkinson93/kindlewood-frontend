@@ -67,6 +67,11 @@
     focusItem: null,       // inventory id to highlight (opened from inventory)
     newRun: null,          // porter run just sent (highlighted in Caravans)
     draft: { mode: 'resource', resource: 'timber', inventory_id: null, qty_total: '', lot_size: '', lot_price: '', citizen_ids: [] },
+    ledgerView: 'receipts', // ledger tab: receipts | prices
+    ledgerSide: '',        // '' | sold | bought
+    ledger: null,          // GET /ledger
+    movers: null,          // GET /prices/movers
+    priceSel: null,        // { key, name, p } — the good charted on the Prices view
     busy: false,
     unseen: false,         // red dot on the comm-btn
   };
@@ -177,6 +182,9 @@
     // Only ✕ (and Escape, outside form fields) closes the panel.
     el.querySelector('.mk-close').addEventListener('click', closeMarket);
     el.addEventListener('click', onAction);
+    el.addEventListener('mousemove', onChartHover);
+    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') onChartHover(e); });   // tap = hover on touch
+    el.addEventListener('mouseleave', () => { const tt = byId('mk-tip'); if (tt) tt.style.display = 'none'; });
     el.addEventListener('change', onChange);
     el.addEventListener('input', onInput);
     el.addEventListener('keydown', e => {
@@ -269,6 +277,8 @@
     } else if (state.tab === 'shops') {
       const [shops, mine] = await Promise.all([call('GET', '/api/market/shops'), call('GET', '/api/market/mine')]);
       state.shops = shops; state.mine = mine;
+    } else if (state.tab === 'ledger') {
+      await loadLedger();
     } else if (state.tab === 'ironhaven') {
       const ih = await call('GET', '/api/market/ironhaven');
       if (ih.now) state.clockSkew = new Date(ih.now).getTime() - Date.now();
@@ -305,6 +315,330 @@
     refreshTimer = setTimeout(softRefresh, ms);
   }
 
+  // ── Prices & the Ledger (GET /api/market/prices, /prices/movers, /ledger) ─
+  //
+  // Price history comes from player-to-player deals only (lib/market_ledger).
+  // Anything that shows a price leaves a placeholder [data-pk="<good key>"];
+  // fillPrices() fetches the goods it needs (cached a minute) and fills them:
+  //   data-pv="badge"  sparkline + 7-day average, range and count
+  //   data-pv="delta"  this listing's price vs the 7-day average (data-unit)
+  // Charts are inline SVG drawn at the container's width; hovering any
+  // [data-tip] shows #mk-tip. Colours are validated against the panel
+  // surface (#17120c): price #bf8a2c, money in #2f9e86, money out #d0703c.
+
+  const CH = { price: '#bf8a2c', inn: '#2f9e86', out: '#d0703c', grid: 'rgba(242,230,201,.12)', axis: 'rgba(242,230,201,.55)', ref: 'rgba(242,230,201,.45)', surface: '#17120c' };
+  const QUALITIES = ['basic', 'sturdy', 'fine', 'superior', 'legendary'];
+  const QLABEL = { basic: 'Basic', sturdy: 'Sturdy', fine: 'Fine', superior: 'Superior', legendary: 'Legendary' };
+  const PRICE_TTL = 60000;
+  const priceCache = {};   // key → { at, p }
+
+  // Crafted quality of an item (as the server prices it), else 'basic'.
+  function qualityOfItem(it) {
+    const m = (it && it.metadata) || {};
+    return m.crafted_by && QUALITIES.includes(m.quality) ? m.quality : 'basic';
+  }
+  function goodKeyOf(kind, resource, item) {
+    if (kind === 'item' && item && item.item_key) return `item:${item.item_key}:${qualityOfItem(item)}`;
+    return resource ? `resource:${resource}` : null;
+  }
+  function goodLabel(key, name) {
+    const [type, id, q] = String(key).split(':');
+    if (type === 'resource') return RES_LABEL[id] || id;
+    return (q && q !== 'basic' ? QLABEL[q] + ' ' : '') + (name || id.replace(/_/g, ' '));
+  }
+
+  async function loadPrices(keys, days) {
+    const want = [...new Set(keys.filter(Boolean))].filter(k => !priceCache[k] || Date.now() - priceCache[k].at > PRICE_TTL || (days && priceCache[k].days < days));
+    for (let i = 0; i < want.length; i += 12) {
+      const chunk = want.slice(i, i + 12);
+      const r = await call('GET', `/api/market/prices?goods=${encodeURIComponent(chunk.join(','))}&days=${days || 14}`);
+      for (const [k, p] of Object.entries(r.prices || {})) priceCache[k] = { at: Date.now(), p, days: days || 14 };
+    }
+    return Object.fromEntries(keys.filter(k => priceCache[k]).map(k => [k, priceCache[k].p]));
+  }
+
+  // Daily averages over the last `n` UTC days, null where nothing traded.
+  function dailySeries(p, n) {
+    const by = Object.fromEntries((p.days || []).map(d => [d.day, d]));
+    const out = [];
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    for (let i = n - 1; i >= 0; i--) {
+      const day = new Date(today.getTime() - i * 86400000).toISOString().slice(0, 10);
+      out.push({ day, ...(by[day] || { avg: null, qty: 0, n: 0 }) });
+    }
+    return out;
+  }
+
+  // A tiny trend line (no axes): the 14 daily averages, a dot at the end.
+  function sparkSvg(series, w = 64, h = 18) {
+    const pts = series.map((d, i) => (d.avg == null ? null : [i, d.avg])).filter(Boolean);
+    if (!pts.length) return '';
+    const vals = pts.map(p => p[1]), lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
+    const x = i => 2 + (i / Math.max(1, series.length - 1)) * (w - 6), y = v => h - 3 - ((v - lo) / span) * (h - 6);
+    const path = pts.length > 1 ? `<polyline points="${pts.map(([i, v]) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="${CH.price}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+    const [li, lv] = pts[pts.length - 1];
+    return `<svg class="mk-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${path}<circle cx="${x(li).toFixed(1)}" cy="${y(lv).toFixed(1)}" r="3" fill="${CH.price}" stroke="${CH.surface}" stroke-width="1.5"/></svg>`;
+  }
+
+  // per: show prices per this many units (100 for resources on the Wanted form).
+  function badgeHtml(p, per) {
+    per = per || 1;
+    const each = per === 1 ? 'each' : `per ${per}`;
+    const fx = v => (per === 1 && v < 10 ? price2(v) : fmt(Math.round(v * per)));
+    if (p.week && p.week.n) {
+      const range = p.week.n > 1 && p.week.low !== p.week.high ? ` · range ${fx(p.week.low)}–${fx(p.week.high)}` : '';
+      return `${sparkSvg(dailySeries(p, 14))}<span>7-day avg <b>${fx(p.week.avg)}</b> ${each} · ${p.week.n} trade${p.week.n === 1 ? '' : 's'}${range}</span>`;
+    }
+    if (p.last) return `<span>Last traded at <b>${fx(p.last.price)}</b> ${each} (${new Date(p.last.at).toLocaleDateString()})</span>`;
+    if (p.reference) return `<span>No recent trades · ${esc(p.reference.label.toLowerCase())} ${fx(p.reference.price)} ${each}</span>`;
+    return '<span>No trades yet</span>';
+  }
+  function deltaHtml(p, unit) {
+    if (!p.week || p.week.n < 2 || !p.week.avg || !unit) return '';
+    const d = unit / p.week.avg - 1;
+    if (Math.abs(d) < 0.03) return '<span class="mk-pd">≈ 7-day average</span>';
+    return `<span class="mk-pd ${d < 0 ? 'below' : 'above'}" title="7-day average ${price2(p.week.avg)}">${d < 0 ? '▼' : '▲'} ${Math.round(Math.abs(d) * 100)}% ${d < 0 ? 'below' : 'above'} avg</span>`;
+  }
+
+  async function fillPrices(root) {
+    root = root || byId('mk-body');
+    if (!root) return;
+    const els = [...root.querySelectorAll('[data-pk]')];
+    if (!els.length) return;
+    let prices;
+    try { prices = await loadPrices(els.map(e => e.dataset.pk)); } catch (_) { return; }
+    for (const el of els) {
+      const p = prices[el.dataset.pk];
+      if (!p || !el.isConnected) continue;
+      el.innerHTML = el.dataset.pv === 'delta' ? deltaHtml(p, Number(el.dataset.unit)) : badgeHtml(p, Number(el.dataset.per) || 1);
+    }
+  }
+
+  // Shared hover tooltip for chart marks ([data-tip], plain text with \n).
+  function tipEl() {
+    let t = byId('mk-tip');
+    if (!t) { t = document.createElement('div'); t.id = 'mk-tip'; t.className = 'mk-tip'; t.setAttribute('role', 'tooltip'); document.body.appendChild(t); }
+    return t;
+  }
+  function onChartHover(e) {
+    const m = e.target.closest && e.target.closest('[data-tip]');
+    const t = tipEl();
+    document.querySelectorAll('#market-panel .mk-hl').forEach(x => x.classList.remove('mk-hl'));
+    if (!m) { t.style.display = 'none'; return; }
+    t.textContent = m.dataset.tip;
+    t.style.display = 'block';
+    const r = t.getBoundingClientRect();
+    t.style.left = Math.min(window.innerWidth - r.width - 8, e.clientX + 12) + 'px';
+    t.style.top = Math.max(8, e.clientY - r.height - 10) + 'px';
+    const g = m.dataset.hl && document.querySelectorAll(`#market-panel [data-hl-id="${m.dataset.hl}"]`);
+    if (g) g.forEach(x => x.classList.add('mk-hl'));
+  }
+
+  const niceMax = v => {
+    if (v <= 0) return 1;
+    const p = 10 ** Math.floor(Math.log10(v)), f = v / p;
+    return [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(x => x >= f - 1e-9) * p;
+  };
+  const tickFmt = v => (v >= 1000 ? (Math.round(v / 100) / 10) + 'K' : v < 10 && Math.abs(v % 1) > 1e-9 ? price2(v) : fmt(v));
+  const shortDay = d => new Date(d + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+  // Price over time (line) above volume (columns): two charts, one x axis.
+  function priceChartSvg(p, w, days) {
+    const series = dailySeries(p, days);
+    const pad = { l: 40, r: 12, t: 12, b: 4 }, ph = 150, vh = 56, gap = 30, xh = 18;
+    const H = pad.t + ph + gap + vh + xh;
+    const iw = w - pad.l - pad.r, step = iw / series.length;
+    const xc = i => pad.l + step * (i + 0.5);
+    const vals = series.filter(d => d.avg != null).map(d => d.avg).concat(p.reference ? [p.reference.price] : []);
+    const ymax = niceMax(Math.max(...vals, 0.01) * 1.08);
+    const y = v => pad.t + ph - (v / ymax) * ph;
+    const vmax = niceMax(Math.max(1, ...series.map(d => d.qty)));
+    const vy0 = pad.t + ph + gap + vh, vy = q => vy0 - (q / vmax) * vh;
+    let s = '';
+    // grid + y ticks (price)
+    for (const f of [0, 0.5, 1]) {
+      const v = ymax * f, yy = y(v);
+      s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${yy}" y2="${yy}" stroke="${CH.grid}" stroke-width="1"/><text x="${pad.l - 6}" y="${yy + 4}" text-anchor="end" class="mk-ax">${tickFmt(v)}</text>`;
+    }
+    // reference line
+    if (p.reference) {
+      const yy = y(p.reference.price);
+      s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${yy}" y2="${yy}" stroke="${CH.ref}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="${pad.l + 4}" y="${yy - 5}" class="mk-ax">${esc(p.reference.label)} ${tickFmt(p.reference.price)}</text>`;
+    }
+    // price line, broken over days with no trades
+    let run = [];
+    const flush = () => { if (run.length > 1) s += `<polyline points="${run.join(' ')}" fill="none" stroke="${CH.price}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; run = []; };
+    series.forEach((d, i) => { if (d.avg == null) flush(); else run.push(`${xc(i).toFixed(1)},${y(d.avg).toFixed(1)}`); });
+    flush();
+    series.forEach((d, i) => { if (d.avg != null) s += `<circle data-hl-id="d${i}" class="mk-dot" cx="${xc(i).toFixed(1)}" cy="${y(d.avg).toFixed(1)}" r="4" fill="${CH.price}" stroke="${CH.surface}" stroke-width="2"/>`; });
+    // last value, labelled at the end
+    const lastI = series.map(d => d.avg != null).lastIndexOf(true);
+    if (lastI >= 0) s += `<text x="${Math.min(w - pad.r, xc(lastI) + 6)}" y="${y(series[lastI].avg) - 8}" text-anchor="${lastI > series.length - 4 ? 'end' : 'start'}" class="mk-lbl">${tickFmt(series[lastI].avg)}</text>`;
+    // volume columns
+    s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${vy0}" y2="${vy0}" stroke="${CH.grid}" stroke-width="1"/><text x="${pad.l - 6}" y="${vy(vmax) + 4}" text-anchor="end" class="mk-ax">${tickFmt(vmax)}</text>
+      <text x="${pad.l + 4}" y="${pad.t + ph + gap - 2}" class="mk-ax">Units traded per day</text>`;
+    const bw = Math.max(2, Math.min(24, step - 2));
+    series.forEach((d, i) => {
+      if (!d.qty) return;
+      const top = vy(d.qty), x0 = xc(i) - bw / 2, hgt = vy0 - top, r = Math.min(4, bw / 2, hgt);
+      s += `<path data-hl-id="d${i}" class="mk-bar" d="M${x0},${vy0} V${top + r} Q${x0},${top} ${x0 + r},${top} H${x0 + bw - r} Q${x0 + bw},${top} ${x0 + bw},${top + r} V${vy0} Z" fill="${CH.price}" opacity=".7"/>`;
+    });
+    // x labels: first, middle, last
+    for (const i of [0, Math.floor(series.length / 2), series.length - 1]) {
+      s += `<text x="${xc(i)}" y="${H - 4}" text-anchor="${i === 0 ? 'start' : i === series.length - 1 ? 'end' : 'middle'}" class="mk-ax">${shortDay(series[i].day)}</text>`;
+    }
+    // hover columns (full height, wider than the marks)
+    series.forEach((d, i) => {
+      const tip = `${shortDay(d.day)}\n${d.avg != null ? `Average ${price2(d.avg)} each\n${fmt(d.qty)} units · ${d.n} trade${d.n === 1 ? '' : 's'}` : 'No trades'}`;
+      s += `<rect data-tip="${esc(tip)}" data-hl="d${i}" x="${pad.l + step * i}" y="${pad.t}" width="${step}" height="${vy0 - pad.t}" fill="transparent"/>`;
+    });
+    return `<svg class="mk-chart" width="${w}" height="${H}" viewBox="0 0 ${w} ${H}" role="img" aria-label="Price per day for the last ${days} days">${s}</svg>`;
+  }
+
+  // Net gold per week: columns up (earned) or down (spent) from zero.
+  function netChartSvg(weeks, w) {
+    const pad = { l: 44, r: 8, t: 10, b: 20 }, h = 130;
+    const H = pad.t + h + pad.b, iw = w - pad.l - pad.r, step = iw / weeks.length;
+    const m = niceMax(Math.max(1, ...weeks.map(x => Math.abs(x.net))));
+    const anyNeg = weeks.some(x => x.net < 0);
+    const lo = anyNeg ? -m : 0, span = m - lo;
+    const y = v => pad.t + ((m - v) / span) * h, y0 = y(0);
+    let s = '';
+    for (const v of anyNeg ? [m, 0, -m] : [m, m / 2, 0]) {
+      s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="${CH.grid}" stroke-width="1"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end" class="mk-ax">${v < 0 ? '−' : ''}${tickFmt(Math.abs(v))}</text>`;
+    }
+    const bw = Math.max(4, Math.min(24, step - 6));
+    weeks.forEach((wk, i) => {
+      const xc = pad.l + step * (i + 0.5), x0 = xc - bw / 2;
+      if (wk.net) {
+        const up = wk.net > 0, top = y(wk.net), r = Math.min(4, bw / 2, Math.abs(top - y0));
+        const d = up
+          ? `M${x0},${y0} V${top + r} Q${x0},${top} ${x0 + r},${top} H${x0 + bw - r} Q${x0 + bw},${top} ${x0 + bw},${top + r} V${y0} Z`
+          : `M${x0},${y0} V${top - r} Q${x0},${top} ${x0 + r},${top} H${x0 + bw - r} Q${x0 + bw},${top} ${x0 + bw},${top - r} V${y0} Z`;
+        s += `<path data-hl-id="w${i}" class="mk-bar" d="${d}" fill="${up ? CH.inn : CH.out}"/>`;
+      }
+      const label = i === weeks.length - 1 ? 'This week' : shortDay(wk.week_start);
+      if (i === weeks.length - 1 || i === 0 || weeks.length <= 6) s += `<text x="${xc}" y="${H - 5}" text-anchor="middle" class="mk-ax">${label}</text>`;
+      const tip = `${i === weeks.length - 1 ? 'This week' : 'Week of ' + shortDay(wk.week_start)}\nEarned ${fmt(wk.in)} · spent ${fmt(wk.out)}\nFees ${fmt(wk.fees)} · net ${wk.net < 0 ? '−' : '+'}${fmt(Math.abs(wk.net))}\n${wk.n} deal${wk.n === 1 ? '' : 's'}`;
+      s += `<rect data-tip="${esc(tip)}" data-hl="w${i}" x="${pad.l + step * i}" y="${pad.t}" width="${step}" height="${h}" fill="transparent"/>`;
+    });
+    return `<svg class="mk-chart" width="${w}" height="${H}" viewBox="0 0 ${w} ${H}" role="img" aria-label="Net gold per week, last ${weeks.length} weeks">${s}</svg>`;
+  }
+
+  // Charts are drawn after the HTML is in place, at their container's width.
+  function drawCharts() {
+    const net = byId('mk-net-chart');
+    if (net && state.ledger) net.innerHTML = netChartSvg(state.ledger.weeks, Math.max(260, net.clientWidth || 560));
+    const pc = byId('mk-price-chart');
+    if (pc && state.priceSel && state.priceSel.p) pc.innerHTML = priceChartSvg(state.priceSel.p, Math.max(260, pc.clientWidth || 560), 30);
+  }
+
+  async function loadLedger() {
+    if (state.ledgerView === 'prices') {
+      const mv = await call('GET', '/api/market/prices/movers');
+      state.movers = mv.goods || [];
+      if (!state.priceSel && state.movers.length) state.priceSel = { key: state.movers[0].key, name: state.movers[0].name };
+      if (state.priceSel) {
+        const r = await call('GET', `/api/market/prices?goods=${encodeURIComponent(state.priceSel.key)}&days=30`);
+        state.priceSel.p = r.prices[state.priceSel.key];
+      }
+    } else {
+      const qs = new URLSearchParams();
+      if (state.ledgerSide) qs.set('side', state.ledgerSide);
+      state.ledger = await call('GET', '/api/market/ledger?' + qs.toString());
+    }
+  }
+
+  const KIND_LABEL = { lot: 'Caravan lot', pickup: 'Stall pickup', fill: 'Wanted order', ironhaven: 'Ironhaven', npc: 'Village trade' };
+  function entryHtml(e) {
+    const what = e.item
+      ? `<b style="color:${rarityColor(e.item.rarity)}">${fmt(e.qty)}× ${esc(e.item.name)}</b>`
+      : `<b>${fmt(e.qty)} ${esc((RES_LABEL[e.resource] || e.resource || '').toLowerCase())}</b>`;
+    const icon = e.item ? esc(e.item.icon || '📦') : (RES_ICON[e.resource] || '•');
+    const verb = e.side === 'sold' ? (e.kind === 'ironhaven' ? 'Sold to' : 'Sold to') : 'Bought from';
+    const status = e.status === 'settled' ? '<span class="mk-st ok">✓ settled</span>'
+      : e.status === 'returned' ? '<span class="mk-st ret">↩ stall sold out — gold returned</span>'
+      : `<span class="mk-st road">⏳ ${e.side === 'sold' ? 'gold on the road' : 'goods on the road'}</span>`;
+    const money = e.status === 'returned' ? '<span class="mk-muted">0</span>'
+      : `<span class="mk-net ${e.net >= 0 ? 'in' : 'out'}">${e.net >= 0 ? '+' : '−'}${fmt(Math.abs(e.net))}</span>`;
+    const mark = e.item && global.KWCrafting ? global.KWCrafting.markHtml(e.item.metadata) : '';
+    return `<li class="mk-led-row">
+      <div class="mk-led-icon">${icon}</div>
+      <div class="mk-led-main">
+        <div>${what} <span class="mk-muted">at ${price2(e.unit_price)} each</span></div>
+        ${mark}
+        <div class="mk-order-meta">${verb} <b>${esc(e.counterparty || '—')}</b> · ${esc(KIND_LABEL[e.kind] || e.kind)}${e.citizen_name ? ` · ${esc(e.citizen_name)}` : ''} · ${new Date(e.agreed_at).toLocaleDateString()}</div>
+        <div class="mk-order-meta">${status}${e.fee ? ` · fee ${fmt(e.fee)} of ${fmt(e.gross)}` : ''}</div>
+      </div>
+      <div class="mk-led-gold">${money}</div>
+    </li>`;
+  }
+
+  function ledgerHtml() {
+    const views = `<div class="mk-seg" role="tablist" aria-label="Ledger view">
+      <button type="button" role="tab" aria-selected="${state.ledgerView !== 'prices'}" class="${state.ledgerView !== 'prices' ? 'on' : ''}" data-act="ledger-view" data-view="receipts">🧾 Receipts</button>
+      <button type="button" role="tab" aria-selected="${state.ledgerView === 'prices'}" class="${state.ledgerView === 'prices' ? 'on' : ''}" data-act="ledger-view" data-view="prices">📈 Prices</button></div>`;
+    return views + (state.ledgerView === 'prices' ? pricesViewHtml() : receiptsHtml());
+  }
+
+  function receiptsHtml() {
+    const L = state.ledger;
+    if (!L) return '<div class="mk-empty">Unrolling the ledgers…</div>';
+    const wk = L.weeks[L.weeks.length - 1] || { in: 0, out: 0, fees: 0, net: 0, n: 0, pending: 0 };
+    const tile = (label, val, cls) => `<div class="mk-tile"><div class="mk-tile-l">${label}</div><div class="mk-tile-v ${cls || ''}">${val}</div></div>`;
+    const sides = [['', 'All'], ['sold', 'Sales'], ['bought', 'Purchases']].map(([k, l]) =>
+      `<button type="button" class="mk-chipbtn ${(state.ledgerSide || '') === k ? 'on' : ''}" data-act="ledger-side" data-side="${k}">${l}</button>`).join('');
+    const anyWeeks = L.weeks.some(x => x.n);
+    return `
+      <div class="mk-h">This week</div>
+      <div class="mk-tiles">
+        ${tile('Earned', fmt(wk.in))}${tile('Spent', fmt(wk.out))}${tile('Fees paid', fmt(wk.fees))}
+        ${tile('Net', `${wk.net < 0 ? '−' : '+'}${fmt(Math.abs(wk.net))}`)}${tile('Deals', fmt(wk.n))}
+      </div>
+      ${wk.pending ? `<div class="mk-muted mk-small">⏳ ${fmt(wk.pending)} gold of this is still on the road home.</div>` : ''}
+      ${anyWeeks ? `<div class="mk-h">Net gold, last ${L.weeks.length} weeks <span class="mk-key"><i style="background:${CH.inn}"></i>earned <i style="background:${CH.out}"></i>spent</span></div>
+        <div class="mk-chart-box" id="mk-net-chart"></div>
+        <details class="mk-table-view"><summary>Show as a table</summary><table><thead><tr><th>Week of</th><th>Earned</th><th>Spent</th><th>Fees</th><th>Net</th><th>Deals</th></tr></thead><tbody>
+          ${L.weeks.slice().reverse().map(x => `<tr><td>${shortDay(x.week_start)}</td><td>${fmt(x.in)}</td><td>${fmt(x.out)}</td><td>${fmt(x.fees)}</td><td>${x.net < 0 ? '−' : ''}${fmt(Math.abs(x.net))}</td><td>${x.n}</td></tr>`).join('')}
+        </tbody></table></details>` : ''}
+      <div class="mk-h">Receipts <span class="mk-chips">${sides}</span></div>
+      <ul class="mk-list">${L.entries.length ? L.entries.map(entryHtml).join('') : '<li class="mk-empty">No deals yet. Buy, sell or fill a Wanted order and it shows up here.</li>'}</ul>
+      ${L.next_before ? `<button type="button" class="mk-btn mk-more" data-act="ledger-more">Load older</button>` : ''}`;
+  }
+
+  function pricesViewHtml() {
+    const mv = state.movers;
+    if (!mv) return '<div class="mk-empty">Reading the price boards…</div>';
+    if (!mv.length) return '<div class="mk-empty">No trades between towns this week yet. Prices appear here as players buy and sell.</div>';
+    const sel = state.priceSel;
+    const [type, id, q] = sel ? sel.key.split(':') : [];
+    const qsw = type === 'item' ? `<div class="mk-chips" role="group" aria-label="Quality">${QUALITIES.map(x =>
+      `<button type="button" class="mk-chipbtn ${x === q ? 'on' : ''}" data-act="price-q" data-q="${x}">${QLABEL[x]}</button>`).join('')}</div>` : '';
+    const p = sel && sel.p;
+    const days = p ? dailySeries(p, 30).filter(d => d.n) : [];
+    const head = sel ? `<div class="mk-price-head"><div class="mk-price-title">${type === 'resource' ? RES_ICON[id] || '' : esc((mv.find(m => m.key === sel.key) || {}).icon || '')} ${esc(goodLabel(sel.key, sel.name))}</div>
+        ${p ? `<div class="mk-muted mk-small">${p.week.n ? `7-day avg <b>${price2(p.week.avg)}</b> each · ${p.week.n} trades · ${fmt(p.week.qty)} units` : 'No trades in the last 7 days'}${p.guide_source === 'reference' && p.reference ? ` · ${esc(p.reference.label.toLowerCase())} ${price2(p.reference.price)}` : ''}</div>` : ''}</div>${qsw}` : '';
+    const chart = p ? (days.length
+      ? `<div class="mk-chart-box" id="mk-price-chart"></div>
+         <details class="mk-table-view"><summary>Show as a table</summary><table><thead><tr><th>Day</th><th>Average</th><th>Units</th><th>Trades</th></tr></thead><tbody>
+           ${days.slice().reverse().map(d => `<tr><td>${shortDay(d.day)}</td><td>${price2(d.avg)}</td><td>${fmt(d.qty)}</td><td>${d.n}</td></tr>`).join('')}</tbody></table></details>`
+      : '<div class="mk-empty">No trades at this quality in the last 30 days.</div>') : '';
+    const rows = mv.map(m => {
+      const ch = m.change == null ? '<span class="mk-muted">new</span>'
+        : Math.abs(m.change) < 0.03 ? '<span class="mk-muted">steady</span>'
+        : `<span class="mk-pd ${m.change < 0 ? 'below' : 'above'}">${m.change < 0 ? '▼' : '▲'} ${Math.round(Math.abs(m.change) * 100)}%</span>`;
+      const icon = m.type === 'resource' ? RES_ICON[m.id] || '' : esc(m.icon || '📦');
+      return `<li><button type="button" class="mk-mover ${sel && sel.key === m.key ? 'on' : ''}" data-act="price-pick" data-key="${esc(m.key)}" data-name="${esc(m.name || '')}">
+        <span class="mk-mover-n">${icon} ${esc(goodLabel(m.key, m.name))}</span>
+        <span class="mk-mover-p">${price2(m.avg)}</span><span class="mk-mover-c">${ch}</span>
+        <span class="mk-mover-v mk-muted">${fmt(m.qty)} units · ${m.n}</span></button></li>`;
+    }).join('');
+    return `${head}${chart}
+      <div class="mk-h">Traded this week <span class="mk-muted mk-small">average price each · change vs the week before · volume</span></div>
+      <ul class="mk-movers">${rows}</ul>`;
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   function renderLoading(keepTabs) {
@@ -334,15 +668,19 @@
     sub.innerHTML = `${st.mods.merchants} merchant${st.mods.merchants === 1 ? '' : 's'} · carries ${fmt(st.mods.carryWeight)} per trip · ${Math.round(st.mods.feeRate * 100)}% fee
       <button type="button" class="mk-info" data-act="info" aria-label="How your Market grows" aria-describedby="mk-pop">ⓘ</button>`;
     byId('mk-pop').innerHTML = `<div class="mk-pop-title">Your Market · Level ${st.mods.marketLevel}</div>${levelTableHtml(st, st.mods.marketLevel)}`;
-    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['wanted', '📮 Wanted'], ['caravans', '🐾 Caravans'], ['shops', '🏪 Shops'], ['ironhaven', '🏰 Ironhaven']]);
+    byId('mk-tabs').innerHTML = tabsHtml([['buy', '🛒 Buy'], ['sell', '📦 Sell'], ['wanted', '📮 Wanted'], ['caravans', '🐾 Caravans'], ['shops', '🏪 Shops'], ['ironhaven', '🏰 Ironhaven'], ['ledger', '📒 Ledger']]);
     const body = byId('mk-body');
     body.innerHTML = state.tab === 'buy' ? buyHtml() : state.tab === 'sell' ? sellHtml()
       : state.tab === 'ironhaven' ? ironhavenHtml() : state.tab === 'shops' ? shopsHtml()
-      : state.tab === 'wanted' ? wantedHtml() : caravansHtml();
+      : state.tab === 'wanted' ? wantedHtml() : state.tab === 'ledger' ? ledgerHtml() : caravansHtml();
     if (state.tab === 'wanted') updateWantSummary();
     if (state.tab === 'sell') updateSellSummary();
     focusRow();
     tickCountdowns();
+    drawCharts();
+    fillPrices();
+    const onTab = document.querySelector('#mk-tabs .mk-tab.on');
+    if (onTab && onTab.scrollIntoView) onTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   // ── Locked: no Market yet ───────────────────────────────────────────────
@@ -427,7 +765,7 @@
           <div class="mk-order-line">${goodsChip(o, o.next_lot_qty)} <span class="mk-for">for</span> ${gold(o.next_lot_price)}</div>
           ${o.kind === 'item' ? statsLine(o.item) : ''}
           <div class="mk-order-meta">
-            <span>${price2(o.unit_price)} gold / unit</span> ·
+            <span>${price2(o.unit_price)} gold / unit</span> <span data-pk="${esc(goodKeyOf(o.kind, o.resource, o.item) || '')}" data-pv="delta" data-unit="${o.unit_price}"></span> ·
             <span>${fmt(o.qty_available)} left</span> ·
             <span>${o.merchants} merchant${o.merchants === 1 ? '' : 's'}</span>
           </div>
@@ -469,7 +807,8 @@
       <div class="mk-stall-icon">${esc(it.icon || '📦')}</div>
       <div class="mk-order-main">
         <div class="mk-order-line"><b style="color:${rarityColor(it.rarity)}">${esc(it.name)}</b>
-          <span class="mk-for">·</span> ${gold(o.unit_price)} <span class="mk-for">each</span></div>
+          <span class="mk-for">·</span> ${gold(o.unit_price)} <span class="mk-for">each</span>
+          <span data-pk="${esc(goodKeyOf('item', null, it) || '')}" data-pv="delta" data-unit="${o.unit_price}"></span></div>
         ${statsLine(it)}
         <div class="mk-order-meta"><span>${fmt(o.qty_available)} available</span> · <span>a porter carries ${fmt(o.porter_max)}</span></div>
         <div class="mk-order-meta">
@@ -731,9 +1070,11 @@
       const v = spec.it.sell_value || 0;
       const out = [];
       out.push(v ? `Town value <b>${fmt(v)}</b> each — Ironhaven would pay about ${fmt(Math.max(1, Math.floor(v * 0.3)))}.` : 'No town value — set what you think it’s worth.');
+      out.push(`<span class="mk-pb" data-pk="${esc(goodKeyOf('item', null, spec.it))}" data-pv="badge"></span>`);
       if (each) out.push(`${fmt(n)} × ${fmt(each)} = ${fmt(n * each)} gold · you keep ${fmt(n * each - Math.floor(n * each * st.mods.feeRate))} after the ${Math.round(st.mods.feeRate * 100)}% fee.`);
       if (n > spec.have) out.push(`<span class="mk-warn-text">You only have ${fmt(spec.have)}.</span>`);
       el.innerHTML = out.map(l => `<div>${l}</div>`).join('');
+      fillPrices(el);
       return;
     }
     if (spec.it) {
@@ -741,8 +1082,10 @@
         ? `Town merchants pay <b>${fmt(spec.it.sell_value)}</b> gold each (≈ ${fmt(spec.it.sell_value * lot)} for ${fmt(lot)}).`
         : 'Town merchants won’t buy this — set what you think it’s worth.');
     } else {
-      const ref = st.referencePrice[d.resource];
-      lines.push(`Market guide price: about <b>${price2(ref)}</b> gold per ${spec.label} (≈ ${fmt(Math.max(1, Math.round(ref * lot)))} for ${fmt(lot)}).`);
+      // Recent player trades once there are enough, else the reference price.
+      const g = (st.guide && st.guide[d.resource]) || { price: st.referencePrice[d.resource], source: 'reference' };
+      lines.push(`${g.source === 'trades' ? 'Recent trades' : 'Market guide price'}: about <b>${price2(g.price)}</b> gold per ${spec.label} (≈ ${fmt(Math.max(1, Math.round(g.price * lot)))} for ${fmt(lot)}).`);
+      lines.push(`<span class="mk-pb" data-pk="resource:${esc(d.resource)}" data-pv="badge"></span>`);
     }
     if (total && lot) {
       const lots = Math.ceil(total / lot);
@@ -757,6 +1100,7 @@
     if (total > spec.have) warn.push(`You only have ${fmt(spec.have)}.`);
     if (total && lot > total) warn.push('Per delivery can’t be more than the total.');
     el.innerHTML = lines.map(l => `<div>${l}</div>`).join('') + warn.map(w => `<div class="mk-warn-text">${w}</div>`).join('');
+    fillPrices(el);
   }
 
   async function submitSell() {
@@ -1041,9 +1385,12 @@
     const per = d.kind === 'item' ? 1 : 100;
     const held = Math.ceil(qty * price / per);
     const what = d.kind === 'item' ? (d.item ? esc(d.item.name) : 'pick an item') : esc(RES_LABEL[d.resource].toLowerCase());
-    el.innerHTML = qty && price
+    const pk = d.kind === 'item' ? (d.item ? `item:${d.item.item_key}:basic` : '') : `resource:${d.resource}`;
+    el.innerHTML = (qty && price
       ? `<div>Wanting ${fmt(qty)} ${what} — <b>${fmt(held)}</b> gold is held now and paid out as sellers deliver. Cancel any time for the rest back.</div>`
-      : `<div>Sellers in towns you know can fill it. Their porter brings the goods to you.</div>`;
+      : `<div>Sellers in towns you know can fill it. Their porter brings the goods to you.</div>`)
+      + (pk ? `<div><span class="mk-pb" data-pk="${esc(pk)}" data-pv="badge" data-per="${per}"></span></div>` : '');
+    fillPrices(el);
   }
 
   async function postWant() {
@@ -1404,6 +1751,25 @@
       return;
     }
     if (act === 'tab') return switchTab(t.dataset.tab);
+    if (act === 'ledger-view') { state.ledgerView = t.dataset.view; return switchTab('ledger'); }
+    if (act === 'ledger-side') { state.ledgerSide = t.dataset.side; return switchTab('ledger'); }
+    if (act === 'price-pick') { state.priceSel = { key: t.dataset.key, name: t.dataset.name }; return switchTab('ledger'); }
+    if (act === 'price-q' && state.priceSel) {
+      const [type, id] = state.priceSel.key.split(':');
+      state.priceSel = { key: `${type}:${id}:${t.dataset.q}`, name: state.priceSel.name };
+      return switchTab('ledger');
+    }
+    if (act === 'ledger-more' && state.ledger && state.ledger.next_before) {
+      const qs = new URLSearchParams({ before: state.ledger.next_before });
+      if (state.ledgerSide) qs.set('side', state.ledgerSide);
+      try {
+        const more = await call('GET', '/api/market/ledger?' + qs.toString());
+        state.ledger.entries = state.ledger.entries.concat(more.entries);
+        state.ledger.next_before = more.next_before;
+        render();
+      } catch (err) { toast(err.message, 'error'); }
+      return;
+    }
     if (act === 'sell-mode') {
       readDraft();
       state.draft.mode = t.dataset.mode;
@@ -1564,6 +1930,13 @@
     setPop(!!(e.target.closest && e.target.closest('.mk-info')));
   });
   document.addEventListener('focusin', e => { if (isOpen() && e.target.classList && e.target.classList.contains('mk-info')) setPop(true); });
+  // Charts are drawn to their container's width: redraw when it changes.
+  let resizeT = null;
+  global.addEventListener && global.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => { if (isOpen() && state.tab === 'ledger') drawCharts(); }, 150);
+  });
+
   document.addEventListener('click', e => {
     if (!isOpen() || !e.target.closest) return;
     if (e.target.closest('.mk-info')) { popPinned = !popPinned; setPop(popPinned); return; }
@@ -1600,5 +1973,7 @@
 
   global.openMarket = openMarket;
   global.closeMarket = closeMarket;
-  global.MarketUI = { open: openMarket, close: closeMarket, isOpen, onEvent: onMarketEvent, refresh: softRefresh };
+  global.MarketUI = { open: openMarket, close: closeMarket, isOpen, onEvent: onMarketEvent, refresh: softRefresh,
+    // pure helpers, for verify/market_proofs.js
+    _prices: { goodKeyOf, qualityOfItem, dailySeries, sparkSvg, badgeHtml, deltaHtml, priceChartSvg, netChartSvg } };
 })(window);

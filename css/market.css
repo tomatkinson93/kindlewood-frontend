@@ -36,12 +36,15 @@
 }
 .mk-close:hover { color: #f4c95d; }
 
-.mk-tabs { display: flex; gap: 4px; padding: 0 14px; border-bottom: 1px solid rgba(200,148,26,.12); }
+.mk-tabs { display: flex; gap: 4px; padding: 0 14px; border-bottom: 1px solid rgba(200,148,26,.12);
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.mk-tabs::-webkit-scrollbar { display: none; }
 .mk-tabs:empty { display: none; }
 .mk-tab {
   background: none; border: none; cursor: pointer;
   padding: 10px 12px 9px; font: inherit; font-size: 14px;
   color: rgba(242,230,201,.6); border-bottom: 2px solid transparent;
+  flex: 0 0 auto; white-space: nowrap;
 }
 .mk-tab.on { color: #f4c95d; border-bottom-color: #f4c95d; }
 
@@ -287,3 +290,66 @@
 .mk-trip.mk-trip-new { box-shadow: 0 0 0 2px #f4c95d inset; animation: mk-new-run 2.4s ease-out 1; }
 @keyframes mk-new-run { 0% { background: rgba(244, 201, 93, .26); } 100% { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .mk-trip.mk-trip-new { animation: none; } }
+
+/* Prices & the Ledger (js/market.js — prices/ledger section).
+   Chart marks: price #bf8a2c, earned #2f9e86, spent #d0703c (validated on #17120c).
+   Text stays in text colours; marks carry the colour. */
+.mk-pb { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: rgba(242,230,201,.75); }
+.mk-pb:empty { display: none; }
+.mk-spark { flex: 0 0 auto; }
+.mk-pd { font-size: 12px; color: rgba(242,230,201,.7); white-space: nowrap; }
+.mk-pd.below::first-letter, .mk-pd.above::first-letter { font-size: 10px; }
+.mk-seg { display: inline-flex; border: 1px solid rgba(200,148,26,.3); border-radius: 999px; overflow: hidden; margin-bottom: 10px; }
+.mk-seg button { background: none; border: none; color: #f2e6c9; font: inherit; font-size: 13px; padding: 6px 14px; cursor: pointer; }
+.mk-seg button.on { background: rgba(244,201,93,.16); color: #f4c95d; font-weight: 600; }
+.mk-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 14px 0 6px;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: rgba(242,230,201,.6); }
+.mk-h .mk-small, .mk-h .mk-chips { text-transform: none; letter-spacing: 0; }
+.mk-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.mk-tile { padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(200,148,26,.18); }
+.mk-tile-l { font-size: 12px; color: rgba(242,230,201,.6); }
+.mk-tile-v { font-size: 20px; font-weight: 600; color: #f2e6c9; }
+.mk-key { display: inline-flex; align-items: center; gap: 4px 10px; text-transform: none; letter-spacing: 0; font-size: 12px; color: rgba(242,230,201,.75); }
+.mk-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.mk-chart-box { width: 100%; min-height: 60px; }
+.mk-chart { display: block; overflow: visible; }
+.mk-chart .mk-ax { fill: rgba(242,230,201,.55); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mk-chart .mk-lbl { fill: #f2e6c9; font-size: 12px; font-weight: 600; }
+.mk-chart .mk-hl { filter: brightness(1.25); }
+.mk-chart circle.mk-hl { r: 6; }
+.mk-tip { position: fixed; z-index: 100050; display: none; pointer-events: none; white-space: pre-line; max-width: 240px;
+  padding: 6px 9px; border-radius: 8px; background: #241b10; border: 1px solid rgba(200,148,26,.45); color: #f2e6c9; font-size: 12.5px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+.mk-table-view { margin: 4px 0 6px; font-size: 12.5px; }
+.mk-table-view summary { cursor: pointer; color: rgba(242,230,201,.65); }
+.mk-table-view table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.mk-table-view th, .mk-table-view td { text-align: right; padding: 3px 6px; border-bottom: 1px solid rgba(242,230,201,.08); }
+.mk-table-view th:first-child, .mk-table-view td:first-child { text-align: left; }
+.mk-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.mk-chipbtn { padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(200,148,26,.3); background: none; color: #f2e6c9; font: inherit; font-size: 12.5px; cursor: pointer; }
+.mk-chipbtn.on { background: rgba(244,201,93,.16); border-color: #f4c95d; color: #f4c95d; }
+.mk-led-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 10px; background: rgba(255,255,255,.025);
+  border: 1px solid rgba(200,148,26,.14); margin-bottom: 6px; list-style: none; }
+.mk-led-icon { font-size: 22px; width: 28px; text-align: center; }
+.mk-led-main { flex: 1; min-width: 0; }
+.mk-led-gold { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 15px; }
+.mk-net.in::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #2f9e86; margin-right: 5px; vertical-align: 1px; }
+.mk-net.out::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: #d0703c; margin-right: 5px; vertical-align: 1px; }
+.mk-net { color: #f2e6c9; }
+.mk-st { font-size: 12px; }
+.mk-st.road { color: #f4c95d; }
+.mk-more { display: block; margin: 8px auto; }
+.mk-price-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: flex-end; margin-bottom: 6px; }
+.mk-price-title { font-size: 18px; font-family: 'IM Fell English', Georgia, serif; color: #f4c95d; }
+.mk-movers { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mk-mover { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 64px 70px 120px; gap: 8px; align-items: center; text-align: left;
+  padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(200,148,26,.14); background: rgba(255,255,255,.025); color: #f2e6c9; font: inherit; font-size: 13px; cursor: pointer; }
+.mk-mover.on { border-color: #f4c95d; background: rgba(244,201,93,.08); }
+.mk-mover-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-mover-p { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mk-mover-v { text-align: right; font-size: 12px; }
+@media (max-width: 600px) {
+  .mk-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mk-mover { grid-template-columns: minmax(0, 1fr) 56px 64px; }
+  .mk-mover-v { grid-column: 1 / -1; text-align: left; }
+}
