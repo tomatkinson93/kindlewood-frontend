@@ -154,6 +154,9 @@
     // Crafting (js/crafting.js): finished pieces, queue changes.
     craft_done(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     craft_queue_updated(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
+    recipe_discovered(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
+    recipe_learned(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
+    schematic_found(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

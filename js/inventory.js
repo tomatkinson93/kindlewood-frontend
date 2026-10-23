@@ -22,7 +22,7 @@ const INV_RARITY_LABELS = {
 };
 const INV_CATEGORY_LABELS = {
   misc: 'Misc', equipment: 'Equipment', material: 'Material',
-  food: 'Food', quest_item: 'Quest Item', trophy: 'Trophy'
+  food: 'Food', quest_item: 'Quest Item', trophy: 'Trophy', schematic: 'Schematic', fish: 'Fish'
 };
 
 async function openInventoryModal() {
@@ -79,7 +79,9 @@ function renderInventory() {
   if (_inventoryTab === 'all') {
     const groups = {};
     items.forEach(i => { if (!groups[i.category]) groups[i.category] = []; groups[i.category].push(i); });
-    const catOrder = ['equipment','material','food','quest_item','trophy','misc'];
+    // Known categories first, then anything else (nothing is ever hidden).
+    const known = ['equipment','schematic','material','food','fish','quest_item','trophy','misc'];
+    const catOrder = known.concat(Object.keys(groups).filter(c => !known.includes(c)).sort());
     catOrder.filter(c => groups[c]).forEach(cat => {
       const catItems = groups[cat];
       html += '<div class="inv-group-label">' + (INV_CATEGORY_LABELS[cat] || cat) + ' (' + catItems.length + ')</div>';
@@ -172,14 +174,20 @@ function openItemDetail(itemId) {
     + (hasStats ? '<div class="inv-detail-section"><div class="inv-detail-section-title">Stat Bonuses</div><div class="inv-card-stats">'
       + Object.entries(item.stat_bonuses).map(([k,v]) => '<span class="inv-stat-badge">+' + v + ' ' + k + '</span>').join('')
       + '</div></div>' : '')
+    + _invEffectsHtml(item)
     + equipSection
     + (item.source ? '<div class="inv-detail-source">Obtained from: ' + item.source + '</div>' : '')
     + '<div class="inv-detail-meta-row">'
     + (item.metadata?.food_value ? '<span class="inv-meta-badge">🌿 +' + item.metadata.food_value + ' food</span>' : '')
     + (item.metadata?.sell_value ? '<span class="inv-meta-badge" title="Town value — Ironhaven pays a share of this">🪙 ' + item.metadata.sell_value + ' value</span>' : '')
     + '</div>'
+    + (_invIsSchematic(item)
+        ? '<div class="inv-detail-section inv-schematic">📜 Studying it teaches every crafter in your town to make <b>'
+          + (item.name || '').replace(/^Schematic:\s*/, '') + '</b>. It is used up; if your town already knows it, keep it to sell.</div>'
+        : '')
     + '<div class="inv-detail-actions">'
     + (item.quantity > 1 ? '<span class="inv-detail-qty">×' + item.quantity + ' in stock</span>' : '')
+    + (_invIsSchematic(item) ? '<button class="inv-equip-btn inv-study-btn" data-id="' + item.id + '" onclick="invStudy(this.dataset.id)">📜 Study</button>' : '')
     + (item.equipped_to ? ''
         : '<button class="inv-sell-btn" data-id="' + item.id + '" onclick="invSellVia(\'market\', this.dataset.id)" title="Sell to other players">⚖️ List at Market</button>'
         + '<button class="inv-sell-btn" data-id="' + item.id + '" onclick="invSellVia(\'ironhaven\', this.dataset.id)" title="Send a porter to sell it to Ironhaven for a low price">🏰 Sell to Ironhaven</button>')
@@ -188,6 +196,23 @@ function openItemDetail(itemId) {
     + '</div>';
 
   document.querySelector('#inventory-modal .inv-modal-card').appendChild(overlay);
+}
+
+// A crafted piece's own effects (a shield's lower injury risk, a cart's carry).
+function _invEffectsHtml(item) {
+  const fx = (item.metadata && Array.isArray(item.metadata.item_effects)) ? item.metadata.item_effects : [];
+  const M = window.KWCareerMath;
+  if (!fx.length || !M) return '';
+  return '<div class="inv-detail-section"><div class="inv-detail-section-title">Effects</div><div class="inv-card-stats">'
+    + fx.map(e => '<span class="inv-stat-badge">' + M.describeEffect(e) + '</span>').join('') + '</div></div>';
+}
+
+// Schematics (js/crafting.js KWCrafting.study): the town learns a recipe.
+function _invIsSchematic(item) { return item && (item.category === 'schematic' || String(item.item_key || '').startsWith('schematic_')); }
+async function invStudy(itemId) {
+  if (!window.KWCrafting) return;
+  const r = await window.KWCrafting.study(parseInt(itemId, 10));
+  if (r) document.getElementById('inv-detail-overlay')?.remove();
 }
 
 async function invEquipItem(itemId) {

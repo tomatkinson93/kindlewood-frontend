@@ -103,3 +103,12 @@
   .cf-list { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .cf-job.active .cf-job-icon { animation: none; } .cf-bar-fill { transition: none; } }
+
+/* Finish-up: list-at-stall control, still-to-learn, outcomes */
+.cf-make-ctl { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; text-transform: none; letter-spacing: 0; }
+.cf-list-l { font-size: 13px; color: #f2e6c9; }
+.cf-list-l select { background: #1d160e; color: #f2e6c9; border: 1px solid rgba(200,148,26,.35); border-radius: 6px; padding: 3px 6px; font: inherit; font-size: 13px; }
+.cf-sub2 { font-size: 12px; color: rgba(242,230,201,.75); margin-top: 2px; }
+.cf-warn { color: #f0a08a; }
+.cf-learn summary { color: #f4c95d; }
+@media (max-width: 760px) { .cf-h { flex-wrap: wrap; gap: 6px; } }

@@ -1038,6 +1038,7 @@
 
   // Browse category of an inventory item (mirrors the server's categoryOf).
   function catOfItem(it) {
+    if (it.equip_slot === 'shield') return 'armour';   // shields sell with armour
     if (['weapon', 'armour', 'tool', 'trinket'].includes(it.equip_slot)) return it.equip_slot;
     return ['fish', 'food', 'material', 'trophy'].includes(it.category) ? it.category : 'misc';
   }

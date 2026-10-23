@@ -7,7 +7,12 @@
 //  station level) — so the odds shown are the odds rolled.
 //
 //  Open: window.openCrafting('smithy' | 'jeweller' | 'workshop', citizenId?)
-//  Realtime (js/realtime.js → KWCrafting.onEvent): craft_done, craft_queue_updated.
+//  Realtime (js/realtime.js → KWCrafting.onEvent): craft_done, craft_queue_updated,
+//  recipe_discovered, recipe_learned, schematic_found.
+//  Hidden recipes must be learned by the town (a discovery while crafting,
+//  or a schematic studied from the inventory: KWCrafting.study(invId)).
+//  "List at my stall when done" (per station, remembered): each finished
+//  piece goes on a stall at its market price + the chosen markup.
 //  Dev Tools: the 🛠 Recipes tab (loadRecipeAdmin).
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
@@ -82,8 +87,17 @@
   }
   const qualityColour = q => QCOL[q] || null;
 
+  // ── Straight to a stall: off | 0 | 0.1 | 0.25 | 0.5 (per station) ────────
+  const LIST_OPTS = [['off', 'Keep in the stores'], ['0', 'List at market price'], ['0.1', 'List at +10%'], ['0.25', 'List at +25%'], ['0.5', 'List at +50%']];
+  function listChoice(station) {
+    try { const v = global.localStorage.getItem('kw_cf_list_' + station); return LIST_OPTS.some(o => o[0] === v) ? v : 'off'; } catch (_) { return 'off'; }
+  }
+  function setListChoice(station, v) { try { global.localStorage.setItem('kw_cf_list_' + station, v); } catch (_) {} }
+  const markupLabel = m => (Number(m) ? `+${Math.round(Number(m) * 100)}%` : 'market price');
+
   // ── Panel ────────────────────────────────────────────────────────────────
 
+  let _studyAt = 0;
   let _st = null, _station = null, _sel = null, _timer = null, _reloadAt = 0, _busy = false;
 
   function modal() {
@@ -100,6 +114,7 @@
     document.body.appendChild(o);
     o.addEventListener('click', onClick);
     o.addEventListener('input', e => { if (e.target.matches('[data-cf-qty]')) renderRecipes(); });
+    o.addEventListener('change', e => { if (e.target.id === 'cf-list' && _station) setListChoice(_station, e.target.value); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && o.classList.contains('open')) close(); });
     return o;
   }
@@ -197,7 +212,7 @@
     const tpl = recipeOf(j.recipe_key);
     return `<div class="cf-job${active ? ' active' : ''}" data-job="${j.id}">
       <span class="cf-job-icon">${tpl && tpl.output ? tpl.output.icon : '🔨'}</span>
-      <div class="cf-job-main"><div>${esc(j.options && j.options.named ? `“${j.options.named}”` : j.name)}${active ? '' : ' <span class="cr-muted">— waiting</span>'}</div>
+      <div class="cf-job-main"><div>${esc(j.options && j.options.named ? `“${j.options.named}”` : j.name)}${active ? '' : ' <span class="cr-muted">— waiting</span>'}${j.options && j.options.list ? ` <span class="cf-tag" title="Goes on a stall when it's done">🏪 ${esc(markupLabel(j.options.list.markup))}</span>` : ''}</div>
         ${active ? `<div class="cf-bar"><div class="cf-bar-fill" style="width:${Math.round(p * 100)}%"></div></div>
           <div class="cf-left cr-muted" data-left="${t1}">${fmtTime((t1 - Date.now()) / 1000)} left</div>` : ''}</div>
       <button type="button" class="cr-btn cf-cancel" data-cf="cancel" data-id="${j.id}" title="Cancel — materials come back">✕</button>
@@ -208,7 +223,10 @@
     const r = j.result || {};
     return `<div class="cf-job done"><span class="cf-job-icon">${esc(r.icon || '📦')}</span>
       <div class="cf-job-main"><span style="color:${QCOL[j.quality] || 'inherit'}">${esc(r.name || j.name)}</span>
-      ${j.xp ? `<span class="cr-muted"> · +${Math.round(j.xp)} XP</span>` : ''}</div></div>`;
+      ${j.xp ? `<span class="cr-muted"> · +${Math.round(j.xp)} XP</span>` : ''}
+      ${j.listed ? `<div class="cf-sub2">🏪 On a stall at ${esc(j.listed.price)} gold</div>` : ''}
+      ${j.list_failed ? `<div class="cf-sub2 cf-warn">Kept in the stores — ${esc(j.list_failed)}</div>` : ''}
+      ${j.discovered ? `<div class="cf-sub2">💡 Worked out how to make ${esc(j.discovered)}!</div>` : ''}</div></div>`;
   }
   const recipeOf = key => _st.recipes.find(r => r.recipe_key === key);
 
@@ -219,9 +237,20 @@
     if (!c) { el.innerHTML = ''; return; }
     const qty = Math.max(1, Math.min(_st.max_queue, Number((byId('cf-qty') || {}).value) || 1));
     const room = _st.max_queue - c.queued;
-    const open = _st.recipes.filter(r => !c.can[r.recipe_key]), shut = _st.recipes.filter(r => c.can[r.recipe_key]);
-    el.innerHTML = `<div class="cf-h">Make <label class="cf-qty-l">× <input id="cf-qty" data-cf-qty type="number" min="1" max="${_st.max_queue}" value="${qty}" aria-label="How many"></label></div>
+    const open = _st.recipes.filter(r => !c.can[r.recipe_key]);
+    // Still to learn: only what the town hasn't learned is in the way (not
+    // another path's recipes, or ones needing a higher level).
+    const onlyUnknown = r => r.hidden && !r.known && /^Not known yet/.test(c.can[r.recipe_key] || '');
+    const toLearn = _st.recipes.filter(r => c.can[r.recipe_key] && onlyUnknown(r));
+    const shut = _st.recipes.filter(r => c.can[r.recipe_key] && !onlyUnknown(r));
+    const lc = listChoice(_st.station);
+    el.innerHTML = `<div class="cf-h">Make <span class="cf-make-ctl">
+        <label class="cf-list-l" title="Finished equipment goes straight onto one of your stalls">🏪 <select id="cf-list" aria-label="When a piece is done">
+          ${LIST_OPTS.map(([v, l]) => `<option value="${v}" ${v === lc ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="cf-qty-l">× <input id="cf-qty" data-cf-qty type="number" min="1" max="${_st.max_queue}" value="${qty}" aria-label="How many"></label></span></div>
       <div class="cf-list">${open.map(r => recipeCard(r, c, qty, room)).join('')}</div>
+      ${toLearn.length ? `<details class="cf-locked cf-learn" open><summary>📜 Still to learn (${toLearn.length}) — study a schematic, or a crafter may work one out</summary>
+        <div class="cf-list">${toLearn.map(r => recipeCard(r, c, qty, room)).join('')}</div></details>` : ''}
       ${shut.length ? `<details class="cf-locked"><summary>Not yet (${shut.length})</summary><div class="cf-list">${shut.map(r => recipeCard(r, c, qty, room)).join('')}</div></details>` : ''}`;
   }
   function recipeCard(r, c, qty, room) {
@@ -237,7 +266,7 @@
     return `<div class="cf-recipe${why ? ' locked' : ''}" data-recipe="${esc(r.recipe_key)}">
       <div class="cf-r-head"><span class="cf-r-icon">${esc(t.icon || '📦')}</span>
         <div class="cf-r-title"><div class="cf-r-name">${esc(r.name)}${r.output_qty > 1 ? ` ×${r.output_qty}` : ''}</div>
-          <div class="cf-r-sub">${esc(bonusText(t) || (t.equip_slot ? '' : 'Material'))}${r.spec ? ` · <span class="cf-tag">${esc(specLabel(r.spec))}</span>` : ''}</div></div>
+          <div class="cf-r-sub">${esc(bonusText(t) || (t.equip_slot ? '' : 'Material'))}${r.spec ? ` · <span class="cf-tag">${esc(specLabel(r.spec))}</span>` : ''}${r.hidden && r.known ? ' · <span class="cf-tag" title="Your town learned this one">📜 learned</span>' : ''}</div></div>
         <div class="cf-r-time" title="Time per piece">⏱ ${fmtTime(secondsFor(c.bench, r))}</div></div>
       <div class="cf-needs">${n.map(x => `<span class="cf-need${x.short ? ' short' : ''}" title="${esc(x.label)}: have ${x.have}">${x.icon} ${x.need}<small>/${x.have}</small></span>`).join('') || '<span class="cr-muted">Free</span>'}</div>
       ${odds && !why ? oddsBar(odds) : ''}
@@ -279,7 +308,9 @@
         const name = nameEl && nameEl.value.trim() ? nameEl.value.trim() : null;
         const qty = name ? 1 : Math.max(1, Number((byId('cf-qty') || {}).value) || 1);
         t.disabled = true;
-        const r = await call('POST', '/api/crafting/jobs', { citizen_id: _sel, recipe_key: key, qty, name });
+        const rec = recipeOf(key), lc = listChoice(_st.station);
+        const list = lc !== 'off' && rec && rec.output && rec.output.equip_slot ? { markup: Number(lc) } : null;
+        const r = await call('POST', '/api/crafting/jobs', { citizen_id: _sel, recipe_key: key, qty, name, list });
         toast(`🔨 ${r.name} is making ${qty > 1 ? qty + '× ' : ''}${name ? `“${name}”` : r.recipe}.`);
         await load();
         refreshResources();
@@ -304,19 +335,39 @@
       else if (ev.item) {
         const q = ev.item.quality;
         const big = q === 'superior' || q === 'legendary';
-        toast(`${ev.item.icon || '🔨'} ${ev.name} made ${/^[AEIOU]/i.test(ev.item.name) ? 'an' : 'a'} ${ev.item.name}${ev.first ? ' — their first!' : ''}${ev.guardian ? ' 🛡 A Guardian piece!' : ''}${big ? ' ✨' : ''}`);
+        toast(`${ev.item.icon || '🔨'} ${ev.name} made ${/^[AEIOU]/i.test(ev.item.name) ? 'an' : 'a'} ${ev.item.name}${ev.first ? ' — their first!' : ''}${ev.guardian ? ' 🛡 A Guardian piece!' : ''}${big ? ' ✨' : ''}`
+          + (ev.listed ? ` 🏪 On a stall at ${ev.listed.price} gold.` : ev.list_failed ? ` (Kept in the stores: ${ev.list_failed})` : ''));
       }
       try { if (typeof global.loadInventory === 'function') global.loadInventory(); } catch (_) {}
     }
-    if ((ev.type === 'craft_done' || ev.type === 'craft_queue_updated') && _station && (!ev.station || ev.station === _station)) {
+    if (ev.type === 'recipe_discovered') toast(`💡 ${ev.name} worked out how to make ${/^[AEIOU]/i.test(ev.recipe) ? 'an' : 'a'} ${ev.recipe}! Every crafter in town can make it now.`);
+    // (A schematic studied here already said so.)
+    if (ev.type === 'recipe_learned' && Date.now() - _studyAt > 8000) toast(`📜 Your crafters can now make ${ev.recipe}.`);
+    if (ev.type === 'schematic_found') {
+      toast(`${ev.item && ev.item.icon || '📜'} ${ev.source === 'expedition' ? 'Your scout brought back' : 'Among the spoils:'} ${ev.item ? ev.item.name : 'a schematic'} — study it from your inventory.`);
+      try { if (typeof global.loadInventory === 'function') global.loadInventory(); } catch (_) {}
+    }
+    if ((ev.type === 'craft_done' || ev.type === 'craft_queue_updated' || ev.type === 'recipe_discovered' || ev.type === 'recipe_learned') && _station && (!ev.station || ev.station === _station)) {
       if (Date.now() > _reloadAt - 4000) { _reloadAt = Date.now() + 1000; load(); }
     }
+  }
+
+  // Study a schematic (inventory id): the town learns its recipe.
+  async function study(invId) {
+    try {
+      _studyAt = Date.now();   // its realtime echo arrives before this returns
+      const r = await call('POST', `/api/crafting/schematics/${invId}/study`);
+      toast(`📜 Studied — your ${r.class_label ? r.class_label.toLowerCase() + 's' : 'crafters'} can now make ${r.recipe}.`);
+      try { if (typeof global.loadInventory === 'function') await global.loadInventory(); } catch (_) {}
+      if (_station) load();
+      return r;
+    } catch (e) { toast(e.message, 'error'); return null; }
   }
 
   // ── Dev Tools: recipes ──────────────────────────────────────────────────
 
   let _ra = [];
-  const RA_FIELDS = ['name', 'class_key', 'spec', 'station', 'min_level', 'min_station_level', 'output_key', 'output_qty', 'base_seconds', 'base_xp', 'unlock_node', 'quality_cap', 'sort_order'];
+  const RA_FIELDS = ['name', 'class_key', 'spec', 'station', 'min_level', 'min_station_level', 'output_key', 'output_qty', 'base_seconds', 'base_xp', 'unlock_node', 'quality_cap', 'sort_order', 'discovery'];
   async function loadRecipeAdmin() {
     const el = byId('ra-list');
     if (!el) return;
@@ -328,7 +379,7 @@
     el.innerHTML = Object.entries(groups).map(([k, rs]) => `<div class="qa-section-label">${esc(k)} (${rs.length})</div>${rs.map(r => `
       <div class="qa-row ra-row${r.archived ? ' ra-arch' : ''}">
         <span class="ra-name">${esc(r.name)}</span>
-        <span class="ra-meta">Lv${r.min_level}${r.spec ? ' ' + esc(r.spec) : ''} · ${fmtTime(r.base_seconds)} · ${r.base_xp}xp${r.archived ? ' · archived' : ''}</span>
+        <span class="ra-meta">Lv${r.min_level}${r.spec ? ' ' + esc(r.spec) : ''} · ${fmtTime(r.base_seconds)} · ${r.base_xp}xp${r.discovery === 'hidden' ? ' · 📜 hidden' : ''}${r.archived ? ' · archived' : ''}</span>
         <button type="button" class="cheat-all-btn ra-edit" onclick="KWCrafting.editRecipe('${esc(r.recipe_key)}')">Edit</button>
       </div>`).join('')}`).join('');
   }
@@ -346,6 +397,7 @@
         <button type="button" class="cheat-all-btn" onclick="KWCrafting.saveRecipe(${key ? `'${esc(key)}'` : 'null'})">💾 Save</button>
         ${key && !r.archived ? `<button type="button" class="cheat-all-btn" onclick="KWCrafting.archiveRecipe('${esc(key)}')">🗄 Archive</button>` : ''}
         ${key && r.archived ? `<button type="button" class="cheat-all-btn" onclick="KWCrafting.unarchiveRecipe('${esc(key)}')">♻ Restore</button>` : ''}
+        ${key && r.discovery === 'hidden' ? `<button type="button" class="cheat-all-btn" onclick="KWCrafting.teachRecipe('${esc(key)}')">📜 Teach my town</button>` : ''}
         <button type="button" class="cheat-all-btn" onclick="document.getElementById('ra-form-wrap').style.display='none'">Close</button>
       </div></div>`;
   }
@@ -369,6 +421,10 @@
     try { await call('PATCH', `/api/crafting/admin/recipes/${encodeURIComponent(key)}`, { archived: false }); raFeedback('Restored.'); byId('ra-form-wrap').style.display = 'none'; loadRecipeAdmin(); }
     catch (e) { raFeedback('⚠️ ' + e.message, true); }
   }
+  async function teachRecipe(key) {
+    try { const r = await call('POST', `/api/crafting/admin/recipes/${encodeURIComponent(key)}/teach`); raFeedback(r.learned ? 'Your town knows it now.' : 'Your town already knew it.'); }
+    catch (e) { raFeedback('⚠️ ' + e.message, true); }
+  }
   function raFeedback(msg, bad) {
     const el = byId('ra-feedback');
     if (el) { el.textContent = msg; el.style.color = bad ? '#e07a6a' : ''; }
@@ -376,7 +432,7 @@
 
   global.KWCrafting = {
     open, close, load, onEvent, markHtml, qualityColour, fmtTime, oddsFor, secondsFor, needs,
-    loadRecipeAdmin, editRecipe, saveRecipe, archiveRecipe, unarchiveRecipe, STATIONS,
+    loadRecipeAdmin, editRecipe, saveRecipe, archiveRecipe, unarchiveRecipe, teachRecipe, study, listChoice, STATIONS,
     _state: () => _st,
   };
   global.openCrafting = open;

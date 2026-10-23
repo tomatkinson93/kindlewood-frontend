@@ -139,6 +139,49 @@ check('quality colours', C.qualityColour('legendary') && !C.qualityColour('nope'
   check('mobile layout stacks', /@media \(max-width: 760px\)/.test(css) && /grid-template-columns: 1fr/.test(css));
   check('reduced motion respected', /prefers-reduced-motion/.test(css));
 
+  // ── 6. Finish-up: stall auto-listing, recipes to learn, schematics, shields ──
+  {
+    const st2 = JSON.parse(JSON.stringify(station));
+    st2.recipes.push({ ...recipe, recipe_key: 'falchion', name: 'Falchion', min_level: 14, hidden: true, known: false, spec: 'weaponsmith',
+      output: { item_key: 'falchion', name: 'Falchion', icon: '🗡️', equip_slot: 'weapon', stat_bonuses: { combat: 5 } } });
+    st2.recipes.push({ ...recipe, recipe_key: 'tower_shield', name: 'Tower Shield', min_level: 15, hidden: true, known: true, spec: 'weaponsmith',
+      output: { item_key: 'tower_shield', name: 'Tower Shield', icon: '🧱', equip_slot: 'shield', stat_bonuses: { combat: 3 }, item_effects: [{ type: 'injury', value: -7 }] } });
+    st2.recipes.forEach(r => { r.hidden = !!r.hidden; r.known = r.known !== false; });
+    st2.crafters.forEach(c => { c.can.falchion = 'Not known yet — study its schematic or discover it while crafting.'; c.can.tower_shield = null; });
+    st2.jobs[0].options = { list: { markup: 0.25 } };
+    st2.jobs[1] = { ...st2.jobs[1], listed: { price: 48, venue: 'smithy' }, discovered: 'Falchion' };
+    st2.jobs.push({ id: 3, citizen_id: 7, recipe_key: 'iron_dagger', name: 'Iron Dagger', status: 'done', quality: 'basic', result: { name: 'Iron Dagger', icon: '🗡️' }, options: {},
+      list_failed: 'All your stalls are full — wait for a sale or cancel a listing.' });
+    const store = { kw_cf_list_smithy: '0.1' };
+    const env = makeEnv({ 'GET /api/crafting/station/smithy': st2, 'POST /api/crafting/jobs': { ok: true, ids: [4], name: 'Ysolde', recipe: 'Iron Dagger' },
+      'POST /api/crafting/schematics/55/study': { ok: true, recipe: 'Falchion', class_label: 'Blacksmith' } });
+    env.win.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+    await env.win.KWCrafting.open('smithy');
+    const rec = env.els['cf-recipes'].innerHTML, q = env.els['cf-queue'].innerHTML;
+    check('6a. stall control remembers this station\'s choice', /<option value="0\.1" selected>List at \+10%<\/option>/.test(rec));
+    check('6b. a recipe the town hasn\'t learned sits under "Still to learn"', /📜 Still to learn \(1\)/.test(rec) && /Not known yet/.test(rec));
+    check('6c. a learned hidden recipe is tagged', /📜 learned/.test(rec));
+    check('6d. shields list their protection', /Injury risk/i.test(rec) || /−7|-7/.test(rec));
+    check('6e. queue: 🏪 tag on jobs going to a stall', /🏪 \+25%/.test(q));
+    check('6f. recently made: listed price, kept-home reason, a discovery', /On a stall at 48 gold/.test(q) && /Kept in the stores — All your stalls are full/.test(q) && /Worked out how to make Falchion/.test(q));
+    const ov = env.els['cf-overlay'];
+    await ov._listeners.click[0]({ target: { closest: s2 => (s2 === '[data-cf]' ? { dataset: { cf: 'craft', key: 'iron_dagger' }, disabled: false } : null), id: '' } });
+    const post = env.calls.filter(c => c.method === 'POST').pop();
+    check('6g. Craft sends the stall markup for equipment', post && post.body.list && post.body.list.markup === 0.1);
+    await env.win.KWCrafting.study(55);
+    check('6h. studying a schematic: posts and says who can make it now', env.calls.some(c => c.p === '/api/crafting/schematics/55/study') && env.toasts.some(t => /blacksmiths can now make Falchion/.test(t.m)));
+    env.win.KWCrafting.onEvent({ type: 'recipe_discovered', name: 'Garnet', recipe: 'Falchion', station: 'smithy' });
+    env.win.KWCrafting.onEvent({ type: 'schematic_found', source: 'expedition', item: { name: 'Schematic: Sledge', icon: '📜' } });
+    env.win.KWCrafting.onEvent({ type: 'craft_done', name: 'Ysolde', station: 'smithy', item: { name: 'Fine Iron Dagger', icon: '🗡️', quality: 'fine' }, listed: { price: 30 } });
+    check('6i. toasts: discovery, a schematic brought home, listed on a stall', env.toasts.some(t => /Garnet worked out how to make a Falchion/.test(t.m))
+      && env.toasts.some(t => /scout brought back Schematic: Sledge/.test(t.m)) && env.toasts.some(t => /On a stall at 30 gold/.test(t.m)));
+    const rt = read('js/realtime.js'), inv = read('js/inventory.js'), ia = read('js/item_admin.js'), mk = read('js/market.js');
+    check('6j. realtime: recipe_discovered, recipe_learned, schematic_found', /recipe_discovered\(ev\)/.test(rt) && /recipe_learned\(ev\)/.test(rt) && /schematic_found\(ev\)/.test(rt));
+    check('6k. inventory: Study button on schematics', /invStudy\(this\.dataset\.id\)/.test(inv) && /KWCrafting\.study/.test(inv));
+    check('6l. shields: Dev Tools slot, sold with armour', /'shield'/.test(ia) && /equip_slot === 'shield'\) return 'armour'/.test(mk));
+    check('6m. Dev Tools: discovery field and Teach my town', /'discovery'\]/.test(read('js/crafting.js')) && /Teach my town/.test(read('js/crafting.js')));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
