@@ -151,6 +151,9 @@
     career_find(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); if (typeof global.loadInventory === 'function') { try { global.loadInventory(); } catch (_) {} } },
     trait_hint(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
     trait_revealed(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
+    // Crafting (js/crafting.js): finished pieces, queue changes.
+    craft_done(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
+    craft_queue_updated(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

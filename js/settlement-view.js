@@ -45,6 +45,7 @@ const SV_SLOTS = [
   { id:'town-guildhall',     area:'town',      x:86,  y:69, accepts:['guild_hall'],    label:'Guild Row',     size:'md' },
   { id:'town-smithy',        area:'town',      x:36,  y:86, accepts:['smithy'],        label:'Forge Lane',    size:'md' },
   { id:'town-jeweller',      area:'town',      x:58,  y:87, accepts:['jeweller'],      label:'Gem Corner',    size:'md' },
+  { id:'town-workshop',      area:'town',      x:14,  y:88, accepts:['workshop'],      label:'Sawdust Yard',  size:'md' },
   { id:'out-forager',        area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',   size:'md' },
   { id:'out-farm',           area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',   size:'md' },
   { id:'out-lumber',         area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
@@ -67,6 +68,7 @@ const SV_VISUALS = {
   guild_hall:    { emoji:'🏛️',        bodyColor:'#6a4c7d', roofColor:'#3b3f6b', flavor:'Banners hang over the long tables.' },
   smithy:        { emoji:'⚒️',        bodyColor:'#5a4a40', roofColor:'#3a2c24', flavor:'Sparks, soot and the ring of the hammer.' },
   jeweller:      { emoji:'💍',        bodyColor:'#5c5070', roofColor:'#3c3450', flavor:'Every stone weighed twice.' },
+  workshop:      { emoji:'🪚',        bodyColor:'#7a5a36', roofColor:'#54391f', flavor:'Shavings curl from the plane like ribbons.' },
   mine:          { emoji:'⛏️',        bodyColor:'#5b5248', roofColor:'#3a342e', flavor:'Lamps flicker deep in the hill.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
@@ -1038,6 +1040,9 @@ function _openBuildPanel(slot, occupant) {
         : '')
       + (occupant.id === 'market' && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket()">⚖️ Open Market</button>'
+        : '')
+      + (['smithy', 'jeweller', 'workshop'].includes(occupant.id) && typeof openCrafting === 'function'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
         : '')
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'

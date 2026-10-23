@@ -114,10 +114,19 @@ function invItemCard(item) {
 
   return '<div class="inv-card" data-id="' + item.id + '" onclick="openItemDetail(' + item.id + ')" style="--rarity-color:' + rarityColor + '">'
     + '<div class="inv-card-icon">' + item.icon + qtyHtml + '</div>'
-    + '<div class="inv-card-name">' + item.name + '</div>'
+    + '<div class="inv-card-name"' + (_invQualityColour(item) ? ' style="color:' + _invQualityColour(item) + '"' : '') + '>' + item.name + '</div>'
     + '<div class="inv-card-rarity" style="color:' + rarityColor + '">' + INV_RARITY_LABELS[item.rarity] + '</div>'
     + statHtml + equippedHtml + sellHtml
     + '</div>';
+}
+
+// Crafted pieces (js/crafting.js): quality colour and the crafter's mark.
+function _invQualityColour(item) {
+  const q = item.metadata && item.metadata.quality;
+  return q && q !== 'basic' && window.KWCrafting ? window.KWCrafting.qualityColour(q) : null;
+}
+function _invMarkHtml(item) {
+  return window.KWCrafting ? window.KWCrafting.markHtml(item.metadata) : '';
 }
 
 function openItemDetail(itemId) {
@@ -155,6 +164,7 @@ function openItemDetail(itemId) {
     + '<div>'
     + '<div class="inv-detail-name">' + item.name + '</div>'
     + '<div class="inv-detail-rarity" style="color:' + rarityColor + '">' + INV_RARITY_LABELS[item.rarity] + ' · ' + (INV_CATEGORY_LABELS[item.category] || item.category) + (item.equip_slot ? ' · ' + item.equip_slot : '') + '</div>'
+    + _invMarkHtml(item)
     + '</div>'
     + '<button class="inv-detail-close" onclick="document.getElementById(\'inv-detail-overlay\').remove()">✕</button>'
     + '</div>'
