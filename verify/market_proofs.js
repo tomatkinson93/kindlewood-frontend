@@ -473,6 +473,84 @@ const MINE = { ok: true, now: new Date().toISOString(),
   check('5h. fixed-size window (tabs never resize it)', /\.mk-card \{[\s\S]*?height: min\(760px, 88vh\)/.test(read('css/market.css')));
   check('5g. settlement view exposes openSettlementBuild', /window\.openSettlementBuild = openSettlementBuild/.test(read('js/settlement-view.js')));
 
+  // 7 — prices & the Ledger
+  {
+    const day = n => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return new Date(d.getTime() - n * 86400e3).toISOString().slice(0, 10); };
+    const P = { type: 'resource', id: 'timber', quality: 'basic', days: [{ day: day(3), avg: 0.6, qty: 300, n: 2 }, { day: day(1), avg: 0.9, qty: 100, n: 1 }, { day: day(0), avg: 0.8, qty: 200, n: 2 }],
+      week: { avg: 0.75, low: 0.5, high: 1.1, n: 5, qty: 600 }, last: { price: 0.8, at: new Date().toISOString() },
+      reference: { price: 0.7, label: 'Market reference' }, guide: 0.75, guide_source: 'trades' };
+    const env0 = makeEnv({ '/api/market/status': OPEN });
+    const H = env0.win.MarketUI._prices;
+    check('7a. crafted items are priced by quality; others are basic',
+      H.goodKeyOf('item', null, { item_key: 'iron_sword', metadata: { quality: 'fine', crafted_by: { name: 'F' } } }) === 'item:iron_sword:fine'
+      && H.goodKeyOf('item', null, { item_key: 'iron_sword', metadata: { quality: 'fine' } }) === 'item:iron_sword:basic'
+      && H.goodKeyOf('resource', 'timber') === 'resource:timber');
+    const ser = H.dailySeries(P, 14);
+    check('7b. 14 daily points ending today, gaps where nothing traded', ser.length === 14 && ser[13].day === day(0) && ser[13].avg === 0.8 && ser[12].avg === 0.9 && ser[11].avg === null && ser[10].avg === 0.6);
+    const sp = H.sparkSvg(ser);
+    check('7c. sparkline: one 2px line through the traded days, a dot at the end', (sp.match(/<polyline/g) || []).length === 1 && /stroke-width="2"/.test(sp) && /<circle/.test(sp));
+    check('7c2. no trades → no sparkline', H.sparkSvg(H.dailySeries({ days: [] }, 14)) === '');
+    const b = H.badgeHtml(P);
+    check('7d. badge: 7-day average, count and range', /7-day avg <b>0\.75<\/b> each · 5 trades · range 0\.50–1\.10/.test(b));
+    check('7d2. Wanted form: resources per 100', /<b>75<\/b> per 100/.test(H.badgeHtml(P, 100)));
+    check('7e. no recent trades → last price, else the reference', /Last traded at <b>0\.80/.test(H.badgeHtml({ ...P, week: { n: 0 } }))
+      && /market reference 0\.70 each/.test(H.badgeHtml({ ...P, week: { n: 0 }, last: null })));
+    check('7f. listing vs average: below / above / about', /▼ 20% below avg/.test(H.deltaHtml(P, 0.6)) && /▲ 20% above avg/.test(H.deltaHtml(P, 0.9))
+      && /≈ 7-day average/.test(H.deltaHtml(P, 0.76)) && H.deltaHtml({ ...P, week: { n: 1, avg: 1 } }, 2) === '');
+    const pc = H.priceChartSvg(P, 600, 30);
+    check('7g. price chart: line, dashed reference, volume columns, one hover zone per day',
+      /<polyline/.test(pc) && /stroke-dasharray="5 4"/.test(pc) && /Market reference/.test(pc) && (pc.match(/class="mk-bar"/g) || []).length === 3
+      && (pc.match(/data-tip=/g) || []).length === 30 && /Units traded/.test(pc));
+    check('7g2. chart text uses text colours, never the series colour', !/<text[^>]*fill="#bf8a2c"/.test(pc));
+    const weeks = Array.from({ length: 8 }, (_, i) => ({ week_start: day(7 * (7 - i)), in: i * 10, out: i === 3 ? 90 : 0, fees: 1, net: i === 3 ? -60 : i * 10, n: i ? 1 : 0, pending: 0 }));
+    const nc = H.netChartSvg(weeks, 600);
+    check('7h. net chart: earned up in one colour, spent down in another, a hover per week',
+      /fill="#2f9e86"/.test(nc) && /fill="#d0703c"/.test(nc) && (nc.match(/data-tip=/g) || []).length === 8 && /This week/.test(nc) && /−/.test(nc));
+
+    const LEDGER = { ok: true, next_before: 40, weeks,
+      entries: [
+        { id: 50, kind: 'lot', side: 'sold', resource: 'timber', qty: 100, gross: 70, fee: 3, net: 67, unit_price: 0.7, counterparty: 'Oakhollow', citizen_name: 'Ash', status: 'settled', agreed_at: new Date().toISOString() },
+        { id: 49, kind: 'pickup', side: 'bought', item: { name: 'Fine Iron Sword', icon: '⚔️', rarity: 'common', metadata: { quality: 'fine', crafted_by: { name: 'Fenn' } } }, qty: 1, gross: 40, fee: 0, net: -40, unit_price: 40, counterparty: 'Stonebrook', citizen_name: 'Wren', status: 'on_road', agreed_at: new Date().toISOString() },
+        { id: 48, kind: 'pickup', side: 'bought', item: { name: 'Trout', icon: '🐟', rarity: 'common' }, qty: 5, gross: 20, fee: 0, net: 0, unit_price: 4, counterparty: 'Stonebrook', status: 'returned', agreed_at: new Date().toISOString() },
+      ] };
+    const env = makeEnv({ '/api/market/status': OPEN, '/api/market/ledger': LEDGER,
+      '/api/market/prices/movers': { ok: true, goods: [{ key: 'resource:timber', type: 'resource', id: 'timber', quality: 'basic', avg: 0.75, prev: 0.6, change: 0.25, qty: 600, n: 5 },
+        { key: 'item:iron_sword:fine', type: 'item', id: 'iron_sword', quality: 'fine', name: 'Iron Sword', icon: '⚔️', avg: 42, prev: null, change: null, qty: 3, n: 3 }] },
+      '/api/market/prices': p => ({ ok: true, prices: { [decodeURIComponent(p.split('goods=')[1].split('&')[0])]: P } }) });
+    await env.win.openMarket({ tab: 'ledger' });
+    let h = env.body();
+    check('7i. Ledger tab: this week\'s tiles', /📒 Ledger/.test(env.getEl('mk-tabs').innerHTML) && /Earned/.test(h) && /Fees paid/.test(h) && /Deals/.test(h));
+    check('7j. receipts: net after fee, who, the merchant, status', /\+67/.test(h) && /Sold to <b>Oakhollow<\/b>/.test(h) && /Ash/.test(h) && /✓ settled/.test(h));
+    check('7k. purchases: −gold, on the road; a failed pickup shows its gold came back', /−40/.test(h) && /goods on the road/.test(h) && /stall sold out — gold returned/.test(h));
+    check('7l. 8-week chart drawn, with a table view and a key', /<svg/.test(env.getEl('mk-net-chart').innerHTML) && /Show as a table/.test(h) && /earned/.test(h) && /spent/.test(h));
+    check('7m. Load older is offered while there are more', /data-act="ledger-more"/.test(h));
+    await env.fire('click', env.btn('ledger-side', { side: 'sold' }));
+    check('7n. Sales filter asks the server for side=sold', env.calls.some(c => /\/api\/market\/ledger\?side=sold/.test(c[1])));
+    await env.fire('click', env.btn('ledger-more'));
+    check('7o. Load older pages with before=', env.calls.some(c => /before=40/.test(c[1])));
+    await env.fire('click', env.btn('ledger-view', { view: 'prices' }));
+    h = env.body();
+    check('7p. Prices view: this week\'s goods with change and volume', /Traded this week/.test(h) && /▲ 25%/.test(h) && /600 units/.test(h) && /Fine Iron Sword/.test(h));
+    check('7q. first good charted (30 days), with a table view', env.calls.some(c => /\/api\/market\/prices\?goods=resource%3Atimber&days=30/.test(c[1])) && /<svg/.test(env.getEl('mk-price-chart').innerHTML) && /Show as a table/.test(h));
+    await env.fire('click', env.btn('price-pick', { key: 'item:iron_sword:fine', name: 'Iron Sword' }));
+    h = env.body();
+    check('7r. an item shows a quality switch', /data-act="price-q" data-q="legendary"/.test(h));
+    await env.fire('click', env.btn('price-q', { q: 'superior' }));
+    check('7s. switching quality reloads that quality', env.calls.some(c => /goods=item%3Airon_sword%3Asuperior/.test(c[1])));
+  }
+  {
+    const env = makeEnv({ '/api/market/status': { ...OPEN, guide: { timber: { price: 0.82, source: 'trades', n: 9 }, food: { price: 0.3, source: 'reference', n: 0 } } }, '/api/market/mine': MINE });
+    await env.win.openMarket({ tab: 'sell' });
+    const sum = env.getEl('mk-sell-summary').innerHTML;
+    check('7t. Sell form: recent trades set the guide, with a sparkline slot', /Recent trades: about <b>0\.82<\/b>/.test(sum) && /data-pk="resource:timber" data-pv="badge"/.test(sum));
+  }
+  {
+    const css = read('css/market.css'), js = read('js/market.js');
+    check('7u. chart colours are the validated ones', /#bf8a2c/.test(js) && /#2f9e86/.test(js) && /#d0703c/.test(js));
+    check('7v. phone layout for tiles and the price list', /@media \(max-width: 600px\) \{\s*\.mk-tiles/.test(css));
+    check('7w. charts redraw on resize; touch taps show the tooltip', /addEventListener\('resize'/.test(js) && /pointerType !== 'mouse'/.test(js));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
