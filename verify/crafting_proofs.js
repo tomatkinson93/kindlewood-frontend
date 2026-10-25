@@ -158,6 +158,12 @@ check('quality colours', C.qualityColour('legendary') && !C.qualityColour('nope'
     env.win.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
     await env.win.KWCrafting.open('smithy');
     const rec = env.els['cf-recipes'].innerHTML, q = env.els['cf-queue'].innerHTML;
+    const body1 = env.els['cf-body'].innerHTML;
+    check('6n. "How the Smithy works" opens by itself on the first visit', /<details class="cf-help" open>/.test(body1) && /Legendary needs level 15/.test(body1) && store.kw_cf_help_seen === '1');
+    await env.win.KWCrafting.load();
+    check('6o. a refresh keeps it as it was (still open)', /<details class="cf-help" open>/.test(env.els['cf-body'].innerHTML));
+    await env.win.KWCrafting.open('smithy');
+    check('6p. on the next visit it starts folded', /<details class="cf-help">/.test(env.els['cf-body'].innerHTML));
     check('6a. stall control remembers this station\'s choice', /<option value="0\.1" selected>List at \+10%<\/option>/.test(rec));
     check('6b. a recipe the town hasn\'t learned sits under "Still to learn"', /📜 Still to learn \(1\)/.test(rec) && /Not known yet/.test(rec));
     check('6c. a learned hidden recipe is tagged', /📜 learned/.test(rec));

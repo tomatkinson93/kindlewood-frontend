@@ -114,6 +114,7 @@
     document.body.appendChild(o);
     o.addEventListener('click', onClick);
     o.addEventListener('input', e => { if (e.target.matches('[data-cf-qty]')) renderRecipes(); });
+    o.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('cf-help')) _helpOpen = e.target.open; }, true);
     o.addEventListener('change', e => { if (e.target.id === 'cf-list' && _station) setListChoice(_station, e.target.value); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && o.classList.contains('open')) close(); });
     return o;
@@ -128,6 +129,7 @@
     if (!STATIONS[station]) return;
     const o = modal();
     _station = station;
+    _helpOpen = firstVisitHelp();
     o.classList.add('open');
     byId('cf-title').textContent = `${STATIONS[station]} Workshop`;
     byId('cf-sub').textContent = 'Loading…';
@@ -173,7 +175,7 @@
         <p class="cr-muted">Give a citizen the <b>${esc(st.class_label)}</b> job (Citizens → profile → Job). The ${esc(st.label)} has room for ${st.slots}.</p></div>`;
       return;
     }
-    body.innerHTML = `
+    body.innerHTML = helpHtml(st) + `
       <div class="cf-crafters" id="cf-crafters" role="tablist" aria-label="Crafters"></div>
       <div class="cf-main">
         <section class="cf-queue" id="cf-queue" aria-label="Queue"></section>
@@ -182,6 +184,24 @@
     renderCrafters();
     renderQueue();
     renderRecipes();
+  }
+
+  // "How this works": open by itself the first time a player visits.
+  // _helpOpen is decided when the panel opens and then follows the player's
+  // own folding, so re-renders (refreshes, picking a crafter) keep it as is.
+  let _helpOpen = false;
+  function firstVisitHelp() {
+    try { const first = !global.localStorage.getItem('kw_cf_help_seen'); if (first) global.localStorage.setItem('kw_cf_help_seen', '1'); return first; }
+    catch (_) { return false; }
+  }
+  function helpHtml(st) {
+    return `<details class="cf-help"${_helpOpen ? ' open' : ''}><summary>ⓘ How the ${esc(st.label)} works</summary><ul>
+      <li><b>Places:</b> one ${esc(st.class_label)} per building level (${st.slots} now). Upgrade the ${esc(st.label)} for more.</li>
+      <li><b>Queue:</b> up to ${st.max_queue} pieces each. Materials are taken when you queue and come back exactly if you cancel. Work carries on while you're away.</li>
+      <li><b>Quality:</b> the coloured bar shows the real chances. Higher level, a better ${esc((global.KWCareers && global.KWCareers.defs() && (global.KWCareers.defs().classes[st.class_key] || {}).primary) || 'main')} stat, perks, a good tool and a bigger workshop all help. Legendary needs level 15.</li>
+      <li><b>🏪 When done:</b> finished equipment can go straight onto one of your stalls at its recent market price (plus your markup). If no stall can take it, it waits in your stores.</li>
+      <li><b>📜 Recipes to learn:</b> some recipes must be learned by the town first. A crafter may work one out while working, or study a schematic (villages, quests and expeditions turn them up) from your inventory.</li>
+    </ul></details>`;
   }
 
   function renderCrafters() {

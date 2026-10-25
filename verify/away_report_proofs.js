@@ -69,9 +69,12 @@ const REPORT = {
     metal: { produced: 0, consumed: 0, net: 0, sources: [], consumers: [] },
     wealth: { produced: 0, consumed: 0, net: 0, sources: [], consumers: [] },
   },
+  trade: { made: 3, ruined: 0, best_quality: 'fine', listed: 1, learned: 1, earned: 120, spent: 40, fees: 6, deals: 4, on_road: 25, net: 80 },
   events: [
     { at: NOW - 2 * H, category: 'citizens', icon: '🍼', text: 'Wren and Pip welcome a son.', citizenIds: [1, 2] },
     { at: NOW - H, category: 'other', icon: '📜', text: '<img src=x onerror=alert(1)>', citizenIds: [] },
+    { at: NOW - 3 * H, category: 'trade', icon: '🗡️', text: 'Wren made a Fine Iron Dagger — on a stall at 26 gold.', citizenIds: [1] },
+    { at: NOW - 2.5 * H, category: 'trade', icon: '💡', text: 'Wren worked out how to make Falchion.', citizenIds: [1] },
   ],
   citizens: { 1: 'Wren', 2: 'Pip' },
   happenings: [],
@@ -100,6 +103,10 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     check('3. summary: resource tiles with net change (+180 food)', /data-res="food"/.test(summary) && /\+180/.test(summary));
     check('3c. summary: waiting items get an Open button', /data-action="quests"/.test(summary));
     check('3c2. summary: one row per tab, "Nothing happened" for empty ones', /data-tab="citizens"[\s\S]*1 event/.test(summary) && /data-tab="quests"[\s\S]*Nothing happened/.test(summary));
+    const trade = bodyOf('trade');
+    check('3t. trade tab: totals (made, best, earned, spent, net) and gold still on the road', /Pieces made/.test(trade) && />Fine</.test(trade) && /\+80/.test(trade) && /25 gold is still on its way home/.test(trade) && /1 new recipe learned/.test(trade));
+    check('3u. trade tab: each piece and discovery, newest first', /worked out how to make Falchion[\s\S]*Fine Iron Dagger — on a stall at 26 gold/.test(trade));
+    check('3v. summary lists Trade & crafting', /data-tab="trade"[\s\S]*Trade &amp; crafting|Trade & crafting/.test(summary) && /2 events/.test(summary));
     const cits = bodyOf('citizens');
     check('3b. citizens tab: names become profile links', /data-cid="1">Wren<\/button>/.test(cits) && /data-cid="2">Pip<\/button>/.test(cits));
     const world = bodyOf('world');
@@ -134,6 +141,9 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     check('2c. show:false (short absence) → no splash', !env.modal());
     const empty = Object.assign({}, REPORT, { events: [], waiting: [], happenings: [], resources: { food: { produced: 0, consumed: 0 } } });
     check('2d. nothing happened → hasContent false', env.win.KWAwayReport.hasContent(empty) === false && env.win.KWAwayReport.hasContent(REPORT) === true);
+    const onlyTrade = Object.assign({}, empty, { events: [{ at: NOW - H, category: 'trade', icon: '🪙', text: 'Sold 100 timber.', citizenIds: [] }] });
+    check('2e. trade news alone is enough to show the splash', env.win.KWAwayReport.hasContent(onlyTrade) === true);
+    check('2f. a quiet Trade tab says so', /workshops and the Market were quiet/.test(fs.readFileSync(path.join(ROOT, 'js/away-report.js'), 'utf8')));
   }
 
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

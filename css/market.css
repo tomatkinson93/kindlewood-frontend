@@ -353,3 +353,9 @@
   .mk-mover { grid-template-columns: minmax(0, 1fr) 56px 64px; }
   .mk-mover-v { grid-column: 1 / -1; text-align: left; }
 }
+
+/* Ledger: how this works (first visit opens it) */
+.mk-help { margin: 0 0 10px; padding: 6px 10px; border-radius: 10px; background: rgba(244,201,93,.06); border: 1px solid rgba(244,201,93,.2); font-size: 13px; }
+.mk-help summary { cursor: pointer; color: #f4c95d; }
+.mk-help ul { margin: 6px 0 2px; padding-left: 18px; color: rgba(242,230,201,.85); }
+.mk-help li { margin: 3px 0; }

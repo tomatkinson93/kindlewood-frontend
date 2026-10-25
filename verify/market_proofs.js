@@ -519,6 +519,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
       '/api/market/prices': p => ({ ok: true, prices: { [decodeURIComponent(p.split('goods=')[1].split('&')[0])]: P } }) });
     await env.win.openMarket({ tab: 'ledger' });
     let h = env.body();
+    check('7i2. Ledger help opens on the first visit and explains where prices come from', /<details class="mk-help" open>/.test(h) && /only from trades between players/.test(h) && env.store.kw_mk_ledger_help === '1');
     check('7i. Ledger tab: this week\'s tiles', /📒 Ledger/.test(env.getEl('mk-tabs').innerHTML) && /Earned/.test(h) && /Fees paid/.test(h) && /Deals/.test(h));
     check('7j. receipts: net after fee, who, the merchant, status', /\+67/.test(h) && /Sold to <b>Oakhollow<\/b>/.test(h) && /Ash/.test(h) && /✓ settled/.test(h));
     check('7k. purchases: −gold, on the road; a failed pickup shows its gold came back', /−40/.test(h) && /goods on the road/.test(h) && /stall sold out — gold returned/.test(h));
