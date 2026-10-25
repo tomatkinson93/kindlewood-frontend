@@ -396,29 +396,43 @@
     catch (e) { el.innerHTML = `<div class="ra-err">⚠️ ${esc(e.message)}</div>`; return; }
     const groups = {};
     _ra.forEach(r => (groups[r.class_key] = groups[r.class_key] || []).push(r));
+    // Same building blocks as the Items tab (qa-row / qa-btn in main.css).
     el.innerHTML = Object.entries(groups).map(([k, rs]) => `<div class="qa-section-label">${esc(k)} (${rs.length})</div>${rs.map(r => `
-      <div class="qa-row ra-row${r.archived ? ' ra-arch' : ''}">
-        <span class="ra-name">${esc(r.name)}</span>
-        <span class="ra-meta">Lv${r.min_level}${r.spec ? ' ' + esc(r.spec) : ''} · ${fmtTime(r.base_seconds)} · ${r.base_xp}xp${r.discovery === 'hidden' ? ' · 📜 hidden' : ''}${r.archived ? ' · archived' : ''}</span>
-        <button type="button" class="cheat-all-btn ra-edit" onclick="KWCrafting.editRecipe('${esc(r.recipe_key)}')">Edit</button>
+      <div class="qa-row${r.archived ? ' qa-archived' : ''}">
+        <span class="qa-row-icon">${r.discovery === 'hidden' ? '📜' : '🔨'}</span>
+        <span class="qa-row-title" title="${esc(r.recipe_key)}">${esc(r.name)}</span>
+        <span class="ra-meta">Lv${r.min_level}${r.spec ? ' · ' + esc(r.spec) : ''} · ${fmtTime(r.base_seconds)} · ${r.base_xp}xp${r.archived ? ' · archived' : ''}</span>
+        <div class="qa-row-btns"><button type="button" class="qa-btn ra-edit" title="Edit" onclick="KWCrafting.editRecipe('${esc(r.recipe_key)}')">✏</button></div>
       </div>`).join('')}`).join('');
   }
+  const RA_CHOICES = {
+    class_key: ['blacksmith', 'jeweller', 'carpenter'], station: ['smithy', 'jeweller', 'workshop'],
+    quality_cap: ['basic', 'sturdy', 'fine', 'superior', 'legendary'], discovery: ['known', 'hidden'],
+  };
+  const RA_NUM = ['min_level', 'min_station_level', 'output_qty', 'base_seconds', 'base_xp', 'sort_order'];
   function editRecipe(key) {
-    const r = key ? _ra.find(x => x.recipe_key === key) : { class_key: 'blacksmith', station: 'smithy', min_level: 1, min_station_level: 1, output_qty: 1, base_seconds: 1200, base_xp: 20, quality_cap: 'legendary', sort_order: 0, inputs: { resources: {}, items: [] } };
+    const r = key ? _ra.find(x => x.recipe_key === key) : { class_key: 'blacksmith', station: 'smithy', min_level: 1, min_station_level: 1, output_qty: 1, base_seconds: 1200, base_xp: 20, quality_cap: 'legendary', sort_order: 0, discovery: 'known', inputs: { resources: {}, items: [] } };
     const wrap = byId('ra-form-wrap');
     if (!wrap || !r) return;
-    wrap.style.display = '';
-    const f = (k, type) => `<label class="ra-f"><span>${k}</span><input data-ra="${k}" type="${type || 'text'}" value="${esc(r[k] == null ? '' : r[k])}"></label>`;
-    wrap.innerHTML = `<div class="ra-form">
-      ${key ? `<div class="ra-key">${esc(key)}</div>` : f('recipe_key')}
-      ${RA_FIELDS.map(k => f(k, ['min_level', 'min_station_level', 'output_qty', 'base_seconds', 'base_xp', 'sort_order'].includes(k) ? 'number' : 'text')).join('')}
-      <label class="ra-f ra-wide"><span>inputs (JSON)</span><textarea data-ra="inputs" rows="3">${esc(JSON.stringify(r.inputs || {}))}</textarea></label>
+    wrap.style.display = 'block';
+    const val = k => esc(r[k] == null ? '' : r[k]);
+    const field = k => `<div class="ce-field"><label>${esc(k.replace(/_/g, ' '))}</label>${RA_CHOICES[k]
+      ? `<select class="ce-input" data-ra="${k}">${RA_CHOICES[k].map(o => `<option value="${o}" ${String(r[k]) === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`
+      : `<input class="ce-input" data-ra="${k}" type="${RA_NUM.includes(k) ? 'number' : 'text'}" value="${val(k)}">`}</div>`;
+    wrap.innerHTML = `<div class="qa-form">
+      <div class="qa-form-header">${key ? 'Edit: ' + esc(r.name) : '＋ New Recipe'}
+        <button type="button" onclick="document.getElementById('ra-form-wrap').style.display='none'" style="margin-left:auto;background:none;border:none;color:rgba(192,221,151,.5);cursor:pointer;font-size:14px" aria-label="Close">✕</button></div>
+      <div class="ce-grid">
+        ${key ? `<div class="ce-field"><label>recipe key</label><input class="ce-input" value="${esc(key)}" readonly></div>` : `<div class="ce-field"><label>recipe key</label><input class="ce-input" data-ra="recipe_key" placeholder="iron_dagger"></div>`}
+        ${RA_FIELDS.map(field).join('')}
+      </div>
+      <div class="ce-field" style="margin-top:6px"><label>inputs (JSON) — {"resources":{"metal":8},"items":[{"item_key":"iron_ore","qty":1}]}</label>
+        <textarea class="ce-input" data-ra="inputs" rows="3">${esc(JSON.stringify(r.inputs || {}))}</textarea></div>
       <div class="ra-btns">
-        <button type="button" class="cheat-all-btn" onclick="KWCrafting.saveRecipe(${key ? `'${esc(key)}'` : 'null'})">💾 Save</button>
-        ${key && !r.archived ? `<button type="button" class="cheat-all-btn" onclick="KWCrafting.archiveRecipe('${esc(key)}')">🗄 Archive</button>` : ''}
-        ${key && r.archived ? `<button type="button" class="cheat-all-btn" onclick="KWCrafting.unarchiveRecipe('${esc(key)}')">♻ Restore</button>` : ''}
-        ${key && r.discovery === 'hidden' ? `<button type="button" class="cheat-all-btn" onclick="KWCrafting.teachRecipe('${esc(key)}')">📜 Teach my town</button>` : ''}
-        <button type="button" class="cheat-all-btn" onclick="document.getElementById('ra-form-wrap').style.display='none'">Close</button>
+        <button type="button" class="qa-btn ra-btn" onclick="KWCrafting.saveRecipe(${key ? `'${esc(key)}'` : 'null'})">💾 Save</button>
+        ${key && !r.archived ? `<button type="button" class="qa-btn ra-btn" onclick="KWCrafting.archiveRecipe('${esc(key)}')">🗄 Archive</button>` : ''}
+        ${key && r.archived ? `<button type="button" class="qa-btn ra-btn" onclick="KWCrafting.unarchiveRecipe('${esc(key)}')">♻ Restore</button>` : ''}
+        ${key && r.discovery === 'hidden' ? `<button type="button" class="qa-btn ra-btn" onclick="KWCrafting.teachRecipe('${esc(key)}')">📜 Teach my town</button>` : ''}
       </div></div>`;
   }
   async function saveRecipe(key) {

@@ -79,20 +79,13 @@
 .cf-q { font-weight: 700; }
 .cf-mark { font-style: italic; }
 
-/* Dev Tools: recipes */
-.ra-row { display: flex; gap: 6px; align-items: center; }
-.ra-name { flex: 1; min-width: 0; }
-.ra-meta { font-size: 10px; opacity: .6; }
-.ra-edit { flex: 0 0 auto; padding: 2px 8px; font-size: 10px; }
-.ra-arch { opacity: .45; }
-.ra-form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; padding: 8px; border: 1px dashed rgba(192,221,151,.3); border-radius: 8px; }
-.ra-f { display: grid; font-size: 10px; gap: 2px; }
-.ra-f input, .ra-f textarea { background: rgba(0,0,0,.3); color: inherit; border: 1px solid rgba(192,221,151,.25); border-radius: 4px; padding: 3px 5px; font: inherit; font-size: 11px; }
-.ra-wide, .ra-btns, .ra-key { grid-column: 1 / -1; }
-.ra-btns { display: flex; gap: 6px; }
-.ra-key { font-weight: 700; }
+/* Dev Tools: recipes (rows and form reuse .qa-row / .qa-form / .ce-* from main.css) */
+.ra-meta { font-size: 10px; color: rgba(192,221,151,.45); flex-shrink: 0; white-space: nowrap; }
+.ra-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ra-btn { width: auto; padding: 4px 10px; }
 .ra-muted { opacity: .4; font-size: 11px; padding: 8px; }
 .ra-err { color: #e07a6a; font-size: 11px; padding: 8px; }
+@media (max-width: 600px) { .ra-meta { display: none; } }
 
 @media (max-width: 760px) {
   .cf-overlay { padding: 0; }
