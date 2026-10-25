@@ -6,7 +6,7 @@ let _iaItems = [];
 
 const IA_QUALITIES = ['basic','sturdy','fine','superior','legendary'];
 const IA_RARITIES  = ['common','uncommon','rare','epic','legendary'];
-const IA_SLOTS     = ['weapon','armour','trinket','tool'];
+const IA_SLOTS     = ['weapon','armour','shield','trinket','tool'];
 const IA_SEASONS   = ['spring','summer','autumn','winter'];
 const IA_CATEGORIES = ['fish','equipment','material','food','quest_item','trophy','misc'];
 const IA_RARITY_COLORS = { common:'#a0c880', uncommon:'#70b8e0', rare:'#e8a020', epic:'#c060e0', legendary:'#ff8020' };
