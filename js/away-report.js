@@ -11,7 +11,7 @@
 //       seen" means. The heartbeat starts only after the report is fetched,
 //       so it can never wipe the report it is about to show.
 //  The report is split into tabs (Summary · Resources · Quests · Citizens ·
-//  Hardship · World) so a big settlement's absence stays readable; an empty
+//  Trade · Hardship · World) so a big settlement's absence stays readable; an empty
 //  tab says nothing happened, and long lists are capped with "Show all".
 //  The splash can be turned off with its "Don't show me this again" box or
 //  Settings → General (kw_away_splash = 'off', per browser).
@@ -29,6 +29,7 @@
     ['resources', '🪵', 'Resources'],
     ['quests', '📜', 'Quests'],
     ['citizens', '🏡', 'Citizens'],
+    ['trade', '⚒️', 'Trade'],
     ['hardship', '🩹', 'Hardship'],
     ['world', '🌍', 'World'],
   ];
@@ -36,6 +37,7 @@
     resources: 'Nothing was produced or eaten since you were last here.',
     quests: 'No quests finished since you were last here.',
     citizens: 'Nothing happened among your citizens since you were last here.',
+    trade: 'Your workshops and the Market were quiet while you were away.',
     hardship: 'No injuries, deaths or hunger since you were last here.',
     world: 'Nothing happened in the wider world since you were last here.',
   };
@@ -141,7 +143,7 @@
 
   // Events split by tab ('other' → world), newest first.
   function _groups(r) {
-    const g = { quests: [], citizens: [], hardship: [], world: [] };
+    const g = { quests: [], citizens: [], trade: [], hardship: [], world: [] };
     for (const e of r.events || []) (g[e.category] || g.world).push(e);
     for (const k in g) g[k].reverse();
     return g;
@@ -155,6 +157,7 @@
       resources: _resActive(r).length,
       quests: g.quests.length,
       citizens: g.citizens.length,
+      trade: g.trade.length,
       hardship: g.hardship.length,
       world: g.world.length + (r.happenings || []).length + ((r.seasons || []).length ? 1 : 0),
     };
@@ -191,6 +194,7 @@
       + '<div class="qm-section">📰 What happened</div>'
       + line('quests', '📜', 'Quests', c.quests, 'update')
       + line('citizens', '🏡', 'Citizens', c.citizens, 'event')
+      + line('trade', '⚒️', 'Trade & crafting', c.trade, 'event')
       + line('hardship', '🩹', 'Hardship', c.hardship, 'event')
       + line('world', '🌍', 'World', c.world, 'event');
   }
@@ -224,8 +228,31 @@
     return html;
   }
 
+  // Workshops and the Market: totals first, then each piece / recipe / deal.
+  const Q_LABEL = { basic: 'Basic', sturdy: 'Sturdy', fine: 'Fine', superior: 'Superior', legendary: 'Legendary' };
+  function _tradeHtml(r) {
+    const list = _groups(r).trade, t = r.trade;
+    if (!list.length) return _empty('trade');
+    // Same look as the resource tiles (not clickable).
+    const tile = (label, val, tone) => '<div class="ar-res ar-res-static"><span class="ar-res-net' + (tone ? ' ' + tone : '') + '">' + val + '</span>'
+      + '<span class="ar-res-label">' + _esc(label) + '</span></div>';
+    let html = '';
+    if (t) {
+      html += '<div class="ar-res-grid">'
+        + tile('Pieces made', _esc(t.made))
+        + (t.best_quality && t.best_quality !== 'basic' ? tile('Best piece', _esc(Q_LABEL[t.best_quality] || t.best_quality)) : '')
+        + tile('Gold earned', _fmt(t.earned)) + tile('Gold spent', _fmt(t.spent))
+        + tile('Net gold', (t.net < 0 ? '−' : '+') + _fmt(Math.abs(t.net)), t.net > 0 ? 'ar-up' : t.net < 0 ? 'ar-down' : '')
+        + '</div>'
+        + (t.on_road ? '<div class="ar-note">⏳ ' + _fmt(t.on_road) + ' gold is still on its way home.</div>' : '')
+        + (t.learned ? '<div class="ar-note">📜 ' + _esc(t.learned) + ' new recipe' + (t.learned === 1 ? '' : 's') + ' learned.</div>' : '');
+    }
+    return html + '<div class="qm-section">📰 What happened</div>' + _listHtml('trade', list, r);
+  }
+
   function _tabBody(r) {
     if (_tab === 'resources') return _resourcesHtml(r);
+    if (_tab === 'trade') return _tradeHtml(r);
     if (_tab === 'world') return _worldHtml(r);
     if (_tab === 'quests' || _tab === 'citizens' || _tab === 'hardship') {
       const list = _groups(r)[_tab];

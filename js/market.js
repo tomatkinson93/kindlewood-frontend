@@ -183,6 +183,7 @@
     el.querySelector('.mk-close').addEventListener('click', closeMarket);
     el.addEventListener('click', onAction);
     el.addEventListener('mousemove', onChartHover);
+    el.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('mk-help')) state.ledgerHelp = e.target.open; }, true);
     el.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') onChartHover(e); });   // tap = hover on touch
     el.addEventListener('mouseleave', () => { const tt = byId('mk-tip'); if (tt) tt.style.display = 'none'; });
     el.addEventListener('change', onChange);
@@ -579,7 +580,23 @@
     const views = `<div class="mk-seg" role="tablist" aria-label="Ledger view">
       <button type="button" role="tab" aria-selected="${state.ledgerView !== 'prices'}" class="${state.ledgerView !== 'prices' ? 'on' : ''}" data-act="ledger-view" data-view="receipts">🧾 Receipts</button>
       <button type="button" role="tab" aria-selected="${state.ledgerView === 'prices'}" class="${state.ledgerView === 'prices' ? 'on' : ''}" data-act="ledger-view" data-view="prices">📈 Prices</button></div>`;
-    return views + (state.ledgerView === 'prices' ? pricesViewHtml() : receiptsHtml());
+    return views + ledgerHelpHtml() + (state.ledgerView === 'prices' ? pricesViewHtml() : receiptsHtml());
+  }
+
+  // "How this works": open by itself the first time a player visits.
+  // Decided on the first Ledger render this session, then follows the player's
+  // own folding (state.ledgerHelp), so refreshes don't fold or unfold it.
+  function ledgerHelpHtml() {
+    if (state.ledgerHelp == null) {
+      try { state.ledgerHelp = !global.localStorage.getItem('kw_mk_ledger_help'); if (state.ledgerHelp) global.localStorage.setItem('kw_mk_ledger_help', '1'); }
+      catch (_) { state.ledgerHelp = false; }
+    }
+    return `<details class="mk-help"${state.ledgerHelp ? ' open' : ''}><summary>ⓘ How the Ledger works</summary><ul>
+      <li><b>Receipts</b> list every deal your town makes: caravan lots, stall pickups, Wanted orders, Ironhaven and the villages. A deal shows when its price is agreed; it is <i>settled</i> once your gold or goods are home.</li>
+      <li><b>Prices</b> come only from trades between players. Ironhaven and village prices are set by the game, so they appear as a dashed reference line instead.</li>
+      <li>Each price is averaged by quantity, so a big lot counts more than a small one. Crafted items are priced separately for each quality.</li>
+      <li>The Sell form's <b>guide price</b> follows the 7-day average once a good has 3 or more trades, and the reference price before that.</li>
+    </ul></details>`;
   }
 
   function receiptsHtml() {

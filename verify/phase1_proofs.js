@@ -16,6 +16,12 @@ const vm = require('vm');
 
 const OLD_MAIN = process.argv[2];
 const NEW_DIR  = process.argv[3];
+// A one-off comparison against the pre-extraction main.js: it needs both
+// paths, e.g. `git show <old-commit>:js/main.js > /tmp/old-main.js`.
+if (!OLD_MAIN || !NEW_DIR) {
+  console.log('phase1_proofs: comparison harness — run as  node verify/phase1_proofs.js OLD_MAIN NEW_DIR  (skipped)');
+  process.exit(0);
+}
 
 // ── Recording 2d context ────────────────────────────────────────────────
 function makeCtx(log) {

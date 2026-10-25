@@ -17,6 +17,10 @@ let _inventoryData = [];
 let _inventoryTab  = 'all';
 
 // RARITY_COLORS is defined in fishing.js — shared across the game
+// Item text comes from the server (templates, quest drops, named blades,
+// trades): always escape it before it goes into HTML.
+const _invEsc = s => (typeof escHtml === 'function' ? escHtml(s) : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
+
 const INV_RARITY_LABELS = {
   common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary'
 };
@@ -100,11 +104,11 @@ function invItemCard(item) {
   const statHtml = hasStats
     ? '<div class="inv-card-stats">' +
       Object.entries(item.stat_bonuses).map(([k,v]) =>
-        '<span class="inv-stat-badge">+' + v + ' ' + k + '</span>'
+        '<span class="inv-stat-badge">+' + _invEsc(v) + ' ' + _invEsc(k) + '</span>'
       ).join('') + '</div>'
     : '';
   const equippedHtml = item.equipped_to_name
-    ? '<div class="inv-card-equipped">⚔ ' + item.equipped_to_name + '</div>'
+    ? '<div class="inv-card-equipped">⚔ ' + _invEsc(item.equipped_to_name) + '</div>'
     : '';
   const qtyHtml = item.quantity > 1
     ? '<span class="inv-card-qty">×' + item.quantity + '</span>'
@@ -115,8 +119,8 @@ function invItemCard(item) {
     : '';
 
   return '<div class="inv-card" data-id="' + item.id + '" onclick="openItemDetail(' + item.id + ')" style="--rarity-color:' + rarityColor + '">'
-    + '<div class="inv-card-icon">' + item.icon + qtyHtml + '</div>'
-    + '<div class="inv-card-name"' + (_invQualityColour(item) ? ' style="color:' + _invQualityColour(item) + '"' : '') + '>' + item.name + '</div>'
+    + '<div class="inv-card-icon">' + _invEsc(item.icon) + qtyHtml + '</div>'
+    + '<div class="inv-card-name"' + (_invQualityColour(item) ? ' style="color:' + _invQualityColour(item) + '"' : '') + '>' + _invEsc(item.name) + '</div>'
     + '<div class="inv-card-rarity" style="color:' + rarityColor + '">' + INV_RARITY_LABELS[item.rarity] + '</div>'
     + statHtml + equippedHtml + sellHtml
     + '</div>';
@@ -150,7 +154,7 @@ function openItemDetail(itemId) {
       + '<div class="inv-detail-section-title">Equip to Citizen <span style="opacity:.6;font-weight:400">(one per slot — adds to their skills)</span></div>'
       + '<select class="pa-select" id="inv-equip-select">'
       + '<option value="">— Unequipped —</option>'
-      + availableCitizens.map(c => '<option value="' + c.id + '"' + (item.equipped_to === c.id ? ' selected' : '') + '>' + c.name + '</option>').join('')
+      + availableCitizens.map(c => '<option value="' + c.id + '"' + (item.equipped_to === c.id ? ' selected' : '') + '>' + _invEsc(c.name) + '</option>').join('')
       + '</select>'
       + '<button class="inv-equip-btn" data-id="' + item.id + '" onclick="invEquipItem(this.dataset.id)">Apply</button>'
       + '</div>'
@@ -162,28 +166,28 @@ function openItemDetail(itemId) {
   overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = '<div class="inv-detail-card" style="--rarity-color:' + rarityColor + '">'
     + '<div class="inv-detail-header">'
-    + '<span class="inv-detail-icon">' + item.icon + '</span>'
+    + '<span class="inv-detail-icon">' + _invEsc(item.icon) + '</span>'
     + '<div>'
-    + '<div class="inv-detail-name">' + item.name + '</div>'
+    + '<div class="inv-detail-name">' + _invEsc(item.name) + '</div>'
     + '<div class="inv-detail-rarity" style="color:' + rarityColor + '">' + INV_RARITY_LABELS[item.rarity] + ' · ' + (INV_CATEGORY_LABELS[item.category] || item.category) + (item.equip_slot ? ' · ' + item.equip_slot : '') + '</div>'
     + _invMarkHtml(item)
     + '</div>'
     + '<button class="inv-detail-close" onclick="document.getElementById(\'inv-detail-overlay\').remove()">✕</button>'
     + '</div>'
-    + '<div class="inv-detail-desc">' + (item.description || 'No description.') + '</div>'
+    + '<div class="inv-detail-desc">' + _invEsc(item.description || 'No description.') + '</div>'
     + (hasStats ? '<div class="inv-detail-section"><div class="inv-detail-section-title">Stat Bonuses</div><div class="inv-card-stats">'
-      + Object.entries(item.stat_bonuses).map(([k,v]) => '<span class="inv-stat-badge">+' + v + ' ' + k + '</span>').join('')
+      + Object.entries(item.stat_bonuses).map(([k,v]) => '<span class="inv-stat-badge">+' + _invEsc(v) + ' ' + _invEsc(k) + '</span>').join('')
       + '</div></div>' : '')
     + _invEffectsHtml(item)
     + equipSection
-    + (item.source ? '<div class="inv-detail-source">Obtained from: ' + item.source + '</div>' : '')
+    + (item.source ? '<div class="inv-detail-source">Obtained from: ' + _invEsc(item.source) + '</div>' : '')
     + '<div class="inv-detail-meta-row">'
     + (item.metadata?.food_value ? '<span class="inv-meta-badge">🌿 +' + item.metadata.food_value + ' food</span>' : '')
     + (item.metadata?.sell_value ? '<span class="inv-meta-badge" title="Town value — Ironhaven pays a share of this">🪙 ' + item.metadata.sell_value + ' value</span>' : '')
     + '</div>'
     + (_invIsSchematic(item)
         ? '<div class="inv-detail-section inv-schematic">📜 Studying it teaches every crafter in your town to make <b>'
-          + (item.name || '').replace(/^Schematic:\s*/, '') + '</b>. It is used up; if your town already knows it, keep it to sell.</div>'
+          + _invEsc((item.name || '').replace(/^Schematic:\s*/, '')) + '</b>. It is used up; if your town already knows it, keep it to sell.</div>'
         : '')
     + '<div class="inv-detail-actions">'
     + (item.quantity > 1 ? '<span class="inv-detail-qty">×' + item.quantity + ' in stock</span>' : '')
