@@ -14,18 +14,10 @@ function startResourceTick(resources, rates) {
   // Update display every second
   tickInterval = setInterval(() => {
     if (!tickResources || !tickRates) return;
-    const perSecond = {
-      food:   tickRates.food   / 3600,
-      timber: tickRates.timber / 3600,
-      stone:  tickRates.stone  / 3600,
-      metal:  tickRates.metal  / 3600,
-      wealth: tickRates.wealth / 3600,
-    };
-    tickResources.food   += perSecond.food;
-    tickResources.timber += perSecond.timber;
-    tickResources.stone  += perSecond.stone;
-    tickResources.metal  += perSecond.metal;
-    tickResources.wealth += perSecond.wealth;
+    // Every resource with a rate (the base five, and ores once mines turn them up).
+    for (const k of Object.keys(tickRates)) {
+      if (typeof tickRates[k] === 'number') tickResources[k] = (Number(tickResources[k]) || 0) + tickRates[k] / 3600;
+    }
     updateTopbarDisplay();
     // Fire the floater for any resource whose integer displayed value
     // just changed. The function is supplied by resources.js; guarded
@@ -50,6 +42,11 @@ function startResourceTick(resources, rates) {
         if (data && data.settlement) {
           tickResources = { ...data.settlement.resources };
           tickRates = { ...data.settlement.rates };
+          if (gameData?.settlement) {
+            gameData.settlement.discovered = data.settlement.discovered || [];
+            gameData.settlement.new_discoveries = data.settlement.new_discoveries || [];
+          }
+          if (window.KWStores) KWStores.onSettlement(data.settlement);
           // Reset baseline after the sync — the server may have added a
           // chunk of resources for offline time, and we don't want a
           // surprise "+8,432 food" floater to flash over the topbar.
@@ -81,6 +78,9 @@ function updateTopbarDisplay() {
     if (r.timber  > tickResources.timber)  tickResources.timber  = r.timber;
     if (r.stone   > tickResources.stone)   tickResources.stone   = r.stone;
     if (r.metal   > tickResources.metal)   tickResources.metal   = r.metal;
+    for (const k of (window.KWResources ? KWResources.EXTRA : [])) {
+      if (r[k] > (tickResources[k] || 0)) tickResources[k] = r[k];
+    }
   }
   const set = (id, val, rate) => {
     const el = document.getElementById('res-' + id);
@@ -93,6 +93,7 @@ function updateTopbarDisplay() {
   set('stone',  tickResources.stone,  tickRates.stone);
   set('metal',  tickResources.metal,  tickRates.metal);
   set('wealth', tickResources.wealth, tickRates.wealth);
+  if (window.KWStores) KWStores.render();
 }
 
 // ── Settlement naming modal ──

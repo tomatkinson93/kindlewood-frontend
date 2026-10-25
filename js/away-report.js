@@ -20,7 +20,7 @@
   'use strict';
   const LS_KEY = 'kw_away_splash';
   const HEARTBEAT_MS = 60 * 1000;
-  const RES = [['food', 'Food'], ['timber', 'Timber'], ['stone', 'Stone'], ['metal', 'Metal'], ['wealth', 'Wealth']];
+  const RES = [['food', 'Food'], ['timber', 'Timber'], ['stone', 'Stone'], ['metal', 'Iron'], ['wealth', 'Wealth']];
   // Tabs: one per group, so a big settlement's report stays readable.
   // Event categories from the server map onto quests / citizens / hardship;
   // anything else ('other') joins the World tab.

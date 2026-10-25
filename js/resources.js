@@ -53,7 +53,7 @@ function _resIcon(resId, size = 16) {
   return `<img src="${src}" alt="${resId}" style="width:${size}px;height:${size}px;vertical-align:middle;image-rendering:pixelated">`;
 }
 const RM_RESOURCE_LABELS = {
-  food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Wealth',
+  food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Wealth',
 };
 
 // ── Floater ────────────────────────────────────────────────────────────────

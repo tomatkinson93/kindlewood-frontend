@@ -556,9 +556,8 @@ async function applyCheat(resource, amount) {
     });
     const data = await res.json();
     if (res.ok) {
-      tickResources = { ...data.resources };
-      updateTopbarDisplay();
-      showBuildToast(`+${amount} ${resource} added ✓`, 'success');
+      _cheatSync(data);
+      showBuildToast(`+${amount} ${window.KWResources ? KWResources.label(resource) : resource} added ✓`, 'success');
     }
   } catch(e) { console.error(e); }
 }
@@ -572,11 +571,31 @@ async function applyCheatAll(amount) {
     });
     const data = await res.json();
     if (res.ok) {
-      tickResources = { ...data.resources };
-      updateTopbarDisplay();
+      _cheatSync(data);
       showBuildToast(`All resources +${amount} ✓`, 'success');
     }
   } catch(e) { console.error(e); }
+}
+
+// Every ore, rare material and alloy at once (discovers them all).
+async function applyCheatExtras(amount) {
+  try {
+    const body = Object.fromEntries(KWResources.EXTRA.map(k => [k, amount]));
+    const res = await apiFetch('/api/game/cheat/resources', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) { _cheatSync(data); showBuildToast(`Ores, rares and alloys +${amount} ✓`, 'success'); }
+  } catch (e) { console.error(e); }
+}
+
+function _cheatSync(data) {
+  tickResources = { ...(tickResources || {}), ...data.resources };
+  if (gameData?.settlement) {
+    gameData.settlement.resources = { ...(gameData.settlement.resources || {}), ...data.resources };
+    if (data.discovered) gameData.settlement.discovered = data.discovered;
+  }
+  updateTopbarDisplay();
 }
 
 // ══════════════════════════════════════════════
@@ -720,7 +739,7 @@ function qa_showForm(id) {
     + '<div id="qa-rewards-fields" style="margin-top:6px">'
     + '<div class="ce-field"><label>Resource rewards ' + tip('Added to the settlement on success (each participant for clan quests). Party quests use these instead of Gold reward.') + '</label></div>'
     + '<div class="ce-grid ce-grid--5">'
-    + ['food','timber','stone','metal','wealth'].map(k => '<div class="ce-field"><label>' + ({food:'🌾 Food',timber:'🪵 Timber',stone:'🪨 Stone',metal:'⛓️ Metal',wealth:'🪙 Gold'})[k] + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + ((q?.rewards || {})[k] || 0) + '"></div>').join('')
+    + ['food','timber','stone','metal','wealth'].map(k => '<div class="ce-field"><label>' + ({food:'🌾 Food',timber:'🪵 Timber',stone:'🪨 Stone',metal:'⛓️ Iron',wealth:'🪙 Gold'})[k] + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + ((q?.rewards || {})[k] || 0) + '"></div>').join('')
     + '</div></div>'
     + '<div class="ce-field" style="margin-top:6px"><label>Reward label ' + tip('Human-readable reward summary shown on the card. e.g. "+40 timber, +15 gold"') + '</label><input class="ce-input" id="qa-reward-label" value="' + (q?.reward_label||'') + '" placeholder="+15 gold, +2 food"></div>'
     + '<div class="ce-grid" style="margin-top:6px">'

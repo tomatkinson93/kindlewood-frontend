@@ -335,6 +335,16 @@ async function loadGame(force = false) {
 
     setLoadingProgress(92, 'Finishing up…');
     startResourceTick(gameData.settlement.resources, gameData.settlement.rates);
+    // Stores pill now; a "New discovery!" card once the away report is closed.
+    if (window.KWStores) {
+      KWStores.render();
+      const waitForSplash = (n = 0) => {
+        const ar = document.getElementById('away-report-modal');
+        if (ar && ar.offsetParent !== null && n < 600) return setTimeout(() => waitForSplash(n + 1), 1000);
+        KWStores.onSettlement(gameData.settlement);
+      };
+      setTimeout(waitForSplash, 2500);
+    }
     initSeasons(gameData.settlement);
     if (typeof startEventsPoll === 'function') startEventsPoll();
     if (typeof startGlobalQuestTimer === 'function') startGlobalQuestTimer();
@@ -682,9 +692,9 @@ const TERRAIN_LABELS = {
   river: 'Riverside', ruins: 'Ancient Ruins', mountain: 'Mountain Base', marsh: 'Misty Marshland',
 };
 const TERRAIN_BONUSES_DISPLAY = {
-  plains: '+3 food/hr', forest: '+4 timber/hr', hills: '+3 stone, +2 metal/hr',
+  plains: '+3 food/hr', forest: '+4 timber/hr', hills: '+3 stone, +2 iron/hr',
   river: '+4 wealth/hr', ruins: '+2 stone, +3 wealth/hr',
-  mountain: '+4 stone, +4 metal/hr', marsh: '+2 food, +2 timber/hr',
+  mountain: '+4 stone, +4 iron/hr', marsh: '+2 food, +2 timber/hr',
 };
 
 // ── Camera system ──

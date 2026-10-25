@@ -31,7 +31,17 @@
   const RES_ICON = { food: resImg('food'), timber: resImg('timber'), stone: resImg('stone'), metal: resImg('metal'), wealth: resImg('wealth') };
   const RES_TXT = { food: '🍎', timber: '🌲', stone: '🧱', metal: '⚙️', wealth: '💰' };
   const COIN = resImg('wealth');
-  const RES_LABEL = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Gold' };
+  const RES_LABEL = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Gold' };
+  // Ores, rare materials and alloys (js/resource-defs.js): emoji icons.
+  for (const k of (window.KWResources ? KWResources.EXTRA : [])) {
+    RES_ICON[k] = RES_TXT[k] = KWResources.icon(k);
+    RES_LABEL[k] = KWResources.label(k);
+  }
+  // Resources this town can sell or ask for: the basics plus its discoveries.
+  const knownTradeable = st => {
+    const kn = window.KWResources ? KWResources.knownSet(st.discovered || []) : null;
+    return kn ? st.tradeable.filter(r => kn[r]) : st.tradeable;
+  };
   const TIER_LABEL = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '');
   // Buy tab category buttons. Item categories match the server's
   // categoryOf(): equipment slot first, then the item category.
@@ -714,7 +724,7 @@
     return `<table class="mk-levels">
       <thead><tr><th>Market</th><th>Needs</th><th>Carry / trip</th><th>Merchants</th><th>Orders</th></tr></thead>
       <tbody>${rows}</tbody></table>
-      <div class="mk-muted mk-small">Carry weight: food ½ · timber 1 · stone 1 · metal 2 per unit.</div>`;
+      <div class="mk-muted mk-small">Carry weight: food ½ · timber 1 · stone 1 · iron 2 per unit.</div>`;
   }
 
   function lockedHtml(st) {
@@ -965,7 +975,7 @@
     const have = liveResources();
     const isItem = d.mode === 'item';
     const spec = goodsSpec();
-    const resOpts = st.tradeable.map(r =>
+    const resOpts = knownTradeable(st).map(r =>
       `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_TXT[r]} ${RES_LABEL[r]} (have ${fmt(have[r] ?? st.resources[r])})</option>`).join('');
     const maxLot = spec.maxLot;
     const free = mods.merchants - st.merchantsAssigned;
@@ -1354,7 +1364,7 @@
         <div class="mk-mine-act"><button type="button" class="mk-btn mk-btn-sm mk-btn-danger" data-act="cancel-want" data-id="${w.id}">Cancel</button></div>
       </li>`).join('');
     const isItem = d.kind === 'item';
-    const resOpts = st.tradeable.map(r => `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_TXT[r]} ${RES_LABEL[r]}</option>`).join('');
+    const resOpts = knownTradeable(st).map(r => `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_TXT[r]} ${RES_LABEL[r]}</option>`).join('');
     return `
       <div class="mk-sec">
         <h3>Post a wanted order <span class="mk-muted mk-small">${myWants.length} / ${cap}</span></h3>

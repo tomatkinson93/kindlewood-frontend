@@ -26,7 +26,7 @@ function seasonEffectLines(id) {
   if (!m) return [];
   const pct = (x) => (x > 0 ? '+' : '−') + Math.round(Math.abs(x) * 100) + '%';
   const ICON = { food: '🌾', timber: '🪵', stone: '🪨', metal: '⛏️', wealth: '💰' };
-  const NAME = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Wealth' };
+  const NAME = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Wealth' };
   const out = [];
   for (const r of ['food', 'timber', 'stone', 'metal', 'wealth']) {
     const d = m.modifiers[r] - 1;

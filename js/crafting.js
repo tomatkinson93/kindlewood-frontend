@@ -22,7 +22,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const toast = (m, t) => { if (typeof global.showBuildToast === 'function') global.showBuildToast(m, t || 'success'); };
   const byId = id => document.getElementById(id);
-  const RES_ICON = { food: '🍞', timber: '🪵', stone: '🪨', metal: '⚙️', wealth: '🪙' };
+  const RES_ICON = { food: '🍞', timber: '🪵', stone: '🪨', metal: '⛓️', wealth: '🪙' };
   const QCOL = { basic: '#b8b0a0', sturdy: '#8fbf7a', fine: '#6aa8e0', superior: '#b77ff0', legendary: '#f4a83a' };
   const STATIONS = { smithy: '⚒️', jeweller: '💍', workshop: '🪚' };
 
@@ -52,9 +52,12 @@
     qty = qty || 1;
     const out = [];
     const inp = recipe.inputs || {};
+    const R = global.KWResources, known = R ? R.knownSet(st.discovered || []) : null;
     for (const [k, v] of Object.entries(inp.resources || {})) {
       const need = Number(v) * qty, have = Math.floor(Number((st.resources || {})[k]) || 0);
-      out.push({ key: k, icon: RES_ICON[k] || '•', label: k, need, have, short: have < need });
+      // Something the town hasn't discovered reads "?? ×1".
+      if (R && !R.isKnown(k, known)) { out.push({ key: k, icon: '', label: 'Not yet discovered', need, have, short: true, unknown: true }); continue; }
+      out.push({ key: k, icon: RES_ICON[k] || (R ? R.icon(k) : '•'), label: R ? R.label(k) : k, need, have, short: have < need });
     }
     for (const it of inp.items || []) {
       const t = (st.templates || {})[it.item_key] || {};
@@ -288,7 +291,9 @@
         <div class="cf-r-title"><div class="cf-r-name">${esc(r.name)}${r.output_qty > 1 ? ` ×${r.output_qty}` : ''}</div>
           <div class="cf-r-sub">${esc(bonusText(t) || (t.equip_slot ? '' : 'Material'))}${r.spec ? ` · <span class="cf-tag">${esc(specLabel(r.spec))}</span>` : ''}${r.hidden && r.known ? ' · <span class="cf-tag" title="Your town learned this one">📜 learned</span>' : ''}</div></div>
         <div class="cf-r-time" title="Time per piece">⏱ ${fmtTime(secondsFor(c.bench, r))}</div></div>
-      <div class="cf-needs">${n.map(x => `<span class="cf-need${x.short ? ' short' : ''}" title="${esc(x.label)}: have ${x.have}">${x.icon} ${x.need}<small>/${x.have}</small></span>`).join('') || '<span class="cr-muted">Free</span>'}</div>
+      <div class="cf-needs">${n.map(x => x.unknown
+        ? `<span class="cf-need res-unknown" title="Not yet discovered">?? ×${x.need}</span>`
+        : `<span class="cf-need${x.short ? ' short' : ''}" title="${esc(x.label)}: have ${x.have}">${x.icon} ${x.need}<small>/${x.have}</small></span>`).join('') || '<span class="cr-muted">Free</span>'}</div>
       ${odds && !why ? oddsBar(odds) : ''}
       ${why ? `<div class="cf-why">🔒 ${esc(why)}</div>` : `<div class="cf-r-act">
         ${canName ? `<input class="cf-name" data-name-for="${esc(r.recipe_key)}" maxlength="40" placeholder="✨ Name it (once a week)" aria-label="Name this blade">` : ''}
@@ -426,7 +431,7 @@
         ${key ? `<div class="ce-field"><label>recipe key</label><input class="ce-input" value="${esc(key)}" readonly></div>` : `<div class="ce-field"><label>recipe key</label><input class="ce-input" data-ra="recipe_key" placeholder="iron_dagger"></div>`}
         ${RA_FIELDS.map(field).join('')}
       </div>
-      <div class="ce-field" style="margin-top:6px"><label>inputs (JSON) — {"resources":{"metal":8},"items":[{"item_key":"iron_ore","qty":1}]}</label>
+      <div class="ce-field" style="margin-top:6px"><label>inputs (JSON) — {"resources":{"metal":8,"steel":2},"items":[{"item_key":"iron_ore","qty":1}]}</label>
         <textarea class="ce-input" data-ra="inputs" rows="3">${esc(JSON.stringify(r.inputs || {}))}</textarea></div>
       <div class="ra-btns">
         <button type="button" class="qa-btn ra-btn" onclick="KWCrafting.saveRecipe(${key ? `'${esc(key)}'` : 'null'})">💾 Save</button>

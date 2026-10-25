@@ -178,7 +178,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
     check('3f. warns when listing more than you have (40 timber)', /You only have 40/.test(s2));
     env.win.document.querySelector = () => ({ resource: { value: 'metal' }, qty_total: { value: '10' }, lot_size: { value: '60' }, lot_price: { value: '80' } });
     await env.fire('input', { dataset: { act: 'draft' } });
-    check('3g. warns when a delivery is over the carry limit (metal weighs 2)', /carries at most 50 metal/.test(env.getEl('mk-sell-summary').innerHTML));
+    check('3g. warns when a delivery is over the carry limit (iron weighs 2)', /carries at most 50 iron/.test(env.getEl('mk-sell-summary').innerHTML));
   }
   // 3i — selling items
   {

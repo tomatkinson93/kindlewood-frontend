@@ -23,7 +23,7 @@ const ZONES = [
     id: 'highland', name: 'Highland Crags',
     subtitle: 'Where stone and iron meet the sky',
     description: 'Rugged peaks and rocky slopes rich in ore and stone. Hard living, but those who endure build fortresses that never fall.',
-    bonuses: ['Stone +4/hr', 'Metal +4/hr', 'High ground defence'],
+    bonuses: ['Stone +4/hr', 'Iron +4/hr', 'High ground defence'],
     bestFor: ['Badgers', 'Moles'],
     notes: ['Mountain tiles can be mined for rare metals', 'Resettlement is possible as your realm expands', 'Placement within this zone is chosen by fate'],
     bg: '/assets/zone_highland.png', emoji: '⛰',
