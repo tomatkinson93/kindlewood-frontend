@@ -77,7 +77,7 @@
     return `<div class="sp-head">⛏ Stores <button class="sp-x" aria-label="Close" onclick="KWStores.close()">✕</button></div>
       ${body}
       ${hidden ? `<div class="sp-row sp-unknown"><span class="sp-ic">❔</span><span class="sp-name">?? — ${hidden} more not yet discovered</span></div>
-        <div class="sp-hint">Mines, hills and mountain outposts turn up ores. Rarer finds need research.</div>` : ''}`;
+        <div class="sp-hint">Mines, hills and mountain outposts turn up ores. Rarer finds need research${typeof openLibrary === 'function' ? ' — <button type="button" class="sp-link" onclick="KWStores.close();openLibrary()">📚 Library</button>' : ''}.</div>` : ''}`;
   }
 
   function toggle() {

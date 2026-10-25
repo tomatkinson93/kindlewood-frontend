@@ -32,7 +32,7 @@
     ['resources', '🪵', 'Resources'],
     ['quests', '📜', 'Quests'],
     ['citizens', '🏡', 'Citizens'],
-    ['trade', '⚒️', 'Trade'],
+    ['trade', '⚒️', 'Progress'],
     ['hardship', '🩹', 'Hardship'],
     ['world', '🌍', 'World'],
   ];
@@ -40,7 +40,7 @@
     resources: 'Nothing was produced or eaten since you were last here.',
     quests: 'No quests finished since you were last here.',
     citizens: 'Nothing happened among your citizens since you were last here.',
-    trade: 'Your workshops and the Market were quiet while you were away.',
+    trade: 'Your workshops, the Library and the Market were quiet while you were away.',
     hardship: 'No injuries, deaths or hunger since you were last here.',
     world: 'Nothing happened in the wider world since you were last here.',
   };
@@ -198,7 +198,7 @@
       + '<div class="qm-section">📰 What happened</div>'
       + line('quests', '📜', 'Quests', c.quests, 'update')
       + line('citizens', '🏡', 'Citizens', c.citizens, 'event')
-      + line('trade', '⚒️', 'Trade & crafting', c.trade, 'event')
+      + line('trade', '⚒️', 'Trade, crafting & research', c.trade, 'event')
       + line('hardship', '🩹', 'Hardship', c.hardship, 'event')
       + line('world', '🌍', 'World', c.world, 'event');
   }

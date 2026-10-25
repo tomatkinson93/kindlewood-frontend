@@ -1054,6 +1054,9 @@ function _openBuildPanel(slot, occupant) {
       + (['smithy', 'jeweller', 'workshop', 'smelter'].includes(occupant.id) && typeof openCrafting === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
         : '')
+      + (occupant.id === 'library' && typeof openLibrary === 'function'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openLibrary()">📚 Open the Library</button>'
+        : '')
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
