@@ -66,8 +66,8 @@ function renderBuildingsPanel() {
   html += `<div class="slabel">CONSTRUCT</div>`;
   html += available.filter(b => b.currentLevel === 0).map(b => {
     const costStr = Object.entries(b.cost)
-      .map(([r,v]) => `${RESOURCE_ICONS[r]||r} ${v}`)
-      .join(' ');
+      .map(([r,v]) => `${RESOURCE_ICONS[r] || (typeof _resIcon === 'function' ? _resIcon(r) : r)} ${v}`)
+      .join(' ') + discountText(b);
     return `
       <div class="building-card" onclick="showBuildingDetail('${b.id}')">
         <div class="building-card-top">
@@ -87,7 +87,13 @@ function renderBuildingsPanel() {
     `;
   }).join('');
 
-  // Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
+  // "−8% Stonemason Bram, −5% Engineering" — cost discounts already applied.
+function discountText(b) {
+  if (!b || !Array.isArray(b.discount) || !b.discount.length) return '';
+  return ` <span class="building-discount" title="Already taken off the cost">${b.discount.map(d => `−${Math.round(Math.abs(d.pct) * 100)}% ${d.label}`).join(', ')}</span>`;
+}
+
+// Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
   const locked = buildingsData.filter(b => b.currentLevel === 0 && (!b.requiresMet || b.tierMet === false || b.researchMet === false) && b.id !== 'housing' && b.id !== 'starter_house');
   if (locked.length) {
     html += `<div class="slabel" style="margin-top:8px;">LOCKED</div>`;

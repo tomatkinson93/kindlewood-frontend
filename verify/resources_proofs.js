@@ -196,5 +196,29 @@ console.log('8. Village requests');
   check('8c. request rows are styled', /\.mk-req-row/.test(read('css/market.css')));
 }
 
+console.log('9. Balance overview & discounts');
+{
+  const w = { document: { getElementById: () => null, addEventListener() {} }, console, Math, JSON, Number, String, Object, Array, Set, Promise };
+  w.window = w; vm.createContext(w);
+  vm.runInContext(read('js/research-defs.js'), w);
+  vm.runInContext(read('js/career-balance.js'), w);
+  const html = w.KWCareerBalance.html({
+    tuning: [{ key: 'research', value: 1.5, label: 'Research speed', desc: 'Points.' }],
+    classes: [{ key: 'miner', label: 'Miner', icon: '⛏️', citizens: 3, levels: [1, 0, 2].concat(Array(17).fill(0)), median_level: 3, median_xp_per_hour: 9.8, avg_hours: 40, forks: { stonemason: 1 } }],
+    crafting: { days: [{ day: '2026-10-24', basic: 2, sturdy: 1, fine: 0, superior: 0, legendary: 0, smelted: 4 }] },
+    discoveries: { recipes: 1, resources: 3, by_source: { 'resource:mine': 3 } },
+    research: { towns_studying: 2, finished_7d: 1, by_project: { smelting: 1 } } });
+  check('9a. tuning inputs with Save', /data-cb-key="research"/.test(html) && /value="1\.5"/.test(html) && /data-cb-save="research"/.test(html));
+  check('9b. class rows: histogram of 20 levels, medians, forks', (html.match(/<span style="height:/g) || []).length === 20 && /9\.8/.test(html) && /stonemason 1/.test(html));
+  check('9c. crafts by quality and smelts per day; discoveries; research', /2026-10-24/.test(html) && />4</.test(html) && /3<\/b> resources discovered/.test(html) && /Smelting 1/.test(html));
+  const idx = read('index.html');
+  check('9d. a Dev Tools tab loads it', /cheatSwitchTab\('ct-balance',this\);loadCareerBalance\(\)/.test(idx) && /id="cb-body"/.test(idx) && /\/js\/career-balance\.js/.test(idx));
+  const b = read('js/buildings.js');
+  const src = b.slice(b.indexOf('function discountText'), b.indexOf('// Show locked buildings'));
+  const x = {}; vm.createContext(x); vm.runInContext(src, x);
+  check('9e. build costs say what was taken off', /−16% Stonemason Gritt, −5% Engineering/.test(x.discountText({ discount: [{ label: 'Stonemason Gritt', pct: -0.16 }, { label: 'Engineering', pct: -0.05 }] })) && x.discountText({}) === '');
+  check('9f. the settlement view shows them too', (read('js/settlement-view.js').match(/discountText\(/g) || []).length === 2);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

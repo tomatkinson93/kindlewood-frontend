@@ -1026,7 +1026,7 @@ function _openBuildPanel(slot, occupant) {
     var vis   = SV_VISUALS[occupant.id] || { emoji:'🏛', flavor:'' };
     var isMax = occupant.currentLevel >= occupant.maxLevel;
     var costStr = occupant.cost
-      ? Object.entries(occupant.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ')
+      ? Object.entries(occupant.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ') + (typeof discountText === 'function' ? discountText(occupant) : '')
       : '';
     var refundStr = occupant.cost
       ? Object.entries(occupant.cost).filter(function(e){ return e[1] > 0; })
@@ -1069,7 +1069,7 @@ function _openBuildPanel(slot, occupant) {
       if (!b) return '';
       var vis = SV_VISUALS[id] || { emoji:'🏛' };
       var costStr = b.cost
-        ? Object.entries(b.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ')
+        ? Object.entries(b.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ') + (typeof discountText === 'function' ? discountText(b) : '')
         : 'Free';
       if (_svCanBuild(b) && b.currentLevel === 0) {
         return '<div class="sv-bp-opt available"><span class="sv-bp-emoji">' + vis.emoji + '</span>'

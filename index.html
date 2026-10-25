@@ -44,8 +44,8 @@
   <link rel="stylesheet" href="/css/clans.css?v=cq3">
   <link rel="stylesheet" href="/css/market.css?v=rs5">
   <link rel="stylesheet" href="/css/careers.css?v=cr1">
-  <link rel="stylesheet" href="/css/crafting.css?v=rs5">
-  <link rel="stylesheet" href="/css/stores.css?v=rs4">
+  <link rel="stylesheet" href="/css/crafting.css?v=rs7">
+  <link rel="stylesheet" href="/css/stores.css?v=rs6">
   <link rel="stylesheet" href="/css/research.css?v=rs4">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
@@ -809,13 +809,14 @@
   <script defer src="/js/resource-defs.js?v=rs1"></script>
   <script defer src="/js/research-defs.js?v=rs4"></script>
   <script defer src="/js/stores.js?v=rs4"></script>
-  <script defer src="/js/career-math.js?v=rs4"></script>
+  <script defer src="/js/career-math.js?v=rs6"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
   <script defer src="/js/careers.js?v=cf1"></script>
   <script defer src="/js/crafting.js?v=rs5"></script>
   <script defer src="/js/research.js?v=rs4"></script>
+  <script defer src="/js/career-balance.js?v=rs6"></script>
   <script defer src="/js/citizens.js?v=cr2"></script>
-  <script defer src="/js/buildings.js?v=rs3"></script>
+  <script defer src="/js/buildings.js?v=rs6"></script>
   <script defer src="/js/expeditions.js?v=cr2"></script>
   <script defer src="/js/seasons.js?v=rs1"></script>
   <script defer src="/js/hud-clock.js?v=021ev"></script>
@@ -984,6 +985,7 @@
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-recipes',this);loadRecipeAdmin()">🛠 Recipes</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-balance',this);loadCareerBalance()">📊 Careers</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-cards',this);loadCardAdmin()">🃏 Cards</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
@@ -1271,6 +1273,9 @@
       </div>
 
       <!-- ── TAB: Recipes (js/crafting.js) ── -->
+      <div class="cheat-tab-panel" id="ct-balance" style="display:none">
+        <div id="cb-body"><div class="ra-muted">Loading…</div></div>
+      </div>
       <div class="cheat-tab-panel" id="ct-recipes" style="display:none">
         <div style="display:flex;gap:6px;margin-bottom:10px">
           <button class="cheat-all-btn" style="flex:1" onclick="KWCrafting.editRecipe(null)">＋ New Recipe</button>
@@ -1722,7 +1727,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=rs4"></script>
+    <script defer src="js/settlement-view.js?v=rs6"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

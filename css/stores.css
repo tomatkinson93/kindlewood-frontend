@@ -40,3 +40,4 @@
 .res-unknown { font-style: italic; color: rgba(242,230,201,.55); }
 .ar-res-emoji { font-size: 18px; line-height: 1; height: auto; width: auto; }
 .sp-link { background: none; border: none; color: #c8c0ff; font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+.building-discount { color: #9fd89a; font-size: 11px; white-space: nowrap; }
