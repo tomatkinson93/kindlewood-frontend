@@ -157,6 +157,8 @@
     recipe_discovered(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     recipe_learned(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     schematic_found(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
+    // An expedition's ore sample (js/stores.js): a toast, a card if it's new.
+    ore_sample(ev) { if (global.KWStores) global.KWStores.onOreSample(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

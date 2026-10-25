@@ -1219,6 +1219,19 @@ function _yieldChips(yields) {
     .join('');
 }
 
+// Ores a hills / mountain outpost turns up (server outposts_config `ores`):
+// named once discovered, otherwise one "??" chip.
+function _oreChips(ores) {
+  const R = window.KWResources;
+  if (!R || !ores) return '';
+  const known = R.knownSet(gameData?.settlement?.discovered || []);
+  const keys = Object.keys(ores).filter(k => R.isResource(k));
+  const shown = keys.filter(k => known[k]).map(k => `<span class="op-chip op-chip-plus" title="${R.label(k)}">${R.icon(k)} +${ores[k]}/hr</span>`);
+  const hidden = keys.length - shown.length;
+  if (hidden) shown.push(`<span class="op-chip res-unknown" title="${hidden} undiscovered find${hidden === 1 ? '' : 's'} — some need research">?? ×${hidden}</span>`);
+  return shown.join('');
+}
+
 function _costChips(cost, have) {
   return Object.entries(cost || {})
     .filter(([, v]) => v > 0)
@@ -1237,7 +1250,7 @@ function _outpostSectionHtml(tile) {
     return `
       <div class="op-section">
         <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'}</div>
-        <div class="op-chips">${_yieldChips(yields)}<span class="op-chip op-chip-minus">🍎 −${st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
+        <div class="op-chips">${_yieldChips(yields)}${_oreChips(cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
         <div class="op-reason" data-op-reason style="display:none"></div>
       </div>`;
@@ -1285,7 +1298,7 @@ function _outpostSectionHtml(tile) {
   return `
     <div class="op-section">
       <div class="op-title">${OUTPOST_ICONS[tile.terrain] || '⛺'} ${cfg.name}</div>
-      <div class="op-chips">${_yieldChips(cfg.yields)}<span class="op-chip op-chip-minus">🍎 −${st.upkeep_food_per_hr}/hr upkeep</span></div>
+      <div class="op-chips">${_yieldChips(cfg.yields)}${_oreChips(cfg.ores)}<span class="op-chip op-chip-minus">🍎 −${st.upkeep_food_per_hr}/hr upkeep</span></div>
       <div class="op-cost-label">Cost</div>
       <div class="op-chips">${_costChips(st.cost, have)}</div>
       <button class="action-btn op-build" data-op-build="1" data-q="${tile.q}" data-r="${tile.r}" ${disabled}>Found ${cfg.name}</button>

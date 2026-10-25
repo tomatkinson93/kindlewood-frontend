@@ -38,3 +38,4 @@
 
 /* "?? × 1" — an input the town hasn't discovered yet */
 .res-unknown { font-style: italic; color: rgba(242,230,201,.55); }
+.ar-res-emoji { font-size: 18px; line-height: 1; height: auto; width: auto; }

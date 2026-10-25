@@ -146,5 +146,21 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fillCheatGrid); else fillCheatGrid();
 
-  window.KWStores = { render, toggle, close, showDiscoveries, onSettlement, popHtml };
+  // Realtime: an expedition came home with a handful of ore.
+  function onOreSample(ev) {
+    if (!ev || !R() || !R().isResource(ev.resource)) return;
+    const k = ev.resource;
+    if (gameData && gameData.settlement) {
+      const res = gameData.settlement.resources = gameData.settlement.resources || {};
+      res[k] = (Number(res[k]) || 0) + (Number(ev.qty) || 0);
+      if (typeof tickResources !== 'undefined' && tickResources) tickResources[k] = (Number(tickResources[k]) || 0) + (Number(ev.qty) || 0);
+      const d = gameData.settlement.discovered = gameData.settlement.discovered || [];
+      if (ev.discovered && d.indexOf(k) < 0) d.push(k);
+    }
+    if (typeof showBuildToast === 'function') showBuildToast(`${R().icon(k)} Your expedition brought back ${ev.qty} ${R().label(k).toLowerCase()}`, 'success');
+    if (ev.discovered) showDiscoveries([{ key: k }]);
+    render();
+  }
+
+  window.KWStores = { render, toggle, close, showDiscoveries, onSettlement, onOreSample, popHtml };
 })();

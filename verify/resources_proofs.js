@@ -32,7 +32,7 @@ function makeEnv(settlement) {
     addEventListener() {},
   };
   const win = { document: doc, console, Math, JSON, Number, String, Object, Array, Set, Promise, innerWidth: 390,
-    gameData: { settlement }, tickResources: settlement.resources, tickRates: settlement.rates, apiFetch: async () => ({ ok: true, json: async () => ({}) }) };
+    gameData: { settlement }, tickResources: { ...settlement.resources }, tickRates: settlement.rates, apiFetch: async () => ({ ok: true, json: async () => ({}) }) };
   win.window = win;
   vm.createContext(win);
   vm.runInContext(read('js/resource-defs.js'), win);
@@ -108,6 +108,33 @@ console.log('4. Wiring');
   check('4d. Market sells/asks only what the town knows', (mk.match(/knownTradeable\(st\)/g) || []).length === 2);
   check('4e. the tick follows every rate', /for \(const k of Object\.keys\(tickRates\)\)/.test(read('js/game.js')));
   check('4f. Dev Tools: ores, rares & alloys grid', /id="cheat-extras-grid"/.test(html) && /applyCheatExtras\(100\)/.test(html));
+}
+
+console.log('5. Where ores come from');
+{
+  // Outpost chips: known ores named, the rest one "??" chip.
+  const main = read('js/main.js');
+  const src = main.slice(main.indexOf('function _oreChips'), main.indexOf('function _costChips'));
+  const w = { console, gameData: { settlement: { discovered: ['copper'] } } }; w.window = w; vm.createContext(w);
+  vm.runInContext(read('js/resource-defs.js'), w);
+  vm.runInContext(src, w);
+  const chips = w._oreChips({ copper: 0.6, tin: 0.5, coal: 0.8 });
+  check('5a. a hills outpost names copper, hides tin and coal as "?? ×2"', /Copper/.test(chips) && /\+0\.6\/hr/.test(chips) && /\?\? ×2/.test(chips) && !/Tin|Coal/.test(chips));
+  check('5b. both outpost panels show ore chips', (main.match(/_oreChips\(cfg/g) || []).length === 2);
+
+  // Expedition ore sample: stores updated, toast, a card when new.
+  const toasts = [];
+  const env = makeEnv({ resources: { tin: 1 }, rates: {}, discovered: [] });
+  env.win.showBuildToast = m => toasts.push(m);
+  const shown = []; env.win.document.body.appendChild = c => { shown.push(c); return c; };
+  env.win.KWStores.onOreSample({ resource: 'tin', qty: 7, discovered: true });
+  check('5c. an ore sample adds to the stores and is known', env.win.gameData.settlement.resources.tin === 8 && env.win.gameData.settlement.discovered.includes('tin'));
+  check('5d. …with a toast and a discovery card', /brought back 7 tin/.test(toasts[0] || '') && shown.length === 1);
+  check('5e. realtime routes ore_sample to the Stores', /ore_sample\(ev\) \{ if \(global\.KWStores\) global\.KWStores\.onOreSample\(ev\)/.test(read('js/realtime.js')));
+
+  // Away report: ore tiles only when something was produced.
+  const ar = read('js/away-report.js');
+  check('5f. away report: ore tiles only when produced', /isBase\(k\) \|\| \(r\.resources\[k\] && r\.resources\[k\]\.produced\)/.test(ar) && /root\.KWResources\.EXTRA/.test(ar));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
