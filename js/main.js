@@ -335,6 +335,16 @@ async function loadGame(force = false) {
 
     setLoadingProgress(92, 'Finishing up…');
     startResourceTick(gameData.settlement.resources, gameData.settlement.rates);
+    // Stores pill now; a "New discovery!" card once the away report is closed.
+    if (window.KWStores) {
+      KWStores.render();
+      const waitForSplash = (n = 0) => {
+        const ar = document.getElementById('away-report-modal');
+        if (ar && ar.offsetParent !== null && n < 600) return setTimeout(() => waitForSplash(n + 1), 1000);
+        KWStores.onSettlement(gameData.settlement);
+      };
+      setTimeout(waitForSplash, 2500);
+    }
     initSeasons(gameData.settlement);
     if (typeof startEventsPoll === 'function') startEventsPoll();
     if (typeof startGlobalQuestTimer === 'function') startGlobalQuestTimer();
@@ -682,9 +692,9 @@ const TERRAIN_LABELS = {
   river: 'Riverside', ruins: 'Ancient Ruins', mountain: 'Mountain Base', marsh: 'Misty Marshland',
 };
 const TERRAIN_BONUSES_DISPLAY = {
-  plains: '+3 food/hr', forest: '+4 timber/hr', hills: '+3 stone, +2 metal/hr',
+  plains: '+3 food/hr', forest: '+4 timber/hr', hills: '+3 stone, +2 iron/hr',
   river: '+4 wealth/hr', ruins: '+2 stone, +3 wealth/hr',
-  mountain: '+4 stone, +4 metal/hr', marsh: '+2 food, +2 timber/hr',
+  mountain: '+4 stone, +4 iron/hr', marsh: '+2 food, +2 timber/hr',
 };
 
 // ── Camera system ──
@@ -1209,6 +1219,19 @@ function _yieldChips(yields) {
     .join('');
 }
 
+// Ores a hills / mountain outpost turns up (server outposts_config `ores`):
+// named once discovered, otherwise one "??" chip.
+function _oreChips(ores) {
+  const R = window.KWResources;
+  if (!R || !ores) return '';
+  const known = R.knownSet(gameData?.settlement?.discovered || []);
+  const keys = Object.keys(ores).filter(k => R.isResource(k));
+  const shown = keys.filter(k => known[k]).map(k => `<span class="op-chip op-chip-plus" title="${R.label(k)}">${R.icon(k)} +${ores[k]}/hr</span>`);
+  const hidden = keys.length - shown.length;
+  if (hidden) shown.push(`<span class="op-chip res-unknown" title="${hidden} undiscovered find${hidden === 1 ? '' : 's'} — some need research">?? ×${hidden}</span>`);
+  return shown.join('');
+}
+
 function _costChips(cost, have) {
   return Object.entries(cost || {})
     .filter(([, v]) => v > 0)
@@ -1227,7 +1250,7 @@ function _outpostSectionHtml(tile) {
     return `
       <div class="op-section">
         <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'}</div>
-        <div class="op-chips">${_yieldChips(yields)}<span class="op-chip op-chip-minus">🍎 −${st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
+        <div class="op-chips">${_yieldChips(yields)}${_oreChips(cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
         <div class="op-reason" data-op-reason style="display:none"></div>
       </div>`;
@@ -1275,7 +1298,7 @@ function _outpostSectionHtml(tile) {
   return `
     <div class="op-section">
       <div class="op-title">${OUTPOST_ICONS[tile.terrain] || '⛺'} ${cfg.name}</div>
-      <div class="op-chips">${_yieldChips(cfg.yields)}<span class="op-chip op-chip-minus">🍎 −${st.upkeep_food_per_hr}/hr upkeep</span></div>
+      <div class="op-chips">${_yieldChips(cfg.yields)}${_oreChips(cfg.ores)}<span class="op-chip op-chip-minus">🍎 −${st.upkeep_food_per_hr}/hr upkeep</span></div>
       <div class="op-cost-label">Cost</div>
       <div class="op-chips">${_costChips(st.cost, have)}</div>
       <button class="action-btn op-build" data-op-build="1" data-q="${tile.q}" data-r="${tile.r}" ${disabled}>Found ${cfg.name}</button>

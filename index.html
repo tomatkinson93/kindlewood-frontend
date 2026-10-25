@@ -42,9 +42,11 @@
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
   <link rel="stylesheet" href="/css/clans.css?v=cq3">
-  <link rel="stylesheet" href="/css/market.css?v=mk13">
+  <link rel="stylesheet" href="/css/market.css?v=rs5">
   <link rel="stylesheet" href="/css/careers.css?v=cr1">
-  <link rel="stylesheet" href="/css/crafting.css?v=cf3">
+  <link rel="stylesheet" href="/css/crafting.css?v=rs7">
+  <link rel="stylesheet" href="/css/stores.css?v=rs6">
+  <link rel="stylesheet" href="/css/research.css?v=rs4">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
   <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
@@ -796,28 +798,33 @@
 
   <script defer src="/js/config.js"></script>
   <script defer src="/js/day-cycle.js?v=021p6"></script>
-  <script defer src="/js/happening-effects.js?v=021fx"></script>
+  <script defer src="/js/happening-effects.js?v=rs1"></script>
   <script defer src="/js/server-clock.js?v=021adm"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
-  <script defer src="/js/game.js"></script>
-  <script defer src="/js/resources.js?v=mobilefix2"></script>
+  <script defer src="/js/game.js?v=rs1"></script>
+  <script defer src="/js/resources.js?v=rs3"></script>
   <script defer src="/js/carousel.js?v=spec20b"></script>
   <script defer src="/js/placement.js"></script>
-  <script defer src="/js/arrival.js"></script>
-  <script defer src="/js/career-math.js?v=cf1"></script>
+  <script defer src="/js/arrival.js?v=rs1"></script>
+  <script defer src="/js/resource-defs.js?v=rs1"></script>
+  <script defer src="/js/research-defs.js?v=rs4"></script>
+  <script defer src="/js/stores.js?v=rs4"></script>
+  <script defer src="/js/career-math.js?v=rs6"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
   <script defer src="/js/careers.js?v=cf1"></script>
-  <script defer src="/js/crafting.js?v=cf6"></script>
+  <script defer src="/js/crafting.js?v=rs5"></script>
+  <script defer src="/js/research.js?v=rs4"></script>
+  <script defer src="/js/career-balance.js?v=rs6"></script>
   <script defer src="/js/citizens.js?v=cr2"></script>
-  <script defer src="/js/buildings.js?v=021adm"></script>
+  <script defer src="/js/buildings.js?v=rs6"></script>
   <script defer src="/js/expeditions.js?v=cr2"></script>
-  <script defer src="/js/seasons.js?v=021ev"></script>
+  <script defer src="/js/seasons.js?v=rs1"></script>
   <script defer src="/js/hud-clock.js?v=021ev"></script>
   <script defer src="/js/happenings.js?v=021ev"></script>
   <script defer src="/js/timed-events.js?v=021ev"></script>
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
-  <script defer src="/js/tier.js?v=tierfix1"></script>
+  <script defer src="/js/tier.js?v=rs1"></script>
   <script defer src="/js/profile.js?v=cp2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
@@ -837,8 +844,8 @@
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
-  <script defer src="/js/main.js?v=mk1"></script>
-  <script defer src="/js/away-report.js?v=022trade"></script>
+  <script defer src="/js/main.js?v=rs2"></script>
+  <script defer src="/js/away-report.js?v=rs2"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
   <script defer src="/js/leaderboard.js?v=cp1"></script>
@@ -875,9 +882,9 @@
   <script defer src="/js/clan-profile.js?v=cp2"></script>
   <script defer src="/js/clan-quests.js?v=cr2"></script>
   <script defer src="/js/chat-hub.js?v=cp1"></script>
-  <script defer src="/js/market.js?v=mk18"></script>
+  <script defer src="/js/market.js?v=rs5"></script>
   <script defer src="/js/travel.js?v=tp2"></script>
-  <script defer src="/js/realtime.js?v=cf2"></script>
+  <script defer src="/js/realtime.js?v=rs4"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=mk1"></script>
@@ -978,6 +985,7 @@
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-recipes',this);loadRecipeAdmin()">🛠 Recipes</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-balance',this);loadCareerBalance()">📊 Careers</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-cards',this);loadCardAdmin()">🃏 Cards</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-creatures',this);loadEnemyAdmin()">🐺 Creatures</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-combat',this)">⚔ Combat</button>
@@ -992,9 +1000,12 @@
           <button class="cheat-res-btn" onclick="applyCheat('food',500)">🌿 +500 Food</button>
           <button class="cheat-res-btn" onclick="applyCheat('timber',500)">🌲 +500 Timber</button>
           <button class="cheat-res-btn" onclick="applyCheat('stone',500)">⬜ +500 Stone</button>
-          <button class="cheat-res-btn" onclick="applyCheat('metal',500)">🟡 +500 Metal</button>
+          <button class="cheat-res-btn" onclick="applyCheat('metal',500)">⛓️ +500 Iron</button>
           <button class="cheat-res-btn" onclick="applyCheat('wealth',500)">🟠 +500 Wealth</button>
         </div>
+        <div class="cheat-section-label" style="margin-top:10px">Ores, rare materials &amp; alloys</div>
+        <div class="cheat-resource-grid" id="cheat-extras-grid"></div>
+        <button class="cheat-all-btn" onclick="applyCheatExtras(100)">⛏ +100 every ore, rare &amp; alloy</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(1000)">✦ +1000 All</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(10000)">✦ +10000 All</button>
         <button class="cheat-all-btn" onclick="applyCheatAll(50000)">▲ +50k All (tier test)</button>
@@ -1262,6 +1273,9 @@
       </div>
 
       <!-- ── TAB: Recipes (js/crafting.js) ── -->
+      <div class="cheat-tab-panel" id="ct-balance" style="display:none">
+        <div id="cb-body"><div class="ra-muted">Loading…</div></div>
+      </div>
       <div class="cheat-tab-panel" id="ct-recipes" style="display:none">
         <div style="display:flex;gap:6px;margin-bottom:10px">
           <button class="cheat-all-btn" style="flex:1" onclick="KWCrafting.editRecipe(null)">＋ New Recipe</button>
@@ -1713,7 +1727,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=cf1"></script>
+    <script defer src="js/settlement-view.js?v=rs6"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

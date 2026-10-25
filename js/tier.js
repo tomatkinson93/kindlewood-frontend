@@ -260,7 +260,7 @@ async function openTierUpgradeModal() {
 
   // requirements = {resources:{food:800,timber:600,...}, population:20, buildings:3}
   const RES_ICON_MAP  = { food:'🌿', timber:'🪵', stone:'⛏', metal:'⚙️', wealth:'🪙', population:'👥', buildings:'🏗' };
-  const RES_LABEL_MAP = { food:'Food', timber:'Timber', stone:'Stone', metal:'Metal', wealth:'Wealth', population:'Population', buildings:'Buildings' };
+  const RES_LABEL_MAP = { food:'Food', timber:'Timber', stone:'Stone', metal:'Iron', wealth:'Wealth', population:'Population', buildings:'Buildings' };
   const current = data.requirementsMet?.current || {};
   const reqs    = data.requirements || {};
 

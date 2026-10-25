@@ -185,7 +185,7 @@ check('quality colours', C.qualityColour('legendary') && !C.qualityColour('nope'
     check('6j. realtime: recipe_discovered, recipe_learned, schematic_found', /recipe_discovered\(ev\)/.test(rt) && /recipe_learned\(ev\)/.test(rt) && /schematic_found\(ev\)/.test(rt));
     check('6k. inventory: Study button on schematics', /invStudy\(this\.dataset\.id\)/.test(inv) && /KWCrafting\.study/.test(inv));
     check('6l. shields: Dev Tools slot, sold with armour', /'shield'/.test(ia) && /equip_slot === 'shield'\) return 'armour'/.test(mk));
-    check('6m. Dev Tools: discovery field and Teach my town', /'discovery'\]/.test(read('js/crafting.js')) && /Teach my town/.test(read('js/crafting.js')));
+    check('6m. Dev Tools: discovery and research fields, Teach my town', /'discovery', 'research'\]/.test(read('js/crafting.js')) && /Teach my town/.test(read('js/crafting.js')));
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

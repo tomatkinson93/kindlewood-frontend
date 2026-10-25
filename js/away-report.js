@@ -20,7 +20,10 @@
   'use strict';
   const LS_KEY = 'kw_away_splash';
   const HEARTBEAT_MS = 60 * 1000;
-  const RES = [['food', 'Food'], ['timber', 'Timber'], ['stone', 'Stone'], ['metal', 'Metal'], ['wealth', 'Wealth']];
+  const BASE_RES = [['food', 'Food'], ['timber', 'Timber'], ['stone', 'Stone'], ['metal', 'Iron'], ['wealth', 'Wealth']];
+  // Plus ores and the like (js/resource-defs.js) — tiles only when produced.
+  const RES = BASE_RES.concat(root.KWResources ? root.KWResources.EXTRA.map(k => [k, root.KWResources.label(k)]) : []);
+  const isBase = k => BASE_RES.some(x => x[0] === k);
   // Tabs: one per group, so a big settlement's report stays readable.
   // Event categories from the server map onto quests / citizens / hardship;
   // anything else ('other') joins the World tab.
@@ -29,7 +32,7 @@
     ['resources', '🪵', 'Resources'],
     ['quests', '📜', 'Quests'],
     ['citizens', '🏡', 'Citizens'],
-    ['trade', '⚒️', 'Trade'],
+    ['trade', '⚒️', 'Progress'],
     ['hardship', '🩹', 'Hardship'],
     ['world', '🌍', 'World'],
   ];
@@ -37,7 +40,7 @@
     resources: 'Nothing was produced or eaten since you were last here.',
     quests: 'No quests finished since you were last here.',
     citizens: 'Nothing happened among your citizens since you were last here.',
-    trade: 'Your workshops and the Market were quiet while you were away.',
+    trade: 'Your workshops, the Library and the Market were quiet while you were away.',
     hardship: 'No injuries, deaths or hunger since you were last here.',
     world: 'Nothing happened in the wider world since you were last here.',
   };
@@ -116,7 +119,7 @@
     const tone = net > 0 ? 'ar-up' : net < 0 ? 'ar-down' : '';
     const tip = label + ': produced ' + _fmt(d.produced) + (d.consumed ? ', eaten ' + _fmt(d.consumed) : '') + '. Click for the breakdown.';
     return '<button type="button" class="ar-res' + (_openRes === key ? ' open' : '') + '" data-res="' + key + '" title="' + _esc(tip) + '">'
-      + '<svg class="kw-icon"><use href="#kw-i-' + key + '"/></svg>'
+      + (isBase(key) ? '<svg class="kw-icon"><use href="#kw-i-' + key + '"/></svg>' : '<span class="kw-icon ar-res-emoji" aria-hidden="true">' + _esc(root.KWResources.icon(key)) + '</span>')
       + '<span class="ar-res-net ' + tone + '">' + _signed(net) + '</span>'
       + '<span class="ar-res-label">' + label + '</span></button>';
   }
@@ -181,7 +184,8 @@
       + '<button type="button" class="ar-go" data-action="' + _esc(w.action) + '">Open</button></div>').join('');
   }
   function _tilesHtml(r) {
-    return '<div class="ar-res-grid">' + RES.map(([k, l]) => _resTile(k, l, r.resources[k] || { net: 0, produced: 0, consumed: 0 })).join('') + '</div>';
+    return '<div class="ar-res-grid">' + RES.filter(([k]) => isBase(k) || (r.resources[k] && r.resources[k].produced))
+      .map(([k, l]) => _resTile(k, l, r.resources[k] || { net: 0, produced: 0, consumed: 0 })).join('') + '</div>';
   }
 
   function _summaryHtml(r) {
@@ -194,7 +198,7 @@
       + '<div class="qm-section">📰 What happened</div>'
       + line('quests', '📜', 'Quests', c.quests, 'update')
       + line('citizens', '🏡', 'Citizens', c.citizens, 'event')
-      + line('trade', '⚒️', 'Trade & crafting', c.trade, 'event')
+      + line('trade', '⚒️', 'Trade, crafting & research', c.trade, 'event')
       + line('hardship', '🩹', 'Hardship', c.hardship, 'event')
       + line('world', '🌍', 'World', c.world, 'event');
   }

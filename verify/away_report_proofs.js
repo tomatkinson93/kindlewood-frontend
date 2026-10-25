@@ -106,7 +106,7 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     const trade = bodyOf('trade');
     check('3t. trade tab: totals (made, best, earned, spent, net) and gold still on the road', /Pieces made/.test(trade) && />Fine</.test(trade) && /\+80/.test(trade) && /25 gold is still on its way home/.test(trade) && /1 new recipe learned/.test(trade));
     check('3u. trade tab: each piece and discovery, newest first', /worked out how to make Falchion[\s\S]*Fine Iron Dagger — on a stall at 26 gold/.test(trade));
-    check('3v. summary lists Trade & crafting', /data-tab="trade"[\s\S]*Trade &amp; crafting|Trade & crafting/.test(summary) && /2 events/.test(summary));
+    check('3v. summary lists Trade, crafting & research', /data-tab="trade"[\s\S]*Trade, crafting (&amp;|&) research/.test(summary) && /2 events/.test(summary));
     const cits = bodyOf('citizens');
     check('3b. citizens tab: names become profile links', /data-cid="1">Wren<\/button>/.test(cits) && /data-cid="2">Pip<\/button>/.test(cits));
     const world = bodyOf('world');
@@ -143,7 +143,7 @@ const tick = () => new Promise(r => setTimeout(r, 0));
     check('2d. nothing happened → hasContent false', env.win.KWAwayReport.hasContent(empty) === false && env.win.KWAwayReport.hasContent(REPORT) === true);
     const onlyTrade = Object.assign({}, empty, { events: [{ at: NOW - H, category: 'trade', icon: '🪙', text: 'Sold 100 timber.', citizenIds: [] }] });
     check('2e. trade news alone is enough to show the splash', env.win.KWAwayReport.hasContent(onlyTrade) === true);
-    check('2f. a quiet Trade tab says so', /workshops and the Market were quiet/.test(fs.readFileSync(path.join(ROOT, 'js/away-report.js'), 'utf8')));
+    check('2f. a quiet Progress tab says so', /workshops, the Library and the Market were quiet/.test(fs.readFileSync(path.join(ROOT, 'js/away-report.js'), 'utf8')));
   }
 
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

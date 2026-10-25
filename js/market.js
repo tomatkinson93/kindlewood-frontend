@@ -31,7 +31,17 @@
   const RES_ICON = { food: resImg('food'), timber: resImg('timber'), stone: resImg('stone'), metal: resImg('metal'), wealth: resImg('wealth') };
   const RES_TXT = { food: '🍎', timber: '🌲', stone: '🧱', metal: '⚙️', wealth: '💰' };
   const COIN = resImg('wealth');
-  const RES_LABEL = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Gold' };
+  const RES_LABEL = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Gold' };
+  // Ores, rare materials and alloys (js/resource-defs.js): emoji icons.
+  for (const k of (window.KWResources ? KWResources.EXTRA : [])) {
+    RES_ICON[k] = RES_TXT[k] = KWResources.icon(k);
+    RES_LABEL[k] = KWResources.label(k);
+  }
+  // Resources this town can sell or ask for: the basics plus its discoveries.
+  const knownTradeable = st => {
+    const kn = window.KWResources ? KWResources.knownSet(st.discovered || []) : null;
+    return kn ? st.tradeable.filter(r => kn[r]) : st.tradeable;
+  };
   const TIER_LABEL = t => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '');
   // Buy tab category buttons. Item categories match the server's
   // categoryOf(): equipment slot first, then the item category.
@@ -217,6 +227,9 @@
     if (opts.tab === 'shops') state.shops = null;
     state.focusItem = opts.item || null;
     if (opts.tab === 'sell' && opts.item) Object.assign(state.draft, { mode: 'item', inventory_id: opts.item, qty_total: '', lot_size: '' });
+    // "Find on Market" (recipe book): the Buy tab filtered to one resource or item.
+    if (opts.find && opts.find.resource) Object.assign(state, { tab: 'buy', cat: 'resources', resource: opts.find.resource, itemKey: null, itemName: '' });
+    if (opts.find && opts.find.itemKey) Object.assign(state, { tab: 'buy', cat: '', itemKey: opts.find.itemKey, itemName: opts.find.itemName || opts.find.itemKey });
     setDot(false);
     markCommBtn(true);
     renderLoading();
@@ -714,7 +727,7 @@
     return `<table class="mk-levels">
       <thead><tr><th>Market</th><th>Needs</th><th>Carry / trip</th><th>Merchants</th><th>Orders</th></tr></thead>
       <tbody>${rows}</tbody></table>
-      <div class="mk-muted mk-small">Carry weight: food ½ · timber 1 · stone 1 · metal 2 per unit.</div>`;
+      <div class="mk-muted mk-small">Carry weight: food ½ · timber 1 · stone 1 · iron 2 per unit.</div>`;
   }
 
   function lockedHtml(st) {
@@ -965,7 +978,7 @@
     const have = liveResources();
     const isItem = d.mode === 'item';
     const spec = goodsSpec();
-    const resOpts = st.tradeable.map(r =>
+    const resOpts = knownTradeable(st).map(r =>
       `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_TXT[r]} ${RES_LABEL[r]} (have ${fmt(have[r] ?? st.resources[r])})</option>`).join('');
     const maxLot = spec.maxLot;
     const free = mods.merchants - st.merchantsAssigned;
@@ -1237,14 +1250,20 @@
     const name = it ? `<b style="color:${rarityColor(it.rarity)}">${esc(it.name)}</b>` : `<b>${esc(RES_LABEL[o.resource] || o.resource)}</b>`;
     const price = o.per === 1 ? `${gold(o.price)} <span class="mk-for">each</span>` : `${gold(o.price)} <span class="mk-for">per ${o.per}</span>`;
     const canDo = side === 'sell' ? true : o.you_have > 0;
-    return `<li class="mk-order mk-npc-row">
+    // A village's special request: its own badge, deadline and the thanks.
+    const req = o.request;
+    const when = req
+      ? `<div class="mk-order-meta mk-req-meta">📣 Needed by ${esc(req.by)} — <span data-until="${esc(o.expires_at)}">…</span> left · fill it all for <b>+${req.trust} trust</b>
+          ${side === 'buy' ? ` · <span class="${o.you_have ? 'mk-better' : ''}">you have ${fmt(o.you_have)}</span>` : ''}</div>`
+      : `<div class="mk-order-meta mk-muted">Your allowance today · new orders in <span data-until="${esc(o.expires_at)}">…</span>
+          ${side === 'buy' ? ` · <span class="${o.you_have ? 'mk-better' : ''}">you have ${fmt(o.you_have)}</span>` : ''}</div>`;
+    return `<li class="mk-order mk-npc-row${req ? ' mk-req-row' : ''}">
       <div class="mk-stall-icon">${icon}</div>
       <div class="mk-order-main">
         <div class="mk-order-line">${name} <span class="mk-for">· ${side === 'sell' ? 'sells' : 'wants'}</span> ${fmt(o.qty_available)} <span class="mk-for">at</span> ${price}</div>
-        <div class="mk-order-meta"><span class="mk-npc-badge">NPC</span> <span>${esc(o.npc.name)}</span>
+        <div class="mk-order-meta">${req ? '<span class="mk-npc-badge mk-req-badge">Request</span>' : '<span class="mk-npc-badge">NPC</span>'} <span>${esc(o.npc.name)}</span>
           <span class="mk-muted">· ${esc(o.npc.tier)}</span> · <span>${o.distance} hexes away</span> · <span>round trip ~${dur(o.eta_seconds)}</span></div>
-        <div class="mk-order-meta mk-muted">Your allowance today · new orders in <span data-until="${esc(o.expires_at)}">…</span>
-          ${side === 'buy' ? ` · <span class="${o.you_have ? 'mk-better' : ''}">you have ${fmt(o.you_have)}</span>` : ''}</div>
+        ${when}
       </div>
       <div class="mk-order-act"><button type="button" class="mk-btn mk-btn-primary" data-act="npc-trade" data-side="${side}" data-id="${esc(o.id)}" ${canDo ? '' : 'disabled'}>
         ${side === 'sell' ? '🧺 Buy…' : '📮 Sell…'}</button></div>
@@ -1354,7 +1373,7 @@
         <div class="mk-mine-act"><button type="button" class="mk-btn mk-btn-sm mk-btn-danger" data-act="cancel-want" data-id="${w.id}">Cancel</button></div>
       </li>`).join('');
     const isItem = d.kind === 'item';
-    const resOpts = st.tradeable.map(r => `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_TXT[r]} ${RES_LABEL[r]}</option>`).join('');
+    const resOpts = knownTradeable(st).map(r => `<option value="${r}" ${d.resource === r ? 'selected' : ''}>${RES_TXT[r]} ${RES_LABEL[r]}</option>`).join('');
     return `
       <div class="mk-sec">
         <h3>Post a wanted order <span class="mk-muted mk-small">${myWants.length} / ${cap}</span></h3>
@@ -1974,7 +1993,7 @@
     else if (ev.type === 'market_pickup_coming') toast(`🛒 ${ev.buyer || 'A town'} sent a porter to buy ${fmt(ev.qty)} ${res}.`);
     else if (ev.type === 'market_sale') toast(`💰 Sold ${fmt(ev.qty)} ${res} from your stall — ${fmt(ev.gold)} gold.`);
     else if (ev.type === 'market_porter_home' && ev.kind === 'npc') toast(`🏘️ Your porter is back from ${ev.target || 'the village'}${ev.side === 'buy' ? ` with ${fmt(ev.qty)} ${res}` : ` with ${fmt(ev.gold)} gold`}.`
-      + (ev.trust_gained ? ` +${ev.trust_gained} trust with ${ev.target}.` : ''));
+      + (ev.trust_gained ? ` +${ev.trust_gained} trust with ${ev.target}.` : '') + (ev.request_done ? ` 🤝 Request filled — ${ev.target} is grateful!` : ''));
     else if (ev.type === 'market_porter_home') toast(ev.kind === 'ironhaven' ? `🏰 Your porter is back from Ironhaven with ${fmt(ev.gold)} gold.`
       : ev.failed ? `🧺 Your porter came back empty-handed — ${fmt(ev.gold)} gold returned.` : `🧺 Your porter is home with ${fmt(ev.qty)} ${res}.`);
     else if (ev.type === 'market_order_expired') toast(`⌛ A sell order expired — ${fmt(ev.qty)} ${res} returned to you.`);

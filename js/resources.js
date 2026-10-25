@@ -50,10 +50,19 @@ const RM_RESOURCE_ICON_SRC = {
 // promote into a real class later.
 function _resIcon(resId, size = 16) {
   const src = RM_RESOURCE_ICON_SRC[resId] || '';
+  // Ores and the like (js/resource-defs.js): an emoji — or "??" when the
+  // town hasn't discovered it yet.
+  const R = window.KWResources;
+  if (!src && R && R.isResource(resId)) {
+    const known = R.knownSet((window.gameData && gameData.settlement && gameData.settlement.discovered) || []);
+    return R.isKnown(resId, known)
+      ? `<span title="${R.label(resId)}" style="font-size:${size - 2}px;vertical-align:middle">${R.icon(resId)}</span>`
+      : `<span class="res-unknown" title="Not yet discovered">??</span>`;
+  }
   return `<img src="${src}" alt="${resId}" style="width:${size}px;height:${size}px;vertical-align:middle;image-rendering:pixelated">`;
 }
 const RM_RESOURCE_LABELS = {
-  food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Metal', wealth: 'Wealth',
+  food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Wealth',
 };
 
 // ── Floater ────────────────────────────────────────────────────────────────

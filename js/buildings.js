@@ -32,7 +32,7 @@ function renderBuildingsPanel() {
 
   const built = buildingsData.filter(b => b.currentLevel > 0 && b.id !== 'housing' && b.id !== 'starter_house');
   // tierMet is absent on older servers — treat missing as met.
-  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.tierMet !== false && b.id !== 'housing' && b.id !== 'starter_house');
+  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.tierMet !== false && b.researchMet !== false && b.id !== 'housing' && b.id !== 'starter_house');
 
   let html = '';
 
@@ -66,8 +66,8 @@ function renderBuildingsPanel() {
   html += `<div class="slabel">CONSTRUCT</div>`;
   html += available.filter(b => b.currentLevel === 0).map(b => {
     const costStr = Object.entries(b.cost)
-      .map(([r,v]) => `${RESOURCE_ICONS[r]||r} ${v}`)
-      .join(' ');
+      .map(([r,v]) => `${RESOURCE_ICONS[r] || (typeof _resIcon === 'function' ? _resIcon(r) : r)} ${v}`)
+      .join(' ') + discountText(b);
     return `
       <div class="building-card" onclick="showBuildingDetail('${b.id}')">
         <div class="building-card-top">
@@ -87,8 +87,14 @@ function renderBuildingsPanel() {
     `;
   }).join('');
 
-  // Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
-  const locked = buildingsData.filter(b => b.currentLevel === 0 && (!b.requiresMet || b.tierMet === false) && b.id !== 'housing' && b.id !== 'starter_house');
+  // "−8% Stonemason Bram, −5% Engineering" — cost discounts already applied.
+function discountText(b) {
+  if (!b || !Array.isArray(b.discount) || !b.discount.length) return '';
+  return ` <span class="building-discount" title="Already taken off the cost">${b.discount.map(d => `−${Math.round(Math.abs(d.pct) * 100)}% ${d.label}`).join(', ')}</span>`;
+}
+
+// Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
+  const locked = buildingsData.filter(b => b.currentLevel === 0 && (!b.requiresMet || b.tierMet === false || b.researchMet === false) && b.id !== 'housing' && b.id !== 'starter_house');
   if (locked.length) {
     html += `<div class="slabel" style="margin-top:8px;">LOCKED</div>`;
     html += locked.map(b => `
@@ -97,7 +103,9 @@ function renderBuildingsPanel() {
           <div style="opacity:0.4">${_buildingIcon(b, 72)}</div>
           <div class="building-card-info">
             <div class="building-name" style="opacity:.5">${b.label}</div>
-            <div class="building-cost" style="color:rgba(192,221,151,.3)">${b.tierMet === false && b.minTier
+            <div class="building-cost" style="color:rgba(192,221,151,.3)">${b.researchMet === false
+              ? `📚 Study ${b.researchLabel || 'it'} at a Library first`
+              : b.tierMet === false && b.minTier
               ? `🔒 Requires a ${b.minTier.charAt(0).toUpperCase() + b.minTier.slice(1)} settlement`
               : 'Requires more buildings'}</div>
           </div>
@@ -556,9 +564,8 @@ async function applyCheat(resource, amount) {
     });
     const data = await res.json();
     if (res.ok) {
-      tickResources = { ...data.resources };
-      updateTopbarDisplay();
-      showBuildToast(`+${amount} ${resource} added ✓`, 'success');
+      _cheatSync(data);
+      showBuildToast(`+${amount} ${window.KWResources ? KWResources.label(resource) : resource} added ✓`, 'success');
     }
   } catch(e) { console.error(e); }
 }
@@ -572,11 +579,31 @@ async function applyCheatAll(amount) {
     });
     const data = await res.json();
     if (res.ok) {
-      tickResources = { ...data.resources };
-      updateTopbarDisplay();
+      _cheatSync(data);
       showBuildToast(`All resources +${amount} ✓`, 'success');
     }
   } catch(e) { console.error(e); }
+}
+
+// Every ore, rare material and alloy at once (discovers them all).
+async function applyCheatExtras(amount) {
+  try {
+    const body = Object.fromEntries(KWResources.EXTRA.map(k => [k, amount]));
+    const res = await apiFetch('/api/game/cheat/resources', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok) { _cheatSync(data); showBuildToast(`Ores, rares and alloys +${amount} ✓`, 'success'); }
+  } catch (e) { console.error(e); }
+}
+
+function _cheatSync(data) {
+  tickResources = { ...(tickResources || {}), ...data.resources };
+  if (gameData?.settlement) {
+    gameData.settlement.resources = { ...(gameData.settlement.resources || {}), ...data.resources };
+    if (data.discovered) gameData.settlement.discovered = data.discovered;
+  }
+  updateTopbarDisplay();
 }
 
 // ══════════════════════════════════════════════
@@ -720,7 +747,7 @@ function qa_showForm(id) {
     + '<div id="qa-rewards-fields" style="margin-top:6px">'
     + '<div class="ce-field"><label>Resource rewards ' + tip('Added to the settlement on success (each participant for clan quests). Party quests use these instead of Gold reward.') + '</label></div>'
     + '<div class="ce-grid ce-grid--5">'
-    + ['food','timber','stone','metal','wealth'].map(k => '<div class="ce-field"><label>' + ({food:'🌾 Food',timber:'🪵 Timber',stone:'🪨 Stone',metal:'⛓️ Metal',wealth:'🪙 Gold'})[k] + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + ((q?.rewards || {})[k] || 0) + '"></div>').join('')
+    + ['food','timber','stone','metal','wealth'].map(k => '<div class="ce-field"><label>' + ({food:'🌾 Food',timber:'🪵 Timber',stone:'🪨 Stone',metal:'⛓️ Iron',wealth:'🪙 Gold'})[k] + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + ((q?.rewards || {})[k] || 0) + '"></div>').join('')
     + '</div></div>'
     + '<div class="ce-field" style="margin-top:6px"><label>Reward label ' + tip('Human-readable reward summary shown on the card. e.g. "+40 timber, +15 gold"') + '</label><input class="ce-input" id="qa-reward-label" value="' + (q?.reward_label||'') + '" placeholder="+15 gold, +2 food"></div>'
     + '<div class="ce-grid" style="margin-top:6px">'
