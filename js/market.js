@@ -227,6 +227,9 @@
     if (opts.tab === 'shops') state.shops = null;
     state.focusItem = opts.item || null;
     if (opts.tab === 'sell' && opts.item) Object.assign(state.draft, { mode: 'item', inventory_id: opts.item, qty_total: '', lot_size: '' });
+    // "Find on Market" (recipe book): the Buy tab filtered to one resource or item.
+    if (opts.find && opts.find.resource) Object.assign(state, { tab: 'buy', cat: 'resources', resource: opts.find.resource, itemKey: null, itemName: '' });
+    if (opts.find && opts.find.itemKey) Object.assign(state, { tab: 'buy', cat: '', itemKey: opts.find.itemKey, itemName: opts.find.itemName || opts.find.itemKey });
     setDot(false);
     markCommBtn(true);
     renderLoading();
@@ -1247,14 +1250,20 @@
     const name = it ? `<b style="color:${rarityColor(it.rarity)}">${esc(it.name)}</b>` : `<b>${esc(RES_LABEL[o.resource] || o.resource)}</b>`;
     const price = o.per === 1 ? `${gold(o.price)} <span class="mk-for">each</span>` : `${gold(o.price)} <span class="mk-for">per ${o.per}</span>`;
     const canDo = side === 'sell' ? true : o.you_have > 0;
-    return `<li class="mk-order mk-npc-row">
+    // A village's special request: its own badge, deadline and the thanks.
+    const req = o.request;
+    const when = req
+      ? `<div class="mk-order-meta mk-req-meta">📣 Needed by ${esc(req.by)} — <span data-until="${esc(o.expires_at)}">…</span> left · fill it all for <b>+${req.trust} trust</b>
+          ${side === 'buy' ? ` · <span class="${o.you_have ? 'mk-better' : ''}">you have ${fmt(o.you_have)}</span>` : ''}</div>`
+      : `<div class="mk-order-meta mk-muted">Your allowance today · new orders in <span data-until="${esc(o.expires_at)}">…</span>
+          ${side === 'buy' ? ` · <span class="${o.you_have ? 'mk-better' : ''}">you have ${fmt(o.you_have)}</span>` : ''}</div>`;
+    return `<li class="mk-order mk-npc-row${req ? ' mk-req-row' : ''}">
       <div class="mk-stall-icon">${icon}</div>
       <div class="mk-order-main">
         <div class="mk-order-line">${name} <span class="mk-for">· ${side === 'sell' ? 'sells' : 'wants'}</span> ${fmt(o.qty_available)} <span class="mk-for">at</span> ${price}</div>
-        <div class="mk-order-meta"><span class="mk-npc-badge">NPC</span> <span>${esc(o.npc.name)}</span>
+        <div class="mk-order-meta">${req ? '<span class="mk-npc-badge mk-req-badge">Request</span>' : '<span class="mk-npc-badge">NPC</span>'} <span>${esc(o.npc.name)}</span>
           <span class="mk-muted">· ${esc(o.npc.tier)}</span> · <span>${o.distance} hexes away</span> · <span>round trip ~${dur(o.eta_seconds)}</span></div>
-        <div class="mk-order-meta mk-muted">Your allowance today · new orders in <span data-until="${esc(o.expires_at)}">…</span>
-          ${side === 'buy' ? ` · <span class="${o.you_have ? 'mk-better' : ''}">you have ${fmt(o.you_have)}</span>` : ''}</div>
+        ${when}
       </div>
       <div class="mk-order-act"><button type="button" class="mk-btn mk-btn-primary" data-act="npc-trade" data-side="${side}" data-id="${esc(o.id)}" ${canDo ? '' : 'disabled'}>
         ${side === 'sell' ? '🧺 Buy…' : '📮 Sell…'}</button></div>
@@ -1984,7 +1993,7 @@
     else if (ev.type === 'market_pickup_coming') toast(`🛒 ${ev.buyer || 'A town'} sent a porter to buy ${fmt(ev.qty)} ${res}.`);
     else if (ev.type === 'market_sale') toast(`💰 Sold ${fmt(ev.qty)} ${res} from your stall — ${fmt(ev.gold)} gold.`);
     else if (ev.type === 'market_porter_home' && ev.kind === 'npc') toast(`🏘️ Your porter is back from ${ev.target || 'the village'}${ev.side === 'buy' ? ` with ${fmt(ev.qty)} ${res}` : ` with ${fmt(ev.gold)} gold`}.`
-      + (ev.trust_gained ? ` +${ev.trust_gained} trust with ${ev.target}.` : ''));
+      + (ev.trust_gained ? ` +${ev.trust_gained} trust with ${ev.target}.` : '') + (ev.request_done ? ` 🤝 Request filled — ${ev.target} is grateful!` : ''));
     else if (ev.type === 'market_porter_home') toast(ev.kind === 'ironhaven' ? `🏰 Your porter is back from Ironhaven with ${fmt(ev.gold)} gold.`
       : ev.failed ? `🧺 Your porter came back empty-handed — ${fmt(ev.gold)} gold returned.` : `🧺 Your porter is home with ${fmt(ev.qty)} ${res}.`);
     else if (ev.type === 'market_order_expired') toast(`⌛ A sell order expired — ${fmt(ev.qty)} ${res} returned to you.`);

@@ -162,5 +162,39 @@ console.log('6. Smelter');
     || read('js/research-defs.js') === fs.readFileSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'), 'utf8'));
 }
 
+console.log('7. Recipe book');
+{
+  const w = { document: { getElementById: () => null, addEventListener() {} }, console, Math, JSON, Number, String, Object, Array, Set, Map, Promise };
+  w.window = w; vm.createContext(w);
+  vm.runInContext(read('js/career-math.js'), w);
+  vm.runInContext(read('js/resource-defs.js'), w);
+  vm.runInContext(read('js/research-defs.js'), w);
+  vm.runInContext(read('js/crafting.js'), w);
+  const st = { class_label: 'Blacksmith', resources: { metal: 5, steel: 0 }, discovered: ['steel'], have: { iron_ore: 0 }, research_done: [],
+    templates: { iron_ore: { name: 'Iron Ore', icon: '⚫' } },
+    crafters: [{ id: 1, name: 'Bram', can: { a: null, b: 'Needs level 11.', c: null } }],
+    recipes: [
+      { recipe_key: 'a', name: 'Iron Dagger', min_level: 1, output: { icon: '🗡️' }, output_qty: 1, inputs: { resources: { metal: 4 } } },
+      { recipe_key: 'b', name: 'Steel Sword', min_level: 11, output: { icon: '⚔️' }, output_qty: 1, inputs: { resources: { metal: 10, steel: 8 }, items: [{ item_key: 'iron_ore', qty: 1 }] } },
+      { recipe_key: 'c', name: 'Gold Ring', min_level: 1, output: { icon: '💍' }, output_qty: 1, inputs: { resources: { goldore: 3 } } },
+    ] };
+  const html = w.KWCrafting._bookHtml(st, true);
+  check('7a. every recipe, with who can make it or why not', /📖 Recipe book · 3 recipes/.test(html) && /✅ Bram/.test(html) && /🔒 Needs level 11\./.test(html));
+  check('7b. missing known materials get a Find on Market button', /data-cf="find" data-res="steel"/.test(html) && /data-cf="find" data-res="metal"/.test(html) && /data-item="iron_ore" data-name="Iron Ore"/.test(html));
+  check('7c. undiscovered inputs stay "??" and get no Find button', /\?\? ×3/.test(html) && !/data-res="goldore"/.test(html));
+  const empty = w.KWCrafting._bookHtml(Object.assign({}, st, { crafters: [], recipes: [Object.assign({}, st.recipes[0], { research: 'smelting' })] }), false);
+  check('7d. no crafters: the reason comes from the recipe (research)', /Needs research: Smelting\./.test(empty) && !/Back to making/.test(empty));
+  const mk = read('js/market.js');
+  check('7e. the Market opens filtered to a resource or an item', /opts\.find && opts\.find\.resource/.test(mk) && /opts\.find && opts\.find\.itemKey/.test(mk));
+}
+
+console.log('8. Village requests');
+{
+  const mk = read('js/market.js');
+  check('8a. a request row: its own badge, deadline and the thanks', /mk-req-badge">Request</.test(mk) && /📣 Needed by \$\{esc\(req\.by\)\}/.test(mk) && /fill it all for <b>\+\$\{req\.trust\} trust<\/b>/.test(mk));
+  check('8b. the porter home toast says the request was filled', /ev\.request_done \? ` 🤝 Request filled/.test(mk));
+  check('8c. request rows are styled', /\.mk-req-row/.test(read('css/market.css')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

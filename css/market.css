@@ -359,3 +359,8 @@
 .mk-help summary { cursor: pointer; color: #f4c95d; }
 .mk-help ul { margin: 6px 0 2px; padding-left: 18px; color: rgba(242,230,201,.85); }
 .mk-help li { margin: 3px 0; }
+
+/* Village special requests (Wanted tab) */
+.mk-req-row { border-color: rgba(244,201,93,.55) !important; background: linear-gradient(90deg, rgba(244,201,93,.09), rgba(255,255,255,.02)) !important; }
+.mk-req-badge { background: rgba(244,201,93,.22) !important; color: #f4c95d !important; }
+.mk-req-meta { color: #f4e2b0; }

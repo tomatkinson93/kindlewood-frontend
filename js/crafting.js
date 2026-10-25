@@ -101,7 +101,7 @@
   // ── Panel ────────────────────────────────────────────────────────────────
 
   let _studyAt = 0;
-  let _st = null, _station = null, _sel = null, _timer = null, _reloadAt = 0, _busy = false;
+  let _st = null, _station = null, _sel = null, _timer = null, _reloadAt = 0, _busy = false, _book = false;
 
   function modal() {
     let o = byId('cf-overlay');
@@ -132,6 +132,7 @@
     if (!STATIONS[station]) return;
     const o = modal();
     _station = station;
+    _book = false;
     _helpOpen = firstVisitHelp();
     o.classList.add('open');
     byId('cf-title').textContent = `${STATIONS[station]} Workshop`;
@@ -175,7 +176,9 @@
     if (!st.crafters.length) {
       body.innerHTML = `<div class="cf-empty"><div class="cf-empty-icon">${st.class_icon}</div>
         <p>Nobody works here yet.</p>
-        <p class="cr-muted">Give a citizen the <b>${esc(st.class_label)}</b> job (Citizens → profile → Job). The ${esc(st.label)} has room for ${st.slots}.</p></div>`;
+        <p class="cr-muted">Give a citizen the <b>${esc(st.class_label)}</b> job (Citizens → profile → Job). The ${esc(st.label)} has room for ${st.slots}.</p></div>
+        <section class="cf-recipes cf-pad" id="cf-recipes" aria-label="Recipe book"></section>`;
+      renderRecipes();
       return;
     }
     body.innerHTML = helpHtml(st) + `
@@ -263,7 +266,7 @@
     const el = byId('cf-recipes');
     if (!el) return;
     const c = _st.crafters.find(x => x.id === _sel);
-    if (!c) { el.innerHTML = ''; return; }
+    if (_book || !c) { el.innerHTML = bookHtml(!!c); return; }
     const qty = Math.max(1, Math.min(_st.max_queue, Number((byId('cf-qty') || {}).value) || 1));
     const room = _st.max_queue - c.queued;
     const open = _st.recipes.filter(r => !c.can[r.recipe_key]);
@@ -274,6 +277,7 @@
     const shut = _st.recipes.filter(r => c.can[r.recipe_key] && !onlyUnknown(r));
     const lc = listChoice(_st.station);
     el.innerHTML = `<div class="cf-h">Make <span class="cf-make-ctl">
+        <button type="button" class="cr-btn cf-book-btn" data-cf="book" aria-pressed="false">📖 Recipe book</button>
         ${_station === 'smelter' ? '' : `<label class="cf-list-l" title="Finished equipment goes straight onto one of your stalls">🏪 <select id="cf-list" aria-label="When a piece is done">
           ${LIST_OPTS.map(([v, l]) => `<option value="${v}" ${v === lc ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`}
         <label class="cf-qty-l">× <input id="cf-qty" data-cf-qty type="number" min="1" max="${_st.max_queue}" value="${qty}" aria-label="How many"></label></span></div>
@@ -307,6 +311,41 @@
     </div>`;
   }
 
+  // ── Recipe book: every recipe here, who can make it, what's missing ──────
+  // The reason nobody can make it yet (from the crafters, else the recipe).
+  function bookReason(r) {
+    const reasons = _st.crafters.map(c => c.can[r.recipe_key]).filter(Boolean);
+    if (reasons.length) return reasons.sort((a, b) => a.length - b.length)[0];
+    if (r.research && !(_st.research_done || []).includes(r.research)) return `Needs research: ${global.KWResearch ? global.KWResearch.label(r.research) : r.research}.`;
+    if (r.hidden && !r.known) return 'Not known yet — study its schematic.';
+    return `Needs a ${_st.class_label}.`;
+  }
+  function bookHtml(hasCrafter) {
+    const rows = _st.recipes.map(r => {
+      const t = r.output || {};
+      const makers = _st.crafters.filter(c => !c.can[r.recipe_key]).map(c => c.name);
+      const n = needs(r, _st, 1);
+      const chips = n.map(x => x.unknown
+        ? `<span class="cf-need res-unknown" title="Not yet discovered">?? ×${x.need}</span>`
+        : `<span class="cf-need${x.short ? ' short' : ''}" title="${esc(x.label)}: have ${x.have}">${x.icon} ${x.need}<small>/${x.have}</small></span>`).join('') || '<span class="cr-muted">Free</span>';
+      // Missing, known materials: one "Find on Market" each.
+      const finds = n.filter(x => x.short && !x.unknown).map(x => {
+        const isRes = !!(global.KWResources && global.KWResources.isResource(x.key));
+        return `<button type="button" class="cr-btn cf-find" data-cf="find" ${isRes ? `data-res="${esc(x.key)}"` : `data-item="${esc(x.key)}" data-name="${esc(x.label)}"`} title="Open the Market's Buy tab for ${esc(x.label)}">🔍 ${esc(x.label)}</button>`;
+      }).join('');
+      return `<div class="cf-book-row${makers.length ? '' : ' locked'}">
+        <div class="cf-book-name"><span class="cf-r-icon">${esc(t.icon || '📦')}</span><div><b>${esc(r.name)}</b>${r.output_qty > 1 ? ` ×${r.output_qty}` : ''}
+          <div class="cf-r-sub">Lv ${r.min_level}${r.spec ? ' · ' + esc(specLabel(r.spec)) : ''}${r.hidden ? (r.known ? ' · 📜 learned' : ' · 📜 to learn') : ''}</div></div></div>
+        <div class="cf-needs">${chips}</div>
+        <div class="cf-book-who">${makers.length ? '✅ ' + esc(makers.join(', ')) : '🔒 ' + esc(bookReason(r))}</div>
+        ${finds ? `<div class="cf-book-find">Missing: ${finds}</div>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="cf-h">📖 Recipe book · ${_st.recipes.length} recipes
+        ${hasCrafter ? '<button type="button" class="cr-btn cf-book-btn" data-cf="book" aria-pressed="true">🔨 Back to making</button>' : ''}</div>
+      <div class="cf-book">${rows}</div>`;
+  }
+
   // Progress bars between reloads; reload when a job is due.
   function tick() {
     const o = byId('cf-overlay');
@@ -329,7 +368,15 @@
     if (!t) return;
     const act = t.dataset.cf;
     if (act === 'close') return close();
-    if (act === 'sel') { _sel = Number(t.dataset.id); renderCrafters(); renderQueue(); renderRecipes(); return; }
+    if (act === 'sel') { _sel = Number(t.dataset.id); _book = false; renderCrafters(); renderQueue(); renderRecipes(); return; }
+    if (act === 'book') { _book = !_book; renderRecipes(); return; }
+    if (act === 'find') {
+      // The Market's Buy tab, filtered to what's missing.
+      if (typeof global.openMarket !== 'function') return;
+      close();
+      global.openMarket(t.dataset.res ? { find: { resource: t.dataset.res } } : { find: { itemKey: t.dataset.item, itemName: t.dataset.name } });
+      return;
+    }
     if (_busy) return;
     _busy = true;
     try {
@@ -491,6 +538,7 @@
     open, close, load, onEvent, markHtml, qualityColour, fmtTime, oddsFor, secondsFor, needs,
     loadRecipeAdmin, editRecipe, saveRecipe, archiveRecipe, unarchiveRecipe, teachRecipe, study, listChoice, STATIONS,
     _state: () => _st,
+    _bookHtml: (st, hasCrafter) => { _st = st; return bookHtml(hasCrafter); },   // verify/resources_proofs.js
   };
   global.openCrafting = open;
   global.loadRecipeAdmin = loadRecipeAdmin;
