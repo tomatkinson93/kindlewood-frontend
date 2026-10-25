@@ -137,5 +137,30 @@ console.log('5. Where ores come from');
   check('5f. away report: ore tiles only when produced', /isBase\(k\) \|\| \(r\.resources\[k\] && r\.resources\[k\]\.produced\)/.test(ar) && /root\.KWResources\.EXTRA/.test(ar));
 }
 
+console.log('6. Smelter');
+{
+  const cf = read('js/crafting.js');
+  check('6a. the Smelter is a workshop (icon, Dev Tools choices)', /smelter: '🔥'/.test(cf) && /'carpenter', 'smelter'\]/.test(cf) && /'workshop', 'smelter'\]/.test(cf));
+  check('6b. resource recipes say "Into your stores", no stall listing at the Smelter', /t\.resource \? 'Into your stores'/.test(cf) && /_station === 'smelter' \? ''/.test(cf));
+  check('6c. Smelter help explains alloys', /How the Smelter works/.test(cf) && /copper and tin make bronze/.test(cf));
+  // craft_done for a resource: toast, stores, discovery card.
+  const toasts = [], cards = [];
+  const w = { document: { getElementById: () => null, addEventListener() {} }, console, Math, JSON, Number, String, Object, Array, Set, Map, Promise,
+    gameData: { settlement: { resources: { bronze: 1 }, discovered: [] } },
+    showBuildToast: m => toasts.push(m), KWStores: { showDiscoveries: l => cards.push(l), render() {} } };
+  w.window = w; vm.createContext(w);
+  vm.runInContext(read('js/career-math.js'), w);
+  vm.runInContext(read('js/resource-defs.js'), w);
+  vm.runInContext(read('js/crafting.js'), w);
+  w.KWCrafting.onEvent({ type: 'craft_done', name: 'Ember', resource: 'bronze', qty: 2, new_resource: true, first: true, item: { name: '2 bronze', icon: '🔶' } });
+  check('6d. a smelted batch toasts and lands in the stores', /Ember smelted 2 bronze — their first!/.test(toasts[0] || '') && w.gameData.settlement.resources.bronze === 3);
+  check('6e. the first bronze shows a discovery card', cards.length === 1 && cards[0][0].key === 'bronze' && w.gameData.settlement.discovered.includes('bronze'));
+  const sv = read('js/settlement-view.js');
+  check('6f. the settlement view has a Smelter slot and research locks', /accepts:\['smelter'\]/.test(sv) && /b\.researchMet !== false/.test(sv) && /at a Library first/.test(sv) && /'workshop', 'smelter'\]\.includes\(occupant\.id\)/.test(sv));
+  check('6g. the build list explains research locks', /Study \$\{b\.researchLabel/.test(read('js/buildings.js')));
+  check('6h. research-defs twin of the server file', !fs.existsSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'))
+    || read('js/research-defs.js') === fs.readFileSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'), 'utf8'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -32,7 +32,7 @@ function renderBuildingsPanel() {
 
   const built = buildingsData.filter(b => b.currentLevel > 0 && b.id !== 'housing' && b.id !== 'starter_house');
   // tierMet is absent on older servers — treat missing as met.
-  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.tierMet !== false && b.id !== 'housing' && b.id !== 'starter_house');
+  const available = buildingsData.filter(b => b.currentLevel < b.maxLevel && b.requiresMet && b.tierMet !== false && b.researchMet !== false && b.id !== 'housing' && b.id !== 'starter_house');
 
   let html = '';
 
@@ -88,7 +88,7 @@ function renderBuildingsPanel() {
   }).join('');
 
   // Show locked buildings (excluding housing — managed via Neighbourhood in settlement view)
-  const locked = buildingsData.filter(b => b.currentLevel === 0 && (!b.requiresMet || b.tierMet === false) && b.id !== 'housing' && b.id !== 'starter_house');
+  const locked = buildingsData.filter(b => b.currentLevel === 0 && (!b.requiresMet || b.tierMet === false || b.researchMet === false) && b.id !== 'housing' && b.id !== 'starter_house');
   if (locked.length) {
     html += `<div class="slabel" style="margin-top:8px;">LOCKED</div>`;
     html += locked.map(b => `
@@ -97,7 +97,9 @@ function renderBuildingsPanel() {
           <div style="opacity:0.4">${_buildingIcon(b, 72)}</div>
           <div class="building-card-info">
             <div class="building-name" style="opacity:.5">${b.label}</div>
-            <div class="building-cost" style="color:rgba(192,221,151,.3)">${b.tierMet === false && b.minTier
+            <div class="building-cost" style="color:rgba(192,221,151,.3)">${b.researchMet === false
+              ? `📚 Study ${b.researchLabel || 'it'} at a Library first`
+              : b.tierMet === false && b.minTier
               ? `🔒 Requires a ${b.minTier.charAt(0).toUpperCase() + b.minTier.slice(1)} settlement`
               : 'Requires more buildings'}</div>
           </div>

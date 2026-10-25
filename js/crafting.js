@@ -24,7 +24,7 @@
   const byId = id => document.getElementById(id);
   const RES_ICON = { food: '🍞', timber: '🪵', stone: '🪨', metal: '⛓️', wealth: '🪙' };
   const QCOL = { basic: '#b8b0a0', sturdy: '#8fbf7a', fine: '#6aa8e0', superior: '#b77ff0', legendary: '#f4a83a' };
-  const STATIONS = { smithy: '⚒️', jeweller: '💍', workshop: '🪚' };
+  const STATIONS = { smithy: '⚒️', jeweller: '💍', workshop: '🪚', smelter: '🔥' };
 
   async function call(method, path, body) {
     const res = await global.apiFetch(path, body ? { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { method });
@@ -198,6 +198,12 @@
     catch (_) { return false; }
   }
   function helpHtml(st) {
+    if (st.station === 'smelter') return `<details class="cf-help"${_helpOpen ? ' open' : ''}><summary>ⓘ How the Smelter works</summary><ul>
+      <li><b>Places:</b> one Smelter per building level (${st.slots} now). Upgrade the Smelter for more furnaces.</li>
+      <li><b>Alloys:</b> copper and tin make bronze; iron and coal make steel (once your Library has studied Steelworking). They go straight into your ⛏ Stores.</li>
+      <li><b>Queue:</b> up to ${st.max_queue} batches each. Ore is taken when you queue and comes back exactly if you cancel.</li>
+      <li><b>Perks:</b> faster work, and a chance the ore goes further. At level 10 a Smelter becomes a Bronzesmith or a Steelmaker, with bigger batches.</li>
+    </ul></details>`;
     return `<details class="cf-help"${_helpOpen ? ' open' : ''}><summary>ⓘ How the ${esc(st.label)} works</summary><ul>
       <li><b>Places:</b> one ${esc(st.class_label)} per building level (${st.slots} now). Upgrade the ${esc(st.label)} for more.</li>
       <li><b>Queue:</b> up to ${st.max_queue} pieces each. Materials are taken when you queue and come back exactly if you cancel. Work carries on while you're away.</li>
@@ -268,8 +274,8 @@
     const shut = _st.recipes.filter(r => c.can[r.recipe_key] && !onlyUnknown(r));
     const lc = listChoice(_st.station);
     el.innerHTML = `<div class="cf-h">Make <span class="cf-make-ctl">
-        <label class="cf-list-l" title="Finished equipment goes straight onto one of your stalls">🏪 <select id="cf-list" aria-label="When a piece is done">
-          ${LIST_OPTS.map(([v, l]) => `<option value="${v}" ${v === lc ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${_station === 'smelter' ? '' : `<label class="cf-list-l" title="Finished equipment goes straight onto one of your stalls">🏪 <select id="cf-list" aria-label="When a piece is done">
+          ${LIST_OPTS.map(([v, l]) => `<option value="${v}" ${v === lc ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`}
         <label class="cf-qty-l">× <input id="cf-qty" data-cf-qty type="number" min="1" max="${_st.max_queue}" value="${qty}" aria-label="How many"></label></span></div>
       <div class="cf-list">${open.map(r => recipeCard(r, c, qty, room)).join('')}</div>
       ${toLearn.length ? `<details class="cf-locked cf-learn" open><summary>📜 Still to learn (${toLearn.length}) — study a schematic, or a crafter may work one out</summary>
@@ -289,7 +295,7 @@
     return `<div class="cf-recipe${why ? ' locked' : ''}" data-recipe="${esc(r.recipe_key)}">
       <div class="cf-r-head"><span class="cf-r-icon">${esc(t.icon || '📦')}</span>
         <div class="cf-r-title"><div class="cf-r-name">${esc(r.name)}${r.output_qty > 1 ? ` ×${r.output_qty}` : ''}</div>
-          <div class="cf-r-sub">${esc(bonusText(t) || (t.equip_slot ? '' : 'Material'))}${r.spec ? ` · <span class="cf-tag">${esc(specLabel(r.spec))}</span>` : ''}${r.hidden && r.known ? ' · <span class="cf-tag" title="Your town learned this one">📜 learned</span>' : ''}</div></div>
+          <div class="cf-r-sub">${esc(t.resource ? 'Into your stores' : bonusText(t) || (t.equip_slot ? '' : 'Material'))}${r.spec ? ` · <span class="cf-tag">${esc(specLabel(r.spec))}</span>` : ''}${r.hidden && r.known ? ' · <span class="cf-tag" title="Your town learned this one">📜 learned</span>' : ''}</div></div>
         <div class="cf-r-time" title="Time per piece">⏱ ${fmtTime(secondsFor(c.bench, r))}</div></div>
       <div class="cf-needs">${n.map(x => x.unknown
         ? `<span class="cf-need res-unknown" title="Not yet discovered">?? ×${x.need}</span>`
@@ -357,7 +363,18 @@
     if (!ev || !ev.type) return;
     if (ev.type === 'craft_done') {
       if (ev.ruined) toast(`💥 ${ev.name}'s ${ev.recipe} was ruined — butterfingers!`, 'error');
-      else if (ev.item) {
+      else if (ev.resource) {
+        // The Smelter: alloy straight into the stores.
+        toast(`${ev.item.icon} ${ev.name} smelted ${ev.item.name}${ev.first ? ' — their first!' : ''}${ev.saved ? ' ♻️ Some ore was saved.' : ''}`);
+        const gs = global.gameData && global.gameData.settlement;
+        if (gs) {
+          gs.resources = gs.resources || {};
+          gs.resources[ev.resource] = (Number(gs.resources[ev.resource]) || 0) + (Number(ev.qty) || 0);
+          if (ev.new_resource && (gs.discovered || []).indexOf(ev.resource) < 0) (gs.discovered = gs.discovered || []).push(ev.resource);
+        }
+        if (ev.new_resource && global.KWStores) global.KWStores.showDiscoveries([{ key: ev.resource }]);
+        else if (global.KWStores) global.KWStores.render();
+      } else if (ev.item) {
         const q = ev.item.quality;
         const big = q === 'superior' || q === 'legendary';
         toast(`${ev.item.icon || '🔨'} ${ev.name} made ${/^[AEIOU]/i.test(ev.item.name) ? 'an' : 'a'} ${ev.item.name}${ev.first ? ' — their first!' : ''}${ev.guardian ? ' 🛡 A Guardian piece!' : ''}${big ? ' ✨' : ''}`
@@ -392,7 +409,7 @@
   // ── Dev Tools: recipes ──────────────────────────────────────────────────
 
   let _ra = [];
-  const RA_FIELDS = ['name', 'class_key', 'spec', 'station', 'min_level', 'min_station_level', 'output_key', 'output_qty', 'base_seconds', 'base_xp', 'unlock_node', 'quality_cap', 'sort_order', 'discovery'];
+  const RA_FIELDS = ['name', 'class_key', 'spec', 'station', 'min_level', 'min_station_level', 'output_key', 'output_qty', 'base_seconds', 'base_xp', 'unlock_node', 'quality_cap', 'sort_order', 'discovery', 'research'];
   async function loadRecipeAdmin() {
     const el = byId('ra-list');
     if (!el) return;
@@ -411,7 +428,8 @@
       </div>`).join('')}`).join('');
   }
   const RA_CHOICES = {
-    class_key: ['blacksmith', 'jeweller', 'carpenter'], station: ['smithy', 'jeweller', 'workshop'],
+    class_key: ['blacksmith', 'jeweller', 'carpenter', 'smelter'], station: ['smithy', 'jeweller', 'workshop', 'smelter'],
+    research: [''].concat(global.KWResearch ? global.KWResearch.KEYS : []),
     quality_cap: ['basic', 'sturdy', 'fine', 'superior', 'legendary'], discovery: ['known', 'hidden'],
   };
   const RA_NUM = ['min_level', 'min_station_level', 'output_qty', 'base_seconds', 'base_xp', 'sort_order'];

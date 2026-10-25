@@ -52,6 +52,8 @@ const SV_SLOTS = [
   { id:'out-fishing',        area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Riverside',     size:'md' },
   { id:'out-scout',          area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'High Ground',   size:'md' },
   { id:'out-mine',           area:'outskirts', x:65,  y:88, accepts:['mine'],          label:'Hillside',      size:'md' },
+  { id:'out-smelter',        area:'outskirts', x:44,  y:89, accepts:['smelter'],       label:'Furnace Row',   size:'md' },
+  { id:'town-library',       area:'town',      x:80,  y:88, accepts:['library'],       label:"Scholars' Walk", size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -70,12 +72,20 @@ const SV_VISUALS = {
   jeweller:      { emoji:'💍',        bodyColor:'#5c5070', roofColor:'#3c3450', flavor:'Every stone weighed twice.' },
   workshop:      { emoji:'🪚',        bodyColor:'#7a5a36', roofColor:'#54391f', flavor:'Shavings curl from the plane like ribbons.' },
   mine:          { emoji:'⛏️',        bodyColor:'#5b5248', roofColor:'#3a342e', flavor:'Lamps flicker deep in the hill.' },
+  smelter:       { emoji:'🔥',        bodyColor:'#6a3a24', roofColor:'#3e2214', flavor:'The furnace roars; the air shimmers.' },
+  library:       { emoji:'📚',        bodyColor:'#4f4a6a', roofColor:'#2f2b48', flavor:'Candles, ink and the scratch of quills.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
 
 // A building can be started when its building requirements and its minimum
 // settlement tier are both met. tierMet is absent on older servers → met.
-function _svCanBuild(b) { return !!b && b.requiresMet && b.tierMet !== false; }
+function _svCanBuild(b) { return !!b && b.requiresMet && b.tierMet !== false && b.researchMet !== false; }
+// Why a building can't be started yet (research, tier, other buildings).
+function _svLockReason(b) {
+  if (b.researchMet === false) return 'Study ' + (b.researchLabel || 'it') + ' at a Library first.';
+  if (b.tierMet === false && b.minTier) return 'Requires a ' + _svTierLabel(b.minTier) + ' settlement.';
+  return 'Requires other buildings first.';
+}
 function _svTierLabel(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; }
 
 // ── Slot assignments (persisted to localStorage) ──────────────────────────────
@@ -1041,7 +1051,7 @@ function _openBuildPanel(slot, occupant) {
       + (occupant.id === 'market' && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket()">⚖️ Open Market</button>'
         : '')
-      + (['smithy', 'jeweller', 'workshop'].includes(occupant.id) && typeof openCrafting === 'function'
+      + (['smithy', 'jeweller', 'workshop', 'smelter'].includes(occupant.id) && typeof openCrafting === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
         : '')
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
@@ -1066,9 +1076,7 @@ function _openBuildPanel(slot, occupant) {
           + '<div class="sv-bp-action"><button class="sv-bp-build-btn" onclick="_svBuild(\'' + id + '\')">Build</button></div></div>';
       }
       if (!_svCanBuild(b) && b.currentLevel === 0) {
-        var why = b.tierMet === false && b.minTier
-          ? 'Requires a ' + _svTierLabel(b.minTier) + ' settlement.'
-          : 'Requires other buildings first.';
+        var why = _svLockReason(b);
         return '<div class="sv-bp-opt locked"><span class="sv-bp-emoji">' + vis.emoji + '</span>'
           + '<div class="sv-bp-info"><div class="sv-bp-name">' + b.label + '</div>'
           + '<div class="sv-bp-desc">' + why + '</div></div>'
