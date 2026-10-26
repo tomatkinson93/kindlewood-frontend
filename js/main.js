@@ -1416,6 +1416,34 @@ function selectWorldTile(tile) {
   }
 }
 
+// ── Settlement panel: buttons that need a building ──────────────────────
+// Without the building the button is greyed, padlocked and just says
+// "Locked" — what it opens stays a mystery until it's built.
+function _hasBuilding(type) {
+  if (typeof buildingsData !== 'undefined' && Array.isArray(buildingsData) && buildingsData.length) {
+    const b = buildingsData.find(x => x.id === type);
+    if (b) return (b.currentLevel || 0) > 0;
+  }
+  return (gameData?.buildings || []).some(b => b.type === type && (b.level || 0) > 0);
+}
+function _gatedAction(type, label, onclick) {
+  return _hasBuilding(type)
+    ? '<button class="sett-action" data-sett-gate="' + type + '" data-label="' + label + '" data-onclick="' + onclick + '" onclick="' + onclick + '">' + label + '</button>'
+    : '<button class="sett-action locked" data-sett-gate="' + type + '" data-label="' + label + '" data-onclick="' + onclick + '" disabled aria-disabled="true" title="Locked">🔒 Locked</button>';
+}
+// After building something, unlock its button in place (no re-render needed).
+function refreshSettlementActions() {
+  document.querySelectorAll('[data-sett-gate]').forEach(el => {
+    const open = _hasBuilding(el.dataset.settGate);
+    el.classList.toggle('locked', !open);
+    el.disabled = !open;
+    el.title = open ? '' : 'Locked';
+    el.textContent = open ? el.dataset.label : '🔒 Locked';
+    el.setAttribute('onclick', open ? el.dataset.onclick : '');
+  });
+}
+window.refreshSettlementActions = refreshSettlementActions;
+
 function _selectWorldTileImpl(tile) {
   window._lastSelectedTile = tile;
   const title = document.getElementById('panel-title');
@@ -1593,6 +1621,8 @@ function _selectWorldTileImpl(tile) {
       + '<button class="sett-action" onclick="openTierUpgradeModal()">' + (TIER_EMOJI[s.tier]||'🏕') + ' Upgrade</button>'
       + '<button class="sett-action" onclick="visitTavern()">🍺 Tavern</button>'
       + '<button class="sett-action" onclick="visitFishingPost()">🎣 Fishing</button>'
+      + _gatedAction('library', '📚 Research', 'openLibrary()')
+      + _gatedAction('market', '⚖️ Market', 'openMarket()')
       + '</div>'
       + '</div>';
 

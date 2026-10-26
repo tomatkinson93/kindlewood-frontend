@@ -21,7 +21,7 @@ function makeEnv(admin, width) {
     classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, contains(c) { return this._s.has(c); }, toggle(c, on) { on ? this._s.add(c) : this._s.delete(c); } },
     addEventListener() {}, setAttribute() {},
   });
-  const ids = ['rs-sub', 'rs-now', 'rs-sch', 'rs-banner', 'rs-adminbar', 'rs-eras-in', 'rs-lanes-in', 'rs-viewport', 'rs-detail', 'rs-title'];
+  const ids = ['rs-sub', 'rs-now', 'rs-sch', 'rs-queue', 'rs-banner', 'rs-adminbar', 'rs-eras-in', 'rs-lanes-in', 'rs-viewport', 'rs-detail', 'rs-title'];
   const doc = {
     getElementById: id => els[id] || null,
     createElement: () => new Proxy(mk(null), { set(t, k, v) { t[k] = v; if (k === 'id') els[v] = t; if (k === 'innerHTML' && /rs-viewport/.test(v)) ids.forEach(i => { els[i] = els[i] || mk(i); }); return true; } }),
@@ -36,18 +36,25 @@ function makeEnv(admin, width) {
   return { w, els, toasts };
 }
 
-// A view like GET /api/research builds it, from the defs.
-function stateWith(over, done, active) {
+// A view like GET /api/research builds it, from the defs: distant projects
+// redacted to ?? (opaque id, no name/cost), queue positions, queue_adds.
+function stateWith(over, done, active, queue) {
   const x = {}; x.window = x; vm.createContext(x); vm.runInContext(read('js/research-defs.js'), x);
-  const R = x.KWResearch, d = new Set(done || []);
+  const R = x.KWResearch, d = new Set(done || []), q = queue || [];
+  const dist = R.distances(d), hide = k => dist[k] > R.HIDE_BEYOND;
+  const idOf = {}; R.KEYS.forEach((k, i) => { idOf[k] = hide(k) ? 'unknown_' + i : k; });
+  const planned = new Set([active, ...q].filter(Boolean));
   const projects = R.KEYS.map(k => {
     const p = R.PROJECTS[k];
+    const base = { key: idOf[k], branch: p.branch, tier: p.tier, slot: p.slot || 0, requires: p.requires.map(r => idOf[r]) };
+    if (hide(k)) return Object.assign(base, { hidden: true, status: 'hidden', label: '??', icon: '❔' });
     const status = d.has(k) ? 'done' : active === k ? 'active' : R.blockedBy(k, d) ? 'locked' : 'open';
-    return { key: k, label: p.label, icon: p.icon, field: p.field, branch: p.branch, tier: p.tier, slot: p.slot || 0, cost: p.cost, desc: p.desc,
-      requires: p.requires, progress: active === k ? Math.round(p.cost / 2) : d.has(k) ? p.cost : 0, status, blocked: status === 'locked' ? R.blockedBy(k, d) : null };
+    return Object.assign(base, { label: p.label, icon: p.icon, field: p.field, cost: p.cost, desc: p.desc,
+      progress: active === k ? Math.round(p.cost / 2) : d.has(k) ? p.cost : 0, status, blocked: status === 'locked' ? R.blockedBy(k, d) : null,
+      queued: q.indexOf(k) >= 0 ? q.indexOf(k) + 1 : null, queue_adds: R.pathTo(k, d).filter(z => z !== k && !planned.has(z)).length });
   });
   return Object.assign({ library_level: 2, seats: 2, scholars: [{ id: 1, name: 'Quill', perHour: 2.2 }], per_hour: 2.2, bank: 0, bank_cap: 100,
-    active: active || null, eta_hours: active ? 27.3 : null, projects, effects: {}, branches: R.BRANCHES, eras: R.ERAS }, over || {});
+    active: active || null, queue: q, queue_max: 10, eta_hours: active ? 27.3 : null, projects, effects: {}, branches: R.BRANCHES, eras: R.ERAS }, over || {});
 }
 
 console.log('1. Times and unlocks');
@@ -56,23 +63,26 @@ console.log('1. Times and unlocks');
   const L = w.KWLibrary;
   check('1a. hours read naturally', L.fmtHours(0.25) === '15m' && L.fmtHours(3.5) === '3h 30m' && L.fmtHours(50) === '2d 2h' && L.fmtHours(null) === '—');
   check('1b. unlocks: resources, buildings, recipes', /Gold Ore/.test(L.unlocksText('deep_veins')) && /Smelter/.test(L.unlocksText('smelting')) && /Falchion/.test(L.unlocksText('master_recipes')));
-  check('1c. unlocks: effects in words', /\+15% Smelter speed/.test(L.unlocksText('furnaces')) && /\+10% research speed/.test(L.unlocksText('scriptorium'))
-    && /−3% building and upgrade costs/.test(L.unlocksText('masonry')) && /\+3 craft quality/.test(L.unlocksText('guild_marks')));
+  check('1c. unlocks: effects in words', /\+15% Smelter speed/.test(L.unlocksText('furnaces')) && /\+8% research speed/.test(L.unlocksText('scriptorium'))
+    && /−3% building and upgrade costs/.test(L.unlocksText('masonry')) && /\+2 craft quality/.test(L.unlocksText('guild_marks'))
+    && /\+25% Copper/.test(L.unlocksText('shoring')) && /\+15% Smithy speed/.test(L.unlocksText('smithing_lore')) && /100 more research points bank/.test(L.unlocksText('quills')));
 }
+
+const ALL = (() => { const x = {}; x.window = x; vm.createContext(x); vm.runInContext(read('js/research-defs.js'), x); return x.KWResearch.KEYS; })();
 
 console.log('2. Layout');
 {
   const { w } = makeEnv(false);
-  const st = stateWith();
+  const st = stateWith({}, ALL);   // everything known: real keys everywhere
   const L = w.KWLibrary.layout(st.projects, false);
   const pos = Object.values(L.pos);
-  check('2a. every project has a place', pos.length === st.projects.length);
+  check('2a. every project has a place', pos.length === st.projects.length && pos.length === 46);
   check('2b. no two overlap', pos.every((a, i) => pos.every((b, j) => i === j || Math.abs(a.x - b.x) >= L.g.nodeW || Math.abs(a.y - b.y) >= L.g.nodeH)));
   check('2c. columns are eras: same era, same x', st.projects.every(p => L.pos[p.key].x === L.g.padX + (p.tier - 1) * L.g.colW));
-  check('2d. rows are paths, in order; Mining has two rows (era IV)', L.lanes.map(l => l.key).join() === 'mining,metallurgy,crafts,building,trade,scholarship'
-    && L.pos.volcanic_lore.y > L.pos.prospecting_3.y && L.pos.volcanic_lore.y < L.pos.smelting.y);
+  check('2d. rows are paths, in order; Mining has two rows', L.lanes.map(l => l.key).join() === 'mining,metallurgy,crafts,building,trade,scholarship'
+    && L.pos.mine_pumps.y > L.pos.volcanic_lore.y && L.pos.mine_pumps.y < L.pos.smelting.y);
   check('2e. arrows run left to right', st.projects.every(p => p.requires.every(r => L.pos[r].x < L.pos[p.key].x)));
-  check('2f. wide: five eras across', L.width >= 4 * L.g.colW && L.eras.length === 5);
+  check('2f. very wide: eight eras across', L.eras.length === 8 && L.width >= 7 * L.g.colW);
   const N = w.KWLibrary.layout(st.projects, true);
   check('2g. phones: a tighter grid', N.g.nodeW < L.g.nodeW && N.width < L.width && N.g.labelW < L.g.labelW);
   check('2h. connector curves from right edge to left edge', /^M\d+,\d+(\.\d+)? C/.test(w.KWLibrary.linkPath({ x: 0, y: 0 }, { x: 300, y: 100 }, L.g)));
@@ -82,46 +92,64 @@ console.log('3. The screen');
 {
   const { w, els } = makeEnv(false);
   w.KWLibrary.open();
-  const st = stateWith({}, ['prospecting', 'smelting', 'masonry'], 'prospecting_2');
+  const st = stateWith({}, ['prospecting', 'smelting', 'masonry'], 'prospecting_2', ['shoring', 'furnaces']);
   w.KWLibrary._setState(st); w.KWLibrary._render({ focus: true });
   const tree = els['rs-viewport'].innerHTML;
-  check('3a. one node per project', (tree.match(/class="rs-node /g) || []).length === 23);
+  check('3a. one node per project, the distant ones too', (tree.match(/class="rs-node /g) || []).length === 46);
   check('3b. statuses: studied, studying, open, locked', /rs-node rs-done[^"]*" data-rs="pick" data-key="prospecting"/.test(tree) && /rs-node rs-active[^"]*" data-rs="pick" data-key="prospecting_2"/.test(tree)
-    && /rs-node rs-open[^"]*" data-rs="pick" data-key="furnaces"/.test(tree) && /rs-node rs-locked[^"]*" data-rs="pick" data-key="starmetal"/.test(tree));
+    && /rs-node rs-open[^"]*" data-rs="pick" data-key="surveying"/.test(tree) && /rs-node rs-locked[^"]*" data-rs="pick" data-key="assaying"/.test(tree));
+  const hidden = (tree.match(/rs-node rs-hidden/g) || []).length;
+  check('3c. distant technology shows as ??, greyed, nameless', hidden > 20 && /<span class="rs-n-name">\?\?<\/span>/.test(tree) && !/Starmetal|Moon Lore|Meteor/.test(tree) && /aria-label="Unknown technology"/.test(tree));
   const reqs = st.projects.reduce((a, p) => a + p.requires.length, 0);
-  check('3c. one connector per prerequisite', (tree.match(/class="rs-link /g) || []).length === reqs);
-  check('3d. connectors: gold from what is done, dashed when locked', /rs-link rs-l-done" d="[^"]+" data-from="prospecting" data-to="prospecting_2"/.test(tree)
-    && /rs-link rs-l-locked" d="[^"]+" data-from="volcanic_lore" data-to="starmetal"/.test(tree));
-  check('3e. nodes are buttons with a spoken label', /<button type="button" class="rs-node[^>]*aria-label="Prospecting II: being studied, 260 points"/.test(tree));
+  check('3d. one connector per prerequisite; dotted into the unknown', (tree.match(/class="rs-link /g) || []).length === reqs && /rs-link rs-l-done" d="[^"]+" data-from="prospecting" data-to="prospecting_2"/.test(tree)
+    && /rs-link rs-l-hidden/.test(tree));
+  check('3e. nodes are buttons with a spoken label', /<button type="button" class="rs-node[^>]*aria-label="Prospecting II: being studied, 300 points"/.test(tree));
   check('3f. the active node shows its progress', /data-key="prospecting_2"[\s\S]*?rs-n-bar"><i style="width:50%/.test(tree));
-  check('3g. header: studying, time left, Scholars', /Studying/.test(els['rs-now'].innerHTML) && /27h 18m to go/.test(els['rs-now'].innerHTML) && /Quill <b>2\.2\/hr/.test(els['rs-sch'].innerHTML)
-    && /Level 2 · 1 \/ 2 Scholars · 2\.2 points\/hr/.test(els['rs-sub'].textContent));
-  check('3h. era labels and path labels', (els['rs-eras-in'].innerHTML.match(/class="rs-era"/g) || []).length === 5 && /Foundations/.test(els['rs-eras-in'].innerHTML)
-    && (els['rs-lanes-in'].innerHTML.match(/class="rs-lane"/g) || []).length === 6 && /Metallurgy/.test(els['rs-lanes-in'].innerHTML));
-  const far = stateWith({}, [], 'starmetal');
+  check('3g. queued nodes wear their number', /data-key="shoring"[\s\S]*?class="rs-n-q"[^>]*>#1</.test(tree) && /data-key="furnaces"[\s\S]*?class="rs-n-q"[^>]*>#2</.test(tree));
+  const qh = els['rs-queue'].innerHTML;
+  check('3h. the queue in the header: numbered chips with ✕', !els['rs-queue'].hidden && /1\. 🪵 Shoring/.test(qh) && /2\. 🌡️ Hotter Furnaces I/.test(qh) && (qh.match(/data-rs="dequeue"/g) || []).length === 2);
+  check('3i. header: studying, time left, Scholars', /Studying/.test(els['rs-now'].innerHTML) && /27h 18m to go/.test(els['rs-now'].innerHTML) && /Quill <b>2\.2\/hr/.test(els['rs-sch'].innerHTML));
+  check('3j. eight eras, six paths', (els['rs-eras-in'].innerHTML.match(/class="rs-era"/g) || []).length === 8 && /Legends/.test(els['rs-eras-in'].innerHTML)
+    && (els['rs-lanes-in'].innerHTML.match(/class="rs-lane"/g) || []).length === 6);
+  const far = stateWith({}, ALL.filter(k => k !== 'starmetal'), 'starmetal');
   w.KWLibrary._setState(far); w.KWLibrary._render({ focus: true });
-  check('3i. opening scrolls to what is being studied', w.KWLibrary.focusKey(st) === 'prospecting_2' && w.KWLibrary.focusKey(far) === 'starmetal' && els['rs-viewport'].scrollLeft > 600);
-  check('3j. nothing studied: focus the first open project', w.KWLibrary.focusKey(stateWith()) && stateWith().projects.find(p => p.key === w.KWLibrary.focusKey(stateWith())).tier === 1);
+  check('3k. opening scrolls to what is being studied', w.KWLibrary.focusKey(st) === 'prospecting_2' && els['rs-viewport'].scrollLeft > 1000);
+  const empty = stateWith({}, [], null, []);
+  w.KWLibrary._setState(empty); w.KWLibrary._render();
+  check('3l. nothing studied: era I open, era II locked, the rest ??', empty.projects.find(p => p.key === w.KWLibrary.focusKey(empty)).tier === 1
+    && empty.projects.filter(p => !p.hidden).every(p => p.tier <= 2) && els['rs-queue'].hidden === true);
 }
 
 console.log('4. Detail panel');
 {
   const { w, els } = makeEnv(false);
   w.KWLibrary.open();
-  w.KWLibrary._setState(stateWith({}, ['prospecting', 'smelting']));
+  w.KWLibrary._setState(stateWith({}, ['prospecting', 'smelting'], null, ['shoring']));
   w.KWLibrary._select('furnaces'); w.KWLibrary._render();
   let d = els['rs-detail'].innerHTML;
   check('4a. a chosen project opens its details', !els['rs-detail'].hidden && /Hotter Furnaces I/.test(d) && /Metallurgy/.test(d) && /Era II — Workings/.test(d));
-  check('4b. unlocks, prerequisites ticked, cost', /\+15% Smelter speed/.test(d) && /rs-ok">✓ 🔥 Smelting/.test(d) && /260 research points/.test(d));
-  check('4c. open: Study this next', /data-rs="start" data-key="furnaces"/.test(d) && /Study this next/.test(d) && !/Finish now/.test(d));
-  w.KWLibrary._select('starmetal'); w.KWLibrary._render();
+  check('4b. unlocks, prerequisites ticked, cost', /\+15% Smelter speed/.test(d) && /rs-ok">✓ 🔥 Smelting/.test(d) && /300 research points/.test(d));
+  check('4c. open: Study now and Add to queue', /data-rs="start" data-key="furnaces"/.test(d) && /Study now/.test(d) && /data-rs="queue" data-key="furnaces"/.test(d) && !/Finish now/.test(d));
+  w.KWLibrary._select('assaying'); w.KWLibrary._render();
   d = els['rs-detail'].innerHTML;
-  check('4d. locked: why, and what is missing', /🔒 Study Volcanic Lore and Steelworking first\./.test(d) && /rs-miss">✗ 🌋 Volcanic Lore/.test(d) && !/data-rs="start"/.test(d));
+  check('4d. locked: why, what is missing, and queueing adds it first', /🔒 Study Shoring first\./.test(d) && /rs-miss">✗ 🪵 Shoring/.test(d) && !/data-rs="start"/.test(d) && /Add to queue<\/button>/.test(d));
+  w.KWLibrary._select('bellows'); w.KWLibrary._render();
+  check('4e. "adds 1 first" when a prerequisite isn\'t planned yet', /Add to queue \(adds 1 first\)/.test(els['rs-detail'].innerHTML));
+  w.KWLibrary._select('shoring'); w.KWLibrary._render();
+  d = els['rs-detail'].innerHTML;
+  check('4f. queued: Remove from queue', /data-rs="dequeue" data-key="shoring">Remove from queue/.test(d) && /Queued #1/.test(d));
+  const hid = w.KWLibrary._state().projects.find(p => p.hidden);
+  w.KWLibrary._select(hid.key); w.KWLibrary._render();
+  d = els['rs-detail'].innerHTML;
+  check('4g. ??: a distant technology, no buttons, nothing given away', /<h3>\?\?<\/h3>/.test(d) && /research more of what leads here/.test(d) && !/data-rs="(start|queue)"/.test(d));
+  w.KWLibrary._setState(stateWith({}, ['prospecting'], 'prospecting_2'));
+  w.KWLibrary._select('prospecting_2'); w.KWLibrary._render();
+  check('4h. the active project can be stopped', /data-rs="dequeue" data-key="prospecting_2">Stop/.test(els['rs-detail'].innerHTML));
   w.KWLibrary._select(null); w.KWLibrary._render();
-  check('4e. no choice: no panel', els['rs-detail'].hidden === true);
+  check('4i. no choice: no panel', els['rs-detail'].hidden === true);
   const A = makeEnv(true);
-  A.w.KWLibrary.open(); A.w.KWLibrary._setState(stateWith()); A.w.KWLibrary._select('starmetal'); A.w.KWLibrary._render();
-  check('4f. admins: Finish now and Reset', /⚡ Finish now/.test(A.els['rs-detail'].innerHTML) && /Reset/.test(A.els['rs-adminbar'].innerHTML) && els['rs-adminbar'].innerHTML === '');
+  A.w.KWLibrary.open(); A.w.KWLibrary._setState(stateWith()); A.w.KWLibrary._select('shoring'); A.w.KWLibrary._render();
+  check('4j. admins: Finish now and Reset', /⚡ Finish now/.test(A.els['rs-detail'].innerHTML) && /Reset/.test(A.els['rs-adminbar'].innerHTML) && els['rs-adminbar'].innerHTML === '');
 }
 
 console.log('5. No Library; realtime');
@@ -130,8 +158,8 @@ console.log('5. No Library; realtime');
   w.KWLibrary.open();
   w.KWLibrary._setState(stateWith({ library_level: 0, seats: 0, scholars: [], per_hour: 0 }));
   w.KWLibrary._select('prospecting'); w.KWLibrary._render();
-  check('5a. no Library: a banner, and the tree still shows to plan with', /Build a <b>Library<\/b>/.test(els['rs-banner'].innerHTML) && (els['rs-viewport'].innerHTML.match(/class="rs-node /g) || []).length === 23);
-  check('5b. …but Study is disabled', /data-rs="start" data-key="prospecting" disabled/.test(els['rs-detail'].innerHTML));
+  check('5a. no Library: a banner, and the tree still shows to plan with', /Build a <b>Library<\/b>/.test(els['rs-banner'].innerHTML) && (els['rs-viewport'].innerHTML.match(/class="rs-node /g) || []).length === 46);
+  check('5b. …but Study and Queue are disabled', /data-rs="start" data-key="prospecting" disabled/.test(els['rs-detail'].innerHTML) && /data-rs="queue" data-key="prospecting" disabled/.test(els['rs-detail'].innerHTML));
   const { w: w2, toasts } = makeEnv(false);
   w2.KWLibrary.onEvent({ type: 'research_done', label: 'Deep Veins', icon: '🕳️', desc: 'Gold and gems.' });
   check('5c. a finished project toasts', /Research finished: Deep Veins!/.test(toasts[0] || ''));

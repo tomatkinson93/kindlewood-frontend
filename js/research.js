@@ -49,7 +49,7 @@
     market_fee: v => `−${pctTxt(v)} Market fees`,
     research: v => `+${pctTxt(v)} research speed`,
     craft_speed: v => `+${pctTxt(v)} crafting speed at every workshop`,
-    'craft_speed:smelter': v => `+${pctTxt(v)} Smelter speed`,
+    bank: v => `up to ${v} more research points bank`,
     craft_xp: v => `+${pctTxt(v)} crafting XP`,
     quality: v => `+${v} craft quality`,
     carry: v => `+${pctTxt(v)} porter and merchant carry weight`,
@@ -62,10 +62,20 @@
     (p.resources || []).forEach(k => out.push(D ? D.icon(k) + ' ' + D.label(k) : k));
     (p.buildings || []).forEach(b => out.push('🏗 ' + b.charAt(0).toUpperCase() + b.slice(1)));
     (p.recipes || []).forEach(r => out.push('📜 ' + r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())));
-    Object.entries(p.effects || {}).forEach(([k, v]) => out.push('✨ ' + (EFFECT_TXT[k] ? EFFECT_TXT[k](v) : k)));
+    Object.entries(p.effects || {}).forEach(([k, v]) => out.push('✨ ' + effectText(k, v)));
     return out;
   }
   const unlocksText = key => unlockList(key).join(' · ');
+  // 'ore:copper' → "+25% Copper"; 'craft_speed:smithy' → "+15% Smithy speed".
+  function effectText(k, v) {
+    if (EFFECT_TXT[k]) return EFFECT_TXT[k](v);
+    const [type, param] = k.split(':');
+    const name = param ? param.charAt(0).toUpperCase() + param.slice(1) : '';
+    if (type === 'ore') return `+${pctTxt(v)} ${global.KWResources ? global.KWResources.label(param) : name}`;
+    if (type === 'craft_speed') return `+${pctTxt(v)} ${name} speed`;
+    return k;
+  }
+  const DISTANT = 'A distant technology. Your scholars can\'t make sense of it yet — research more of what leads here to understand it.';
 
   // ── Layout: where each project sits ──────────────────────────────────────
   // Phones get a tighter grid. Returns geometry plus { key: { x, y } }.
@@ -102,6 +112,13 @@
   }
 
   function nodeHtml(p, at, g, st) {
+    if (p.hidden) {
+      return `<button type="button" class="rs-node rs-hidden${_sel === p.key ? ' rs-sel' : ''}" data-rs="pick" data-key="${esc(p.key)}"
+          style="left:${at.x}px;top:${at.y}px;width:${g.nodeW}px;height:${g.nodeH}px" aria-label="Unknown technology" title="${esc(DISTANT)}">
+        <span class="rs-n-icon" aria-hidden="true">❔</span>
+        <span class="rs-n-main"><span class="rs-n-name">??</span><span class="rs-n-meta">Too distant to understand</span></span>
+      </button>`;
+    }
     const pct = Math.min(100, Math.round(p.progress / p.cost * 100));
     const meta = p.status === 'done' ? '<span class="rs-n-meta">✓ Studied</span>'
       : p.status === 'active' ? `<span class="rs-n-bar"><i style="width:${pct}%"></i></span><span class="rs-n-meta">${pct}%${st.eta_hours != null ? ' · ' + fmtHours(st.eta_hours) : ''}</span>`
@@ -111,6 +128,7 @@
         style="left:${at.x}px;top:${at.y}px;width:${g.nodeW}px;height:${g.nodeH}px" aria-label="${esc(label)}">
       <span class="rs-n-icon" aria-hidden="true">${esc(p.icon)}</span>
       <span class="rs-n-main"><span class="rs-n-name">${esc(p.label)}</span>${meta}</span>
+      ${p.queued ? `<span class="rs-n-q" title="Queued #${p.queued}">#${p.queued}</span>` : ''}
     </button>`;
   }
 
@@ -119,7 +137,8 @@
     const links = [];
     for (const p of st.projects) for (const r of p.requires || []) {
       if (!L.pos[r] || !L.pos[p.key]) continue;
-      const cls = by[r] && by[r].status === 'done' ? (p.status === 'locked' ? 'rs-l-half' : 'rs-l-done') : 'rs-l-locked';
+      const cls = p.hidden || (by[r] && by[r].hidden) ? 'rs-l-hidden'
+        : by[r] && by[r].status === 'done' ? (p.status === 'locked' ? 'rs-l-half' : 'rs-l-done') : 'rs-l-locked';
       links.push(`<path class="rs-link ${cls}" d="${linkPath(L.pos[r], L.pos[p.key], L.g)}" data-from="${esc(r)}" data-to="${esc(p.key)}"/>`);
     }
     const bands = L.lanes.map((l, i) => `<div class="rs-band${i % 2 ? ' rs-band-alt' : ''}" style="top:${l.y}px;height:${l.h}px"></div>`).join('');
@@ -140,23 +159,39 @@
           <span class="rs-now-s">${Math.floor(active.progress)} / ${active.cost} · ${st.per_hour > 0 ? fmtHours(st.eta_hours) + ' to go' : 'no Scholars studying'}</span></div>`
       : `<div class="rs-now"><span class="rs-now-l">Nothing chosen</span> <span class="rs-now-s">${st.bank > 0 ? `${Math.floor(st.bank)} points banked (up to ${st.bank_cap}) — they go into the next project.` : st.library_level ? 'Pick a project in the tree.' : ''}</span></div>`;
     const sch = st.scholars.length ? st.scholars.map(s => `<span class="rs-sch">📖 ${esc(s.name)} <b>${s.perHour}/hr</b></span>`).join('') : '';
-    return { now, sch };
+    const by = Object.fromEntries(st.projects.map(p => [p.key, p]));
+    const queue = (st.queue || []).length
+      ? `<span class="rs-now-l">Next</span>` + st.queue.map((k, i) => `<span class="rs-qchip"><button type="button" class="rs-qchip-go" data-rs="pick" data-key="${esc(k)}">${i + 1}. ${esc(by[k] ? by[k].icon + ' ' + by[k].label : k)}</button><button type="button" class="rs-qchip-x" data-rs="dequeue" data-key="${esc(k)}" aria-label="Remove ${esc(by[k] ? by[k].label : k)} from the queue">✕</button></span>`).join('')
+      : '';
+    return { now, sch, queue };
   }
 
   function detailHtml(st) {
     const p = _sel && st.projects.find(x => x.key === _sel);
     if (!p) return '';
+    if (p.hidden) {
+      return `<div class="rs-d-head"><span class="rs-d-icon">❔</span><div><h3>??</h3><div class="rs-d-sub">Unknown technology</div></div>
+          <button type="button" class="cr-x" data-rs="unpick" aria-label="Close details">✕</button></div>
+        <p class="rs-d-desc">${esc(DISTANT)}</p>`;
+    }
     const R = global.KWResearch;
     const by = Object.fromEntries(st.projects.map(x => [x.key, x]));
     const b = R && R.BRANCHES[p.branch];
     const pct = Math.min(100, Math.round(p.progress / p.cost * 100));
     const reqs = (p.requires || []).map(r => `<li class="${by[r] && by[r].status === 'done' ? 'rs-ok' : 'rs-miss'}">${by[r] && by[r].status === 'done' ? '✓' : '✗'} ${esc(by[r] ? by[r].icon + ' ' + by[r].label : r)}</li>`).join('');
     const unl = unlockList(p.key).map(x => `<li>${esc(x)}</li>`).join('');
-    const btn = p.status === 'open'
-      ? `<button type="button" class="cr-btn cr-btn-primary" data-rs="start" data-key="${esc(p.key)}" ${st.library_level ? '' : 'disabled title="Build a Library first"'}>${p.progress > 0 ? 'Resume' : 'Study this next'}</button>` : '';
+    const noLib = st.library_level ? '' : 'disabled title="Build a Library first"';
+    const full = (st.queue || []).length + (p.queue_adds || 0) + 1 > (st.queue_max || 10);
+    const btns = [];
+    if (p.status === 'active') btns.push(`<button type="button" class="cr-btn" data-rs="dequeue" data-key="${esc(p.key)}">Stop</button>`);
+    else if (p.queued) btns.push(`<button type="button" class="cr-btn" data-rs="dequeue" data-key="${esc(p.key)}">Remove from queue</button>`);
+    else if (p.status !== 'done') btns.push(`<button type="button" class="cr-btn" data-rs="queue" data-key="${esc(p.key)}" ${noLib || (full ? `disabled title="The queue holds ${st.queue_max || 10}"` : '')}>Add to queue${p.queue_adds ? ` (adds ${p.queue_adds} first)` : ''}</button>`);
+    if (p.status === 'open') btns.push(`<button type="button" class="cr-btn cr-btn-primary" data-rs="start" data-key="${esc(p.key)}" ${noLib}>${p.progress > 0 ? 'Resume now' : 'Study now'}</button>`);
+    const btn = btns.join('');
     const state = p.status === 'done' ? '<div class="rs-d-state rs-ok">✓ Your town has studied this.</div>'
       : p.status === 'active' ? `<div class="rs-d-state">Studying now — ${st.eta_hours != null ? fmtHours(st.eta_hours) + ' to go' : 'no Scholars studying'}.</div>`
       : p.status === 'locked' ? `<div class="rs-d-state rs-miss">🔒 ${esc(p.blocked)}</div>` : '';
+    const qline = p.queued ? `<div class="rs-d-state">Queued #${p.queued}.</div>` : '';
     const admin = isAdmin() && p.status !== 'done' ? `<button type="button" class="cr-btn rs-admin" data-rs="finish" data-key="${esc(p.key)}" title="Dev Tools">⚡ Finish now</button>` : '';
     return `<div class="rs-d-head"><span class="rs-d-icon">${esc(p.icon)}</span>
         <div><h3>${esc(p.label)}</h3><div class="rs-d-sub">${b ? esc(b.icon + ' ' + b.label) : ''} · Era ${ROMAN[p.tier - 1] || p.tier}${R && R.ERAS[p.tier - 1] ? ' — ' + esc(R.ERAS[p.tier - 1]) : ''} · ${p.field === 'nature' ? '🔭 Nature' : '📜 Lore'}</div></div>
@@ -167,7 +202,7 @@
       <div class="rs-d-h">Cost</div>
       <div class="rs-d-cost">${p.cost} research points${p.progress > 0 && p.status !== 'done' ? ` · ${Math.floor(p.progress)} done` : ''}</div>
       ${p.status !== 'done' && p.progress > 0 ? `<div class="rs-now-bar rs-d-bar"><i style="width:${pct}%"></i></div>` : ''}
-      ${state}
+      ${state}${qline}
       <div class="rs-d-act">${admin}${btn}</div>`;
   }
 
@@ -184,6 +219,8 @@
       : 'No Library yet';
     byId('rs-now').innerHTML = h.now;
     byId('rs-sch').innerHTML = h.sch;
+    byId('rs-queue').innerHTML = h.queue;
+    byId('rs-queue').hidden = !h.queue;
     byId('rs-banner').innerHTML = st.library_level ? '' : `<div class="rs-banner-in">📚 Build a <b>Library</b> (Settlement → Scholars' Walk) and give a citizen the <b>Scholar</b> job to start studying. You can plan your path below.</div>`;
     byId('rs-adminbar').innerHTML = isAdmin() ? '<button type="button" class="cr-btn rs-admin" data-rs="reset" title="Dev Tools">🧹 Reset</button>' : '';
     // Era labels (top) and path labels (left) follow the tree's scroll.
@@ -237,6 +274,7 @@
         <div class="rs-hd-title"><h2 id="rs-title">📚 Library</h2><div class="rs-sub" id="rs-sub"></div></div>
         <div class="rs-hd-now" id="rs-now"></div>
         <div class="rs-hd-sch" id="rs-sch"></div>
+        <div class="rs-hd-queue" id="rs-queue" hidden></div>
         <div class="rs-hd-act"><span id="rs-adminbar"></span><button type="button" class="cr-x rs-close" data-rs="close" aria-label="Close the Library">✕</button></div>
       </header>
       <div id="rs-banner"></div>
@@ -315,6 +353,16 @@
         _st = await call('POST', '/api/research/start', { project: key });
         const p = _st.projects.find(x => x.key === key);
         toast(p && p.status === 'done' ? `📚 Your banked points finished ${p.label}!` : `📚 Your Scholars are studying ${p ? p.label : key}.`);
+      }
+      if (act === 'queue') {
+        _st = await call('POST', '/api/research/queue', { project: key });
+        const p = _st.projects.find(x => x.key === key);
+        toast(`📚 Queued ${p ? p.label : key}${p && p.queued ? ` (#${p.queued})` : ''}.`);
+      }
+      if (act === 'dequeue') {
+        const p = _st && _st.projects.find(x => x.key === key);
+        _st = await call('DELETE', '/api/research/queue/' + encodeURIComponent(key));
+        toast(`${p && p.status === 'active' ? 'Stopped' : 'Removed'} ${p ? p.label : key}.`, 'info');
       }
       if (act === 'finish') _st = await call('POST', '/api/research/admin/complete', { project: key });
       if (act === 'reset' && global.confirm('Forget all of your town\'s research?')) _st = await call('POST', '/api/research/admin/reset', {});

@@ -4819,3 +4819,15 @@ body.kw-shell .card-game.briar .bc-prompt.has-decision.min { animation: none; }
 body.kw-shell .card-game.briar .bc-prompt.has-decision .bc-question { text-align: center; }
 body.kw-shell .bc-consult-pool { grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; }
 body.kw-shell .bc-refusal { flex-wrap: wrap; }
+
+/* A settlement action whose building isn't built yet: greyed, padlocked,
+   just "Locked" (js/main.js _gatedAction). */
+.sett-action.locked, .sett-action.locked:hover {
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.08);
+  border-style: dashed;
+  color: rgba(242,230,201,.38);
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(1);
+}

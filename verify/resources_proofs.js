@@ -220,5 +220,28 @@ console.log('9. Balance overview & discounts');
   check('9f. the settlement view shows them too', (read('js/settlement-view.js').match(/discountText\(/g) || []).length === 2);
 }
 
+console.log('10. Settlement panel: Research and Market');
+{
+  const main = read('js/main.js');
+  const src = main.slice(main.indexOf('function _hasBuilding'), main.indexOf('window.refreshSettlementActions'));
+  const els = [];
+  const w = { console, gameData: { buildings: [{ type: 'library', level: 1 }] }, buildingsData: [],
+    document: { querySelectorAll: () => els } };
+  w.window = w; vm.createContext(w); vm.runInContext(src, w);
+  const lib = w._gatedAction('library', '📚 Research', 'openLibrary()'), mk = w._gatedAction('market', '⚖️ Market', 'openMarket()');
+  check('10a. built: the button opens it', /onclick="openLibrary\(\)">📚 Research</.test(lib) && !/locked/.test(lib));
+  check('10b. not built: greyed, padlocked, disabled, just "Locked"', /class="sett-action locked"/.test(mk) && /disabled/.test(mk) && />🔒 Locked</.test(mk) && /title="Locked"/.test(mk));
+  check('10c. …and it doesn\'t say what it is', !/Market|openMarket\(\)">/.test(mk.replace(/data-label="[^"]*"|data-onclick="[^"]*"/g, '')));
+  // Building it unlocks the button in place.
+  const el = { dataset: { settGate: 'market', label: '⚖️ Market', onclick: 'openMarket()' }, classList: { _s: new Set(['locked']), toggle(c, on) { on ? this._s.add(c) : this._s.delete(c); } },
+    disabled: true, title: 'Locked', textContent: '🔒 Locked', _attr: {}, setAttribute(k, v) { this._attr[k] = v; } };
+  els.push(el);
+  w.buildingsData = [{ id: 'market', currentLevel: 1 }];
+  w.refreshSettlementActions();
+  check('10d. building it unlocks the button straight away', !el.disabled && el.textContent === '⚖️ Market' && el._attr.onclick === 'openMarket()' && !el.classList._s.has('locked'));
+  check('10e. both buttons are in the panel; the build list refreshes them', /_gatedAction\('library', '📚 Research', 'openLibrary\(\)'\)/.test(main) && /_gatedAction\('market', '⚖️ Market', 'openMarket\(\)'\)/.test(main)
+    && /refreshSettlementActions\(\)/.test(read('js/buildings.js')) && /\.sett-action\.locked/.test(read('css/hud-storybook.css')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
