@@ -20,6 +20,7 @@ async function loadBuildings() {
     const data = await res.json();
     buildingsData = data.buildings || [];
     renderBuildingsPanel();
+    if (typeof refreshSettlementActions === 'function') refreshSettlementActions();
   } catch(e) { console.error(e); }
 }
 

@@ -115,3 +115,24 @@ body.rs-open { overflow: hidden; }
   .rs-detail { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 62dvh; border-radius: 16px 16px 0 0; border-bottom: none; }
 }
 @media (prefers-reduced-motion: reduce) { .rs-node { transition: none; } .rs-node.rs-active { animation: none; } }
+
+/* Distant technology: ?? (more than two steps from what the town knows) */
+.rs-node.rs-hidden { background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 8px, rgba(255,255,255,.01) 8px 16px), #15110b;
+  border: 1px dashed rgba(242,230,201,.18); box-shadow: none; filter: grayscale(1); opacity: .55; }
+.rs-node.rs-hidden .rs-n-name { color: rgba(242,230,201,.6); letter-spacing: .15em; }
+.rs-node.rs-hidden .rs-n-meta { font-style: italic; }
+.rs-l-hidden { stroke: rgba(242,230,201,.08); stroke-dasharray: 2 6; }
+
+/* The queue: a badge on queued nodes, numbered chips in the header */
+.rs-n-q { position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #1a1208; background: var(--rs-violet); box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.rs-hd-queue { order: 10; flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rs-hd-queue[hidden] { display: none; }
+.rs-qchip { display: inline-flex; align-items: stretch; border-radius: 999px; border: 1px solid rgba(185,176,255,.35); background: rgba(160,150,230,.1); overflow: hidden; }
+.rs-qchip button { background: none; border: none; color: inherit; font: inherit; font-size: 12px; cursor: pointer; padding: 3px 9px; }
+.rs-qchip-x { padding: 3px 8px !important; color: rgba(242,230,201,.6) !important; border-left: 1px solid rgba(185,176,255,.25) !important; }
+.rs-qchip button:hover, .rs-qchip button:focus-visible { background: rgba(185,176,255,.18); outline: none; }
+@media (max-width: 700px) {
+  .rs-hd-queue { order: 6; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .rs-qchip { flex-shrink: 0; }
+}
