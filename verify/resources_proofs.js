@@ -265,5 +265,44 @@ console.log('11. Mobile pan stick');
   check('11d. watched live, and only changed when it needs to', /watchStickCover\(\);/.test(ms) && /if \(show === !stickEl\.hasAttribute\('hidden'\)\) return;/.test(ms));
 }
 
+console.log('12. Metals in levels, tiers, quests and the breakdown');
+{
+  // Pull one top-level function (and anything before the next marker) out of a file.
+  const slice = (f, from, to) => { const t = read(f); return t.slice(t.indexOf(from), t.indexOf(to, t.indexOf(from))); };
+  const withDefs = discovered => {
+    const w = { gameData: { settlement: { discovered } } }; w.window = w; vm.createContext(w);
+    vm.runInContext(read('js/resource-defs.js'), w);
+    return w;
+  };
+  const t = withDefs(['bronze']);
+  vm.runInContext(slice('js/tier.js', 'const RES_ICONS', '\n}\n') + '\n}; this._tierExtra = _tierExtra;', t);
+  check('12a. the tier modal names a discovered alloy…', t._tierExtra('bronze').label === 'Bronze' && t._tierExtra('bronze').icon === t.KWResources.icon('bronze'));
+  check('12b. …and shows ?? for one the town hasn\'t found', t._tierExtra('steel').icon === '??' && t._tierExtra('steel').label === 'Not yet discovered' && t._tierExtra('food') === null);
+  const tier = read('js/tier.js');
+  check('12c. both tier views use it', (tier.match(/_tierExtra\((r|key)\)/g) || []).length >= 4);
+
+  const r = withDefs(['copper', 'bronze']);
+  r.RM_RESOURCE_IDS = ['food', 'timber', 'stone', 'metal', 'wealth'];
+  r.RM_RESOURCE_LABELS = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Wealth' };
+  vm.runInContext(slice('js/resources.js', 'function _rmTabIds', '// ── Floater') + '; this._rmTabIds = _rmTabIds; this._rmLabel = _rmLabel;', r);
+  const tabs = r._rmTabIds();
+  check('12d. the breakdown modal adds a tab per discovered extra', tabs.join() === 'food,timber,stone,metal,wealth,copper,bronze', tabs.join());
+  check('12e. …labelled from the registry', r._rmLabel('copper') === 'Copper' && r._rmLabel('metal') === 'Iron');
+  const res = read('js/resources.js');
+  check('12f. a tab with no hourly source says where it comes from', /Nothing produces this every hour right now/.test(res) && /sourceHint\(res\)/.test(res));
+
+  const env = makeEnv({ resources: { copper: 4 }, rates: { copper: 1 }, discovered: ['copper'] });
+  const pop = env.win.KWStores.popHtml();
+  check('12g. each Stores row opens its tab', /data-sp-res="copper"/.test(pop) && /openResourceModal\('copper'\)/.test(pop) && /<button type="button" class="sp-row sp-row-btn"/.test(pop));
+
+  const b = read('js/buildings.js');
+  check('12h. the quest editor has fields for every ore, rare and alloy, folded away', /<details class="qa-extra-rewards"/.test(b) && /extra\.map\(k => '<div class="ce-field">/.test(b)
+    && /\['food','timber','stone','metal','wealth', \.\.\.\(\(window\.KWResources && KWResources\.EXTRA\) \|\| \[\]\)\]\.forEach/.test(b));
+  const sv = read('js/settlement-view.js');
+  check('12j. only js/resources.js defines _resIcon (settlement-view used to replace it with raw keys)', !/function _resIcon\b/.test(sv) && /function _svResIcon/.test(sv)
+    && /typeof gameData !== 'undefined' && gameData && gameData\.settlement/.test(res));
+  check('12i. the demolish refund preview skips a level\'s metals', /indexOf\(e\[0\]\) >= 0; \}\)/.test(read('js/settlement-view.js')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

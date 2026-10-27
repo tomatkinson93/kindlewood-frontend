@@ -3,6 +3,14 @@
 const TIER_EMOJI = { camp: '🏕', village: '🏘', town: '🏙', city: '🏯' };
 const TIER_COLORS = { camp: '#8b7355', village: '#5d8a4a', town: '#4a6b8a', city: '#8a4a6b' };
 const RES_ICONS = { food: '🌿', timber: '🪵', stone: '⬜', metal: '🟡', wealth: '🟠' };
+// Ores and alloys a tier needs (bronze, steel, silver…): their icon and name
+// from js/resource-defs.js, or ?? until the town has discovered them.
+function _tierExtra(key) {
+  const R = window.KWResources;
+  if (!R || !R.isResource(key) || RES_ICONS[key]) return null;
+  const known = R.knownSet((typeof gameData !== 'undefined' && gameData && gameData.settlement && gameData.settlement.discovered) || []);
+  return R.isKnown(key, known) ? { icon: R.icon(key), label: R.label(key) } : { icon: '??', label: 'Not yet discovered' };
+}
 
 let tierData = null;
 
@@ -62,7 +70,7 @@ async function renderTierPanel() {
     const pct = Math.min(100, Math.round((have / need) * 100));
     return `
       <div class="tier-req-row ${ok ? 'req-met' : 'req-short'}">
-        <span class="tier-req-icon">${RES_ICONS[r] || r}</span>
+        <span class="tier-req-icon" title="${(_tierExtra(r) || {}).label || r}">${RES_ICONS[r] || (_tierExtra(r) || {}).icon || r}</span>
         <div class="tier-req-info">
           <div class="tier-req-progress-bar">
             <div class="tier-req-fill" style="width:${pct}%;background:${ok ? '#7bc67e' : '#e07b39'}"></div>
@@ -268,7 +276,7 @@ async function openTierUpgradeModal() {
     const pct = Math.min(100, Math.round((cur / required) * 100));
     const met = cur >= required;
     return `<div class="tier-req-row">
-      <span class="tier-req-label">${RES_ICON_MAP[key]||'·'} ${RES_LABEL_MAP[key]||key}</span>
+      <span class="tier-req-label">${RES_ICON_MAP[key] || (_tierExtra(key) || {}).icon || '·'} ${RES_LABEL_MAP[key] || (_tierExtra(key) || {}).label || key}</span>
       <div class="tier-req-bar-wrap"><div class="tier-req-bar ${met?'met':''}" style="width:${pct}%"></div></div>
       <span class="tier-req-nums ${met?'met':''}">${Math.floor(cur).toLocaleString()} / ${Number(required).toLocaleString()}</span>
     </div>`;
