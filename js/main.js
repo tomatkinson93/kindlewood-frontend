@@ -347,6 +347,7 @@ async function loadGame(force = false) {
     }
     initSeasons(gameData.settlement);
     if (typeof startEventsPoll === 'function') startEventsPoll();
+    if (window.KWRequests) KWRequests.start();   // village request alerts (js/village-requests.js)
     if (typeof startGlobalQuestTimer === 'function') startGlobalQuestTimer();
     if (typeof _refreshDiploEnvoys === 'function') { _refreshDiploEnvoys(); setInterval(_refreshDiploEnvoys, 30000); }
     if (typeof preloadAllAudio === 'function') {

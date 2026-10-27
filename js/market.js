@@ -62,6 +62,7 @@
     mine: null,            // GET /mine
     clockSkew: 0,          // server now − client now (ms)
     resource: '',          // buy filter
+    wantResource: '',      // Wanted filter (set by "Fill in the Market"; cleared by its chip)
     sort: 'distance',
     dir: 'asc',
     seller: null,          // { id, name } — buy tab filtered to one town
@@ -230,6 +231,9 @@
     // "Find on Market" (recipe book): the Buy tab filtered to one resource or item.
     if (opts.find && opts.find.resource) Object.assign(state, { tab: 'buy', cat: 'resources', resource: opts.find.resource, itemKey: null, itemName: '' });
     if (opts.find && opts.find.itemKey) Object.assign(state, { tab: 'buy', cat: '', itemKey: opts.find.itemKey, itemName: opts.find.itemName || opts.find.itemKey });
+    // "Fill in the Market" (a village request): the Wanted tab filtered to what it wants.
+    if (opts.wanted && opts.wanted.resource) Object.assign(state, { tab: 'wanted', cat: 'resources', wantResource: opts.wanted.resource, itemKey: null, itemName: '' });
+    if (opts.wanted && opts.wanted.itemKey) Object.assign(state, { tab: 'wanted', cat: '', itemKey: opts.wanted.itemKey, itemName: opts.wanted.itemName || opts.wanted.itemKey });
     setDot(false);
     markCommBtn(true);
     renderLoading();
@@ -283,7 +287,7 @@
     } else if (state.tab === 'wanted') {
       const qs = new URLSearchParams();
       if (state.itemKey) qs.set('item_key', state.itemKey);
-      else if (state.cat === 'resources') qs.set('resource', 'resources');
+      else if (state.cat === 'resources') qs.set('resource', state.wantResource || 'resources');
       else if (state.cat) qs.set('category', state.cat);
       if (state.hideNpc) qs.set('npc', '0');
       const [wants, mine] = await Promise.all([call('GET', '/api/market/wants?' + qs.toString()), call('GET', '/api/market/mine')]);
@@ -1400,6 +1404,8 @@
       <div class="mk-sec">
         <h3>Towns want</h3>
         <div class="mk-cats" role="toolbar" aria-label="Categories">${cats}</div>
+        ${state.itemKey || (state.cat === 'resources' && state.wantResource)
+          ? `<div class="mk-filter-chip">Showing ${esc(state.itemKey ? state.itemName : (RES_LABEL[state.wantResource] || state.wantResource))} <button type="button" data-act="clear-want" aria-label="Show all wanted orders">✕</button></div>` : ''}
       <label class="mk-npc-toggle"><input type="checkbox" data-act="hide-npc" ${state.hideNpc ? 'checked' : ''}> Hide NPC traders</label>
         <ul class="mk-list">${list}</ul>
       </div>`;
@@ -1778,7 +1784,8 @@
     if (!t || t.tagName === 'SELECT' || t.tagName === 'INPUT') return;
     const act = t.dataset.act;
     if (act === 'info') return;  // popover — see setPop
-    if (act === 'cat') { state.cat = t.dataset.cat; state.itemKey = null; state.itemName = ''; return switchTab(state.tab === 'wanted' ? 'wanted' : 'buy'); }
+    if (act === 'cat') { state.cat = t.dataset.cat; state.itemKey = null; state.wantResource = ''; state.itemName = ''; return switchTab(state.tab === 'wanted' ? 'wanted' : 'buy'); }
+    if (act === 'clear-want') { state.itemKey = null; state.itemName = ''; state.wantResource = ''; return switchTab('wanted'); }
     if (act === 'clear-item') { state.itemKey = null; state.itemName = ''; return switchTab('buy'); }
     if (act === 'suggest') return pickSuggest(Number(t.dataset.i));
     if (act === 'ih-sell') return ironhavenSell(Number(t.dataset.id));
