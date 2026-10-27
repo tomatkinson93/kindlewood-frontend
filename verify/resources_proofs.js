@@ -120,7 +120,7 @@ console.log('5. Where ores come from');
   vm.runInContext(src, w);
   const chips = w._oreChips({ copper: 0.6, tin: 0.5, coal: 0.8 });
   check('5a. a hills outpost names copper, hides tin and coal as "?? ×2"', /Copper/.test(chips) && /\+0\.6\/hr/.test(chips) && /\?\? ×2/.test(chips) && !/Tin|Coal/.test(chips));
-  check('5b. both outpost panels show ore chips', (main.match(/_oreChips\(cfg/g) || []).length === 2);
+  check('5b. both outpost panels show ore chips (yours at its level, and the next level\'s)', /_oreChips\(cfg\.ores\)/.test(main) && /_oreChips\(mine\?\.ores \|\| cfg\?\.ores\)/.test(main) && /_oreChips\(n\.ores\)/.test(main));
 
   // Expedition ore sample: stores updated, toast, a card when new.
   const toasts = [];

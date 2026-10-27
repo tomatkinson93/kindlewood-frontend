@@ -3274,6 +3274,17 @@
 }
 .action-btn[disabled]:hover { transform: none; background: transparent; }
 
+/* Upgrading my outpost (js/main.js _outpostUpgradeHtml). */
+.op-level {
+  margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px;
+  background: rgba(244, 201, 93, 0.12); color: #f4c95d; vertical-align: middle;
+}
+.action-btn.op-upgrade:not([disabled]) {
+  border-color: rgba(244, 201, 93, 0.5);
+  color: #f4c95d;
+}
+.action-btn.op-upgrade:not([disabled]):hover { background: rgba(244, 201, 93, 0.12); }
+
 .action-btn.op-dismantle {
   border-color: rgba(224, 122, 106, 0.25);
   color: rgba(217, 154, 140, 0.8);
