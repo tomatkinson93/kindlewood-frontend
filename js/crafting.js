@@ -203,7 +203,7 @@
   function helpHtml(st) {
     if (st.station === 'smelter') return `<details class="cf-help"${_helpOpen ? ' open' : ''}><summary>ⓘ How the Smelter works</summary><ul>
       <li><b>Places:</b> one Smelter per building level (${st.slots} now). Upgrade the Smelter for more furnaces.</li>
-      <li><b>Alloys:</b> copper and tin make bronze; iron and coal make steel (once your Library has studied Steelworking). They go straight into your ⛏ Stores.</li>
+      <li><b>Alloys:</b> copper and tin make bronze; iron and coal make steel, once your Library learns how. They go straight into your ⛏ Stores.</li>
       <li><b>Queue:</b> up to ${st.max_queue} batches each. Ore is taken when you queue and comes back exactly if you cancel.</li>
       <li><b>Perks:</b> faster work, and a chance the ore goes further. At level 10 a Smelter becomes a Bronzesmith or a Steelmaker, with bigger batches.</li>
     </ul></details>`;
@@ -316,7 +316,8 @@
   function bookReason(r) {
     const reasons = _st.crafters.map(c => c.can[r.recipe_key]).filter(Boolean);
     if (reasons.length) return reasons.sort((a, b) => a.length - b.length)[0];
-    if (r.research && !(_st.research_done || []).includes(r.research)) return `Needs research: ${global.KWResearch ? global.KWResearch.label(r.research) : r.research}.`;
+    // research_label: the project's name, or a vague line if the town can't see it yet.
+    if (r.research_label) return `Needs ${/understand/.test(r.research_label) ? '' : 'research: '}${r.research_label}.`;
     if (r.hidden && !r.known) return 'Not known yet — study its schematic.';
     return `Needs a ${_st.class_label}.`;
   }
@@ -461,7 +462,11 @@
     const el = byId('ra-list');
     if (!el) return;
     el.innerHTML = '<div class="ra-muted">Loading…</div>';
-    try { _ra = (await call('GET', '/api/crafting/admin/recipes')).recipes; }
+    try {
+      _ra = (await call('GET', '/api/crafting/admin/recipes')).recipes;
+      // Research projects for the recipe form — admins only; players never get the full tree.
+      if (RA_CHOICES.research.length < 2) RA_CHOICES.research = [''].concat((await call('GET', '/api/research/admin/defs')).projects.map(p => p.key));
+    }
     catch (e) { el.innerHTML = `<div class="ra-err">⚠️ ${esc(e.message)}</div>`; return; }
     const groups = {};
     _ra.forEach(r => (groups[r.class_key] = groups[r.class_key] || []).push(r));
@@ -476,7 +481,7 @@
   }
   const RA_CHOICES = {
     class_key: ['blacksmith', 'jeweller', 'carpenter', 'smelter'], station: ['smithy', 'jeweller', 'workshop', 'smelter'],
-    research: [''].concat(global.KWResearch ? global.KWResearch.KEYS : []),
+    research: [''],   // filled from GET /api/research/admin/defs (loadRecipeAdmin)
     quality_cap: ['basic', 'sturdy', 'fine', 'superior', 'legendary'], discovery: ['known', 'hidden'],
   };
   const RA_NUM = ['min_level', 'min_station_level', 'output_qty', 'base_seconds', 'base_xp', 'sort_order'];

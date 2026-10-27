@@ -1,5 +1,7 @@
 'use strict';
-// The Library's tech tree (js/research.js, js/research-defs.js).
+// The Library's tech tree (js/research.js). The browser never gets the full
+// tree — only GET /api/research — so the fake views here are built from the
+// server's lib/research_defs.js (the sibling checkout, or KW_SERVER_DIR).
 //   node verify/research_proofs.js
 //   1. Times, and what each project unlocks in words.
 //   2. Layout: every project at its era and path; paths stack; phones tighter.
@@ -10,6 +12,11 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const SERVER_DEFS = path.join(process.env.KW_SERVER_DIR || path.join(ROOT, '..', 'kindlewood-server'), 'lib', 'research_defs.js');
+if (!fs.existsSync(SERVER_DEFS)) { console.error('research_proofs needs the server checkout next to this one (or KW_SERVER_DIR): ' + SERVER_DEFS); process.exit(1); }
+const defsSrc = fs.readFileSync(SERVER_DEFS, 'utf8');
+const loadDefs = () => { const x = {}; x.window = x; vm.createContext(x); vm.runInContext(defsSrc, x); return x.KWResearch; };
+const ALL = loadDefs().KEYS;
 let pass = 0, fail = 0;
 const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
 
@@ -31,7 +38,6 @@ function makeEnv(admin, width) {
     innerWidth: width || 1400, addEventListener() {}, showBuildToast: m => toasts.push(m), _kwIsAdmin: () => admin };
   w.window = w; vm.createContext(w);
   vm.runInContext(read('js/resource-defs.js'), w);
-  vm.runInContext(read('js/research-defs.js'), w);
   vm.runInContext(read('js/research.js'), w);
   return { w, els, toasts };
 }
@@ -39,8 +45,7 @@ function makeEnv(admin, width) {
 // A view like GET /api/research builds it, from the defs: distant projects
 // redacted to ?? (opaque id, no name/cost), queue positions, queue_adds.
 function stateWith(over, done, active, queue) {
-  const x = {}; x.window = x; vm.createContext(x); vm.runInContext(read('js/research-defs.js'), x);
-  const R = x.KWResearch, d = new Set(done || []), q = queue || [];
+  const R = loadDefs(), d = new Set(done || []), q = queue || [];
   const dist = R.distances(d), hide = k => dist[k] > R.HIDE_BEYOND;
   const idOf = {}; R.KEYS.forEach((k, i) => { idOf[k] = hide(k) ? 'unknown_' + i : k; });
   const planned = new Set([active, ...q].filter(Boolean));
@@ -50,6 +55,7 @@ function stateWith(over, done, active, queue) {
     if (hide(k)) return Object.assign(base, { hidden: true, status: 'hidden', label: '??', icon: '❔' });
     const status = d.has(k) ? 'done' : active === k ? 'active' : R.blockedBy(k, d) ? 'locked' : 'open';
     return Object.assign(base, { label: p.label, icon: p.icon, field: p.field, cost: p.cost, desc: p.desc,
+      unlocks: { resources: p.resources || [], buildings: p.buildings || [], recipes: p.recipes || [], effects: p.effects || {} },
       progress: active === k ? Math.round(p.cost / 2) : d.has(k) ? p.cost : 0, status, blocked: status === 'locked' ? R.blockedBy(k, d) : null,
       queued: q.indexOf(k) >= 0 ? q.indexOf(k) + 1 : null, queue_adds: R.pathTo(k, d).filter(z => z !== k && !planned.has(z)).length });
   });
@@ -61,20 +67,21 @@ console.log('1. Times and unlocks');
 {
   const { w } = makeEnv(false);
   const L = w.KWLibrary;
+  const known = stateWith({}, ALL.slice());   // everything visible, for its unlocks
+  const P = k => known.projects.find(p => p.key === k);
   check('1a. hours read naturally', L.fmtHours(0.25) === '15m' && L.fmtHours(3.5) === '3h 30m' && L.fmtHours(50) === '2d 2h' && L.fmtHours(null) === '—');
-  check('1b. unlocks: resources, buildings, recipes', /Gold Ore/.test(L.unlocksText('deep_veins')) && /Smelter/.test(L.unlocksText('smelting')) && /Falchion/.test(L.unlocksText('master_recipes')));
-  check('1c. unlocks: effects in words', /\+15% Smelter speed/.test(L.unlocksText('furnaces')) && /\+8% research speed/.test(L.unlocksText('scriptorium'))
-    && /−3% building and upgrade costs/.test(L.unlocksText('masonry')) && /\+2 craft quality/.test(L.unlocksText('guild_marks'))
-    && /\+25% Copper/.test(L.unlocksText('shoring')) && /\+15% Smithy speed/.test(L.unlocksText('smithing_lore')) && /100 more research points bank/.test(L.unlocksText('quills')));
+  check('1b. unlocks: resources, buildings, recipes', /Gold Ore/.test(L.unlocksText(P('deep_veins'))) && /Smelter/.test(L.unlocksText(P('smelting'))) && /Falchion/.test(L.unlocksText(P('master_recipes'))));
+  check('1c. unlocks: effects in words', /\+15% Smelter speed/.test(L.unlocksText(P('furnaces'))) && /\+8% research speed/.test(L.unlocksText(P('scriptorium')))
+    && /−3% building and upgrade costs/.test(L.unlocksText(P('masonry'))) && /\+2 craft quality/.test(L.unlocksText(P('guild_marks')))
+    && /\+25% Copper/.test(L.unlocksText(P('shoring'))) && /\+15% Smithy speed/.test(L.unlocksText(P('smithing_lore'))) && /100 more research points bank/.test(L.unlocksText(P('quills'))));
 }
 
-const ALL = (() => { const x = {}; x.window = x; vm.createContext(x); vm.runInContext(read('js/research-defs.js'), x); return x.KWResearch.KEYS; })();
 
 console.log('2. Layout');
 {
   const { w } = makeEnv(false);
   const st = stateWith({}, ALL);   // everything known: real keys everywhere
-  const L = w.KWLibrary.layout(st.projects, false);
+  const L = w.KWLibrary.layout(st.projects, false, st);
   const pos = Object.values(L.pos);
   check('2a. every project has a place', pos.length === st.projects.length && pos.length === 46);
   check('2b. no two overlap', pos.every((a, i) => pos.every((b, j) => i === j || Math.abs(a.x - b.x) >= L.g.nodeW || Math.abs(a.y - b.y) >= L.g.nodeH)));
@@ -83,7 +90,7 @@ console.log('2. Layout');
     && L.pos.mine_pumps.y > L.pos.volcanic_lore.y && L.pos.mine_pumps.y < L.pos.smelting.y);
   check('2e. arrows run left to right', st.projects.every(p => p.requires.every(r => L.pos[r].x < L.pos[p.key].x)));
   check('2f. very wide: eight eras across', L.eras.length === 8 && L.width >= 7 * L.g.colW);
-  const N = w.KWLibrary.layout(st.projects, true);
+  const N = w.KWLibrary.layout(st.projects, true, st);
   check('2g. phones: a tighter grid', N.g.nodeW < L.g.nodeW && N.width < L.width && N.g.labelW < L.g.labelW);
   check('2h. connector curves from right edge to left edge', /^M\d+,\d+(\.\d+)? C/.test(w.KWLibrary.linkPath({ x: 0, y: 0 }, { x: 300, y: 100 }, L.g)));
 }
@@ -168,14 +175,20 @@ console.log('5. No Library; realtime');
 console.log('6. Wiring');
 {
   const html = read('index.html');
-  check('6a. research-defs and research.js load; css linked', /\/js\/research-defs\.js/.test(html) && /\/js\/research\.js/.test(html) && /css\/research\.css/.test(html)
-    && html.indexOf('/js/research-defs.js') < html.indexOf('/js/research.js'));
+  check('6a. research.js loads, css linked — and no copy of the tree is shipped', /\/js\/research\.js/.test(html) && /css\/research\.css/.test(html)
+    && !/research-defs/.test(html) && !fs.existsSync(path.join(ROOT, 'js', 'research-defs.js')));
   check('6b. its own screen: fixed and full-window, a bottom sheet on phones', /\.rs-screen \{[\s\S]*?position: fixed; inset: 0/.test(read('css/research.css')) && /max-width: 700px[\s\S]*\.rs-detail \{ left: 0; right: 0; bottom: 0/.test(read('css/research.css')));
   check('6c. drag to pan, wheel to scroll sideways, Esc closes', /pointerdown/.test(read('js/research.js')) && /addEventListener\('wheel'/.test(read('js/research.js')) && /e\.key !== 'Escape'/.test(read('js/research.js')));
   check('6d. realtime routes research_done', /research_done\(ev\) \{ if \(global\.KWLibrary\) global\.KWLibrary\.onEvent\(ev\)/.test(read('js/realtime.js')));
   check('6e. the Library building and the Stores open it', /occupant\.id === 'library'/.test(read('js/settlement-view.js')) && /openLibrary\(\)/.test(read('js/stores.js')));
   const twin = path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js');
-  check('6f. research-defs twin of the server file', !fs.existsSync(twin) || read('js/research-defs.js') === fs.readFileSync(twin, 'utf8'));
+  const R = loadDefs();
+  const late = R.KEYS.filter(k => R.PROJECTS[k].tier >= 3).map(k => R.PROJECTS[k].label);
+  const jsAll = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).map(f => read('js/' + f)).join('\n')
+    .split('\n').filter(l => !/^\s*(\/\/|\*)/.test(l)).join('\n');   // code, not comments
+  const leaked = late.filter(l => jsAll.includes(l));
+  check('6f. no distant project is named anywhere in the browser code', leaked.length === 0, leaked.join(', '));
+  void twin;
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

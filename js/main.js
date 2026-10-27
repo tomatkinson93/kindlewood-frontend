@@ -1090,9 +1090,7 @@ function _settlementTierCard(tier, settlementName, isOwn) {
 
 // ── Dev tile editor ─────────────────────────────────────────────────────
 // Returns HTML for a small terrain-change dropdown that's appended to any
-// tile info panel. Currently visible to any logged-in user for testing;
-// the server-side endpoint should be admin-gated before launch.
-// TODO: hide this UI when admin gating is added so non-admins don't see it.
+// tile info panel — admins only (the endpoint is admin-gated too).
 const _DEV_TERRAIN_OPTIONS = [
   ['plains', '🌾 Plains'],
   ['forest', '🌳 Forest'],
@@ -1103,6 +1101,7 @@ const _DEV_TERRAIN_OPTIONS = [
   ['ruins', '🏛 Ruins'],
 ];
 function _devTileEditorHtml(tile) {
+  if (typeof _kwIsAdmin !== 'function' || !_kwIsAdmin()) return '';
   const opts = _DEV_TERRAIN_OPTIONS.map(([val, label]) => {
     const sel = val === tile.terrain ? ' selected' : '';
     return `<option value="${val}"${sel}>${label}</option>`;

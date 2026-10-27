@@ -3,10 +3,10 @@
 //
 //  Server: /api/research (kindlewood-server lib/research). Scholars at the
 //  Library earn research points for one project at a time; with nothing
-//  chosen, points bank (up to a cap) for the next one. The tree itself is
-//  js/research-defs.js (the server's twin): BRANCHES are rows (paths), ERAS
-//  are columns, each project sits at (tier, branch, slot) and its arrows come
-//  from `requires`.
+//  chosen, points bank (up to a cap) for the next one. The tree comes only
+//  from the API: branches are rows (paths), eras are columns, each project
+//  sits at (tier, branch, slot) and its arrows come from `requires`. Distant
+//  projects arrive as ?? with no name — the browser never has the full tree.
 //
 //  Screen: a header (what's being studied, Scholars, points/hr), era labels
 //  along the top and path labels down the left (both follow the scroll), the
@@ -54,9 +54,10 @@
     quality: v => `+${v} craft quality`,
     carry: v => `+${pctTxt(v)} porter and merchant carry weight`,
   };
-  function unlockList(key) {
-    const R = global.KWResearch, D = global.KWResources;
-    const p = R && R.project(key);
+  // p.unlocks comes from the server (only for projects the town can see).
+  function unlockList(proj) {
+    const D = global.KWResources;
+    const p = proj && proj.unlocks;
     if (!p) return [];
     const out = [];
     (p.resources || []).forEach(k => out.push(D ? D.icon(k) + ' ' + D.label(k) : k));
@@ -65,7 +66,7 @@
     Object.entries(p.effects || {}).forEach(([k, v]) => out.push('✨ ' + effectText(k, v)));
     return out;
   }
-  const unlocksText = key => unlockList(key).join(' · ');
+  const unlocksText = proj => unlockList(proj).join(' · ');
   // 'ore:copper' → "+25% Copper"; 'craft_speed:smithy' → "+15% Smithy speed".
   function effectText(k, v) {
     if (EFFECT_TXT[k]) return EFFECT_TXT[k](v);
@@ -79,13 +80,14 @@
 
   // ── Layout: where each project sits ──────────────────────────────────────
   // Phones get a tighter grid. Returns geometry plus { key: { x, y } }.
-  function layout(projects, narrow) {
-    const R = global.KWResearch;
+  // meta: { branches, eras } from the server (GET /api/research).
+  function layout(projects, narrow, meta) {
+    const M = meta || _st || {};
     const g = narrow
       ? { colW: 176, nodeW: 148, nodeH: 66, rowH: 84, laneGap: 14, padX: 14, padY: 12, labelW: 46, eraH: 30 }
       : { colW: 236, nodeW: 192, nodeH: 74, rowH: 92, laneGap: 18, padX: 22, padY: 16, labelW: 150, eraH: 36 };
-    const branches = Object.entries((R && R.BRANCHES) || {}).sort((a, b) => a[1].order - b[1].order);
-    const eras = (R && R.ERAS) || [];
+    const branches = Object.entries(M.branches || {}).sort((a, b) => a[1].order - b[1].order);
+    const eras = M.eras || [];
     const lanes = [];
     let y = g.padY;
     for (const [key, b] of branches) {
@@ -174,12 +176,11 @@
           <button type="button" class="cr-x" data-rs="unpick" aria-label="Close details">✕</button></div>
         <p class="rs-d-desc">${esc(DISTANT)}</p>`;
     }
-    const R = global.KWResearch;
     const by = Object.fromEntries(st.projects.map(x => [x.key, x]));
-    const b = R && R.BRANCHES[p.branch];
+    const b = (st.branches || {})[p.branch];
     const pct = Math.min(100, Math.round(p.progress / p.cost * 100));
     const reqs = (p.requires || []).map(r => `<li class="${by[r] && by[r].status === 'done' ? 'rs-ok' : 'rs-miss'}">${by[r] && by[r].status === 'done' ? '✓' : '✗'} ${esc(by[r] ? by[r].icon + ' ' + by[r].label : r)}</li>`).join('');
-    const unl = unlockList(p.key).map(x => `<li>${esc(x)}</li>`).join('');
+    const unl = unlockList(p).map(x => `<li>${esc(x)}</li>`).join('');
     const noLib = st.library_level ? '' : 'disabled title="Build a Library first"';
     const full = (st.queue || []).length + (p.queue_adds || 0) + 1 > (st.queue_max || 10);
     const btns = [];
@@ -194,7 +195,7 @@
     const qline = p.queued ? `<div class="rs-d-state">Queued #${p.queued}.</div>` : '';
     const admin = isAdmin() && p.status !== 'done' ? `<button type="button" class="cr-btn rs-admin" data-rs="finish" data-key="${esc(p.key)}" title="Dev Tools">⚡ Finish now</button>` : '';
     return `<div class="rs-d-head"><span class="rs-d-icon">${esc(p.icon)}</span>
-        <div><h3>${esc(p.label)}</h3><div class="rs-d-sub">${b ? esc(b.icon + ' ' + b.label) : ''} · Era ${ROMAN[p.tier - 1] || p.tier}${R && R.ERAS[p.tier - 1] ? ' — ' + esc(R.ERAS[p.tier - 1]) : ''} · ${p.field === 'nature' ? '🔭 Nature' : '📜 Lore'}</div></div>
+        <div><h3>${esc(p.label)}</h3><div class="rs-d-sub">${b ? esc(b.icon + ' ' + b.label) : ''} · Era ${ROMAN[p.tier - 1] || p.tier}${(st.eras || [])[p.tier - 1] ? ' — ' + esc(st.eras[p.tier - 1]) : ''} · ${p.field === 'nature' ? '🔭 Nature' : '📜 Lore'}</div></div>
         <button type="button" class="cr-x" data-rs="unpick" aria-label="Close details">✕</button></div>
       <p class="rs-d-desc">${esc(p.desc)}</p>
       ${unl ? `<div class="rs-d-h">Unlocks</div><ul class="rs-d-list">${unl}</ul>` : ''}
@@ -212,7 +213,7 @@
   function render(opts) {
     const st = _st, root = byId('rs-overlay');
     if (!st || !root) return;
-    const L = layout(st.projects, narrow());
+    const L = layout(st.projects, narrow(), st);
     const h = headerHtml(st);
     byId('rs-sub').textContent = st.library_level
       ? `Level ${st.library_level} · ${st.scholars.length} / ${st.seats} Scholar${st.seats === 1 ? '' : 's'} · ${st.per_hour} points/hr`

@@ -158,8 +158,7 @@ console.log('6. Smelter');
   const sv = read('js/settlement-view.js');
   check('6f. the settlement view has a Smelter slot and research locks', /accepts:\['smelter'\]/.test(sv) && /b\.researchMet !== false/.test(sv) && /at a Library first/.test(sv) && /'workshop', 'smelter'\]\.includes\(occupant\.id\)/.test(sv));
   check('6g. the build list explains research locks', /Study \$\{b\.researchLabel/.test(read('js/buildings.js')));
-  check('6h. research-defs twin of the server file', !fs.existsSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'))
-    || read('js/research-defs.js') === fs.readFileSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'), 'utf8'));
+  check('6h. the browser gets no copy of the research tree', !fs.existsSync(path.join(ROOT, 'js', 'research-defs.js')));
 }
 
 console.log('7. Recipe book');
@@ -168,7 +167,6 @@ console.log('7. Recipe book');
   w.window = w; vm.createContext(w);
   vm.runInContext(read('js/career-math.js'), w);
   vm.runInContext(read('js/resource-defs.js'), w);
-  vm.runInContext(read('js/research-defs.js'), w);
   vm.runInContext(read('js/crafting.js'), w);
   const st = { class_label: 'Blacksmith', resources: { metal: 5, steel: 0 }, discovered: ['steel'], have: { iron_ore: 0 }, research_done: [],
     templates: { iron_ore: { name: 'Iron Ore', icon: '⚫' } },
@@ -182,7 +180,7 @@ console.log('7. Recipe book');
   check('7a. every recipe, with who can make it or why not', /📖 Recipe book · 3 recipes/.test(html) && /✅ Bram/.test(html) && /🔒 Needs level 11\./.test(html));
   check('7b. missing known materials get a Find on Market button', /data-cf="find" data-res="steel"/.test(html) && /data-cf="find" data-res="metal"/.test(html) && /data-item="iron_ore" data-name="Iron Ore"/.test(html));
   check('7c. undiscovered inputs stay "??" and get no Find button', /\?\? ×3/.test(html) && !/data-res="goldore"/.test(html));
-  const empty = w.KWCrafting._bookHtml(Object.assign({}, st, { crafters: [], recipes: [Object.assign({}, st.recipes[0], { research: 'smelting' })] }), false);
+  const empty = w.KWCrafting._bookHtml(Object.assign({}, st, { crafters: [], recipes: [Object.assign({}, st.recipes[0], { research: 'smelting', research_label: 'Smelting' })] }), false);
   check('7d. no crafters: the reason comes from the recipe (research)', /Needs research: Smelting\./.test(empty) && !/Back to making/.test(empty));
   const mk = read('js/market.js');
   check('7e. the Market opens filtered to a resource or an item', /opts\.find && opts\.find\.resource/.test(mk) && /opts\.find && opts\.find\.itemKey/.test(mk));
@@ -200,14 +198,13 @@ console.log('9. Balance overview & discounts');
 {
   const w = { document: { getElementById: () => null, addEventListener() {} }, console, Math, JSON, Number, String, Object, Array, Set, Promise };
   w.window = w; vm.createContext(w);
-  vm.runInContext(read('js/research-defs.js'), w);
   vm.runInContext(read('js/career-balance.js'), w);
   const html = w.KWCareerBalance.html({
     tuning: [{ key: 'research', value: 1.5, label: 'Research speed', desc: 'Points.' }],
     classes: [{ key: 'miner', label: 'Miner', icon: '⛏️', citizens: 3, levels: [1, 0, 2].concat(Array(17).fill(0)), median_level: 3, median_xp_per_hour: 9.8, avg_hours: 40, forks: { stonemason: 1 } }],
     crafting: { days: [{ day: '2026-10-24', basic: 2, sturdy: 1, fine: 0, superior: 0, legendary: 0, smelted: 4 }] },
     discoveries: { recipes: 1, resources: 3, by_source: { 'resource:mine': 3 } },
-    research: { towns_studying: 2, finished_7d: 1, by_project: { smelting: 1 } } });
+    research: { towns_studying: 2, finished_7d: 1, by_project: { Smelting: 1 } } });
   check('9a. tuning inputs with Save', /data-cb-key="research"/.test(html) && /value="1\.5"/.test(html) && /data-cb-save="research"/.test(html));
   check('9b. class rows: histogram of 20 levels, medians, forks', (html.match(/<span style="height:/g) || []).length === 20 && /9\.8/.test(html) && /stonemason 1/.test(html));
   check('9c. crafts by quality and smelts per day; discoveries; research', /2026-10-24/.test(html) && />4</.test(html) && /3<\/b> resources discovered/.test(html) && /Smelting 1/.test(html));
