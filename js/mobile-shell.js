@@ -354,6 +354,7 @@
     wireIntegrations();
     wireGameToggles();
     watchOverlays();
+    watchStickCover();
     applyStickVisibility();
   }
 
@@ -377,8 +378,48 @@
   }
   function applyStickVisibility() {
     if (!stickEl) return;
-    if (stickEnabled()) stickEl.removeAttribute('hidden');
-    else { stickEl.setAttribute('hidden', ''); vec.x = vec.y = 0; }
+    var show = stickEnabled() && !stickCovered();
+    // Only touch the DOM on a change: the cover watcher observes it.
+    if (show === !stickEl.hasAttribute('hidden')) return;
+    if (show) stickEl.removeAttribute('hidden');
+    else { stickEl.setAttribute('hidden', ''); vec.x = vec.y = 0; setKnob(0, 0); }
+  }
+
+  // The stick belongs to the map: it shows only while the map itself is
+  // what's on screen where the stick sits. Any panel, sheet, modal or
+  // full-screen view above that spot (the Library, a workshop, the
+  // settlement sheet, Dev Tools…) hides it — no list of ids to keep up to
+  // date. Probes the spot the stick occupies (its CSS: left 14px, above the
+  // tab bar), looking straight through the stick (elementsFromPoint).
+  function stickCovered() {
+    if (document.body.classList.contains('kw-overlay')) return true;
+    var screen = byId('screen-game');
+    if (!screen || !screen.classList.contains('active')) return true;
+    var bar = document.querySelector('.kw-tabbar');
+    var bottom = bar ? bar.getBoundingClientRect().top : window.innerHeight;
+    var size = stickEl.offsetWidth || 104;
+    var x = 14 + size / 2, y = bottom - 12 - size / 2;
+    if (!(y > 0)) return true;
+    var hits = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [document.elementFromPoint(x, y)];
+    var hit = null;
+    for (var i = 0; i < hits.length; i++) if (hits[i] && !stickEl.contains(hits[i])) { hit = hits[i]; break; }
+    return !(hit && hit.closest && hit.closest('#map-frame'));
+  }
+  // Re-check whenever the page changes (throttled to one check a frame).
+  var _coverPending = false;
+  function watchStickCover() {
+    var check = function () {
+      if (_coverPending) return;
+      _coverPending = true;
+      window.requestAnimationFrame(function () {
+        _coverPending = false;
+        // Mid-drag the stick keeps going; it is re-checked when let go.
+        if (stickEl && !stickEl.classList.contains('kw-active')) applyStickVisibility();
+      });
+    };
+    new MutationObserver(check).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+    window.addEventListener('resize', check);
+    check();
   }
 
   function setKnob(dx, dy) {

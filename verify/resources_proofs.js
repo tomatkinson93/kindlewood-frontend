@@ -243,5 +243,30 @@ console.log('10. Settlement panel: Research and Market');
     && /refreshSettlementActions\(\)/.test(read('js/buildings.js')) && /\.sett-action\.locked/.test(read('css/hud-storybook.css')));
 }
 
+console.log('11. Mobile pan stick');
+{
+  const ms = read('js/mobile-shell.js');
+  const src = ms.slice(ms.indexOf('  function stickCovered()'), ms.indexOf('  // Re-check whenever the page changes'));
+  // A fake page: whatever elementsFromPoint returns is "what's on screen there".
+  let top = [];
+  const frame = { closest: sel => (sel === '#map-frame' ? frame : null) };
+  const panel = { closest: () => null };
+  const stick = { offsetWidth: 104, contains: n => n === stick };
+  const body = { classList: { _s: new Set(), contains(c) { return this._s.has(c); } } };
+  const screen = { classList: { contains: c => c === 'active' } };
+  const w = { window: null, innerHeight: 844, stickEl: stick,
+    document: { body, querySelector: () => ({ getBoundingClientRect: () => ({ top: 780 }) }), elementsFromPoint: () => top },
+    byId: id => (id === 'screen-game' ? screen : null) };
+  w.window = w; vm.createContext(w);
+  vm.runInContext(src + '; this.stickCovered = stickCovered;', w);
+  top = [stick, frame];
+  check('11a. over the map (looking through the stick itself): shown', w.stickCovered() === false);
+  top = [stick, panel, frame];
+  check('11b. any panel, sheet or screen above that spot: hidden', w.stickCovered() === true);
+  body.classList._s.add('kw-overlay'); top = [frame];
+  check('11c. a full-screen overlay: hidden', w.stickCovered() === true);
+  check('11d. watched live, and only changed when it needs to', /watchStickCover\(\);/.test(ms) && /if \(show === !stickEl\.hasAttribute\('hidden'\)\) return;/.test(ms));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
