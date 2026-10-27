@@ -152,6 +152,17 @@ console.log('4. Detail panel');
   w.KWLibrary._setState(stateWith({}, ['prospecting'], 'prospecting_2'));
   w.KWLibrary._select('prospecting_2'); w.KWLibrary._render();
   check('4h. the active project can be stopped', /data-rs="dequeue" data-key="prospecting_2">Stop/.test(els['rs-detail'].innerHTML));
+  // Reorder: Masonry → Surveying (needs Masonry) → Shoring.
+  const mq = stateWith({}, ['prospecting'], null, ['masonry', 'surveying', 'shoring']);
+  const M = (i, dir) => w.KWLibrary.canMove(mq, i, dir);
+  check('4k. reorder: never past what a project needs, or what needs it', !M(0, -1) && !M(0, 1) && !M(1, -1) && M(1, 1) && M(2, -1) && !M(2, 1));
+  w.KWLibrary._setState(mq); w.KWLibrary._select('surveying'); w.KWLibrary._render();
+  const qh2 = els['rs-queue'].innerHTML;
+  check('4l. queue chips get ◀ ▶ only where a move is allowed', (qh2.match(/data-rs="move"/g) || []).length === 2
+    && /data-rs="move" data-key="surveying" data-to="2"[^>]*>▶/.test(qh2) && /data-rs="move" data-key="shoring" data-to="1"[^>]*>◀/.test(qh2));
+  d = els['rs-detail'].innerHTML;
+  check('4m. the detail panel: Move down (no Move up past Masonry)', /data-rs="move" data-key="surveying" data-to="2">▼ Move down/.test(d) && !/Move up/.test(d));
+  check('4n. a move posts { project, to }', /call\('POST', '\/api\/research\/queue\/move', \{ project: key, to: Number\(b\.dataset\.to\) \}\)/.test(fs.readFileSync(path.join(ROOT, 'js', 'research.js'), 'utf8')));
   w.KWLibrary._select(null); w.KWLibrary._render();
   check('4i. no choice: no panel', els['rs-detail'].hidden === true);
   const A = makeEnv(true);

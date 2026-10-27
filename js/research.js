@@ -153,6 +153,17 @@
       </div>`;
   }
 
+  // Can the i-th queued project swap with its neighbour (dir −1 earlier, +1
+  // later)? Not past something it needs, or something that needs it — the
+  // server refuses those too (POST /api/research/queue/move).
+  function canMove(st, i, dir) {
+    const q = st.queue || [], j = i + dir;
+    if (i < 0 || j < 0 || j >= q.length) return false;
+    const by = Object.fromEntries(st.projects.map(p => [p.key, p]));
+    const [first, second] = dir < 0 ? [q[j], q[i]] : [q[i], q[j]];
+    return !((by[second] && by[second].requires) || []).includes(first);
+  }
+
   function headerHtml(st) {
     const active = st.projects.find(p => p.status === 'active');
     const now = active
@@ -163,7 +174,12 @@
     const sch = st.scholars.length ? st.scholars.map(s => `<span class="rs-sch">📖 ${esc(s.name)} <b>${s.perHour}/hr</b></span>`).join('') : '';
     const by = Object.fromEntries(st.projects.map(p => [p.key, p]));
     const queue = (st.queue || []).length
-      ? `<span class="rs-now-l">Next</span>` + st.queue.map((k, i) => `<span class="rs-qchip"><button type="button" class="rs-qchip-go" data-rs="pick" data-key="${esc(k)}">${i + 1}. ${esc(by[k] ? by[k].icon + ' ' + by[k].label : k)}</button><button type="button" class="rs-qchip-x" data-rs="dequeue" data-key="${esc(k)}" aria-label="Remove ${esc(by[k] ? by[k].label : k)} from the queue">✕</button></span>`).join('')
+      ? `<span class="rs-now-l">Next</span>` + st.queue.map((k, i) => {
+          const name = by[k] ? by[k].label : k;
+          const mv = (dir, glyph, word) => canMove(st, i, dir)
+            ? `<button type="button" class="rs-qchip-mv" data-rs="move" data-key="${esc(k)}" data-to="${i + dir}" aria-label="Move ${esc(name)} ${word}" title="Move ${word}">${glyph}</button>` : '';
+          return `<span class="rs-qchip">${mv(-1, '◀', 'earlier')}<button type="button" class="rs-qchip-go" data-rs="pick" data-key="${esc(k)}">${i + 1}. ${esc(by[k] ? by[k].icon + ' ' + by[k].label : k)}</button>${mv(1, '▶', 'later')}<button type="button" class="rs-qchip-x" data-rs="dequeue" data-key="${esc(k)}" aria-label="Remove ${esc(name)} from the queue">✕</button></span>`;
+        }).join('')
       : '';
     return { now, sch, queue };
   }
@@ -185,7 +201,12 @@
     const full = (st.queue || []).length + (p.queue_adds || 0) + 1 > (st.queue_max || 10);
     const btns = [];
     if (p.status === 'active') btns.push(`<button type="button" class="cr-btn" data-rs="dequeue" data-key="${esc(p.key)}">Stop</button>`);
-    else if (p.queued) btns.push(`<button type="button" class="cr-btn" data-rs="dequeue" data-key="${esc(p.key)}">Remove from queue</button>`);
+    else if (p.queued) {
+      const i = p.queued - 1;
+      if (canMove(st, i, -1)) btns.push(`<button type="button" class="cr-btn" data-rs="move" data-key="${esc(p.key)}" data-to="${i - 1}">▲ Move up</button>`);
+      if (canMove(st, i, 1)) btns.push(`<button type="button" class="cr-btn" data-rs="move" data-key="${esc(p.key)}" data-to="${i + 1}">▼ Move down</button>`);
+      btns.push(`<button type="button" class="cr-btn" data-rs="dequeue" data-key="${esc(p.key)}">Remove from queue</button>`);
+    }
     else if (p.status !== 'done') btns.push(`<button type="button" class="cr-btn" data-rs="queue" data-key="${esc(p.key)}" ${noLib || (full ? `disabled title="The queue holds ${st.queue_max || 10}"` : '')}>Add to queue${p.queue_adds ? ` (adds ${p.queue_adds} first)` : ''}</button>`);
     if (p.status === 'open') btns.push(`<button type="button" class="cr-btn cr-btn-primary" data-rs="start" data-key="${esc(p.key)}" ${noLib}>${p.progress > 0 ? 'Resume now' : 'Study now'}</button>`);
     const btn = btns.join('');
@@ -365,6 +386,7 @@
         _st = await call('DELETE', '/api/research/queue/' + encodeURIComponent(key));
         toast(`${p && p.status === 'active' ? 'Stopped' : 'Removed'} ${p ? p.label : key}.`, 'info');
       }
+      if (act === 'move') _st = await call('POST', '/api/research/queue/move', { project: key, to: Number(b.dataset.to) });
       if (act === 'finish') _st = await call('POST', '/api/research/admin/complete', { project: key });
       if (act === 'reset' && global.confirm('Forget all of your town\'s research?')) _st = await call('POST', '/api/research/admin/reset', {});
       render();
@@ -382,7 +404,7 @@
   }
 
   global.KWLibrary = {
-    open, close, load, onEvent, fmtHours, unlocksText, unlockList, layout, linkPath, focusKey,
+    open, close, load, onEvent, fmtHours, unlocksText, unlockList, layout, linkPath, focusKey, canMove,
     _state: () => _st, _render: render, _setState(s) { _st = s; }, _select(k) { _sel = k; },
   };
   global.openLibrary = open;
