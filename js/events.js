@@ -16,6 +16,7 @@ const EVENT_ICONS = {
   partnership:  '💕',
   bond_formed:  '🤝',
   close_bond:   '💛',
+  village_request_new: '📣',
 };
 
 let _eventsData = [];
@@ -51,7 +52,8 @@ function renderEventsFeed() {
       // from this bell-feed render path).
       const lastIdx = _eventsData.findIndex(e => e.id === _lastSeenEventId);
       const newOnes = lastIdx === -1 ? [newest] : _eventsData.slice(0, lastIdx);
-      const toastable = newOnes.filter(e => e.type !== 'quest_success' && e.type !== 'quest_fail');
+      // village_request_new: js/village-requests.js toasts those itself.
+      const toastable = newOnes.filter(e => e.type !== 'quest_success' && e.type !== 'quest_fail' && e.type !== 'village_request_new');
       toastable.slice(0, 3).forEach((e, i) => {
         setTimeout(() => showToastNotification(e.message, e.type), i * 300);
       });

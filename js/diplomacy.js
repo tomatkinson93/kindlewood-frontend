@@ -173,6 +173,7 @@ async function renderDiplomacyPanel(npc, tile) {
   body.innerHTML = `
     <div class="diplo-side-desc">${npc.description || ''}</div>
     ${statusBanner}
+    ${window.KWRequests ? KWRequests.panelHtml(npcId) : ''}
     <button class="diplo-open-btn" onclick="openDiplomacyModal(${npcId})">${ctaLabel}</button>
   `;
 }

@@ -347,6 +347,7 @@ async function loadGame(force = false) {
     }
     initSeasons(gameData.settlement);
     if (typeof startEventsPoll === 'function') startEventsPoll();
+    if (window.KWRequests) KWRequests.start();   // village request alerts (js/village-requests.js)
     if (typeof startGlobalQuestTimer === 'function') startGlobalQuestTimer();
     if (typeof _refreshDiploEnvoys === 'function') { _refreshDiploEnvoys(); setInterval(_refreshDiploEnvoys, 30000); }
     if (typeof preloadAllAudio === 'function') {
@@ -1090,9 +1091,7 @@ function _settlementTierCard(tier, settlementName, isOwn) {
 
 // ── Dev tile editor ─────────────────────────────────────────────────────
 // Returns HTML for a small terrain-change dropdown that's appended to any
-// tile info panel. Currently visible to any logged-in user for testing;
-// the server-side endpoint should be admin-gated before launch.
-// TODO: hide this UI when admin gating is added so non-admins don't see it.
+// tile info panel — admins only (the endpoint is admin-gated too).
 const _DEV_TERRAIN_OPTIONS = [
   ['plains', '🌾 Plains'],
   ['forest', '🌳 Forest'],
@@ -1103,6 +1102,7 @@ const _DEV_TERRAIN_OPTIONS = [
   ['ruins', '🏛 Ruins'],
 ];
 function _devTileEditorHtml(tile) {
+  if (typeof _kwIsAdmin !== 'function' || !_kwIsAdmin()) return '';
   const opts = _DEV_TERRAIN_OPTIONS.map(([val, label]) => {
     const sel = val === tile.terrain ? ' selected' : '';
     return `<option value="${val}"${sel}>${label}</option>`;
@@ -1237,20 +1237,25 @@ function _costChips(cost, have) {
     .filter(([, v]) => v > 0)
     .map(([res, v]) => {
       const short = (have[res] ?? 0) < v;
-      return `<span class="op-chip ${short ? 'op-chip-short' : ''}">${RES_GLYPHS[res] || ''} ${v}</span>`;
+      // Ores and alloys (an upgrade's bronze): registry icon, or ?? until discovered.
+      return `<span class="op-chip ${short ? 'op-chip-short' : ''}">${RES_GLYPHS[res] || (typeof _resIcon === 'function' ? _resIcon(res, 14) : res)} ${v}</span>`;
     }).join('');
 }
 
 function _outpostSectionHtml(tile) {
-  // My outpost here — production block + dismantle
+  // My outpost here — production at its level, the next level, dismantle
   if (tile.outpost?.mine) {
     const st = _outpostStatus;
     const cfg = st?.config?.[tile.outpost.terrain];
-    const yields = cfg?.yields || {};
+    const mine = (st?.outposts || []).find(o => o.id === tile.outpost.id);
+    // Just founded (or no status yet): fetch once for its level and upgrade.
+    if (!mine && !_opRefreshedFor.has(tile.outpost.id)) { _opRefreshedFor.add(tile.outpost.id); _refreshOutpostStatus(tile); }
+    const lvl = mine?.level || tile.outpost.level || 1;
     return `
       <div class="op-section">
-        <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'}</div>
-        <div class="op-chips">${_yieldChips(yields)}${_oreChips(cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
+        <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'} <span class="op-level">Lv ${lvl}/${mine?.max_level || 3}</span></div>
+        <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
+        ${_outpostUpgradeHtml(mine)}
         <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
         <div class="op-reason" data-op-reason style="display:none"></div>
       </div>`;
@@ -1307,11 +1312,55 @@ function _outpostSectionHtml(tile) {
     </div>`;
 }
 
+// The next level for one of my outposts (GET /api/game/outposts `next`):
+// what it adds, what it costs, and why it can't be done yet.
+function _outpostUpgradeHtml(o) {
+  if (!o) return '';
+  const n = o.next;
+  if (!n) return `<div class="op-cap-note">At its highest level.</div>`;
+  const have = _liveResources();
+  const affordable = Object.entries(n.cost || {}).every(([res, v]) => (have[res] ?? 0) >= v);
+  const reason = !n.tierMet ? `Level ${n.level} needs a ${n.tier.charAt(0).toUpperCase() + n.tier.slice(1)}.` : !affordable ? 'Not enough resources.' : '';
+  return `
+        <div class="op-cost-label">Level ${n.level}</div>
+        <div class="op-chips">${_yieldChips(n.yields)}${_oreChips(n.ores)}<span class="op-chip op-chip-minus">🍎 −${n.upkeep_food_per_hr}/hr upkeep</span></div>
+        <div class="op-chips">${_costChips(n.cost, have)}</div>
+        <button class="action-btn op-upgrade" data-op-upgrade="${o.id}" ${reason ? 'disabled' : ''}>Upgrade to Lv ${n.level}</button>
+        ${reason ? `<div class="op-reason">${reason}</div>` : ''}`;
+}
+const _opRefreshedFor = new Set();
+
+async function _upgradeOutpost(btn, tile) {
+  btn.disabled = true;
+  try {
+    const id = Number(btn.dataset.opUpgrade);
+    const res = await apiFetch(`/api/game/outposts/${id}/upgrade`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      btn.disabled = false;
+      _opShowReason(btn, data.error || 'Failed to upgrade.');
+      return;
+    }
+    _applyOutpostResponse(data);
+    if (_outpostStatus?.outposts) _outpostStatus.outposts = _outpostStatus.outposts.map(o => (o.id === id ? data.outpost : o));
+    const t = worldMapData?.tiles?.find(x => x.q === tile.q && x.r === tile.r);
+    if (t?.outpost) t.outpost.level = data.outpost.level;
+    if (tile.outpost) tile.outpost.level = data.outpost.level;
+    if (typeof showToastNotification === 'function') showToastNotification(`⛺ ${data.outpost.name} is now level ${data.outpost.level}.`, 'outpost');
+    selectWorldTile(tile);
+  } catch (e) {
+    btn.disabled = false;
+    _opShowReason(btn, 'Connection hiccup — try again.');
+  }
+}
+
 function _wireOutpostSection(body, tile) {
   const buildBtn = body.querySelector('[data-op-build]');
   if (buildBtn) {
     buildBtn.addEventListener('click', () => _foundOutpostHere(buildBtn, tile));
   }
+  const upBtn = body.querySelector('[data-op-upgrade]');
+  if (upBtn) upBtn.addEventListener('click', () => _upgradeOutpost(upBtn, tile));
   const disBtn = body.querySelector('[data-op-dismantle]');
   if (disBtn) {
     disBtn.addEventListener('click', () => _dismantleOutpost(disBtn, tile));

@@ -54,7 +54,7 @@ function _resIcon(resId, size = 16) {
   // town hasn't discovered it yet.
   const R = window.KWResources;
   if (!src && R && R.isResource(resId)) {
-    const known = R.knownSet((window.gameData && gameData.settlement && gameData.settlement.discovered) || []);
+    const known = R.knownSet((typeof gameData !== 'undefined' && gameData && gameData.settlement && gameData.settlement.discovered) || []);
     return R.isKnown(resId, known)
       ? `<span title="${R.label(resId)}" style="font-size:${size - 2}px;vertical-align:middle">${R.icon(resId)}</span>`
       : `<span class="res-unknown" title="Not yet discovered">??</span>`;
@@ -64,6 +64,17 @@ function _resIcon(resId, size = 16) {
 const RM_RESOURCE_LABELS = {
   food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Wealth',
 };
+// Modal tabs: the basic five, then every ore, rare and alloy the town has
+// discovered (the server sends their breakdown too). Undiscovered ones get no tab.
+function _rmTabIds() {
+  const R = window.KWResources;
+  if (!R) return RM_RESOURCE_IDS;
+  const known = R.knownSet((typeof gameData !== 'undefined' && gameData && gameData.settlement && gameData.settlement.discovered) || []);
+  return RM_RESOURCE_IDS.concat(R.EXTRA.filter(k => R.isKnown(k, known)));
+}
+function _rmLabel(id) {
+  return RM_RESOURCE_LABELS[id] || (window.KWResources && KWResources.isResource(id) ? KWResources.label(id) : id);
+}
 
 // ── Floater ────────────────────────────────────────────────────────────────
 // Track the last-displayed integer per resource so we can detect a flip.
@@ -336,7 +347,7 @@ function _showTooltip(resId, anchorRect, data) {
   if (upkeepSum) rows.push(['Upkeep', upkeepSum]);
 
   const html = `
-    <div class="resource-tooltip-head">${_resIcon(resId, 18)} ${RM_RESOURCE_LABELS[resId]} · ${bd.total}/hr</div>
+    <div class="resource-tooltip-head">${_resIcon(resId, 18)} ${_rmLabel(resId)} · ${bd.total}/hr</div>
     ${rows.map(([label, val]) => `
       <div class="resource-tooltip-row">
         <span>${label}</span>
@@ -406,9 +417,9 @@ function _ensureModalRoot() {
 
 function _renderTabs() {
   const tabs = document.getElementById('rm-tabs');
-  tabs.innerHTML = RM_RESOURCE_IDS.map(id => `
+  tabs.innerHTML = _rmTabIds().map(id => `
     <button class="rm-tab ${id === _currentResourceTab ? 'active' : ''}" data-res="${id}">
-      ${_resIcon(id, 16)} ${RM_RESOURCE_LABELS[id]}
+      ${_resIcon(id, 16)} ${_rmLabel(id)}
     </button>
   `).join('');
   tabs.querySelectorAll('.rm-tab').forEach(btn => {
@@ -440,14 +451,17 @@ function _renderModalBody() {
   if (!data) return;
   const res = _currentResourceTab;
   const bd = data.breakdown[res];
-  if (!bd) {
-    document.getElementById('rm-body').innerHTML = '<div class="rm-empty">No data.</div>';
-    return;
-  }
-
   // Header — innerHTML (not textContent) because the icon is an <img>
   document.getElementById('rm-icon').innerHTML = _resIcon(res, 28);
-  document.getElementById('rm-title').textContent = RM_RESOURCE_LABELS[res];
+  document.getElementById('rm-title').textContent = _rmLabel(res);
+  if (!bd) {
+    // An ore nothing digs right now (or an alloy — those come from the Smelter, not a rate).
+    const R = window.KWResources;
+    document.getElementById('rm-total').textContent = '+0/hr';
+    document.getElementById('rm-body').innerHTML = RM_RESOURCE_IDS.includes(res) ? '<div class="rm-empty">No data.</div>'
+      : `<div class="rm-empty">Nothing produces this every hour right now.${R && R.sourceHint && R.sourceHint(res) ? ' ' + R.sourceHint(res) + '.' : ''}</div>`;
+    return;
+  }
   document.getElementById('rm-total').textContent = (bd.total >= 0 ? '+' : '') + bd.total + '/hr';
 
   // Sources
@@ -503,7 +517,7 @@ function _renderModalBody() {
 async function openResourceModal(initialResId = 'food') {
   _ensureFloaterStyles();
   _ensureModalRoot();
-  _currentResourceTab = RM_RESOURCE_IDS.includes(initialResId) ? initialResId : 'food';
+  _currentResourceTab = _rmTabIds().includes(initialResId) ? initialResId : 'food';
   document.getElementById('rm-modal') || document.getElementById('resource-modal').classList.add('open');
   document.getElementById('resource-modal').classList.add('open');
   document.getElementById('rm-body').innerHTML = '<div class="rm-empty">Loading…</div>';

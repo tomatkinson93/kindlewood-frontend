@@ -843,7 +843,7 @@ function _renderHousingModal(data) {
   if (housingB && housingB.cost) {
     costStr = Object.entries(housingB.cost)
       .filter(function(e) { return e[1] > 0; })
-      .map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; })
+      .map(function(e) { return _svResIcon(e[0]) + ' ' + e[1]; })
       .join('  ');
   }
 
@@ -1026,13 +1026,14 @@ function _openBuildPanel(slot, occupant) {
     var vis   = SV_VISUALS[occupant.id] || { emoji:'🏛', flavor:'' };
     var isMax = occupant.currentLevel >= occupant.maxLevel;
     var costStr = occupant.cost
-      ? Object.entries(occupant.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ') + (typeof discountText === 'function' ? discountText(occupant) : '')
+      ? Object.entries(occupant.cost).map(function(e) { return _svResIcon(e[0]) + ' ' + e[1]; }).join('  ') + (typeof discountText === 'function' ? discountText(occupant) : '')
       : '';
     var refundStr = occupant.cost
-      ? Object.entries(occupant.cost).filter(function(e){ return e[1] > 0; })
+      // Demolishing refunds half the base cost — never a level's ores or alloys.
+      ? Object.entries(occupant.cost).filter(function(e){ return e[1] > 0 && ['food','timber','stone','metal','wealth'].indexOf(e[0]) >= 0; })
           .map(function(e) {
             var baseCost = Math.round(e[1] / (occupant.currentLevel + 1));
-            return _resIcon(e[0]) + ' ' + Math.floor(baseCost * 0.5);
+            return _svResIcon(e[0]) + ' ' + Math.floor(baseCost * 0.5);
           }).join('  ')
       : '';
     html += '<div class="sv-occ-head"><span class="sv-occ-emoji">' + vis.emoji + '</span>'
@@ -1069,7 +1070,7 @@ function _openBuildPanel(slot, occupant) {
       if (!b) return '';
       var vis = SV_VISUALS[id] || { emoji:'🏛' };
       var costStr = b.cost
-        ? Object.entries(b.cost).map(function(e) { return _resIcon(e[0]) + ' ' + e[1]; }).join('  ') + (typeof discountText === 'function' ? discountText(b) : '')
+        ? Object.entries(b.cost).map(function(e) { return _svResIcon(e[0]) + ' ' + e[1]; }).join('  ') + (typeof discountText === 'function' ? discountText(b) : '')
         : 'Free';
       if (_svCanBuild(b) && b.currentLevel === 0) {
         return '<div class="sv-bp-opt available"><span class="sv-bp-emoji">' + vis.emoji + '</span>'
@@ -1158,8 +1159,11 @@ async function _svDemolish(buildingId) {
 }
 window._svDemolish = _svDemolish;
 
-function _resIcon(res) {
-  return { food:'🌿', timber:'🌲', stone:'🪨', metal:'⚙️', wealth:'🪙' }[res] || res;
+// The basic five as emoji; ores and alloys through js/resources.js _resIcon
+// (their registry icon, or ?? until discovered). Named apart so it doesn't
+// replace that global.
+function _svResIcon(res) {
+  return { food:'🌿', timber:'🌲', stone:'🪨', metal:'⚙️', wealth:'🪙' }[res] || (typeof _resIcon === 'function' ? _resIcon(res) : res);
 }
 
 // ── Parallax ──────────────────────────────────────────────────────────────────

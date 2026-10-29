@@ -749,7 +749,17 @@ function qa_showForm(id) {
     + '<div class="ce-field"><label>Resource rewards ' + tip('Added to the settlement on success (each participant for clan quests). Party quests use these instead of Gold reward.') + '</label></div>'
     + '<div class="ce-grid ce-grid--5">'
     + ['food','timber','stone','metal','wealth'].map(k => '<div class="ce-field"><label>' + ({food:'🌾 Food',timber:'🪵 Timber',stone:'🪨 Stone',metal:'⛓️ Iron',wealth:'🪙 Gold'})[k] + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + ((q?.rewards || {})[k] || 0) + '"></div>').join('')
-    + '</div></div>'
+    + '</div>'
+    // Ores, rares and alloys (js/resource-defs.js): folded away unless the quest already gives some.
+    + (function () {
+        const extra = (window.KWResources && KWResources.EXTRA) || [], rw = q?.rewards || {};
+        if (!extra.length) return '';
+        return '<details class="qa-extra-rewards"' + (extra.some(k => rw[k] > 0) ? ' open' : '') + '><summary>Ores, rares &amp; alloys</summary>'
+          + '<div class="ce-grid ce-grid--5">'
+          + extra.map(k => '<div class="ce-field"><label>' + KWResources.icon(k) + ' ' + KWResources.label(k) + '</label><input class="ce-input" type="number" min="0" id="qa-rw-' + k + '" value="' + (rw[k] || 0) + '"></div>').join('')
+          + '</div></details>';
+      })()
+    + '</div>'
     + '<div class="ce-field" style="margin-top:6px"><label>Reward label ' + tip('Human-readable reward summary shown on the card. e.g. "+40 timber, +15 gold"') + '</label><input class="ce-input" id="qa-reward-label" value="' + (q?.reward_label||'') + '" placeholder="+15 gold, +2 food"></div>'
     + '<div class="ce-grid" style="margin-top:6px">'
     + '<div class="ce-field"><label>Success flavour ' + tip('Short message shown when the quest succeeds. e.g. "The pack fled into the deep wood."') + '</label><input class="ce-input" id="qa-fsuccess" value="' + (q?.flavour_success||'') + '"></div>'
@@ -941,7 +951,7 @@ async function qa_save(existingId) {
   _qaSyncDropRows();
   const source = document.getElementById('qa-source')?.value || 'tavern';
   const rewards = {};
-  ['food','timber','stone','metal','wealth'].forEach(k => {
+  ['food','timber','stone','metal','wealth', ...((window.KWResources && KWResources.EXTRA) || [])].forEach(k => {
     const v = parseInt(document.getElementById('qa-rw-' + k)?.value) || 0;
     if (v > 0) rewards[k] = v;
   });

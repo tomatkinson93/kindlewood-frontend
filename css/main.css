@@ -9544,6 +9544,20 @@ body.login-mode .hero-text-welcome {
   min-width: 22px;
   text-align: right;
 }
+/* A village's current request (js/village-requests.js). */
+.vr-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 0 0 10px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(250,199,117,.08); border: 1px solid rgba(250,199,117,.28);
+  font-size: 12px; color: #f2e6c9;
+}
+.vr-text { flex: 1 1 160px; }
+.vr-fill {
+  padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;
+  background: rgba(250,199,117,.18); border: 1px solid rgba(250,199,117,.45); color: #fac775;
+}
+.vr-fill:hover, .vr-fill:focus-visible { background: rgba(250,199,117,.3); }
+.vr-nomarket { font-size: 11px; opacity: .65; }
 .diplo-open-btn {
   width: 100%;
   padding: 10px 14px;

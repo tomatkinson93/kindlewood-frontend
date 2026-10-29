@@ -41,3 +41,6 @@
 .ar-res-emoji { font-size: 18px; line-height: 1; height: auto; width: auto; }
 .sp-link { background: none; border: none; color: #c8c0ff; font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 .building-discount { color: #9fd89a; font-size: 11px; white-space: nowrap; }
+/* Ore rows open their tab in the resource breakdown modal. */
+.sp-row-btn { width: 100%; background: none; border: none; border-bottom: 1px solid rgba(255,255,255,.04); color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 4px; }
+.sp-row-btn:hover, .sp-row-btn:focus-visible { background: rgba(250,199,117,.08); outline: none; }

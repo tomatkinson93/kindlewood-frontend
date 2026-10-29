@@ -67,8 +67,9 @@
       const keys = R().EXTRA.filter(k => R().def(k).group === g);
       const rows = keys.filter(k => kn[k]).map(k => {
         const rate = rateOf(k);
-        return `<div class="sp-row"><span class="sp-ic">${R().icon(k)}</span><span class="sp-name">${esc(R().label(k))}</span>
-          <span class="sp-val">${fmt(have[k])}</span><span class="sp-rate">${rate > 0 ? '+' + (Math.round(rate * 10) / 10) + '/hr' : ''}</span></div>`;
+        // Each row opens that resource's tab in the breakdown modal (js/resources.js).
+        return `<button type="button" class="sp-row sp-row-btn" data-sp-res="${k}" title="Where ${esc(R().label(k).toLowerCase())} comes from" onclick="KWStores.close();openResourceModal('${k}')"><span class="sp-ic">${R().icon(k)}</span><span class="sp-name">${esc(R().label(k))}</span>
+          <span class="sp-val">${fmt(have[k])}</span><span class="sp-rate">${rate > 0 ? '+' + (Math.round(rate * 10) / 10) + '/hr' : ''}</span></button>`;
       });
       hidden += keys.length - rows.length;
       if (!rows.length) return '';

@@ -41,7 +41,7 @@
     const days = d.crafting.days.length ? d.crafting.days.map(x => `<tr><td>${esc(x.day)}</td>${['basic', 'sturdy', 'fine', 'superior', 'legendary', 'smelted']
       .map(q => `<td style="color:${QCOL[q]}">${x[q] || 0}</td>`).join('')}</tr>`).join('') : '<tr><td colspan="7" class="ra-muted">No crafts in the last 7 days.</td></tr>';
     const src = Object.entries(d.discoveries.by_source).map(([k, n]) => `${esc(k)} ${n}`).join(' · ') || 'none';
-    const proj = Object.entries(d.research.by_project).map(([k, n]) => `${esc(global.KWResearch ? global.KWResearch.label(k) : k)} ${n}`).join(' · ') || 'none';
+    const proj = Object.entries(d.research.by_project).map(([k, n]) => `${esc(k)} ${n}`).join(' · ') || 'none';
     return `
       <div class="qa-section-label">Tuning — live multipliers (1 = as designed)</div>
       <div class="cb-tunes">${tuning}</div>

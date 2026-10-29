@@ -120,7 +120,7 @@ console.log('5. Where ores come from');
   vm.runInContext(src, w);
   const chips = w._oreChips({ copper: 0.6, tin: 0.5, coal: 0.8 });
   check('5a. a hills outpost names copper, hides tin and coal as "?? ×2"', /Copper/.test(chips) && /\+0\.6\/hr/.test(chips) && /\?\? ×2/.test(chips) && !/Tin|Coal/.test(chips));
-  check('5b. both outpost panels show ore chips', (main.match(/_oreChips\(cfg/g) || []).length === 2);
+  check('5b. both outpost panels show ore chips (yours at its level, and the next level\'s)', /_oreChips\(cfg\.ores\)/.test(main) && /_oreChips\(mine\?\.ores \|\| cfg\?\.ores\)/.test(main) && /_oreChips\(n\.ores\)/.test(main));
 
   // Expedition ore sample: stores updated, toast, a card when new.
   const toasts = [];
@@ -158,8 +158,7 @@ console.log('6. Smelter');
   const sv = read('js/settlement-view.js');
   check('6f. the settlement view has a Smelter slot and research locks', /accepts:\['smelter'\]/.test(sv) && /b\.researchMet !== false/.test(sv) && /at a Library first/.test(sv) && /'workshop', 'smelter'\]\.includes\(occupant\.id\)/.test(sv));
   check('6g. the build list explains research locks', /Study \$\{b\.researchLabel/.test(read('js/buildings.js')));
-  check('6h. research-defs twin of the server file', !fs.existsSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'))
-    || read('js/research-defs.js') === fs.readFileSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'research_defs.js'), 'utf8'));
+  check('6h. the browser gets no copy of the research tree', !fs.existsSync(path.join(ROOT, 'js', 'research-defs.js')));
 }
 
 console.log('7. Recipe book');
@@ -168,7 +167,6 @@ console.log('7. Recipe book');
   w.window = w; vm.createContext(w);
   vm.runInContext(read('js/career-math.js'), w);
   vm.runInContext(read('js/resource-defs.js'), w);
-  vm.runInContext(read('js/research-defs.js'), w);
   vm.runInContext(read('js/crafting.js'), w);
   const st = { class_label: 'Blacksmith', resources: { metal: 5, steel: 0 }, discovered: ['steel'], have: { iron_ore: 0 }, research_done: [],
     templates: { iron_ore: { name: 'Iron Ore', icon: '⚫' } },
@@ -182,7 +180,7 @@ console.log('7. Recipe book');
   check('7a. every recipe, with who can make it or why not', /📖 Recipe book · 3 recipes/.test(html) && /✅ Bram/.test(html) && /🔒 Needs level 11\./.test(html));
   check('7b. missing known materials get a Find on Market button', /data-cf="find" data-res="steel"/.test(html) && /data-cf="find" data-res="metal"/.test(html) && /data-item="iron_ore" data-name="Iron Ore"/.test(html));
   check('7c. undiscovered inputs stay "??" and get no Find button', /\?\? ×3/.test(html) && !/data-res="goldore"/.test(html));
-  const empty = w.KWCrafting._bookHtml(Object.assign({}, st, { crafters: [], recipes: [Object.assign({}, st.recipes[0], { research: 'smelting' })] }), false);
+  const empty = w.KWCrafting._bookHtml(Object.assign({}, st, { crafters: [], recipes: [Object.assign({}, st.recipes[0], { research: 'smelting', research_label: 'Smelting' })] }), false);
   check('7d. no crafters: the reason comes from the recipe (research)', /Needs research: Smelting\./.test(empty) && !/Back to making/.test(empty));
   const mk = read('js/market.js');
   check('7e. the Market opens filtered to a resource or an item', /opts\.find && opts\.find\.resource/.test(mk) && /opts\.find && opts\.find\.itemKey/.test(mk));
@@ -200,14 +198,13 @@ console.log('9. Balance overview & discounts');
 {
   const w = { document: { getElementById: () => null, addEventListener() {} }, console, Math, JSON, Number, String, Object, Array, Set, Promise };
   w.window = w; vm.createContext(w);
-  vm.runInContext(read('js/research-defs.js'), w);
   vm.runInContext(read('js/career-balance.js'), w);
   const html = w.KWCareerBalance.html({
     tuning: [{ key: 'research', value: 1.5, label: 'Research speed', desc: 'Points.' }],
     classes: [{ key: 'miner', label: 'Miner', icon: '⛏️', citizens: 3, levels: [1, 0, 2].concat(Array(17).fill(0)), median_level: 3, median_xp_per_hour: 9.8, avg_hours: 40, forks: { stonemason: 1 } }],
     crafting: { days: [{ day: '2026-10-24', basic: 2, sturdy: 1, fine: 0, superior: 0, legendary: 0, smelted: 4 }] },
     discoveries: { recipes: 1, resources: 3, by_source: { 'resource:mine': 3 } },
-    research: { towns_studying: 2, finished_7d: 1, by_project: { smelting: 1 } } });
+    research: { towns_studying: 2, finished_7d: 1, by_project: { Smelting: 1 } } });
   check('9a. tuning inputs with Save', /data-cb-key="research"/.test(html) && /value="1\.5"/.test(html) && /data-cb-save="research"/.test(html));
   check('9b. class rows: histogram of 20 levels, medians, forks', (html.match(/<span style="height:/g) || []).length === 20 && /9\.8/.test(html) && /stonemason 1/.test(html));
   check('9c. crafts by quality and smelts per day; discoveries; research', /2026-10-24/.test(html) && />4</.test(html) && /3<\/b> resources discovered/.test(html) && /Smelting 1/.test(html));
@@ -241,6 +238,70 @@ console.log('10. Settlement panel: Research and Market');
   check('10d. building it unlocks the button straight away', !el.disabled && el.textContent === '⚖️ Market' && el._attr.onclick === 'openMarket()' && !el.classList._s.has('locked'));
   check('10e. both buttons are in the panel; the build list refreshes them', /_gatedAction\('library', '📚 Research', 'openLibrary\(\)'\)/.test(main) && /_gatedAction\('market', '⚖️ Market', 'openMarket\(\)'\)/.test(main)
     && /refreshSettlementActions\(\)/.test(read('js/buildings.js')) && /\.sett-action\.locked/.test(read('css/hud-storybook.css')));
+}
+
+console.log('11. Mobile pan stick');
+{
+  const ms = read('js/mobile-shell.js');
+  const src = ms.slice(ms.indexOf('  function stickCovered()'), ms.indexOf('  // Re-check whenever the page changes'));
+  // A fake page: whatever elementsFromPoint returns is "what's on screen there".
+  let top = [];
+  const frame = { closest: sel => (sel === '#map-frame' ? frame : null) };
+  const panel = { closest: () => null };
+  const stick = { offsetWidth: 104, contains: n => n === stick };
+  const body = { classList: { _s: new Set(), contains(c) { return this._s.has(c); } } };
+  const screen = { classList: { contains: c => c === 'active' } };
+  const w = { window: null, innerHeight: 844, stickEl: stick,
+    document: { body, querySelector: () => ({ getBoundingClientRect: () => ({ top: 780 }) }), elementsFromPoint: () => top },
+    byId: id => (id === 'screen-game' ? screen : null) };
+  w.window = w; vm.createContext(w);
+  vm.runInContext(src + '; this.stickCovered = stickCovered;', w);
+  top = [stick, frame];
+  check('11a. over the map (looking through the stick itself): shown', w.stickCovered() === false);
+  top = [stick, panel, frame];
+  check('11b. any panel, sheet or screen above that spot: hidden', w.stickCovered() === true);
+  body.classList._s.add('kw-overlay'); top = [frame];
+  check('11c. a full-screen overlay: hidden', w.stickCovered() === true);
+  check('11d. watched live, and only changed when it needs to', /watchStickCover\(\);/.test(ms) && /if \(show === !stickEl\.hasAttribute\('hidden'\)\) return;/.test(ms));
+}
+
+console.log('12. Metals in levels, tiers, quests and the breakdown');
+{
+  // Pull one top-level function (and anything before the next marker) out of a file.
+  const slice = (f, from, to) => { const t = read(f); return t.slice(t.indexOf(from), t.indexOf(to, t.indexOf(from))); };
+  const withDefs = discovered => {
+    const w = { gameData: { settlement: { discovered } } }; w.window = w; vm.createContext(w);
+    vm.runInContext(read('js/resource-defs.js'), w);
+    return w;
+  };
+  const t = withDefs(['bronze']);
+  vm.runInContext(slice('js/tier.js', 'const RES_ICONS', '\n}\n') + '\n}; this._tierExtra = _tierExtra;', t);
+  check('12a. the tier modal names a discovered alloy…', t._tierExtra('bronze').label === 'Bronze' && t._tierExtra('bronze').icon === t.KWResources.icon('bronze'));
+  check('12b. …and shows ?? for one the town hasn\'t found', t._tierExtra('steel').icon === '??' && t._tierExtra('steel').label === 'Not yet discovered' && t._tierExtra('food') === null);
+  const tier = read('js/tier.js');
+  check('12c. both tier views use it', (tier.match(/_tierExtra\((r|key)\)/g) || []).length >= 4);
+
+  const r = withDefs(['copper', 'bronze']);
+  r.RM_RESOURCE_IDS = ['food', 'timber', 'stone', 'metal', 'wealth'];
+  r.RM_RESOURCE_LABELS = { food: 'Food', timber: 'Timber', stone: 'Stone', metal: 'Iron', wealth: 'Wealth' };
+  vm.runInContext(slice('js/resources.js', 'function _rmTabIds', '// ── Floater') + '; this._rmTabIds = _rmTabIds; this._rmLabel = _rmLabel;', r);
+  const tabs = r._rmTabIds();
+  check('12d. the breakdown modal adds a tab per discovered extra', tabs.join() === 'food,timber,stone,metal,wealth,copper,bronze', tabs.join());
+  check('12e. …labelled from the registry', r._rmLabel('copper') === 'Copper' && r._rmLabel('metal') === 'Iron');
+  const res = read('js/resources.js');
+  check('12f. a tab with no hourly source says where it comes from', /Nothing produces this every hour right now/.test(res) && /sourceHint\(res\)/.test(res));
+
+  const env = makeEnv({ resources: { copper: 4 }, rates: { copper: 1 }, discovered: ['copper'] });
+  const pop = env.win.KWStores.popHtml();
+  check('12g. each Stores row opens its tab', /data-sp-res="copper"/.test(pop) && /openResourceModal\('copper'\)/.test(pop) && /<button type="button" class="sp-row sp-row-btn"/.test(pop));
+
+  const b = read('js/buildings.js');
+  check('12h. the quest editor has fields for every ore, rare and alloy, folded away', /<details class="qa-extra-rewards"/.test(b) && /extra\.map\(k => '<div class="ce-field">/.test(b)
+    && /\['food','timber','stone','metal','wealth', \.\.\.\(\(window\.KWResources && KWResources\.EXTRA\) \|\| \[\]\)\]\.forEach/.test(b));
+  const sv = read('js/settlement-view.js');
+  check('12j. only js/resources.js defines _resIcon (settlement-view used to replace it with raw keys)', !/function _resIcon\b/.test(sv) && /function _svResIcon/.test(sv)
+    && /typeof gameData !== 'undefined' && gameData && gameData\.settlement/.test(res));
+  check('12i. the demolish refund preview skips a level\'s metals', /indexOf\(e\[0\]\) >= 0; \}\)/.test(read('js/settlement-view.js')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
