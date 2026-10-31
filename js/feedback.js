@@ -71,12 +71,13 @@ async function _fbRenderList() {
     const d = await r.json();
     const rows = d.reports || [];
     const el = document.getElementById('fb-list');
-    if (!rows.length) { el.innerHTML = '<div class="fb-muted">No reports yet.</div>'; return; }
-    el.innerHTML = rows.map(_fbCard).join('');
+    // Players see their own reports; admins see everyone's and can manage them.
+    if (!rows.length) { el.innerHTML = '<div class="fb-muted">' + (d.admin ? 'No reports yet.' : 'You haven\'t sent any reports yet.') + '</div>'; return; }
+    el.innerHTML = rows.map(r => _fbCard(r, !!d.admin)).join('');
   } catch (e) { document.getElementById('fb-list').innerHTML = '<div class="fb-err">' + e.message + '</div>'; }
 }
 
-function _fbCard(r) {
+function _fbCard(r, admin) {
   const when = new Date(r.created_at).toLocaleString();
   const icon = r.kind === 'suggestion' ? '💡' : '🐞';
   const resolved = r.status === 'resolved';
@@ -84,10 +85,13 @@ function _fbCard(r) {
     + '<div class="fb-card-head"><span>' + icon + ' <b>' + _fbEsc(r.title) + '</b></span>'
     + '<span class="fb-meta">' + _fbEsc(r.reporter_name || 'someone') + ' · ' + when + '</span></div>'
     + (r.body ? '<div class="fb-card-body">' + _fbEsc(r.body) + '</div>' : '')
-    + '<div class="fb-card-actions">'
-    + '<button class="fb-mini" onclick="_fbToggle(' + r.id + ',\'' + (resolved ? 'open' : 'resolved') + '\')">' + (resolved ? '↩ Reopen' : '✓ Resolve') + '</button>'
-    + '<button class="fb-mini fb-del" onclick="_fbDelete(' + r.id + ')">🗑 Delete</button>'
-    + '</div></div>';
+    + (admin
+      ? '<div class="fb-card-actions">'
+        + '<button class="fb-mini" onclick="_fbToggle(' + r.id + ',\'' + (resolved ? 'open' : 'resolved') + '\')">' + (resolved ? '↩ Reopen' : '✓ Resolve') + '</button>'
+        + '<button class="fb-mini fb-del" onclick="_fbDelete(' + r.id + ')">🗑 Delete</button>'
+        + '</div>'
+      : '<div class="fb-meta">' + (resolved ? '✓ Resolved' : 'Open') + '</div>')
+    + '</div>';
 }
 async function _fbToggle(id, status) { await apiFetch('/api/feedback/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); _fbRenderList(); }
 async function _fbDelete(id) { if (!confirm('Delete this report?')) return; await apiFetch('/api/feedback/' + id, { method: 'DELETE' }); _fbRenderList(); }

@@ -182,15 +182,44 @@ function _kwCountsText(c) {
 let _currentGame = null;
 
 
-// ── Award gold ────────────────────────────────
+// ── Tavern winnings ───────────────────────────
+// The server decides and pays (lib/tavern_pay.js, up to 10 paid wins a day).
+// Multiplayer: it pays the winner when the match ends and sends us
+// { type: 'payout' }. Solo games run here in the browser, so each one starts
+// with a ticket from the server and hands it back with the result.
 
-async function _awardGold(amount) {
-  if (amount <= 0) return;
+function _tvSoloStart(game) {
+  return apiFetch('/api/game/tavern/solo-start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game }),
+  }).then(r => r.json()).then(d => d.ticket || null).catch(() => null);
+}
+
+async function _tvSoloFinish(ticketPromise, won) {
+  const ticket = await ticketPromise;
+  if (!ticket) return null;
   try {
-    await apiFetch('/api/game/award-gold', { method: 'POST', body: JSON.stringify({ amount }) });
-    if (gameData?.settlement?.resources) gameData.settlement.resources.wealth += amount;
-    updateTopbarDisplay?.();
-  } catch(e) { console.warn('Gold award failed', e); }
+    const r = await apiFetch('/api/game/tavern/solo-finish', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket, won: !!won }),
+    });
+    const d = await r.json();
+    if (!r.ok) { if (won && d.error) _tvToast(d.error); return null; }
+    _tvShowPayout(d.paid, d.capped, d.wealth);
+    return d;
+  } catch (e) { return null; }
+}
+
+// Show what the server paid (and the new total when it sends one).
+function _tvShowPayout(paid, capped, wealth) {
+  const res = gameData?.settlement?.resources;
+  if (res) {
+    if (wealth != null) res.wealth = Math.max(res.wealth || 0, Number(wealth));
+    else if (paid > 0) res.wealth = (res.wealth || 0) + paid;
+  }
+  updateTopbarDisplay?.();
+  if (capped) _tvToast('No more tavern winnings today — the win still counts.');
+}
+function _tvToast(msg) {
+  if (typeof showToastNotification === 'function') showToastNotification('🍺 ' + msg, 'info');
 }
 
 // ══════════════════════════════════════════════
@@ -310,7 +339,7 @@ function bcRequestLeave() {
 }
 function bcForfeitAndLeave() {
   if (_bcmp && _bcmp.solo) {
-    if (_spGame && _spGame.phase !== 'gameover') _bcRecordResult(false, 'solo', _bcmp.difficulty);
+    if (_spGame && _spGame.phase !== 'gameover') _tvSoloFinish(_bcmp.ticket, false);   // leaving counts as a loss
   } else if (_bcmp && _bcmp.code && typeof LobbySystem !== 'undefined' && LobbySystem.forfeit) {
     LobbySystem.forfeit(_bcmp.code);
   }
@@ -403,6 +432,7 @@ function bcOnRoomEvent(msg) {
   // Networked game state takes priority (these arrive even before _bc exists)
   if (msg.type === 'game_state') { if (typeof bcmpOnState === 'function') bcmpOnState(msg.state); return; }
   if (msg.type === 'match_over') { if (typeof bcmpOnOver === 'function') bcmpOnOver(msg); return; }
+  if (msg.type === 'payout') { _tvShowPayout(msg.paid, msg.capped); return; }
   if (msg.type === 'presence') { if (typeof bcmpOnPresence === 'function') bcmpOnPresence(msg); return; }
   // Host migrated mid-match (§3.3) — recompute our host status so the End /
   // Run-it-back controls appear for the new host.
@@ -491,7 +521,7 @@ function _startBriarCourt(seating) {
 
   _bc = {
     deck, players,
-    turn: 0, over: false, log: [], help: false, promptHtml: '',
+    turn: 0, over: false, log: [], help: false, promptHtml: '', ticket: _tvSoloStart('briar'),
   };
   _currentGame = { type: 'briar' };  // the turn loop's guard checks this
   _bcLog('Briarwood Court convenes. Two acorns each \u2014 and two secrets.');
@@ -1020,10 +1050,11 @@ async function _bcTurnLoop() {
       if (w) {
         session.over = true;
         if (w.isHuman) {
-          _awardGold(4);
+          _tvSoloFinish(session.ticket, true);
           _bcSfx('success.mp3');
           _bcLog('\u{1F451} You hold the last seat at the Briarwood Court! <strong>+4 gold</strong>');
         } else {
+          _tvSoloFinish(session.ticket, false);
           _bcLog(`\u{1F451} ${w.name} holds the last seat. The Court adjourns.`);
         }
         _bcRender(`<div class="bc-options">
@@ -1132,7 +1163,7 @@ function bcmpOnOver(msg) {
     return;
   }
   const mineWon = msg.winnerSeat === _bcmp.mySeat;
-  if (mineWon && typeof _awardGold === 'function') { _awardGold(4); _bcSfx('success.mp3'); }
+  if (mineWon) _bcSfx('success.mp3');   // the server pays the winner (a 'payout' event follows)
   const g = document.getElementById('bcmp-game');
   if (g) {
     const banner = mineWon
@@ -1830,16 +1861,6 @@ function _bcmpSounds(s) {
 
 let _spGame = null;
 
-// Record a finished game for stats/leaderboards. Solo posts here directly;
-// multiplayer is recorded authoritatively on the server in finishMatch.
-function _bcRecordResult(won, mode, difficulty) {
-  try {
-    apiFetch('/api/stats/record', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'briar', won: !!won, mode: mode || 'solo', difficulty }),
-    }).catch(() => {});
-  } catch (e) {}
-}
 
 
 // SINGLE-PLAYER reuses the EXACT multiplayer machinery. The only difference
@@ -1867,7 +1888,7 @@ function startBriarCourtSolo(difficulty) {
     chat: () => {}, typing: () => {},
   };
   _bcmp = { code: null, channel, seats, mySeat: 0, isHost: true, state: null,
-            lastPhaseSig: '', solo: true, _seenLog: 0, difficulty: difficulty || 'smart' };
+            lastPhaseSig: '', solo: true, _seenLog: 0, difficulty: difficulty || 'smart', ticket: _tvSoloStart('briar') };
   _bcMultiplayer = null;
   _bcOpenTable();
   const chat = document.getElementById('bcmp-chat');
@@ -1921,9 +1942,9 @@ function bcSoloAgain() { startBriarCourtSolo(_bcmp ? _bcmp.difficulty : 'smart')
 function _spOver() {
   const g = _spGame;
   const won = g.winner === 0;
-  if (won && typeof _awardGold === 'function') { _awardGold(4); _bcSfx('success.mp3'); }
-  // Record the result for stats/leaderboards (best-effort, fire and forget)
-  _bcRecordResult(won, 'solo', _bcmp.difficulty);
+  if (won) _bcSfx('success.mp3');
+  // The server pays a win and records the result for the rankings.
+  _tvSoloFinish(_bcmp.ticket, won);
   const area = document.getElementById('bcmp-game');
   if (area) {
     const banner = won
@@ -2041,7 +2062,7 @@ function startSquirrelSolo(difficulty) {
   ];
   _sqGame = window.SquirrelEngine.create(seats, { difficulty: difficulty || 'smart' });
   const channel = { send: (p) => _sqApplyLocal(0, p), chat: () => {}, typing: () => {} };
-  _sq = { code: null, channel, seats, mySeat: 0, isHost: true, state: null, solo: true, difficulty };
+  _sq = { code: null, channel, seats, mySeat: 0, isHost: true, state: null, solo: true, difficulty, ticket: _tvSoloStart('squirrel') };
   _sqOpenTable();
   _sqPushLocal();
 }
@@ -2060,6 +2081,7 @@ function startSquirrelMultiplayerNet({ code, channel, seats, isHost }) {
 function sqOnRoomEvent(msg) {
   if (msg.type === 'game_state') { sqOnState(msg.state); return; }
   if (msg.type === 'match_over') { sqOnOver(msg); return; }
+  if (msg.type === 'payout') { _tvShowPayout(msg.paid, msg.capped); return; }
   if (msg.type === 'cursor') { _sqRemoteCursor(msg); return; }
 }
 
@@ -2305,8 +2327,10 @@ function _sqMaybeReveal(s) {
 function sqOnOver(msg) {
   if (!_sq) return;
   const mineWon = msg.winnerSeat === _sq.mySeat;
-  if (mineWon && typeof _awardGold === 'function') { _awardGold(4); if (typeof _bcSfx === 'function') _bcSfx('success.mp3'); }
-  if (typeof _bcRecordResult === 'function' && _sq.solo) _bcRecordResult(mineWon, 'solo', _sq.difficulty);
+  if (mineWon && typeof _bcSfx === 'function') _bcSfx('success.mp3');
+  // Solo: hand the ticket back for pay and rankings. Multiplayer: the server
+  // already paid the winner (a 'payout' event).
+  if (_sq.solo) _tvSoloFinish(_sq.ticket, mineWon);
   _sqShowEndScreen(msg, mineWon);
 }
 
