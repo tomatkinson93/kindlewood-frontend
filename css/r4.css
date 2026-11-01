@@ -1,0 +1,88 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   R4 — systems: the tavern board's rotation, abandoning a quest, outpost
+   workers and warnings, the Watchtower line. (Raids, cards and clans add to
+   this file in later groups.)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tavern notice board ─────────────────────────────────────────────── */
+.qb-rotates {
+  float: right;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  color: rgba(232, 200, 122, .8);
+}
+.qb-gate-badge {
+  display: inline-block;
+  margin: 2px 0 4px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 11px;
+  color: #f1dca0;
+  background: rgba(70, 60, 120, .55);
+  border: 1px solid rgba(190, 170, 255, .35);
+}
+.qb-abandon-row { display: flex; justify-content: flex-end; padding: 6px 2px 0; }
+.qb-abandon-btn {
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: rgba(230, 200, 180, .85);
+  background: transparent;
+  border: 1px solid rgba(224, 122, 106, .35);
+}
+.qb-abandon-btn:hover { background: rgba(224, 122, 106, .12); }
+.qb-abandon-btn.qb-abandon-armed { color: #fff; background: rgba(190, 80, 64, .75); border-color: rgba(224, 122, 106, .9); }
+.qb-abandon-btn:disabled { opacity: .5; cursor: default; }
+
+/* ── Outpost panel ───────────────────────────────────────────────────── */
+.op-note.op-note-warn {
+  font-style: normal;
+  color: #e9b08a;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: rgba(224, 122, 106, .08);
+  border: 1px solid rgba(224, 122, 106, .25);
+}
+.op-worker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(192, 221, 151, .85);
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(192, 221, 151, .16);
+  background: rgba(192, 221, 151, .04);
+}
+.op-worker b { color: #e8d9a8; font-weight: 600; }
+.op-worker-empty { flex-direction: column; align-items: stretch; }
+.op-worker-hint { font-size: 11px; color: rgba(192, 221, 151, .7); }
+.op-worker-pick { display: flex; gap: 6px; }
+.op-worker-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 5px;
+  color: #e8d9a8;
+  background: rgba(20, 24, 16, .6);
+  border: 1px solid rgba(192, 221, 151, .25);
+  border-radius: 4px;
+}
+.action-btn.op-worker-btn { flex: 0 0 auto; padding: 3px 10px; font-size: 12px; width: auto; }
+
+/* ── Settlement view: the Watchtower ─────────────────────────────────── */
+.sv-bp-watch {
+  margin: 6px 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  color: #e8d9a8;
+  background: rgba(120, 100, 60, .18);
+  border: 1px solid rgba(232, 200, 122, .25);
+}

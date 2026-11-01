@@ -48,6 +48,7 @@
     { id: 'outposts', icon: '⛺', title: 'Outposts and exploring', body: `
       <p>Found an <b>outpost</b> on a nearby tile to gather what that land offers: food on plains, timber in forests, stone and ores in hills, iron and rare finds in mountains.</p>
       <p>Your tier decides how many outposts you can run and how far away. Outposts can be upgraded to level 3 for more yield — each level eats a little more food.</p>
+      <p>Post a <b>worker</b> at an outpost for +25% yield — +50% if their trade suits the land (a Miner in the hills, a Woodcutter in the forest). While posted they don't work in town. If the stores can't feed your outposts, they work at <b>half pace</b> until there is food again. Dismantling one gives back about half of what it cost.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
     { id: 'wonders', icon: '🏛', title: 'Festivals, Wonders and upkeep', body: `
       <p>Any town can hold a <b>festival</b>: it costs wealth and food, and for 24 hours brings +10 happiness and +10% production. After one, the town needs 72 hours (from the start) before the next.</p>
@@ -57,6 +58,11 @@
     { id: 'clans', icon: '🛡', title: 'Clans', body: `
       <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>`,
       open: [['🛡 Clan', link('openClanPanel')]] },
+    { id: 'quests', icon: '📜', title: 'Quests and the Watchtower', body: `
+      <p>The tavern's <b>notice board</b> shows a fresh set of quests every day (it turns over at midnight UTC). Some quests only appear at night or under a full moon — take them while you can.</p>
+      <p>A solo quest can be <b>abandoned</b> while it's under way, as long as no battle has started; the citizen comes home empty-handed.</p>
+      <p>A <b>Watchtower</b> (Village) gives Guards and Archers a post: each one on watch cheers the town (+1 happiness, up to +5) and adds to its defence.</p>`,
+      open: [['📜 Notice board', link('openNoticeboard')]] },
     { id: 'tavern', icon: '🍺', title: 'Tavern games', body: `
       <p>Play <b>Briarwood Court</b> or <b>Squirrel's Stash</b> at the tavern, alone against AI courtiers or with other players.</p>
       <p>A win pays <b>4 wealth</b>, for up to 10 wins a day. Every win counts on the rankings.</p>`,

@@ -799,6 +799,9 @@ function qa_showForm(id) {
     +     '<input class="ce-input" id="qa-combat-encounter" value="' + (Array.isArray(q?.combat_encounter) ? q.combat_encounter.join(',') : '') + '" placeholder="marsh_rat, wild_fox"></div>'
     + '</div>'
 
+    // ── Time window (tavern board) ──
+    + _qaTimeWindowFields(q)
+
     // ── Drops ──
     + '<div class="qa-section-label" style="margin-top:10px">Item Drops ' + tip('Items that can drop on quest success. Each drop has a % chance. e.g. 25% = roughly 1 in 4 runs.') + ' <button onclick="_qaAddDropRow()" style="margin-left:8px;padding:1px 8px;font-size:10px;background:rgba(192,221,151,.1);border:1px solid rgba(192,221,151,.2);border-radius:4px;color:rgba(192,221,151,.7);cursor:pointer">+ Add Drop</button></div>'
     + '<div id="qa-drop-rows" style="display:flex;flex-direction:column;gap:5px"></div>'
@@ -1001,6 +1004,8 @@ async function qa_save(existingId) {
     flavour_fail:    document.getElementById('qa-ffail')?.value?.trim() || '',
     sort_order:   parseInt(document.getElementById('qa-sort')?.value) || 0,
     combat_chance: Math.max(0, Math.min(100, parseInt(document.getElementById('qa-combat-chance')?.value) || 0)),
+    active_phases: Array.prototype.map.call(document.querySelectorAll('.qa-phase:checked'), el => el.value),   // [] = any time
+    moon_phases:   Array.prototype.map.call(document.querySelectorAll('.qa-moon:checked'), el => el.value),
     combat_encounter: (document.getElementById('qa-combat-encounter')?.value || '')
                        .split(',').map(s => s.trim()).filter(Boolean),
     requires,
@@ -1849,4 +1854,23 @@ async function debugResetDiplomacy() {
     if (fb) { fb.textContent = d.ok ? '✓ All relations reset.' : '⚠️ ' + d.error; fb.style.color = d.ok ? '#8ecf7e' : '#e07a6a'; setTimeout(()=>{fb.textContent='';},2500); }
     await loadDiplomacyDebugNpcs();
   } catch(e) { if(fb) fb.textContent = '⚠️ ' + e.message; }
+}
+
+
+// Quest editor: when a tavern quest is on the board. None ticked = any time
+// (stored NULL); ticked = only on the board in those phases / moons, on top
+// of the daily rotation (server routes/quests.js).
+function _qaTimeWindowFields(q) {
+  const ph = Array.isArray(q && q.active_phases) ? q.active_phases : [];
+  const mo = Array.isArray(q && q.moon_phases) ? q.moon_phases : [];
+  const ids = (window.KWDayCycle && KWDayCycle.MOON_IDS) || ['new', 'waxing_crescent', 'first_quarter', 'waxing_gibbous', 'full', 'waning_gibbous', 'last_quarter', 'waning_crescent'];
+  const glyph = i => (window.KWDayCycle && KWDayCycle.MOON_GLYPHS && KWDayCycle.MOON_GLYPHS[i]) || '●';
+  const phases = [['dawn', 'Dawn'], ['day', 'Day'], ['dusk', 'Dusk'], ['night', 'Night']];
+  return '<div class="qa-section-label" style="margin-top:10px">🕯 Time window <span class="qa-tip" title="Tavern quests only: tick phases or moons to make this a time-limited quest. It then shows on every player\'s board during those times, outside the daily rotation. None ticked = a normal quest.">?</span></div>'
+    + '<div class="qa-time-window" style="display:flex;gap:12px;flex-wrap:wrap">'
+    + phases.map(([id, name]) => '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="qa-phase" value="' + id + '"' + (ph.indexOf(id) >= 0 ? ' checked' : '') + '> ' + name + '</label>').join('')
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:6px">'
+    + ids.map((id, i) => '<label style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:16px;cursor:pointer">' + glyph(i) + '<input type="checkbox" class="qa-moon" value="' + id + '"' + (mo.indexOf(id) >= 0 ? ' checked' : '') + '></label>').join('')
+    + '</div>';
 }

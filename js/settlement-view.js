@@ -54,6 +54,7 @@ const SV_SLOTS = [
   { id:'out-mine',           area:'outskirts', x:65,  y:88, accepts:['mine'],          label:'Hillside',      size:'md' },
   { id:'out-smelter',        area:'outskirts', x:44,  y:89, accepts:['smelter'],       label:'Furnace Row',   size:'md' },
   { id:'town-library',       area:'town',      x:80,  y:88, accepts:['library'],       label:"Scholars' Walk", size:'md' },
+  { id:'out-watchtower',     area:'outskirts', x:6,   y:62, accepts:['watchtower'],    label:'The Palisade',  size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -74,8 +75,20 @@ const SV_VISUALS = {
   mine:          { emoji:'⛏️',        bodyColor:'#5b5248', roofColor:'#3a342e', flavor:'Lamps flicker deep in the hill.' },
   smelter:       { emoji:'🔥',        bodyColor:'#6a3a24', roofColor:'#3e2214', flavor:'The furnace roars; the air shimmers.' },
   library:       { emoji:'📚',        bodyColor:'#4f4a6a', roofColor:'#2f2b48', flavor:'Candles, ink and the scratch of quills.' },
+  watchtower:    { emoji:'🗼',        bodyColor:'#5e5040', roofColor:'#3c3226', flavor:'A lantern burns at the top all night.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
+
+// The Watchtower's watch: who is posted, the cheer and the defence they give
+// (server: settlement.town.watch, lib/watchtower).
+function _svWatchHtml() {
+  var w = gameData && gameData.settlement && gameData.settlement.town && gameData.settlement.town.watch;
+  if (!w) return '';
+  var line = w.posted
+    ? '🛡️ ' + w.posted + ' of ' + w.slots + ' posts manned · +' + Math.min(5, w.posted) + ' happiness · defence ' + w.defence
+    : '🛡️ No one on watch — Guards and Archers at home take the posts (' + w.slots + ').';
+  return '<div class="sv-bp-watch">' + line + '</div>';
+}
 
 // A building can be started when its building requirements and its minimum
 // settlement tier are both met. tierMet is absent on older servers → met.
@@ -1055,6 +1068,7 @@ function _openBuildPanel(slot, occupant) {
       + (['smithy', 'jeweller', 'workshop', 'smelter'].includes(occupant.id) && typeof openCrafting === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
         : '')
+      + (occupant.id === 'watchtower' ? _svWatchHtml() : '')
       + (occupant.id === 'library' && typeof openLibrary === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openLibrary()">📚 Open the Library</button>'
         : '')

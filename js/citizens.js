@@ -151,8 +151,9 @@ function renderCitizensList() {
     const isOnQuest  = !!c.active_quest;
     const isOnDiplo  = !!(window._diploEnvoyIds && window._diploEnvoyIds.has(c.id));
     const isTrading  = !!(c.trade && c.trade.on_road);
-    const roleIcon   = isOnQuest ? '⚔️' : isOnDiplo ? '📨' : isScouting ? '🗺' : isTrading ? '🐾' : (isChild ? '🍼' : (ROLE_ICONS[c.role] || '💤'));
-    const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : isTrading ? 'Trading' : (isChild ? 'Child' : (window.KWCareers ? KWCareers.roleLabel(c.role) : (c.role.charAt(0).toUpperCase() + c.role.slice(1))))
+    const atOutpost  = !!c.outpost;
+    const roleIcon   = isOnQuest ? '⚔️' : isOnDiplo ? '📨' : isScouting ? '🗺' : isTrading ? '🐾' : atOutpost ? '👷' : (isChild ? '🍼' : (ROLE_ICONS[c.role] || '💤'));
+    const roleLabel  = isOnQuest ? 'On Quest' : isOnDiplo ? 'Diplomat' : isScouting ? 'Scouting' : isTrading ? 'Trading' : atOutpost ? 'At ' + c.outpost.name : (isChild ? 'Child' : (window.KWCareers ? KWCareers.roleLabel(c.role) : (c.role.charAt(0).toUpperCase() + c.role.slice(1))))
       + (!isChild && window.KWCareers ? ' ' + KWCareers.listBadge(c) : '');
     const houseIcon  = c.house_id ? '🏡' : '<span style="opacity:.35">🚶</span>';
     const partnerIcon = c.partner_id ? ' <span style="font-size:9px;color:#e090a0">💕</span>' : '';
@@ -472,6 +473,8 @@ function renderCitizenProfile(c) {
         </div>
       ` : isScouting ? `
         <div class="cp-scouting-note">🗺 On expedition — returns in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.expedition.completes_at) - Date.now()) / 1000)))}</strong></div>
+      ` : c.outpost ? `
+        <div class="cp-scouting-note">👷 Working at the ${c.outpost.name} (${c.outpost.q}·${c.outpost.r}). Bring them home from the outpost's tile on the map.</div>
       ` : c.trade ? `
         <div class="cp-scouting-note">${c.trade.on_road
           ? `${c.trade.porter === 'ironhaven' ? '🏰 Carrying goods to Ironhaven' : c.trade.porter ? '🧺 Collecting goods for you' : '🐾 On a trade run'} — ${c.trade.status === 'returning' ? 'back home' : 'arrives'} in <strong>${formatDuration(Math.max(0, Math.ceil((new Date(c.trade.completes_at) - Date.now()) / 1000)))}</strong>`
@@ -931,6 +934,8 @@ function renderAllCitizens(sortKey, sortDir, filter) {
       ? '<td class="ac-role-child">🍼 Child</td>'
       : c.active_quest
         ? '<td class="ac-role-child">⚔️ On Quest</td>'
+      : c.outpost
+        ? '<td class="ac-role-child">👷 At ' + c.outpost.name + '</td>'
       : c.trade
         ? '<td class="ac-role-child">' + (c.trade.on_road ? (c.trade.porter ? '🧺 Porter' : '🐾 Trading') : c.trade.shop ? '🏪 Shopkeeper' : '⚖️ Merchant') + '</td>'
         : '<td><select class="ac-role-select" onchange="updateCitizenRole(' + c.id + ', this.value)" onclick="event.stopPropagation()">' +
