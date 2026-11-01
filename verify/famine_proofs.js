@@ -47,12 +47,16 @@ check('2g. unknown states are ignored', w.KWFamineDev.current() === null);
 console.log('3. Wiring');
 const html = read('index.html');
 check('3a. famine.js and famine.css load', /<script defer src="\/js\/famine\.js\?v=\w+"><\/script>/.test(html) && /href="\/css\/famine\.css\?v=\w+"/.test(html));
-check('3b. the banner sits over the map, announced to screen readers', /<div class="map-area">\s*<!--[^>]*-->\s*<div id="famine-banner" class="famine-banner" role="status" aria-live="polite"><\/div>/.test(html));
+check('3b. the banner sits over the map (in the banner stack), announced to screen readers', /<div class="map-area">\s*<!--[\s\S]*?-->\s*<div class="map-banners" id="map-banners">\s*<div id="famine-banner" class="famine-banner" role="status" aria-live="polite"><\/div>/.test(html));
 check('3c. drawn when the game loads and on every 5-minute sync', /renderFamineBanner\(gameData\.settlement\.famine\)/.test(read('js/main.js')) && /renderFamineBanner\(data\.settlement\.famine\)/.test(read('js/game.js')));
 const dev = html.slice(html.indexOf('🍽 Famine banner'), html.indexOf('cheat-famine-status'));
 check('3d. Dev Tools: four previews, Back to live, Empty the food stores',
   ['low', 'critical', 'famine', 'ok'].every(s => dev.includes(`KWFamineDev.preview('${s}')`)) && /KWFamineDev\.live\(\)/.test(dev) && /cheatEmptyFood\(\)/.test(dev));
 check('3e. emptying the stores uses the admin cheat and shows the real state', /async function cheatEmptyFood\(\)[\s\S]*?\/api\/game\/cheat\/resources[\s\S]*?food: -999999999[\s\S]*?KWFamineDev\.live\(\)/.test(read('js/buildings.js')));
+
+const css = read('css/famine.css');
+const detail = css.slice(css.indexOf('.famine-banner-detail {'), css.indexOf('}', css.indexOf('.famine-banner-detail {')));
+check('3f. the message wraps instead of being cut off', /white-space: normal/.test(detail) && !/nowrap|ellipsis/.test(detail) && /width: max-content/.test(css));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

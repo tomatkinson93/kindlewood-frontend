@@ -76,7 +76,7 @@ function _drawFamineBanner(famine, preview) {
 // On phones the topbar floats over the map and its height varies (pills
 // wrap), so tuck the banner just under it. Desktop keeps the CSS position.
 function _placeFamineBanner() {
-  const el = document.getElementById('famine-banner');
+  const el = document.getElementById('map-banners') || document.getElementById('famine-banner');
   if (!el || !el.style) return;
   const shell = document.body && document.body.classList && document.body.classList.contains('kw-shell');
   const bar = shell && document.querySelector && document.querySelector('#screen-game .topbar');

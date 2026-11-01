@@ -1,0 +1,61 @@
+/* ════════════════════════════════════════════════════════════════════════
+   YOUR TOWN — js/wonders.js: festivals, upkeep, Wonders; the town banner.
+   ════════════════════════════════════════════════════════════════════════ */
+.tw-screen { position: fixed; inset: 0; z-index: 880; display: none; align-items: center; justify-content: center; background: rgba(8, 6, 3, .65); padding: 16px; }
+.tw-screen.open { display: flex; }
+.tw-card { width: min(980px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: #1c1610; border: 1px solid rgba(212, 175, 80, .35); border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); color: #f2e6c9; overflow: hidden; }
+.tw-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid rgba(212, 175, 80, .2); }
+.tw-title { font-family: 'IM Fell English', Georgia, serif; font-size: 22px; color: #f4c95d; }
+.tw-close { background: none; border: none; color: rgba(242, 230, 201, .7); font-size: 16px; cursor: pointer; padding: 6px 8px; }
+.tw-body { padding: 4px 18px 18px; overflow-y: auto; }
+.tw-section { padding: 12px 0; border-bottom: 1px solid rgba(212, 175, 80, .14); }
+.tw-section:last-child { border-bottom: none; }
+.tw-section h3 { font-family: 'IM Fell English', Georgia, serif; font-size: 18px; color: #f4c95d; margin: 0 0 6px; font-weight: 400; }
+.tw-desc { margin: 4px 0 8px; font-size: 13.5px; line-height: 1.45; opacity: .88; }
+.tw-muted, .tw-err { padding: 20px; text-align: center; opacity: .6; }
+.tw-err { color: #e07a6a; opacity: 1; }
+.tw-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.tw-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin-right: 4px; }
+.tw-chip { padding: 3px 8px; border-radius: 999px; background: rgba(180, 140, 90, .16); border: 1px solid rgba(220, 180, 120, .25); font-size: 12.5px; white-space: nowrap; }
+.tw-chip.short { border-color: rgba(224, 122, 106, .7); color: #f0a294; }
+.tw-time { font-size: 12px; opacity: .7; margin-left: 4px; }
+.tw-btn { background: rgba(180, 140, 90, .15); border: 1px solid rgba(220, 180, 120, .3); color: #efe7d8; border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
+.tw-btn-primary { background: rgba(244, 201, 93, .2); border-color: rgba(244, 201, 93, .55); color: #f4c95d; font-weight: 700; }
+.tw-btn:hover:not([disabled]), .tw-btn:focus-visible { background: rgba(244, 201, 93, .3); outline: none; }
+.tw-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.tw-why { margin-left: 8px; font-size: 12px; opacity: .65; }
+.tw-status { margin: 6px 0; padding: 7px 10px; border-radius: 6px; background: rgba(180, 140, 90, .1); font-size: 13px; }
+.tw-status.good { background: rgba(123, 198, 126, .12); color: #a9dba7; }
+.tw-status.bad { background: rgba(192, 74, 58, .14); color: #f0a294; }
+.tw-wonders { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 8px; }
+.tw-wonder { padding: 12px; border-radius: 10px; border: 1px solid rgba(212, 175, 80, .25); background: rgba(0, 0, 0, .2); display: flex; flex-direction: column; }
+.tw-wonder.done { border-color: rgba(244, 201, 93, .6); box-shadow: 0 0 14px rgba(244, 201, 93, .12) inset; }
+.tw-wonder.dormant { filter: saturate(.5); border-color: rgba(224, 122, 106, .5); }
+.tw-wonder header { display: flex; gap: 10px; align-items: center; }
+.tw-w-icon { font-size: 30px; line-height: 1; }
+.tw-w-name { font-weight: 700; font-size: 15px; color: #f4c95d; }
+.tw-pips { display: flex; gap: 4px; margin-top: 4px; }
+.tw-pip { width: 18px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .12); }
+.tw-pip.on { background: #f4c95d; }
+.tw-pip.building { background: repeating-linear-gradient(45deg, #f4c95d 0 4px, rgba(244, 201, 93, .3) 4px 8px); }
+.tw-bonus { font-size: 13px; margin: 0 0 6px; color: #e8d9a8; }
+.tw-wonder .tw-btn { align-self: flex-start; margin-top: auto; }
+
+/* The banners over the map (famine + town), stacked. */
+.map-area > .map-banners { position: absolute; top: 42px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: min(640px, calc(100% - 32px)); pointer-events: none; }
+.map-banners > * { pointer-events: auto; }
+.town-banner { display: none; }
+.town-banner.open { display: block; }
+.town-banner-inner { display: flex; gap: 8px; align-items: baseline; padding: 6px 14px; border-radius: 8px; border: 1px solid; font: inherit; font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif; font-size: 13px; cursor: pointer; text-align: left; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.town-banner-inner b { font-variant: small-caps; letter-spacing: .04em; font-size: 14px; }
+.town-banner.good .town-banner-inner { background: linear-gradient(180deg, #2b2610, #1f1b0a); border-color: #b8952f; color: #f1d27a; }
+.town-banner.bad .town-banner-inner { background: linear-gradient(180deg, #331010, #240a0a); border-color: #c04a3a; color: #e88a7a; }
+
+@media (max-width: 768px), (max-height: 560px) and (pointer: coarse) {
+  .tw-screen { padding: 0; align-items: stretch; }
+  .tw-card { max-height: none; height: 100%; border-radius: 0; border: none; padding-top: env(safe-area-inset-top); }
+  .tw-body { padding: 4px 14px 16px; }
+  .tw-wonders { grid-template-columns: 1fr; }
+  .tw-why { display: block; margin: 6px 0 0; }
+}
+body.kw-shell .map-area > .map-banners { z-index: 41; left: 12px; right: 12px; width: auto; transform: none; max-width: none; align-items: stretch; }

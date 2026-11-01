@@ -316,6 +316,7 @@ async function loadGame(force = false) {
     renderTopbar();
     if (window.KWClock) KWClock.sync();   // refresh /time/me for this login (admin flag → Dev Tools button)
     if (typeof renderFamineBanner === 'function') renderFamineBanner(gameData.settlement.famine);
+    if (window.KWTown) KWTown.onSettlement(gameData.settlement);   // festival / unpaid upkeep banner
     preloadTileImages();
     if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 
@@ -1470,7 +1471,13 @@ function selectWorldTile(tile) {
 // ── Settlement panel: buttons that need a building ──────────────────────
 // Without the building the button is greyed, padlocked and just says
 // "Locked" — what it opens stays a mystery until it's built.
+const TIER_ORDER_CLIENT = ['camp', 'village', 'town', 'city'];
 function _hasBuilding(type) {
+  // 'tier:city' — a settlement tier rather than a building (Wonders).
+  if (String(type).startsWith('tier:')) {
+    const need = TIER_ORDER_CLIENT.indexOf(type.slice(5));
+    return TIER_ORDER_CLIENT.indexOf((gameData?.settlement?.tier) || 'camp') >= need;
+  }
   if (typeof buildingsData !== 'undefined' && Array.isArray(buildingsData) && buildingsData.length) {
     const b = buildingsData.find(x => x.id === type);
     if (b) return (b.currentLevel || 0) > 0;
@@ -1674,6 +1681,8 @@ function _selectWorldTileImpl(tile) {
       + '<button class="sett-action" onclick="visitFishingPost()">🎣 Fishing</button>'
       + _gatedAction('library', '📚 Research', 'openLibrary()')
       + _gatedAction('market', '⚖️ Market', 'openMarket()')
+      + '<button class="sett-action" onclick="KWTown.open(\'festival\')">🎉 Festival</button>'
+      + _gatedAction('tier:city', '🏛 Wonders', "KWTown.open('wonders')")
       + '</div>'
       + '</div>';
 
