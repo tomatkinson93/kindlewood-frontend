@@ -37,7 +37,7 @@ function makeEnv(status, have, discovered, citizens) {
     "function _resIcon(k) { const R = KWResources, kn = R.knownSet(gameData.settlement.discovered); return R.isKnown(k, kn) ? R.icon(k) : '??'; }",
     take('function _yieldChips('), take('function _oreChips('), take('function _costChips('),
     take('function _outpostSectionHtml('), take('function _outpostUpgradeHtml('),
-    takeObj('const OP_CLASS_LABELS = {').split('\n')[0], take('function _opFreeCitizens('), take('function _outpostWorkerHtml('),
+    takeObj('const OP_CLASS_LABELS = {').split('\n')[0], take('function _opFreeCitizens('), take('function _outpostWorkerHtml('), take('function _outpostRaidHtml('),
     'const _opRefreshedFor = new Set();',
     'this.section = _outpostSectionHtml;',
   ].join('\n'), w);
@@ -117,6 +117,12 @@ console.log('6. Warnings and refunds');
   check('6a. unfed: a warning line', /op-note-warn">🍂 Its food upkeep is going unpaid/.test(h));
   check('6b. the dismantle confirm names the refund, and a toast says what came back', /About half of what it cost comes back/.test(MAIN) && /Outpost dismantled — recovered/.test(MAIN));
   check('6c. no more "materials are not recovered"', !/materials are not recovered/.test(MAIN));
+  const r = makeEnv({ config: { hills: HILLS }, outposts: [mine({ notes: [{ key: 'raided', label: 'Raiders left it in ruins — idle until it is set right.' }] })] }, RICH, []);
+  r.w.gameData.settlement.raid = { id: 3, outpost_id: 11, from: 'Rot Warren', target: 'the Quarry', arrives_at: new Date(Date.now() + 4 * 3600e3 + 60e3).toISOString() };
+  r.w.KWRaids = { _left: () => '4h 0m' };
+  const h2 = r.w.section(tile);
+  check('6d. a raid on its way to this outpost: a warning with the time left', /op-raid">🔥 Raiders from Rot Warren will strike here in 4h 0m/.test(h2));
+  check('6e. a raided outpost says so', /op-note-warn">🔥 Raiders left it in ruins/.test(h2));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -317,6 +317,7 @@ async function loadGame(force = false) {
     if (window.KWClock) KWClock.sync();   // refresh /time/me for this login (admin flag → Dev Tools button)
     if (typeof renderFamineBanner === 'function') renderFamineBanner(gameData.settlement.famine);
     if (window.KWTown) KWTown.onSettlement(gameData.settlement);   // festival / unpaid upkeep banner
+    if (window.KWRaids) KWRaids.onSettlement(gameData.settlement); // raid on its way banner
     preloadTileImages();
     if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 
@@ -1259,6 +1260,7 @@ function _outpostSectionHtml(tile) {
         <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'} <span class="op-level">Lv ${lvl}/${mine?.max_level || 3}</span></div>
         <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         ${(mine?.notes || []).filter(n => n.key !== 'worker').map(n => `<div class="op-note op-note-warn">${n.key === 'unfed' ? '🍂' : '🔥'} ${n.label}</div>`).join('')}
+        ${_outpostRaidHtml(mine)}
         ${_outpostWorkerHtml(mine)}
         ${_outpostUpgradeHtml(mine)}
         <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
@@ -1334,6 +1336,14 @@ function _outpostUpgradeHtml(o) {
         ${reason ? `<div class="op-reason">${reason}</div>` : ''}`;
 }
 const _opRefreshedFor = new Set();
+
+// A Withered raid on its way to this outpost (settlement.raid, js/raids.js).
+function _outpostRaidHtml(mine) {
+  const r = gameData?.settlement?.raid;
+  if (!mine || !r || r.outpost_id !== mine.id || r.resolved_at) return '';
+  const left = window.KWRaids ? KWRaids._left(r.arrives_at) : '';
+  return `<div class="op-note op-note-warn op-raid">🔥 Raiders from ${r.from} will strike here in ${left}. Guards and Archers at the Watchtower defend it.</div>`;
+}
 
 // The worker row: who works here (and bring them home), or post someone.
 // A worker adds +25%, or +50% when their class knows the land.

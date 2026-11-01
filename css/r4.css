@@ -107,3 +107,20 @@
 .kc-owned { color: #8ecf7e; font-size: 12px; }
 .kc-locked { color: rgba(232, 200, 122, .7); font-size: 12px; }
 .cm-result-card { margin: 8px 0; padding: 6px 10px; border-radius: 6px; color: #f1dca0; background: rgba(120, 90, 160, .25); border: 1px solid rgba(190, 170, 255, .35); }
+
+/* ── Raids and villages (group 3) ────────────────────────────────────── */
+.raid-banner { display: none; }
+.raid-banner.open { display: block; }
+.raid-banner-inner {
+  display: flex; gap: 8px; align-items: baseline; padding: 6px 14px; border-radius: 8px; border: 1px solid #d0602e;
+  font: inherit; font-family: 'Cormorant Garamond', 'EB Garamond', Georgia, serif; font-size: 13px; cursor: pointer; text-align: left;
+  color: #ffb98a; background: linear-gradient(180deg, #3a1a0a, #2a1206); box-shadow: 0 2px 10px rgba(208, 96, 46, .35);
+  animation: raid-pulse 2.4s ease-in-out infinite;
+}
+.raid-banner-inner b { font-variant: small-caps; letter-spacing: .04em; font-size: 14px; }
+@keyframes raid-pulse { 50% { box-shadow: 0 2px 16px rgba(208, 96, 46, .6); } }
+@media (prefers-reduced-motion: reduce) { .raid-banner-inner { animation: none; } }
+.diplo-decay { margin-top: 8px; font-size: 12px; padding: 5px 8px; border-radius: 5px; color: #e9c48a; background: rgba(160, 110, 40, .14); border: 1px solid rgba(232, 180, 100, .3); }
+.diplo-decay.decaying { color: #f0a080; background: rgba(190, 80, 50, .14); border-color: rgba(224, 122, 106, .4); }
+.diplo-tribute-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: #e8d9a8; }
+.diplo-tribute-done { color: #8ecf7e; font-size: 12px; }

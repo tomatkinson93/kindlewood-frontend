@@ -87,6 +87,8 @@ function _svWatchHtml() {
   var line = w.posted
     ? '🛡️ ' + w.posted + ' of ' + w.slots + ' posts manned · +' + Math.min(5, w.posted) + ' happiness · defence ' + w.defence
     : '🛡️ No one on watch — Guards and Archers at home take the posts (' + w.slots + ').';
+  var raid = gameData.settlement.raid;
+  if (raid && !raid.resolved_at) line += '<br>🔥 Raiders from ' + raid.from + ' are on their way to ' + raid.target + ' (strength about ' + raid.strength + ').';
   return '<div class="sv-bp-watch">' + line + '</div>';
 }
 

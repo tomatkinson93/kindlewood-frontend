@@ -163,6 +163,9 @@
     research_done(ev) { if (global.KWLibrary) global.KWLibrary.onEvent(ev); },
     // Cards and battle loot (js/cards.js): toasts.
     battle_spoils(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
+    // Withered raids (js/raids.js): the warning and the outcome.
+    raid_warning(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
+    raid_resolved(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
     card_unlocked(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
     // Letters (js/mail.js): one arrived — badge and toast.
     mail(ev) { if (global.KWMail) global.KWMail.onEvent(ev); },
