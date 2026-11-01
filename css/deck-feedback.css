@@ -99,3 +99,15 @@
   .db-mini { width: 40px; height: 40px; font-size: 16px; }
   .fb-mini { min-height: 40px; padding: 8px 14px; }
 }
+
+/* Deck toolbar (js/deck-builder.js): name, active, delete; inline new name. */
+.db-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; }
+.db-name-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(242, 230, 201, .75); flex: 1 1 200px; }
+.db-name-input { flex: 1; min-width: 0; background: rgba(0, 0, 0, .3); border: 1px solid rgba(212, 175, 80, .35); border-radius: 6px; color: #f2e6c9; padding: 6px 8px; font: inherit; font-size: 13px; }
+.db-name-input:focus { outline: none; border-color: rgba(244, 201, 93, .75); }
+.db-newname { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.db-newname .db-name-input { width: 170px; flex: none; }
+.db-active-pill { padding: 4px 10px; border-radius: 999px; background: rgba(244, 201, 93, .18); color: #f4c95d; font-size: 12px; font-weight: 700; }
+.db-mini.db-wide { width: auto; padding: 4px 10px; }
+.db-mini[disabled] { opacity: .45; cursor: not-allowed; }
+.db-danger { border-color: rgba(224, 122, 106, .6) !important; color: #f0a294 !important; }
