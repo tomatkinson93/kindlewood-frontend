@@ -1905,6 +1905,8 @@ const COMM_TITLES = {
   chat: '💬 Chatroom',
   realms: '🌍 All Realms',
   market: '⚖️ Market',
+  messages: '✉ Letters',
+  help: '❓ Help',
 };
 
 
@@ -2143,6 +2145,7 @@ async function _renderQuestsModal() {
 function showCommunityTab(tab) {
   if (tab === 'market' && typeof openMarket === 'function') { openMarket(); return; }
   if (tab === 'messages' && window.KWMail) { KWMail.open(); return; }   // js/mail.js
+  if (tab === 'help' && window.KWHelp) { KWHelp.open(); return; }       // js/help.js
   document.querySelectorAll('.comm-btn').forEach(b => b.classList.remove('active'));
   // The click can land on the button's icon or label — mark the button.
   const btn = window.event && window.event.target && window.event.target.closest
