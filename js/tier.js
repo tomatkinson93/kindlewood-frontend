@@ -290,9 +290,11 @@ async function openTierUpgradeModal() {
   if (reqs.population) reqHtml += makeReqRow('population', reqs.population, current.population ?? 0);
   if (reqs.buildings)  reqHtml += makeReqRow('buildings',  reqs.buildings,  current.buildings  ?? 0);
 
-  const unlockHtml = (data.unlocks || []).length
+  // The server lists what this tier really opens (routes/game.js tierUnlocks).
+  const unlocks = reqs.unlocks || data.unlocks || [];
+  const unlockHtml = unlocks.length
     ? '<div class="tier-unlocks-title">Unlocks</div>'
-      + data.unlocks.map(u => `<div class="tier-unlock-item">✦ ${u}</div>`).join('')
+      + unlocks.map(u => `<div class="tier-unlock-item">✦ ${u}</div>`).join('')
     : '';
 
   body.innerHTML = `

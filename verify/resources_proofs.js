@@ -301,6 +301,7 @@ console.log('12. Metals in levels, tiers, quests and the breakdown');
   const sv = read('js/settlement-view.js');
   check('12j. only js/resources.js defines _resIcon (settlement-view used to replace it with raw keys)', !/function _resIcon\b/.test(sv) && /function _svResIcon/.test(sv)
     && /typeof gameData !== 'undefined' && gameData && gameData\.settlement/.test(res));
+  check('12k. the tier modal lists the server\'s real unlocks', /const unlocks = reqs\.unlocks \|\| data\.unlocks \|\| \[\];/.test(tier));
   check('12i. the demolish refund preview skips a level\'s metals', /indexOf\(e\[0\]\) >= 0; \}\)/.test(read('js/settlement-view.js')));
 }
 
