@@ -224,6 +224,8 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
   if (!modal) return;
 
   document.getElementById('vp-username').textContent = username;
+  const mailBtn = document.getElementById('vp-mail-btn');
+  if (mailBtn) mailBtn.onclick = () => { if (window.KWMail) KWMail.compose(username); };
   document.getElementById('vp-species').textContent  = species || '';
   document.getElementById('vp-avatar').textContent   = (username || '?')[0].toUpperCase();
   const vpTitle = document.getElementById('vp-title');

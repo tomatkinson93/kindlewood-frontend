@@ -514,6 +514,7 @@
 
   function whereLabel(r) {
     const c = r.channel || {};
+    if (c.kind === 'mail') return '✉ A private letter';   // routes/mail.js reports
     const where = c.kind === 'clan' ? `🛡 ${esc(c.name || 'a clan')} (clan hall)` : esc(c.name || 'a deleted channel');
     return where + (r.thread_title ? ` › ${esc(r.thread_title)}` : '');
   }
@@ -543,7 +544,7 @@
           <div class="mod-card-head">${userLine(u)} <span class="chat-muted small">in ${whereLabel(r)}</span>
             ${r.reports.length > 1 ? `<span class="chat-count">${r.reports.length} reports</span>` : ''}</div>
           <blockquote class="mod-snap">${esc(r.body)}</blockquote>
-          ${r.still_there ? '' : '<div class="chat-muted small">Already removed from the channel.</div>'}
+          ${r.still_there ? '' : `<div class="chat-muted small">Already removed${r.target_type === 'mail' ? '' : ' from the channel'}.</div>`}
           <ul class="mod-reports">${r.reports.map(x => `<li><span class="mod-reason ${esc(x.reason)}">${esc(REASON_LABEL[x.reason] || x.reason)}</span>
             <span class="chat-muted small">${esc(x.reporter || 'someone')} · ${esc(timeLabel(x.created_at))}</span>${x.note ? `<div class="small">“${esc(x.note)}”</div>` : ''}</li>`).join('')}</ul>
           <div class="mod-actions">

@@ -47,6 +47,7 @@
   <link rel="stylesheet" href="/css/crafting.css?v=rs7">
   <link rel="stylesheet" href="/css/stores.css?v=g3">
   <link rel="stylesheet" href="/css/famine.css?v=r2d">
+  <link rel="stylesheet" href="/css/mail.css?v=r2">
   <link rel="stylesheet" href="/css/research.css?v=g4">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
@@ -537,7 +538,7 @@
       <button class="comm-btn" id="nav-events" onclick="openTimedEvents()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-events"/></svg><span>Events</span></button>
       <button class="comm-btn" onclick="openLeaderboard()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-rankings"/></svg><span>Rankings</span></button>
       <button class="comm-btn" id="nav-market" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
-      <button class="comm-btn" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
+      <button class="comm-btn" id="nav-messages" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
       <button class="comm-btn" id="nav-clan" onclick="openClanPanel()">🛡️ <span>Clan</span></button>
       <button class="comm-btn" id="nav-chat" onclick="openChatHub()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-chat"/></svg><span>Chat</span></button>
       <button class="comm-btn" id="nav-online" onclick="showOnlineList()">🟢 <span>Online</span> <span id="online-count" class="online-count"></span></button>
@@ -812,6 +813,7 @@
   <script defer src="/js/resource-defs.js?v=tq1"></script>
   <script defer src="/js/stores.js?v=g3"></script>
   <script defer src="/js/famine.js?v=r2d"></script>
+  <script defer src="/js/mail.js?v=r2"></script>
   <script defer src="/js/career-math.js?v=rs6"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
   <script defer src="/js/careers.js?v=cf1"></script>
@@ -828,7 +830,7 @@
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=r2"></script>
-  <script defer src="/js/profile.js?v=cp2"></script>
+  <script defer src="/js/profile.js?v=r2"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
   <script defer src="/js/kwmap-core.js?v=tp1"></script>
@@ -847,7 +849,7 @@
   <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
-  <script defer src="/js/main.js?v=r2"></script>
+  <script defer src="/js/main.js?v=r2b"></script>
   <script defer src="/js/away-report.js?v=rs2"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
@@ -885,10 +887,10 @@
   <script defer src="/js/clans.js?v=cq1"></script>
   <script defer src="/js/clan-profile.js?v=cp2"></script>
   <script defer src="/js/clan-quests.js?v=cr2"></script>
-  <script defer src="/js/chat-hub.js?v=cp1"></script>
+  <script defer src="/js/chat-hub.js?v=r2"></script>
   <script defer src="/js/market.js?v=g5"></script>
   <script defer src="/js/travel.js?v=tp2"></script>
-  <script defer src="/js/realtime.js?v=rs4"></script>
+  <script defer src="/js/realtime.js?v=r2"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=st1"></script>
@@ -1536,6 +1538,7 @@
       <div class="pm-section">
         <div class="pm-section-label">Bio</div>
         <div class="pm-bio-display" id="vp-bio">This ruler keeps their own counsel.</div>
+        <button type="button" class="mail-btn vp-mail-btn" id="vp-mail-btn">✉ Send a letter</button>
       </div>
 
       <div class="pm-section">

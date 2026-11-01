@@ -349,6 +349,7 @@ async function loadGame(force = false) {
     initSeasons(gameData.settlement);
     if (typeof startEventsPoll === 'function') startEventsPoll();
     if (window.KWRequests) KWRequests.start();   // village request alerts (js/village-requests.js)
+    if (window.KWMail) KWMail.start();           // unread letters badge (js/mail.js)
     if (typeof startGlobalQuestTimer === 'function') startGlobalQuestTimer();
     if (typeof _refreshDiploEnvoys === 'function') { _refreshDiploEnvoys(); setInterval(_refreshDiploEnvoys, 30000); }
     if (typeof preloadAllAudio === 'function') {
@@ -2141,6 +2142,7 @@ async function _renderQuestsModal() {
 
 function showCommunityTab(tab) {
   if (tab === 'market' && typeof openMarket === 'function') { openMarket(); return; }
+  if (tab === 'messages' && window.KWMail) { KWMail.open(); return; }   // js/mail.js
   document.querySelectorAll('.comm-btn').forEach(b => b.classList.remove('active'));
   // The click can land on the button's icon or label — mark the button.
   const btn = window.event && window.event.target && window.event.target.closest
