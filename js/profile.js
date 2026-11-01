@@ -28,10 +28,11 @@ async function renderHonors(prefix, username) {
     if (el) el.textContent = v;
   };
 
-  // Placeholder state — zeros, empty pedestals (already in the HTML)
-  set(`${prefix}-honor-points`, '0');
-  set(`${prefix}-honor-completion`, '0%');
-  set(`${prefix}-honor-trophies`, '0');
+  // The strip and the trophy cabinet stay hidden until honors exist.
+  const strip = document.getElementById(`${prefix}-honor-points`)?.closest('.pm-honors');
+  const cabinet = document.getElementById(`${prefix}-cabinet`)?.closest('.pm-section');
+  const show = on => { if (strip) strip.hidden = !on; if (cabinet) cabinet.hidden = !on; };
+  show(false);
 
   if (!PROFILE_HONORS_LIVE || !username) return;
 
@@ -39,6 +40,7 @@ async function renderHonors(prefix, username) {
     const res = await apiFetch(`/api/achievements/summary/${encodeURIComponent(username)}`);
     if (!res.ok) return;
     const d = await res.json();
+    show(true);
 
     set(`${prefix}-honor-points`, d.points ?? 0);
     set(`${prefix}-honor-completion`, `${d.completion ?? 0}%`);
@@ -212,11 +214,6 @@ async function loadProfileStats() {
   } catch(e) { console.error(e); }
 }
 
-function triggerAvatarUpload() {
-  // Placeholder — no file upload server yet
-  showBuildToast('Avatar upload coming soon!', 'success');
-}
-
 // ── View other player profile ─────────────────────────────────────────────
 
 async function viewPlayerProfile(username, species, settlementName, tier, tileX, tileY) {
@@ -224,6 +221,8 @@ async function viewPlayerProfile(username, species, settlementName, tier, tileX,
   if (!modal) return;
 
   document.getElementById('vp-username').textContent = username;
+  const mailBtn = document.getElementById('vp-mail-btn');
+  if (mailBtn) mailBtn.onclick = () => { if (window.KWMail) KWMail.compose(username); };
   document.getElementById('vp-species').textContent  = species || '';
   document.getElementById('vp-avatar').textContent   = (username || '?')[0].toUpperCase();
   const vpTitle = document.getElementById('vp-title');

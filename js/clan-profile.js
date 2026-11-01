@@ -188,10 +188,10 @@
       return `<li><span class="clan-feed-ic">${ic}</span><span class="clan-feed-text">${text}<span class="clan-feed-when">${esc(new Date(a.created_at).toLocaleDateString())}</span></span></li>`;
     }).join('');
 
-    const honorsHtml = `<div class="cp-honors${honors.live ? '' : ' stub'}">
+    // Hidden until clan honors exist (clan-palette CLAN_HONORS_LIVE).
+    const honorsHtml = honors.live ? `<div class="cp-honors">
         ${stat('0', 'Honor points')}${stat('0', 'Deeds')}${stat('0', 'Trophies')}
-      </div>
-      ${honors.live ? '' : '<div class="clan-muted cp-hint">Clan honors are coming — great deeds done together will be displayed here.</div>'}`;
+      </div>` : '';
 
     byId('cp-scroll').innerHTML = `
       <header class="cp-hero" style="--c1:${esc(c.banner.primaryHex)};--c2:${esc(c.banner.secondaryHex)}">

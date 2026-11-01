@@ -3,11 +3,17 @@
 //  View the settlement's deck templates, edit the active deck's contents,
 //  add/remove cards from the full pool. Enforces 12–30 cards. For now any
 //  card may be added (testing); unlock-gating comes later.
+//  Each deck can be renamed (saved with the deck), set as the one used in
+//  battle (★, POST /api/decks/:id/activate) or deleted (two taps; not the
+//  active deck or your only one). New decks are named inline.
 // ══════════════════════════════════════════════
 
 let _dbData = null;        // { templates, catalog, deck_min, deck_max }
 let _dbActiveId = null;    // currently-edited template id
 let _dbDraft = null;       // { cardKey: count } working copy
+let _dbName = '';          // the edited deck's name (saved with Save Deck)
+let _dbNaming = false;     // the "＋ New" name field is open
+let _dbConfirmDelete = false;
 const DB_TYPE_COLORS = { attack: '#a5563e', defense: '#4f7aa5', support: '#6ba55a', magic: '#9c5cc4' };
 
 async function openDeckBuilder() {
@@ -40,6 +46,8 @@ async function _dbLoad() {
     const active = (_dbData.templates || []).find(t => t.is_active) || _dbData.templates[0];
     _dbActiveId = active ? active.id : null;
     _dbDraft = active ? Object.assign({}, active.cards) : {};
+    _dbName = active ? active.name : '';
+    _dbNaming = false; _dbConfirmDelete = false;
     _dbRender();
   } catch (e) { _dbBody('<div class="db-err">' + e.message + '</div>'); }
 }
@@ -68,8 +76,28 @@ function _dbRender() {
   const pool = Object.values(_dbData.catalog).sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
   const poolHtml = pool.map(c => _dbPoolRow(c)).join('');
 
+  const cur = (_dbData.templates || []).find(t => t.id === _dbActiveId);
+  const only = (_dbData.templates || []).length <= 1;
+  const newBtn = _dbNaming
+    ? '<span class="db-newname"><input class="db-name-input" id="db-new-name" maxlength="60" placeholder="Name the new deck" aria-label="Name the new deck"'
+      + ' onkeydown="if(event.key===\'Enter\')_dbNewTemplate();if(event.key===\'Escape\')_dbCancelNew()">'
+      + '<button class="db-tab" onclick="_dbNewTemplate()">Create</button><button class="db-tab" onclick="_dbCancelNew()">Cancel</button></span>'
+    : '<button class="db-tab db-tab-new" onclick="_dbStartNew()">＋ New</button>';
+  // The edited deck: its name, whether battles use it, delete.
+  const toolbar = cur ? '<div class="db-toolbar">'
+    + '<label class="db-name-label">Name <input class="db-name-input" id="db-name" maxlength="60" value="' + _dbEsc(_dbName) + '" oninput="_dbName=this.value"></label>'
+    + (cur.is_active
+      ? '<span class="db-active-pill" title="Battles use this deck">★ Active</span>'
+      : '<button class="db-mini db-wide" onclick="_dbActivate(' + cur.id + ')" title="Battles will use this deck">★ Use in battles</button>')
+    + (cur.is_active || only
+      ? '<button class="db-mini db-wide" disabled title="' + (only ? 'You need at least one deck.' : 'Make another deck active first.') + '">🗑 Delete</button>'
+      : _dbConfirmDelete
+        ? '<button class="db-mini db-wide db-danger" onclick="_dbDelete(' + cur.id + ')">🗑 Tap again to delete</button>'
+        : '<button class="db-mini db-wide" onclick="_dbConfirmDelete=true;_dbRender()">🗑 Delete</button>')
+    + '</div>' : '';
   _dbBody(
-    '<div class="db-tabs">' + tabs + '<button class="db-tab db-tab-new" onclick="_dbNewTemplate()">＋ New</button></div>'
+    '<div class="db-tabs">' + tabs + newBtn + '</div>'
+    + toolbar
     + '<div class="db-cols">'
     + '  <div class="db-col">'
     + '    <div class="db-col-head">Current Deck <span class="db-count ' + (valid ? 'ok' : 'bad') + '">' + total + ' / ' + min + '–' + max + '</span></div>'
@@ -125,12 +153,23 @@ function _dbSwitch(id) {
   if (!t) return;
   _dbActiveId = id;
   _dbDraft = Object.assign({}, t.cards);
+  _dbName = t.name;
+  _dbConfirmDelete = false;
   _dbRender();
 }
 
+function _dbStartNew() {
+  _dbNaming = true;
+  _dbRender();
+  const f = document.getElementById('db-new-name');
+  if (f) f.focus();
+}
+function _dbCancelNew() { _dbNaming = false; _dbRender(); }
+
 async function _dbNewTemplate() {
-  const name = prompt('Name for the new deck:', 'New Deck');
-  if (!name) return;
+  const f = document.getElementById('db-new-name');
+  const name = (f && f.value || '').trim();
+  if (!name) { _dbFeedback('⚠️ Give the new deck a name.'); return; }
   // Seed a new template with a minimal valid deck (copy current draft if valid,
   // else the starter spread).
   const seed = _dbCount(_dbDraft) >= _dbData.deck_min ? _dbDraft : { strike: 5, defend: 5, quick_jab: 2 };
@@ -142,12 +181,32 @@ async function _dbNewTemplate() {
 
 async function _dbSave() {
   if (!_dbActiveId) { _dbFeedback('⚠️ No deck selected.'); return; }
-  const r = await apiFetch('/api/decks/' + _dbActiveId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: (_dbData.templates.find(t => t.id === _dbActiveId) || {}).name || 'Deck', cards: _dbDraft }) });
+  const r = await apiFetch('/api/decks/' + _dbActiveId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: (_dbName || '').trim() || (_dbData.templates.find(t => t.id === _dbActiveId) || {}).name || 'Deck', cards: _dbDraft }) });
   const d = await r.json();
   if (!r.ok) { _dbFeedback('⚠️ ' + (d.error || 'Failed')); return; }
   _dbFeedback('✓ Saved');
   // Refresh the cached template so tab switches reflect the save.
+  const keep = _dbActiveId;
   await _dbLoad();
+  _dbSwitch(keep);
+}
+
+// Battles (and quest fights) use the active deck.
+async function _dbActivate(id) {
+  const r = await apiFetch('/api/decks/' + id + '/activate', { method: 'POST' });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { _dbFeedback('⚠️ ' + (d.error || 'Failed')); return; }
+  (_dbData.templates || []).forEach(t => { t.is_active = t.id === id; });
+  _dbRender();
+  _dbFeedback('✓ Battles will use this deck');
+}
+
+async function _dbDelete(id) {
+  const r = await apiFetch('/api/decks/' + id, { method: 'DELETE' });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { _dbConfirmDelete = false; _dbRender(); _dbFeedback('⚠️ ' + (d.error || 'Failed')); return; }
+  await _dbLoad();
+  _dbFeedback('✓ Deck deleted');
 }
 
 function _dbBody(html) { const b = document.getElementById('db-body'); if (b) b.innerHTML = html; }

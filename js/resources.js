@@ -490,26 +490,12 @@ function _renderModalBody() {
 
   document.getElementById('rm-body').innerHTML = rows;
 
-  // Wire up citizen click → open citizen modal. We try a few likely
-  // function names since I don't know what the project actually exposes;
-  // first one that exists wins. If none exist we just log a hint so the
-  // user can wire it up.
+  // A citizen's name opens their profile (js/citizens.js openCitizenProfile).
   document.getElementById('rm-body').querySelectorAll('.rm-citizen-link').forEach(span => {
     span.addEventListener('click', () => {
-      const id = Number(span.dataset.citizenId);
-      const handlers = [
-        'openCitizenProfile',  // this project's actual handler (citizens.js:214)
-        'openCitizenModal', 'showCitizenModal', 'viewCitizen',
-        'openCitizen', '_openCitizenModal',
-      ];
-      for (const name of handlers) {
-        if (typeof window[name] === 'function') {
-          closeResourceModal();
-          try { window[name](id); } catch(e) { console.error('[resources] citizen handler threw', e); }
-          return;
-        }
-      }
-      console.warn('[resources] no citizen modal handler found. Add e.g. window.openCitizenModal = ... and this link will work.');
+      if (typeof openCitizenProfile !== 'function') return;
+      closeResourceModal();
+      openCitizenProfile(Number(span.dataset.citizenId));
     });
   });
 }
