@@ -56,7 +56,9 @@
       <p>Grandeur costs upkeep: each finished wonder, and each City building level above 3, takes wealth every hour. If the treasury runs dry, wonders lie dormant and happiness drops until wealth returns.</p>`,
       open: [['🏛 Your town', link('KWTown.open', 'festival')]] },
     { id: 'clans', icon: '🛡', title: 'Clans', body: `
-      <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>`,
+      <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>
+      <p>Members can give wealth to the clan <b>treasury</b> (up to 2,000 a day, earning prestige). Officers and above spend it on week-long <b>boons</b> for everyone: more food, faster crafting, quicker research, lower Market fees, or an Iron Wall against raids. Clan land pays the treasury every day, and members' outposts on it work harder and are harder to raid.</p>
+      <p>Each week brings three clan <b>goals</b> — quests, battles, crafting, gifts, raids repelled. Meeting one pays prestige and treasury; a clan also earns <b>honors</b> for goals, land, levels and Wonders, shown on its profile.</p>`,
       open: [['🛡 Clan', link('openClanPanel')]] },
     { id: 'quests', icon: '📜', title: 'Quests and the Watchtower', body: `
       <p>The tavern's <b>notice board</b> shows a fresh set of quests every day (it turns over at midnight UTC). Some quests only appear at night or under a full moon — take them while you can.</p>

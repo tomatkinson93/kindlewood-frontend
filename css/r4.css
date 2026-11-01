@@ -124,3 +124,24 @@
 .diplo-decay.decaying { color: #f0a080; background: rgba(190, 80, 50, .14); border-color: rgba(224, 122, 106, .4); }
 .diplo-tribute-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: #e8d9a8; }
 .diplo-tribute-done { color: #8ecf7e; font-size: 12px; }
+
+/* ── Clans (group 4): treasury, boons, goals, honors ─────────────────── */
+.ct-give { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.ct-amount { width: 110px; font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 6px; color: #f1dca0; background: rgba(20, 16, 10, .8); border: 1px solid rgba(201, 164, 92, .45); }
+.ct-boon .clan-btn:disabled, .ct-give .clan-btn:disabled { opacity: .45; cursor: default; filter: grayscale(.6); }
+.ct-boons { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.ct-boon { padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(201, 164, 92, .25); background: rgba(40, 33, 20, .35); display: flex; flex-direction: column; gap: 4px; }
+.ct-boon.on { border-color: rgba(142, 207, 126, .55); background: rgba(60, 90, 40, .25); }
+.ct-boon-live { font-size: 11px; color: #8ecf7e; }
+.ct-boon .clan-btn { align-self: flex-start; }
+.ct-log li { display: flex; justify-content: space-between; gap: 10px; }
+.ct-goals { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.ct-goal-head { display: flex; gap: 6px; align-items: baseline; }
+.ct-goal-n { margin-left: auto; font-size: 12px; opacity: .85; white-space: nowrap; }
+.ct-goal.done .ct-goal-n { color: #8ecf7e; }
+.ct-bar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, .08); overflow: hidden; margin-top: 4px; }
+.ct-bar-fill { height: 100%; background: linear-gradient(90deg, #b8952f, #e8c76a); }
+.ct-goal.done .ct-bar-fill { background: linear-gradient(90deg, #5a9a4a, #8ecf7e); }
+.ct-all-done { color: #e8c76a; }
+.ct-honors, .cp-honor-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.ct-honor, .cp-honor { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 14px; font-size: 12px; border: 1px solid rgba(232, 200, 122, .4); background: rgba(120, 90, 30, .2); cursor: help; }

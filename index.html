@@ -49,7 +49,7 @@
   <link rel="stylesheet" href="/css/famine.css?v=r3c">
   <link rel="stylesheet" href="/css/mail.css?v=r3">
   <link rel="stylesheet" href="/css/wonders.css?v=r3">
-  <link rel="stylesheet" href="/css/r4.css?v=r4c">
+  <link rel="stylesheet" href="/css/r4.css?v=r4e">
   <link rel="stylesheet" href="/css/research.css?v=g4">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
@@ -818,7 +818,7 @@
   <script defer src="/js/stores.js?v=g3"></script>
   <script defer src="/js/famine.js?v=r3"></script>
   <script defer src="/js/mail.js?v=r2"></script>
-  <script defer src="/js/help.js?v=r4c"></script>
+  <script defer src="/js/help.js?v=r4d"></script>
   <script defer src="/js/wonders.js?v=r4c"></script>
   <script defer src="/js/cards.js?v=r4b"></script>
   <script defer src="/js/raids.js?v=r4c"></script>
@@ -892,9 +892,10 @@
   <script defer src="/js/combat-ui.js?v=r4b"></script>
   <script defer src="/js/battles.js?v=1778441000"></script>
   <script defer src="/js/clan-palette.js?v=cp2"></script>
-  <script defer src="/js/clans.js?v=cq1"></script>
-  <script defer src="/js/clan-profile.js?v=r2"></script>
+  <script defer src="/js/clans.js?v=r4d"></script>
+  <script defer src="/js/clan-profile.js?v=r4d"></script>
   <script defer src="/js/clan-quests.js?v=r4a"></script>
+  <script defer src="/js/clan-treasury.js?v=r4d"></script>
   <script defer src="/js/chat-hub.js?v=r2"></script>
   <script defer src="/js/market.js?v=g5"></script>
   <script defer src="/js/travel.js?v=tp2"></script>
@@ -1074,6 +1075,11 @@
           <button class="cheat-res-btn" onclick="KWRaids.devSend()">🔥 Send a raid (6 hours' warning)</button>
           <button class="cheat-res-btn" onclick="KWRaids.devSend(2)">🔥 Send a raid (2 minutes)</button>
           <button class="cheat-res-btn" onclick="KWRaids.devResolve()">⚔️ Resolve the raid now</button>
+        </div>
+
+        <div class="cheat-section-label" style="margin-top:14px">💰 Clan</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="cheat-res-btn" onclick="ClanTreasury.devAddTreasury(1000)">💰 Add 1,000 to my clan's treasury</button>
         </div>
       </div>
 
