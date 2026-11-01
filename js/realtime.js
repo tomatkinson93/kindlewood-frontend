@@ -161,6 +161,9 @@
     ore_sample(ev) { if (global.KWStores) global.KWStores.onOreSample(ev); },
     // The Library (js/research.js): a project finished.
     research_done(ev) { if (global.KWLibrary) global.KWLibrary.onEvent(ev); },
+    // Cards and battle loot (js/cards.js): toasts.
+    battle_spoils(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
+    card_unlocked(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
     // Letters (js/mail.js): one arrived — badge and toast.
     mail(ev) { if (global.KWMail) global.KWMail.onEvent(ev); },
     site_role_changed(ev) {

@@ -86,3 +86,24 @@
   background: rgba(120, 100, 60, .18);
   border: 1px solid rgba(232, 200, 122, .25);
 }
+
+/* ── Cards (group 2): deck builder, village teaching, battle spoils ──── */
+.db-collected { float: right; font-size: 11px; font-weight: normal; color: rgba(232, 200, 122, .8); }
+.db-row.db-locked { opacity: .55; cursor: help; }
+.db-row.db-locked:hover { background: rgba(40, 33, 20, .4); }
+.db-rarity-uncommon { color: #8ecf7e !important; }
+.db-rarity-rare { color: #7ab8e8 !important; }
+.db-rarity-epic { color: #c08ae8 !important; }
+.db-rarity-legendary { color: #e8c76a !important; }
+.kc-note { font-size: 12px; color: rgba(232, 217, 168, .8); margin: 2px 0 8px; }
+.kc-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.kc-card { padding: 8px 10px; border-radius: 6px; color: #e8d9a8; background: rgba(30, 24, 14, .85); border: 1px solid rgba(201, 164, 92, .3); }
+.kc-card b { color: #f1dca0; }
+.kc-card-head { font-size: 13px; }
+.kc-rarity { font-size: 11px; text-transform: capitalize; margin-left: 4px; }
+.kc-cost { float: right; font-size: 11px; opacity: .8; }
+.kc-desc { font-size: 12px; opacity: .85; margin: 4px 0 6px; }
+.kc-act { text-align: right; }
+.kc-owned { color: #8ecf7e; font-size: 12px; }
+.kc-locked { color: rgba(232, 200, 122, .7); font-size: 12px; }
+.cm-result-card { margin: 8px 0; padding: 6px 10px; border-radius: 6px; color: #f1dca0; background: rgba(120, 90, 160, .25); border: 1px solid rgba(190, 170, 255, .35); }

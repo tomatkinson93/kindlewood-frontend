@@ -1628,8 +1628,10 @@
       const reward = endEvt.reward || {};
       bodyHtml += '<div class="cm-result-line">The party returns triumphant.</div>';
       if (reward.wealth) bodyHtml += '<div class="cm-result-reward">🪙 +' + reward.wealth + ' gold</div>';
+      // Quest battles: the server's own spoils replace this preview once
+      // /resolve answers (_renderSpoils below).
       if (reward.drops && reward.drops.length) {
-        bodyHtml += '<div class="cm-result-drops"><div class="cm-result-drops-title">Spoils</div>'
+        bodyHtml += '<div class="cm-result-drops" id="cm-result-drops"><div class="cm-result-drops-title">Spoils</div>'
           + reward.drops.map(d => '<span class="cm-result-drop">📦 ' + _escapeHtml(d.item) + ' ×' + d.qty + '</span>').join('')
           + '</div>';
       }
@@ -1704,9 +1706,28 @@
             const injHtml = _renderInjuriesBlock(data.injuries);
             if (injHtml) body.insertAdjacentHTML('beforeend', injHtml);
           }
+          if (data.spoils) _renderSpoils(body, data.spoils);
         }
       } catch(e) { console.error('combat resolve failed', e); }
     }
+  }
+
+  // What the server really granted: loot added to the stores (with names
+  // and icons) and any new card. Replaces the engine's preview.
+  function _renderSpoils(body, sp) {
+    const old = body.querySelector('#cm-result-drops');
+    const items = sp.items || [];
+    let html = '';
+    if (items.length) {
+      html += '<div class="cm-result-drops" id="cm-result-drops"><div class="cm-result-drops-title">Spoils — added to your stores</div>'
+        + items.map(d => '<span class="cm-result-drop">' + _escapeHtml(d.icon || '📦') + ' ' + _escapeHtml(d.name) + ' ×' + d.qty + '</span>').join('')
+        + '</div>';
+    }
+    if (sp.card) {
+      html += '<div class="cm-result-card">🃏 New card: <b>' + _escapeHtml(sp.card.name) + '</b> — add it to a deck from the Deck Builder.</div>';
+    }
+    if (old) old.outerHTML = html || '';
+    else if (html) body.insertAdjacentHTML('beforeend', html);
   }
 
   // ── Public surface (also expose handlers used from inline onclicks) ─────

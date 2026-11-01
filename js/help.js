@@ -63,6 +63,10 @@
       <p>A solo quest can be <b>abandoned</b> while it's under way, as long as no battle has started; the citizen comes home empty-handed.</p>
       <p>A <b>Watchtower</b> (Village) gives Guards and Archers a post: each one on watch cheers the town (+1 happiness, up to +5) and adds to its defence.</p>`,
       open: [['📜 Notice board', link('openNoticeboard')]] },
+    { id: 'battles', icon: '⚔', title: 'Battles and cards', body: `
+      <p>Quests can lead to a fight. The creatures you meet belong to the land — marsh things in the marsh, ogres in the hills — and some only come out at night. Many have tricks: poison, stuns, shrieks that weaken, healers that patch up their kin.</p>
+      <p>Win and the loot they carried goes straight into your stores. Your party fights with a <b>deck of cards</b>. Everyone starts with nine; more are won in battle now and then, found on quests, or taught by an <b>Allied</b> village (two a week, for wealth). A deck can only hold cards you own.</p>`,
+      open: [['🃏 Deck Builder', link('openDeckBuilder')]] },
     { id: 'tavern', icon: '🍺', title: 'Tavern games', body: `
       <p>Play <b>Briarwood Court</b> or <b>Squirrel's Stash</b> at the tavern, alone against AI courtiers or with other players.</p>
       <p>A win pays <b>4 wealth</b>, for up to 10 wins a day. Every win counts on the rankings.</p>`,
