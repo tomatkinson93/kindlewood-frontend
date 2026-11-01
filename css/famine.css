@@ -8,17 +8,12 @@
   display: block;
   margin: 4px 8px 0;
 }
-/* Over the top of the map (index.html puts it inside .map-area), clear of
-   the ▲ pan arrow. */
-.map-area > .famine-banner.open {
-  position: absolute;
-  top: 42px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
+/* Over the top of the map, inside .map-banners (css/wonders.css places the
+   stack, clear of the ▲ pan arrow). */
+.map-banners > .famine-banner.open {
   margin: 0;
   width: max-content;   /* as wide as the message, up to the max; then it wraps */
-  max-width: min(640px, calc(100% - 32px));
+  max-width: 100%;
 }
 .famine-banner-preview {
   margin-left: auto;
@@ -34,7 +29,7 @@
 /* Phones: the text wraps instead of being cut off, and the banner sits on
    top of the floating topbar's fade (js/famine.js sets its top). */
 body.kw-shell .famine-banner .famine-banner-detail { white-space: normal; }
-body.kw-shell .map-area > .famine-banner.open { z-index: 41; left: 12px; right: 12px; width: auto; transform: none; max-width: none; }
+body.kw-shell .map-banners > .famine-banner.open { width: auto; }
 body.kw-shell .famine-banner-inner { flex-wrap: wrap; row-gap: 2px; }
 
 .famine-banner-inner {

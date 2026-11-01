@@ -53,6 +53,8 @@
     craft_xp: v => `+${pctTxt(v)} crafting XP`,
     quality: v => `+${v} craft quality`,
     carry: v => `+${pctTxt(v)} porter and merchant carry weight`,
+    wonder_speed: v => `Wonder stages build ${pctTxt(v)} faster`,
+    wonder_upkeep: v => `−${pctTxt(v)} Wonder upkeep`,
   };
   // p.unlocks comes from the server (only for projects the town can see).
   function unlockList(proj) {

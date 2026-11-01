@@ -20,6 +20,7 @@
       B('score', 'Overall Score', { icon: '🏰', title: 'No settlements yet', text: 'Found a settlement and grow it — tiers, buildings, citizens and research all count.' }),
       B('wealth', 'Wealth', { icon: '🪙', title: 'No treasuries yet', text: 'Trade, quest and build to fill your coffers.' }),
       B('population', 'Population', { icon: '👥', title: 'No citizens yet', text: 'Grow your settlement and your people will follow.' }),
+      B('greatworks', 'Great Works', { icon: '🏛️', title: 'No wonders yet', text: 'Grow to a City and raise the first Wonder.' }),
     ]},
     { group: 'Citizens', items: [
       B('skilled', 'Most Skilled', { icon: '🎓', title: 'No careers yet', text: 'Give citizens jobs; they level up as they work.' }, { citizen: true }),

@@ -340,10 +340,11 @@ function _showTooltip(resId, anchorRect, data) {
   if (sum.citizen_role) rows.push(['Citizens', sum.citizen_role]);
   if (sum.outpost) rows.push(['Outposts', sum.outpost]);
   if (sum.season_multiplier) rows.push([data.season.name + ' ' + (data.season.emoji || ''), sum.season_multiplier]);
+  if (sum.town_bonus) rows.push(['Town bonuses', Math.round(sum.town_bonus * 10) / 10]);
   // Upkeep — citizen + outpost combined (both negative). Without this line
   // any upkeep kind silently vanishes from the hover while still counting
   // toward the total, which reads as a math error.
-  const upkeepSum = (sum.citizen_upkeep || 0) + (sum.outpost_upkeep || 0);
+  const upkeepSum = (sum.citizen_upkeep || 0) + (sum.outpost_upkeep || 0) + (sum.wonder_upkeep || 0) + (sum.city_upkeep || 0);
   if (upkeepSum) rows.push(['Upkeep', upkeepSum]);
 
   const html = `
@@ -443,6 +444,9 @@ function _sourceIcon(kind, role, source) {
   }
   if (kind === 'outpost_upkeep') return '🏕';
   if (kind === 'citizen_upkeep') return '🍽';
+  if (kind === 'town_bonus') return '🏛';      // festival, wonders (lib/town_mods)
+  if (kind === 'wonder_upkeep') return '🏛';
+  if (kind === 'city_upkeep') return '🏗';
   return '•';
 }
 

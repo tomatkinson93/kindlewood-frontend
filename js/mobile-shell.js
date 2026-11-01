@@ -564,7 +564,7 @@
     var ids = [
       'tavern-overlay', 'fishing-overlay', 'combat-modal',
       'settlement-view', 'sq-backdrop', 'bcmp-backdrop',
-      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel'
+      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay'
     ];
     var wasOpen = false;
 

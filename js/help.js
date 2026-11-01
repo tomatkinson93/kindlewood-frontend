@@ -49,6 +49,11 @@
       <p>Found an <b>outpost</b> on a nearby tile to gather what that land offers: food on plains, timber in forests, stone and ores in hills, iron and rare finds in mountains.</p>
       <p>Your tier decides how many outposts you can run and how far away. Outposts can be upgraded to level 3 for more yield — each level eats a little more food.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
+    { id: 'wonders', icon: '🏛', title: 'Festivals, Wonders and upkeep', body: `
+      <p>Any town can hold a <b>festival</b>: it costs wealth and food, and for 24 hours brings +10 happiness and +10% production. After one, the town needs 72 hours (from the start) before the next.</p>
+      <p>A <b>City</b> whose scholars have learned how to raise great works can build <b>Wonders</b> — five great works, each built in three stages, needing metals and rare materials (the last stage an Ancient Blueprint). A finished wonder gives a permanent bonus.</p>
+      <p>Grandeur costs upkeep: each finished wonder, and each City building level above 3, takes wealth every hour. If the treasury runs dry, wonders lie dormant and happiness drops until wealth returns.</p>`,
+      open: [['🏛 Your town', link('KWTown.open', 'festival')]] },
     { id: 'clans', icon: '🛡', title: 'Clans', body: `
       <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>`,
       open: [['🛡 Clan', link('openClanPanel')]] },
