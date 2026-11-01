@@ -47,6 +47,8 @@ function startResourceTick(resources, rates) {
             gameData.settlement.new_discoveries = data.settlement.new_discoveries || [];
           }
           if (window.KWStores) KWStores.onSettlement(data.settlement);
+          if (gameData?.settlement) gameData.settlement.famine = data.settlement.famine || null;
+          if (typeof renderFamineBanner === 'function') renderFamineBanner(data.settlement.famine);
           // Reset baseline after the sync — the server may have added a
           // chunk of resources for offline time, and we don't want a
           // surprise "+8,432 food" floater to flash over the topbar.

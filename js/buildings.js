@@ -339,6 +339,7 @@ function openCheatMenu() {
   if (!_kwIsAdmin()) return;
   document.getElementById('cheat-modal').classList.add('open');
   _populateCheatCitizenDropdowns();
+  if (window.KWFamineDev) KWFamineDev.status();
 }
 function closeCheatMenu() {
   document.getElementById('cheat-modal').classList.remove('open');
@@ -595,6 +596,29 @@ async function applyCheatExtras(amount) {
     });
     const data = await res.json();
     if (res.ok) { _cheatSync(data); showBuildToast(`Ores, rares and alloys +${amount} ✓`, 'success'); }
+  } catch (e) { console.error(e); }
+}
+
+// Dev Tools → 🍽 Famine banner: really empty the stores (the cheat floors at
+// 0), then show the town's real famine state from the server. Loading the
+// settlement first banks the food grown while away, so it doesn't refill.
+async function cheatEmptyFood() {
+  try {
+    await apiFetch('/api/game/settlement');
+    const res = await apiFetch('/api/game/cheat/resources', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ food: -999999999 }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showBuildToast(data.error || 'Could not empty the stores.', 'error'); return; }
+    _cheatSync(data);
+    const s = await (await apiFetch('/api/game/settlement')).json();
+    if (s && s.settlement && gameData?.settlement) gameData.settlement.famine = s.settlement.famine;
+    if (window.KWFamineDev) KWFamineDev.live();
+    if (typeof renderFamineBanner === 'function') renderFamineBanner(s && s.settlement ? s.settlement.famine : null);
+    const st = s && s.settlement && s.settlement.famine ? s.settlement.famine.state : 'ok';
+    showBuildToast(st === 'ok'
+      ? 'Food stores emptied — but your town grows more than it eats, so it stays fed. Use the previews to see the banner.'
+      : `Food stores emptied — the town is now "${st}".`, st === 'ok' ? 'info' : 'success');
   } catch (e) { console.error(e); }
 }
 
