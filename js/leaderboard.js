@@ -11,25 +11,30 @@
 // podium(row) → HTML for the stat line under a podium name.
 
 (function () {
+  // board: true → GET /api/stats/board/:id (server lib/rankings.js), which
+  // sends { columns, rows: [{ rank, name, sub, values, you }], you }.
+  // citizen: the row names a citizen, not a player (no profile to open).
+  const B = (id, name, empty, extra) => Object.assign({ id, name, live: true, board: true, endpoint: '/api/stats/board/' + id, empty }, extra || {});
   const CATEGORIES = [
     { group: 'Settlements', items: [
-      { id: 'score',      name: 'Overall Score', live: false },
-      { id: 'wealth',     name: 'Wealth',        live: false },
-      { id: 'population', name: 'Population',     live: false },
+      B('score', 'Overall Score', { icon: '🏰', title: 'No settlements yet', text: 'Found a settlement and grow it — tiers, buildings, citizens and research all count.' }),
+      B('wealth', 'Wealth', { icon: '🪙', title: 'No treasuries yet', text: 'Trade, quest and build to fill your coffers.' }),
+      B('population', 'Population', { icon: '👥', title: 'No citizens yet', text: 'Grow your settlement and your people will follow.' }),
     ]},
     { group: 'Citizens', items: [
-      { id: 'skilled',    name: 'Most Skilled',     live: false },
-      { id: 'adventurous',name: 'Most Adventurous', live: false },
-      { id: 'oldest',     name: 'Oldest',           live: false },
+      B('skilled', 'Most Skilled', { icon: '🎓', title: 'No careers yet', text: 'Give citizens jobs; they level up as they work.' }, { citizen: true }),
+      B('adventurous', 'Most Adventurous', { icon: '🗺️', title: 'No quests won yet', text: 'Send parties out from the tavern board.' }, { citizen: true }),
+      B('oldest', 'Oldest', { icon: '🕰️', title: 'No elders yet', text: 'Look after your citizens and they will grow old.' }, { citizen: true }),
     ]},
     { group: 'Fishing', items: [
-      { id: 'biggest',    name: 'Biggest Fish', live: false },
-      { id: 'mostfish',   name: 'Most Fish',    live: false },
+      B('biggest', 'Biggest Fish', { icon: '🐟', title: 'No catches yet', text: 'Cast a line at the Fishing Post.' }),
+      B('mostfish', 'Most Fish', { icon: '🎣', title: 'No catches yet', text: 'Cast a line at the Fishing Post.' }),
     ]},
     { group: 'Tavern Games', items: [
       { id: 'briar',      name: 'Briarwood Court Wins', live: true,
         endpoint: '/api/stats/leaderboard?game=briar',
         columns: ['Wins', 'Games'], map: r => [r.username, r.wins, r.games] },
+      B('squirrel', "Squirrel's Stash Wins", { icon: '🐿️', title: 'No champions yet', text: "Win a round of Squirrel's Stash at the tavern." }),
     ]},
     { group: 'Clans', items: [
       { id: 'clanprestige', name: 'Clan Prestige', live: true,
@@ -39,9 +44,6 @@
         podium: row => `${_esc(row[1])} prestige · Level ${_esc(row[2])}`,
         empty: { icon: '🛡️', title: 'No clans yet',
                  text: 'Build a Guild Hall in a Town, found a clan, and raise its banner here.' } },
-    ]},
-    { group: 'Achievements', items: [
-      { id: 'achpoints',  name: 'Achievement Points', live: false },
     ]},
   ];
 
@@ -118,12 +120,14 @@
   }
 
   async function _loadLive(item, content) {
-    let rows = [];
+    let rows = [], you = null, boardCols = null;
     try {
       const res = await apiFetch(item.endpoint);
       const data = await res.json();
-      rows = (data && data.leaderboard) || [];
+      if (item.board) { rows = (data && data.rows) || []; you = data && data.you; boardCols = data && data.columns; }
+      else rows = (data && data.leaderboard) || [];
     } catch (e) {}
+    if (_active !== item.id) return;   // switched boards while this loaded
 
     if (!rows.length) {
       const e = item.empty || { icon: '🃏', title: 'No champions yet',
@@ -137,14 +141,19 @@
     }
     // Player boards open a player profile on click; clan boards the clan's
     // public profile (i = index into the raw rows).
-    const click = (name, i) => item.rowAction === 'clan'
+    const click = (name, i) => item.citizen ? ''
+      : item.rowAction === 'clan'
       ? ` onclick="openClanProfile(${parseInt(rows[i].id, 10)})" title="View ${_esc(name)}"`
       : ` onclick="Leaderboard._viewProfile('${_esc(name)}')" title="View ${_esc(name)}"`;
 
-    const mapped = rows.map(item.map);
+    // Server boards: name + values; the town line and "you" ride alongside.
+    const mapped = item.board ? rows.map(r => [r.name, ...r.values]) : rows.map(item.map);
+    const sub = i => (item.board && rows[i] && rows[i].sub ? `<div class="lb-sub-line">${_esc(rows[i].sub)}</div>` : '');
+    const mine = i => (item.board && rows[i] && rows[i].you ? ' lb-you' : '');
     const podium = mapped.slice(0, 3);
     const rest = mapped.slice(3);
-    const cols = item.columns;
+    const cols = boardCols || item.columns;
+    const statLine = row => item.board ? row.slice(1).map(_esc).join(' · ') : null;
 
     const medal = ['gold', 'silver', 'bronze'];
     const trophy = ['🥇', '🥈', '🥉'];
@@ -155,10 +164,10 @@
       ${order.map(i => {
         const row = podium[i];
         if (!row) return '';
-        return `<div class="lb-podium-spot ${medal[i]} place-${i + 1}"${click(row[0], i)}>
+        return `<div class="lb-podium-spot ${medal[i]} place-${i + 1}${mine(i)}"${click(row[0], i)}>
           <div class="lb-podium-trophy">${trophy[i]}</div>
-          <div class="lb-podium-name">${_esc(row[0])}</div>
-          <div class="lb-podium-stat">${item.podium ? item.podium(row) : `${_esc(row[1])} ${_esc(cols[0].toLowerCase())}${row[2] != null ? ` <span class="lb-podium-games">(${_esc(row[2])} ${_esc((cols[1]||'games').toLowerCase())})</span>` : ''}`}</div>
+          <div class="lb-podium-name">${_esc(row[0])}</div>${sub(i)}
+          <div class="lb-podium-stat">${item.board ? statLine(row) : item.podium ? item.podium(row) : `${_esc(row[1])} ${_esc(cols[0].toLowerCase())}${row[2] != null ? ` <span class="lb-podium-games">(${_esc(row[2])} ${_esc((cols[1]||'games').toLowerCase())})</span>` : ''}`}</div>
           <div class="lb-podium-base">${i + 1}</div>
         </div>`;
       }).join('')}
@@ -167,15 +176,17 @@
     const restHtml = rest.length ? `<table class="lb-table">
       <thead><tr><th>#</th><th>Name</th>${cols.map(c => `<th>${_esc(c)}</th>`).join('')}</tr></thead>
       <tbody>
-        ${rest.map((row, idx) => `<tr class="lb-row-click"${click(row[0], idx + 3)}>
+        ${rest.map((row, idx) => `<tr class="${item.citizen ? '' : 'lb-row-click'}${mine(idx + 3)}"${click(row[0], idx + 3)}>
           <td class="lb-rank">${idx + 4}</td>
-          <td class="lb-name">${_esc(row[0])}</td>
+          <td class="lb-name">${_esc(row[0])}${sub(idx + 3)}</td>
           ${row.slice(1).map(v => `<td>${_esc(v)}</td>`).join('')}
         </tr>`).join('')}
       </tbody>
     </table>` : '';
+    // Your own place when you're below the top rows.
+    const youHtml = you ? `<div class="lb-you-row">Your place: <b>#${_esc(you.rank)}</b> — ${_esc(you.name)}${you.sub ? ` (${_esc(you.sub)})` : ''} · ${you.values.map(_esc).join(' · ')}</div>` : '';
 
-    content.innerHTML = podiumHtml + restHtml;
+    content.innerHTML = podiumHtml + restHtml + youHtml;
   }
 
   function _viewProfile(name) {
