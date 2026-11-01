@@ -106,15 +106,6 @@
     const content = document.getElementById('lb-content');
     if (!content || !item) return;
 
-    if (!item.live) {
-      content.innerHTML = `<div class="lb-soon">
-        <div class="lb-soon-icon">🌿</div>
-        <div class="lb-soon-title">${_esc(item.name)}</div>
-        <div class="lb-soon-text">This leaderboard is being tallied by the realm's scribes. Check back soon.</div>
-      </div>`;
-      return;
-    }
-
     content.innerHTML = `<div class="lb-loading">Consulting the ledgers…</div>`;
     _loadLive(item, content);
   }

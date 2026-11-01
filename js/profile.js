@@ -28,10 +28,11 @@ async function renderHonors(prefix, username) {
     if (el) el.textContent = v;
   };
 
-  // Placeholder state — zeros, empty pedestals (already in the HTML)
-  set(`${prefix}-honor-points`, '0');
-  set(`${prefix}-honor-completion`, '0%');
-  set(`${prefix}-honor-trophies`, '0');
+  // The strip and the trophy cabinet stay hidden until honors exist.
+  const strip = document.getElementById(`${prefix}-honor-points`)?.closest('.pm-honors');
+  const cabinet = document.getElementById(`${prefix}-cabinet`)?.closest('.pm-section');
+  const show = on => { if (strip) strip.hidden = !on; if (cabinet) cabinet.hidden = !on; };
+  show(false);
 
   if (!PROFILE_HONORS_LIVE || !username) return;
 
@@ -39,6 +40,7 @@ async function renderHonors(prefix, username) {
     const res = await apiFetch(`/api/achievements/summary/${encodeURIComponent(username)}`);
     if (!res.ok) return;
     const d = await res.json();
+    show(true);
 
     set(`${prefix}-honor-points`, d.points ?? 0);
     set(`${prefix}-honor-completion`, `${d.completion ?? 0}%`);
@@ -210,11 +212,6 @@ async function loadProfileStats() {
     document.getElementById('pm-stat-tier').textContent       = tier;
     document.getElementById('pm-stat-expeditions').textContent = exps;
   } catch(e) { console.error(e); }
-}
-
-function triggerAvatarUpload() {
-  // Placeholder — no file upload server yet
-  showBuildToast('Avatar upload coming soon!', 'success');
 }
 
 // ── View other player profile ─────────────────────────────────────────────

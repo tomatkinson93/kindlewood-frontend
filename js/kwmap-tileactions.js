@@ -120,7 +120,6 @@
     if (CU && tile.clan_territory) html += row('Territory', CU.territoryLineHtml(tile));
     const claimHtml = CU ? CU.claimButtonHtml(tile) : '';
     if (claimHtml) html += `<div class="td-actions">${claimHtml}</div>`;
-    html += `<div class="td-soon">More coming soon: citizens here, points of interest, resource breakdown &amp; fertility, water &amp; fish detail.</div>`;
     return html;
   }
 

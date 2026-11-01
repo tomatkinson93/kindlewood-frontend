@@ -516,10 +516,7 @@
           <div class="profile-menu" id="profile-menu" role="menu">
             <button class="profile-menu-item" onclick="openProfile(); closeProfileMenu()">👤 Profile</button>
             <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🏛️ Your Kingdom</button>
-            <button class="profile-menu-item disabled">👥 Friends <span class="coming-soon">soon</span></button>
-            <button class="profile-menu-item disabled">📜 Achievements <span class="coming-soon">soon</span></button>
             <div class="profile-menu-divider"></div>
-            <button class="profile-menu-item" onclick="switchTab('settlement'); closeProfileMenu()">🌍 Switch Realm</button>
             <button class="profile-menu-item" onclick="openSettingsPopover(); closeProfileMenu()">⚙️ Settings</button>
             <button class="profile-menu-item" onclick="showCommunityTab('help'); closeProfileMenu()">❓ Help</button>
             <div class="profile-menu-divider"></div>
@@ -800,15 +797,15 @@
   <!-- Toast notification stack -->
   <div id="toast-stack" class="toast-stack"></div>
 
-  <script defer src="/js/config.js"></script>
+  <script defer src="/js/config.js?v=r2"></script>
   <script defer src="/js/day-cycle.js?v=021p6"></script>
   <script defer src="/js/happening-effects.js?v=rs1"></script>
   <script defer src="/js/server-clock.js?v=021adm"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
   <script defer src="/js/game.js?v=r2"></script>
-  <script defer src="/js/resources.js?v=g3"></script>
+  <script defer src="/js/resources.js?v=r2"></script>
   <script defer src="/js/carousel.js?v=spec20b"></script>
-  <script defer src="/js/placement.js"></script>
+  <script defer src="/js/placement.js?v=r2"></script>
   <script defer src="/js/arrival.js?v=rs1"></script>
   <script defer src="/js/resource-defs.js?v=tq1"></script>
   <script defer src="/js/stores.js?v=g3"></script>
@@ -831,7 +828,7 @@
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=r2"></script>
-  <script defer src="/js/profile.js?v=r2"></script>
+  <script defer src="/js/profile.js?v=r2b"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
   <script defer src="/js/kwmap-core.js?v=tp1"></script>
@@ -847,14 +844,14 @@
   <script defer src="/js/kwmap-assets.js?v=1"></script>
   <script defer src="/js/kwmap-iso.js?v=gap1"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
-  <script defer src="/js/kwmap-tileactions.js?v=clan4"></script>
+  <script defer src="/js/kwmap-tileactions.js?v=r2"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
   <script defer src="/js/main.js?v=r2c"></script>
   <script defer src="/js/away-report.js?v=rs2"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
-  <script defer src="/js/leaderboard.js?v=r2"></script>
+  <script defer src="/js/leaderboard.js?v=r2b"></script>
   <script defer src="/js/briar_engine.js?v=13"></script>
   <script defer src="/js/squirrel_engine.js?v=16"></script>
   <script defer src="/js/games-meta.js?v=1"></script>
@@ -863,7 +860,7 @@
   <script defer src="/js/citizen-picker.js?v=kwp1"></script>
   <script defer src="/js/quests.js?v=cr2"></script>
   <script defer src="/js/fishing.js?v=021fish"></script>
-  <script defer src="/js/housing.js"></script>
+  <script defer src="/js/housing.js?v=r2"></script>
   <script defer src="/js/events.js?v=g5"></script>
   <script defer src="/js/inventory.js?v=cf5"></script>
   <script defer src="/js/diplomacy.js?v=g5"></script>
@@ -886,7 +883,7 @@
   <script defer src="/js/battles.js?v=1778441000"></script>
   <script defer src="/js/clan-palette.js?v=cp2"></script>
   <script defer src="/js/clans.js?v=cq1"></script>
-  <script defer src="/js/clan-profile.js?v=cp2"></script>
+  <script defer src="/js/clan-profile.js?v=r2"></script>
   <script defer src="/js/clan-quests.js?v=cr2"></script>
   <script defer src="/js/chat-hub.js?v=r2"></script>
   <script defer src="/js/market.js?v=g5"></script>
@@ -1403,7 +1400,7 @@
         <button class="community-close" onclick="closeCommunity()">✕</button>
       </div>
       <div class="community-card-body" id="community-body">
-        <div class="community-placeholder">Coming soon — this is where realm-wide news, notices and chat will live.</div>
+        <!-- Filled by the page that opens it (js/help.js; Letters use their own modal). -->
       </div>
     </div>
   </div>
@@ -1438,9 +1435,8 @@
       <button class="profile-modal-close" onclick="closeProfile()">✕</button>
 
       <div class="pm-header">
-        <div class="pm-avatar-wrap" id="pm-avatar-wrap" onclick="triggerAvatarUpload()" title="Click to change avatar">
+        <div class="pm-avatar-wrap" id="pm-avatar-wrap" style="cursor:default">
           <div class="pm-avatar" id="pm-avatar">?</div>
-          <div class="pm-avatar-overlay">📷</div>
         </div>
         <div class="pm-header-info">
           <div class="pm-username" id="pm-username">—</div>
@@ -1452,8 +1448,8 @@
       </div>
 
       <!-- Honors strip — populated by renderHonors('pm', …) in profile.js.
-           Shows zeros until the achievement system ships. -->
-      <div class="pm-honors">
+           Hidden until the achievement system ships (PROFILE_HONORS_LIVE). -->
+      <div class="pm-honors" hidden>
         <div class="pm-honor-chip">
           <span class="pm-honor-val" id="pm-honor-points">0</span>
           <span class="pm-honor-key">Achievement pts</span>
@@ -1482,7 +1478,7 @@
         </div>
       </div>
 
-      <div class="pm-section">
+      <div class="pm-section pm-honors-cabinet" hidden>
         <div class="pm-section-label">Trophy Cabinet</div>
         <div class="pm-cabinet" id="pm-cabinet">
           <div class="pm-cabinet-slot empty">✦</div>
@@ -1521,7 +1517,7 @@
         </div>
       </div>
 
-      <div class="pm-honors">
+      <div class="pm-honors" hidden>
         <div class="pm-honor-chip">
           <span class="pm-honor-val" id="vp-honor-points">0</span>
           <span class="pm-honor-key">Achievement pts</span>
@@ -1547,7 +1543,7 @@
         <div class="pm-settlements" id="vp-settlements"></div>
       </div>
 
-      <div class="pm-section">
+      <div class="pm-section pm-honors-cabinet" hidden>
         <div class="pm-section-label">Trophy Cabinet</div>
         <div class="pm-cabinet" id="vp-cabinet">
           <div class="pm-cabinet-slot empty">✦</div>
