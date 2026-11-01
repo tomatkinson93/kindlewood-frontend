@@ -28,6 +28,9 @@ w.KWHelp.go('openResourceModal', 'food'); w.KWHelp.go('KWMail.open');
 check('1d. a button closes Help, then opens the screen (with its argument, on its owner)', calls.join() === 'close,res:food,close,mail:true');
 check('1e. covers food, research, trade, reporting', ['food', 'research', 'market', 'safety'].every(id => w.KWHelp.TOPICS.some(t => t.id === id)));
 
+check('1f. every topic icon is one emoji (joined emoji split apart on some systems)', w.KWHelp.TOPICS.every(t => !/\u200d/.test(t.icon) && Array.from(t.icon.replace(/\ufe0f/g, '')).length === 1)
+  && !/width: 22px/.test(read('css/mail.css')));
+
 console.log('2. Numbers match the game');
 const text = w.KWHelp.TOPICS.map(t => t.body).join(' ');
 const srv = path.join(ROOT, '..', 'kindlewood-server');

@@ -23,7 +23,7 @@
       <p>When the stores start running low a banner appears over the map: <b>Stores dwindling</b>, then <b>Food critical</b>. If they run out — <b>Famine</b> — citizens go hungry, then start to starve and lose health.</p>
       <p>Fix it with farmers and fishers, a bigger Farm or Granary, outposts on plains, or by buying food at the Market.</p>`,
       open: [['🍞 Food breakdown', link('openResourceModal', 'food')]] },
-    { id: 'careers', icon: '🧑‍🌾', title: 'Citizens and careers', body: `
+    { id: 'careers', icon: '👥', title: 'Citizens and careers', body: `
       <p>Each job is a career with its own levels, from 1 to 20. Citizens gain experience by working, and each level makes them better at it.</p>
       <p>At <b>level 10</b> they choose a specialisation — a fork in their skill tree. Some talents only show themselves once a citizen has worked a while.</p>
       <p>Open a citizen and look at their Career tab to see their tree and what's next.</p>` },

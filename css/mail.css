@@ -60,7 +60,7 @@
 .help-topic summary::after { content: '▸'; float: right; opacity: .6; transition: transform .15s; }
 .help-topic[open] summary::after { transform: rotate(90deg); }
 .help-topic summary:focus-visible { outline: 2px solid #8a5a1c; outline-offset: -2px; border-radius: 8px; }
-.help-icon { display: inline-block; width: 22px; }
+.help-icon { display: inline-block; min-width: 1.6em; margin-right: .35em; text-align: center; }
 .help-body { padding: 0 14px 12px; font-size: 14px; line-height: 1.5; color: #2c2014; }
 .help-body p { margin: 6px 0; }
 .help-body ul { margin: 6px 0; padding-left: 20px; }

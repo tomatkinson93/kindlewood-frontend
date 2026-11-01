@@ -54,5 +54,9 @@ check('3d. Dev Tools: four previews, Back to live, Empty the food stores',
   ['low', 'critical', 'famine', 'ok'].every(s => dev.includes(`KWFamineDev.preview('${s}')`)) && /KWFamineDev\.live\(\)/.test(dev) && /cheatEmptyFood\(\)/.test(dev));
 check('3e. emptying the stores uses the admin cheat and shows the real state', /async function cheatEmptyFood\(\)[\s\S]*?\/api\/game\/cheat\/resources[\s\S]*?food: -999999999[\s\S]*?KWFamineDev\.live\(\)/.test(read('js/buildings.js')));
 
+const css = read('css/famine.css');
+const detail = css.slice(css.indexOf('.famine-banner-detail {'), css.indexOf('}', css.indexOf('.famine-banner-detail {')));
+check('3f. the message wraps instead of being cut off', /white-space: normal/.test(detail) && !/nowrap|ellipsis/.test(detail) && /width: max-content/.test(css));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
