@@ -237,7 +237,7 @@ async function invEquipItem(itemId) {
 }
 
 async function invDiscard(itemId) {
-  if (!confirm('Discard this item? This cannot be undone.')) return;
+  if (!await KWDialog.confirm({ title: 'Discard this item?', message: 'This cannot be undone.', ok: 'Discard', danger: true })) return;
   await apiFetch('/api/inventory/' + itemId, { method: 'DELETE' });
   document.getElementById('inv-detail-overlay')?.remove();
   await loadInventory();

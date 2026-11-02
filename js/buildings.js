@@ -213,7 +213,7 @@ function showBuildToast(msg, type='success') {
 
 // ── Cheat menu ──
 async function confirmRemoveBuilding(id, label) {
-  if (!confirm(`Demolish ${label}? This cannot be undone and you will not get resources back.`)) return;
+  if (!await KWDialog.confirm({ title: `Demolish ${label}?`, message: 'This cannot be undone and you will not get resources back.', ok: 'Demolish', danger: true })) return;
   await removeBuilding(id);
 }
 

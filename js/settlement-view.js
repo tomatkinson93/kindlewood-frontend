@@ -965,7 +965,7 @@ async function _svBuildHousing() {
 window._svBuildHousing = _svBuildHousing;
 
 async function _svDemolishHouse() {
-  if (!window.confirm('Demolish a Willow Hut? The most recently built home will be removed and its residents will be unhoused. You will receive 50% of build resources back.')) return;
+  if (!await KWDialog.confirm({ title: 'Demolish a Willow Hut?', message: 'The most recently built home will be removed and its residents will be unhoused. You will receive 50% of build resources back.', ok: 'Demolish', danger: true })) return;
   try {
     var res = await apiFetch('/api/buildings/remove', {
       method: 'POST',
@@ -974,7 +974,7 @@ async function _svDemolishHouse() {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Demolition failed.');
+      KWDialog.alert(d.error || 'Demolition failed.');
       return;
     }
     var d = await res.json();
@@ -985,7 +985,7 @@ async function _svDemolishHouse() {
     await _svLoad();
     _openHousingModal();
   } catch(e) {
-    alert('Demolition failed.');
+    KWDialog.alert('Demolition failed.');
   }
 }
 window._svDemolishHouse = _svDemolishHouse;
@@ -1002,12 +1002,12 @@ async function _svAssignToHouse(houseId) {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Could not assign citizen.');
+      KWDialog.alert(d.error || 'Could not assign citizen.');
       return;
     }
     _openHousingModal();
   } catch(e) {
-    alert('Assignment failed.');
+    KWDialog.alert('Assignment failed.');
   }
 }
 window._svAssignToHouse = _svAssignToHouse;
@@ -1021,12 +1021,12 @@ async function _svUnassignFromHouse(citizenId) {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Could not move citizen out.');
+      KWDialog.alert(d.error || 'Could not move citizen out.');
       return;
     }
     _openHousingModal();
   } catch(e) {
-    alert('Failed to move citizen out.');
+    KWDialog.alert('Failed to move citizen out.');
   }
 }
 window._svUnassignFromHouse = _svUnassignFromHouse;
@@ -1153,7 +1153,7 @@ async function _svBuild(buildingId) {
 window._svBuild = _svBuild;
 
 async function _svDemolish(buildingId) {
-  if (!window.confirm('Demolish this building? You will receive 50% of resources back.')) return;
+  if (!await KWDialog.confirm({ title: 'Demolish this building?', message: 'You will receive 50% of resources back.', ok: 'Demolish', danger: true })) return;
   _closeBuildPanel();
   try {
     var res = await apiFetch('/api/buildings/remove', {
@@ -1163,7 +1163,7 @@ async function _svDemolish(buildingId) {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Demolition failed.');
+      KWDialog.alert(d.error || 'Demolition failed.');
       return;
     }
     var d = await res.json();
@@ -1174,7 +1174,7 @@ async function _svDemolish(buildingId) {
     }
     await _svLoad();
   } catch(e) {
-    alert('Demolition failed.');
+    KWDialog.alert('Demolition failed.');
   }
 }
 window._svDemolish = _svDemolish;

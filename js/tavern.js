@@ -2052,7 +2052,7 @@ const SQ_IMG = c => {
 function startSquirrelSolo(difficulty) {
   if (!window.SquirrelEngine) {
     console.error('SquirrelEngine not loaded — deploy js/squirrel_engine.js');
-    alert('This game is still loading. Please refresh and try again.');
+    KWDialog.alert({ title: 'Still loading', message: 'This game is still loading. Please refresh and try again.' });
     return;
   }
   const names = ['Old Bracken', 'Sly Whisper', 'Marigold', 'Thorn'];

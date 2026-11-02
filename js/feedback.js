@@ -94,7 +94,7 @@ function _fbCard(r, admin) {
     + '</div>';
 }
 async function _fbToggle(id, status) { await apiFetch('/api/feedback/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); _fbRenderList(); }
-async function _fbDelete(id) { if (!confirm('Delete this report?')) return; await apiFetch('/api/feedback/' + id, { method: 'DELETE' }); _fbRenderList(); }
+async function _fbDelete(id) { if (!await KWDialog.confirm({ title: 'Delete this report?', ok: 'Delete', danger: true })) return; await apiFetch('/api/feedback/' + id, { method: 'DELETE' }); _fbRenderList(); }
 
 function _fbFeedback(msg) { const el = document.getElementById('fb-feedback'); if (!el) return; el.textContent = msg; el.style.color = msg.startsWith('✓') ? '#8ecf7e' : '#e07a6a'; setTimeout(() => { if (el) el.textContent = ''; }, 3500); }
 function _fbEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

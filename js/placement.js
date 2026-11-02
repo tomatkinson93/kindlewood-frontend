@@ -42,7 +42,7 @@ async function loadSpawn() {
     const res = await apiFetch('/api/map/spawn');
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || 'Could not generate spawn area.');
+      KWDialog.alert({ title: 'No spawn area', message: data.error || 'Could not generate spawn area.' });
       return;
     }
     spawnData = data;
@@ -171,7 +171,7 @@ async function confirmPlacement() {
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || 'Placement failed.');
+      KWDialog.alert({ title: 'Placement failed', message: data.error || 'Placement failed.' });
       btn.disabled = false;
       btn.textContent = 'Establish settlement here';
       return;

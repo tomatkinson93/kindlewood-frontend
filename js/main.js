@@ -1598,7 +1598,7 @@ async function _foundOutpostHere(btn, tile) {
 async function _dismantleOutpost(btn, tile) {
   const mine = (_outpostStatus?.outposts || []).find(o => String(o.id) === String(btn.dataset.opDismantle));
   const back = mine?.refund ? Object.entries(mine.refund).map(([r, v]) => `${RES_GLYPHS[r] || _resIcon(r)} ${v}`).join(' · ') : '';
-  if (!confirm('Dismantle this outpost?' + (back ? ` About half of what it cost comes back: ${back}.` : ''))) return;
+  if (!await KWDialog.confirm({ title: 'Dismantle this outpost?', message: back ? `About half of what it cost comes back: ${back}.` : 'Its crew comes home.', ok: 'Dismantle', danger: true })) return;
   btn.disabled = true;
   try {
     const id = btn.dataset.opDismantle;
