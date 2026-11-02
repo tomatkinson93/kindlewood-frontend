@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  KWRaidLayer — a Withered raid on its way, on the world map (uifx canvas)
 //
+//  Withered camps (map tiles with a camp) get a dark tent-and-skull marker.
 //  A glowing red trail from where the raiders gather (their camp or village)
 //  to the spot they will strike, dashes marching toward it, a 🔥 that creeps
 //  along the trail as the countdown runs, and a pulsing red ring on the
@@ -12,8 +13,8 @@
 //  through renderer.projectAxial().
 //
 //  Proof rules (MAP_RENDERER.md): no network calls and no unseeded randomness
-//  in kwmap-* files; with no raid on its way draw() returns without touching
-//  the context.
+//  in kwmap-* files; with no camp in view and no raid on its way draw()
+//  returns without touching the context.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -39,7 +40,34 @@
     return { a, b, hexW: b.hexW || a.hexW || 48 };
   }
 
+  // Withered camps (tiles with t.camp in the map data): a dark tent and skull.
+  function drawCamps(ctx, W, H, renderer, cam) {
+    // worldMapData is a top-level `let` in js/main.js — shared scope, not window.
+    const data = typeof worldMapData !== 'undefined' ? worldMapData : global.worldMapData;
+    const tiles = data && data.tiles;
+    if (!tiles || !renderer || !renderer.projectAxial) return;
+    const camps = tiles.filter(t => t.camp);
+    if (!camps.length) return;
+    const MW = typeof HEX_MAP_W !== 'undefined' ? HEX_MAP_W : 40, MH = typeof HEX_MAP_H !== 'undefined' ? HEX_MAP_H : 40;
+    let started = false;
+    for (const t of camps) {
+      for (let kq = -1; kq <= 1; kq++) for (let kr = -1; kr <= 1; kr++) {
+        const p = renderer.projectAxial(t.q + kq * MW, t.r + kr * MH, cam, W, H);
+        if (p.x < -60 || p.y < -60 || p.x > W + 60 || p.y > H + 60) continue;
+        if (!started) { ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; started = true; }
+        const sc = Math.max(0.7, Math.min(1.5, (p.hexW || 48) / 48));
+        ctx.fillStyle = 'rgba(30,10,6,0.82)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 15 * sc, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#8a2a1a'; ctx.lineWidth = 2 * sc; ctx.stroke();
+        ctx.font = `${Math.round(16 * sc)}px serif`; ctx.fillText('⛺', p.x, p.y + 1);
+        ctx.font = `${Math.round(10 * sc)}px serif`; ctx.fillText('💀', p.x + 10 * sc, p.y - 9 * sc);
+      }
+    }
+    if (started) ctx.restore();
+  }
+
   function draw(ctx, W, H, renderer, cam, now) {
+    drawCamps(ctx, W, H, renderer, cam);
     const R = global.KWRaids && global.KWRaids.state && global.KWRaids.state();
     const raid = R && R.raid;
     if (!raid || raid.resolved_at || !raid.target_at || !renderer || !renderer.projectAxial) return;

@@ -201,3 +201,11 @@ body.kw-shell #screen-game .topbar-right:has(.raid-chip:not([hidden])) { gap: 5p
 .call-pick { display: flex; gap: 8px; margin-top: 6px; }
 .call-pick select { flex: 1; min-width: 0; font: inherit; padding: 4px 6px; border-radius: 6px; color: #f1dcc8; background: rgba(20, 10, 6, .8); border: 1px solid rgba(255, 180, 140, .4); }
 .raid-rf { background: rgba(240, 176, 64, .12) !important; }
+
+/* Sally out and Withered camps. */
+.raid-sally { margin: 10px 0; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 180, 140, .3); }
+.raid-sally .call-pick { flex-wrap: wrap; }
+.raid-sally .call-pick select { flex: 1 1 30%; }
+.op-camp { border-left: 3px solid #8a2a1a; padding-left: 8px; }
+.op-camp-pick { flex-wrap: wrap; }
+.op-camp-pick .op-worker-select { flex: 1 1 45%; }

@@ -1246,7 +1246,36 @@ function _costChips(cost, have) {
     }).join('');
 }
 
+// A Withered camp on this tile (server lib/raid_camps): burn it with a party.
+function _campSectionHtml(tile) {
+  const c = tile.camp;
+  const people = _opFreeCitizens().sort((a, b) => ((b.role === 'soldier' || b.role === 'archer') - (a.role === 'soldier' || a.role === 'archer')));
+  const opts = people.map(p => `<option value="${p.id}">${p.name}${p.role === 'soldier' ? ' (Guard)' : p.role === 'archer' ? ' (Archer)' : ''}</option>`).join('');
+  return `<div class="op-section op-camp">
+      <div class="op-title">🏕️ Withered camp</div>
+      <div class="op-note op-note-warn">Raiders gather here. Strength about ${c.strength_min}–${c.strength_max}.</div>
+      <div class="op-worker-hint">Burn it with a party of up to four — a card battle. Win, and every town within 6 tiles gets 3 days of peace, and you take the spoils.</div>
+      ${people.length ? `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].map(i => `<select class="op-worker-select" data-camp-pick="${i}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>
+        <button class="action-btn op-worker-btn" data-camp-assault="${c.id}">🔥 Burn the camp</button>`
+        : `<div class="op-worker-hint op-worker-none">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`}
+      <div class="op-reason" data-op-reason style="display:none"></div>
+    </div>`;
+}
+async function _assaultCamp(btn, tile) {
+  const ids = [...new Set(Array.from(btn.closest('.op-camp').querySelectorAll('[data-camp-pick]')).map(s => Number(s.value)).filter(Boolean))];
+  if (!ids.length) { _opShowReason(btn, 'Choose who goes.'); return; }
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/raids/camps/${btn.dataset.campAssault}/assault`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ citizen_ids: ids }) });
+    const data = await res.json();
+    if (!res.ok || !data.ok) { btn.disabled = false; _opShowReason(btn, data.error || 'They could not go.'); return; }
+    if (typeof refreshBattleBadge === 'function') { try { refreshBattleBadge(); } catch (_) {} }
+    if (typeof startBattleFromQuest === 'function') startBattleFromQuest(data.quest_run_id);
+  } catch (e) { btn.disabled = false; _opShowReason(btn, 'Connection hiccup — try again.'); }
+}
+
 function _outpostSectionHtml(tile) {
+  if (tile.camp) return _campSectionHtml(tile);
   // My outpost here — production at its level, the next level, dismantle
   if (tile.outpost?.mine) {
     const st = _outpostStatus;
@@ -1490,6 +1519,12 @@ function _wireOutpostSection(body, tile) {
   }
   body.querySelectorAll('[data-op-assign]').forEach(b => b.addEventListener('click', () => _assignOutpostWorker(b, tile, false)));
   body.querySelectorAll('[data-op-unassign]').forEach(b => b.addEventListener('click', () => _assignOutpostWorker(b, tile, true)));
+  const campBtn = body.querySelector('[data-camp-assault]');
+  if (campBtn) campBtn.addEventListener('click', () => _assaultCamp(campBtn, tile));
+  if (body.querySelector('.op-camp .op-worker-none') && !_opCitizensAsked && typeof loadCitizens === 'function') {
+    _opCitizensAsked = true;
+    loadCitizens().then(() => { if ((typeof citizensData !== 'undefined') && citizensData.length) selectWorldTile(tile); });
+  }
   const fortBtn = body.querySelector('[data-op-fortify]');
   if (fortBtn) fortBtn.addEventListener('click', () => _fortifyOutpost(fortBtn, tile));
   // The citizen list feeds the worker picker; fetch it once if it's empty.

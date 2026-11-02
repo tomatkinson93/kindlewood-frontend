@@ -57,6 +57,18 @@ console.log('1a. Call to arms');
   R._setCalls([]);
 }
 
+console.log('1c. Sally out and camps');
+{
+  const base = { id: 4, from: 'Rot Warren', target: 'the Quarry', strength_min: 40, strength_max: 70, arrives_at: new Date(Date.now() + 3600e3).toISOString() };
+  w.citizensData = [];
+  check('1t. sally: lost → "come on stronger"; waiting → Fight now', /driven back/.test(R._sallyHtml({ ...base, sally: 'lost' })) && /KWRaids\.fightSally\(77\)/.test(R._sallyHtml({ ...base, sally: 'fighting', sally_run_id: 77 })));
+  check('1u. sally posts to /sally and opens the battle', /\/api\/raids\/\$\{raidId\}\/sally/.test(read('js/raids.js')) && /startBattleFromQuest\(runId\)/.test(read('js/raids.js')));
+  const M = read('js/main.js');
+  check('1v. a camp tile: strength, a party of four, Burn the camp', /function _campSectionHtml\(tile\)/.test(M) && /if \(tile\.camp\) return _campSectionHtml\(tile\);/.test(M) && /\[0, 1, 2, 3\]\.map/.test(M) && /data-camp-assault=/.test(M) && /\/api\/raids\/camps\/\$\{btn\.dataset\.campAssault\}\/assault/.test(M));
+  check('1w. camps are marked on the map', /function drawCamps\(/.test(read('js/kwmap-raid.js')) && /'⛺'/.test(read('js/kwmap-raid.js')));
+  check('1x. Dev Tools: spawn camps; Help explains camps, sallies and calls to arms', /KWRaids\.devSpawnCamps\(\)/.test(read('index.html')) && /Withered camps<\/b>/.test(read('js/help.js')) && /sally out<\/b>/.test(read('js/help.js')) && /call to arms<\/b>/.test(read('js/help.js')));
+}
+
 console.log('1b. The red trail');
 {
   const L = read('js/kwmap-raid.js'), CORE = read('js/kwmap-core.js');

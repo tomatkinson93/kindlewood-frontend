@@ -117,11 +117,45 @@
       ${verdict}
       <ul class="raid-def">${d ? defenceRows(d) : ''}</ul>
       ${full ? `<p class="raid-muted">A full raid would carry off ${full}${r.outpost_id ? ', and leave the outpost idle for 12 hours' : ''}. Anyone at the spot is hurt and sent home. The closer your defence comes to their strength, the less they take.</p>` : ''}
+      ${sallyHtml(r)}
       <div class="raid-actions">
         <button class="raid-btn" onclick="KWRaids.showOnMap()">🗺 Show on map</button>
         ${t.cost ? `<button class="raid-btn gold" onclick="KWRaids.payTribute(this)">🪙 Pay ${n(t.cost)} to turn them back</button>` : ''}
       </div>
       <p class="raid-muted raid-tip">Raise walls or an outpost fort and post Guards and Archers to defend. Allied villages nearby and clanmates on clan land help too.</p>`;
+  }
+
+  // Sally out: up to three citizens meet the raiders in a card battle first.
+  function adults() {
+    const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
+    return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost);
+  }
+  function sallyHtml(r) {
+    if (r.sally === 'lost') return '<div class="raid-verdict bad">Your sally was driven back — they come on stronger.</div>';
+    if (r.sally === 'fighting') return `<div class="raid-verdict mid">Your sally party waits to fight. <button class="raid-btn" onclick="KWRaids.fightSally(${r.sally_run_id})">⚔️ Fight now</button></div>`;
+    const people = adults().sort((a, b) => ((b.role === 'soldier' || b.role === 'archer') - (a.role === 'soldier' || a.role === 'archer')));
+    if (!people.length) return '';
+    const opts = people.map(c => `<option value="${c.id}">${esc(c.name)}${c.role === 'soldier' ? ' (Guard)' : c.role === 'archer' ? ' (Archer)' : ''}</option>`).join('');
+    return `<div class="raid-sally"><div><b>⚔️ Sally out</b> <span class="raid-muted">— meet them in battle before they strike. Win and the raid is broken; lose and they come on angrier.</span></div>
+      <div class="call-pick">${[0, 1, 2].map(i => `<select data-sally="${i}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}
+      <button class="raid-btn gold" onclick="KWRaids.sally(${r.id}, this)">Sally out</button></div></div>`;
+  }
+  async function sally(raidId, btn) {
+    const ids = [...new Set(Array.from(btn.parentElement.querySelectorAll('select')).map(s => Number(s.value)).filter(Boolean))];
+    if (!ids.length) { toast('Choose who goes.', 'error'); return; }
+    btn.disabled = true;
+    try {
+      const r = await global.apiFetch(`/api/raids/${raidId}/sally`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ citizen_ids: ids }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { btn.disabled = false; toast('⚠️ ' + (d.error || 'They could not go.'), 'error'); return; }
+      closeSheet();
+      fightSally(d.quest_run_id);
+    } catch (e) { btn.disabled = false; }
+  }
+  function fightSally(runId) {
+    closeSheet();
+    if (typeof global.refreshBattleBadge === 'function') { try { global.refreshBattleBadge(); } catch (_) {} }
+    if (typeof global.startBattleFromQuest === 'function') global.startBattleFromQuest(runId);
   }
 
   function renderSheet() {
@@ -143,6 +177,7 @@
     }
     renderSheet();
     load();
+    if (typeof global.loadCitizens === 'function' && !adults().length) global.loadCitizens().then(renderSheet).catch(() => {});
   }
   function closeSheet() { const el = document.getElementById('raid-sheet'); if (el) el.remove(); }
 
@@ -151,8 +186,10 @@
     closeSheet();
     if (!at) return;
     if (typeof global.navGoMap === 'function') global.navGoMap();
-    if (typeof global.camera !== 'undefined' && global.camera) { global.camera.q = at.q; global.camera.r = at.r; }
-    const tile = global.worldMapData && global.worldMapData.tiles && global.worldMapData.tiles.find(t => t.q === at.q && t.r === at.r);
+    const cam = typeof camera !== 'undefined' ? camera : global.camera;
+    if (cam) { cam.q = at.q; cam.r = at.r; }
+    const wmd = typeof worldMapData !== 'undefined' ? worldMapData : global.worldMapData;   // a top-level let in main.js
+    const tile = wmd && wmd.tiles && wmd.tiles.find(t => t.q === at.q && t.r === at.r);
     if (tile && typeof global.selectWorldTile === 'function') { try { global._selectedTile = { wq: at.q, wr: at.r }; } catch (_) {} global.selectWorldTile(tile); }
     if (global.KWMap && global.KWMap.controller && global.KWMap.controller.requestRender) global.KWMap.controller.requestRender();
   }
@@ -275,12 +312,13 @@
     if (typeof global.loadGame === 'function') { try { global.loadGame(); } catch (_) {} }
     return x.d;
   }
+  async function devSpawnCamps() { const x = await dev('/api/raids/admin/camps'); if (x.ok) { toast(`🏕️ ${x.d.spawned} camp${x.d.spawned === 1 ? '' : 's'} spawned — reload the map to see them.`); } return x.d; }
   async function devPeaceClear() { const x = await dev('/api/raids/admin/peace-clear'); if (x.ok) toast('🕊 Tribute peace cleared.'); return x.d; }
 
   global.KWRaids = {
     onSettlement, onEvent, openSheet, closeSheet, showOnMap, payTribute, load,
-    openCalls, closeCalls, reinforce, loadCalls, _callsHtml: callsHtml, _setCalls(c) { st.calls = c; renderCallChip(); },
-    devSend, devResolve, devPeaceClear,
+    openCalls, closeCalls, reinforce, loadCalls, sally, fightSally, _callsHtml: callsHtml, _setCalls(c) { st.calls = c; renderCallChip(); },
+    devSend, devResolve, devPeaceClear, devSpawnCamps, _sallyHtml: sallyHtml,
     explain: openSheet,   // older callers
     state: () => st, _clock: clock, _left: left, _sheetHtml: sheetHtml, _setInfo(i) { st.info = i; st.raid = i && i.active; },
   };
