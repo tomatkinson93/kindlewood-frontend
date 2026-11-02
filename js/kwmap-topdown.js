@@ -842,6 +842,7 @@ KWMap.controller.registerRenderer('topdown', {
   if (window.KWDaylight) window.KWDaylight.draw(ctx, W, H, frame.dpr, this, frame.now);
   // Happening visuals (kwmap-happening-fx.js) — last; a no-op when none run.
   if (window.KWHappeningFX) window.KWHappeningFX.draw(ctx, W, H, frame.dpr, this, frame.now);
+  if (window.KWHappeningFX && window.KWHappeningFX.drawFestivals) window.KWHappeningFX.drawFestivals(ctx, W, H, this, frame.now);   // a town's festival
   },
 
   // Read-only: the last frame's on-screen settlement / outpost tiles at the

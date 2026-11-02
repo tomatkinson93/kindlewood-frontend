@@ -316,5 +316,28 @@
     return true;
   }
 
-  root.KWHappeningFX = { draw, TINTS, _hash32: hash32 };
+  // Fireworks over just the towns holding a festival (settlement.festival from
+  // the map payload). Draws nothing — and touches no canvas — when none is
+  // in view, under reduced motion, or while a fireworks Happening already
+  // lights up every town.
+  function festivalAnchors(renderer) {
+    if (!renderer || !renderer.visibleSettlements) return [];
+    return renderer.visibleSettlements()
+      .filter(v => v.t && v.t.terrain !== 'fog' && v.t.settlement && v.t.settlement.festival)
+      .map(v => ({ x: v.cx, y: v.baseY - v.hexW * 0.18, hexW: v.hexW, q: v.t.q | 0, r: v.t.r | 0, ys: v.ys || 1 }))
+      .slice(0, MAX_ANCHORS);
+  }
+  function drawFestivals(ctx, W, H, renderer, now, opts) {
+    opts = opts || {};
+    const reduced = opts.reduced != null ? !!opts.reduced : reducedMotion();
+    if (reduced) return false;
+    if ((opts.kinds || activeKinds()).includes('fireworks')) return false;
+    const A = opts.anchors || festivalAnchors(renderer);
+    if (!A.length) return false;
+    const night = opts.night != null ? opts.night : nightFactor();
+    drawFireworks(ctx, W, H, A, (typeof now === 'number' ? now : 0) / 1000, Math.max(0.35, night));
+    return true;
+  }
+
+  root.KWHappeningFX = { draw, drawFestivals, festivalAnchors, TINTS, _hash32: hash32 };
 })(typeof window !== 'undefined' ? window : this);

@@ -1602,6 +1602,17 @@ function selectWorldTile(tile) {
   }
 }
 
+// The festival buff, in your settlement's status list (the map shows the
+// fireworks; there is no banner).
+function _festivalStatusRow() {
+  const f = gameData?.settlement?.town?.festival;
+  if (!f || !f.active) return '';
+  const left = window.KWTown && KWTown.left ? KWTown.left(f.until) : '';
+  return '<div class="sett-status-row sett-status-clickable sett-festival-row" onclick="KWTown.open(\'festival\')" title="Your town is celebrating">'
+    + '<span class="sett-status-icon">🎉</span><span class="sett-status-label">Festival</span>'
+    + '<span class="sett-status-val">+' + f.happiness + ' happiness, +' + Math.round(f.production * 100) + '% production' + (left ? ' · ' + left + ' left' : '') + '</span></div>';
+}
+
 // ── Settlement panel: buttons that need a building ──────────────────────
 // Without the building the button is greyed, padlocked and just says
 // "Locked" — what it opens stays a mystery until it's built.
@@ -1793,6 +1804,7 @@ function _selectWorldTileImpl(tile) {
       + '<div class="sett-status-list">'
       + '<div class="sett-status-row sett-status-clickable" onclick="switchTab(\'citizens\');setTimeout(()=>sortCitizensByHappiness(),200)" title="Click to view citizens by happiness">' + '<span class="sett-status-icon">😊</span><span class="sett-status-label">Happiness <span style=\"font-size:9px;opacity:.4\">▶</span></span>' + '<span class="sett-status-val" style="color:' + happyColor + '">' + avgHappiness + '% · ' + happyLabel + '</span></div>'
       + '<div class="sett-status-row"><span class="sett-status-icon">🍖</span><span class="sett-status-label">Food Supply</span><span class="sett-status-val" style="color:' + foodColor + '">' + foodLabel + '</span></div>'
+      + _festivalStatusRow()
       + '</div>'
 
       // Population section
@@ -1831,6 +1843,7 @@ function _selectWorldTileImpl(tile) {
       + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + (s.username||'—') + '</div><div class="sett-stat-key">Ruler</div></div>'
       + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + (s.tier||'village') + '</div><div class="sett-stat-key">Tier</div></div>'
       + '</div>'
+      + (s.festival ? '<div class="sett-festival-note">🎉 Holding a festival — fireworks over the town.</div>' : '')
       + '<div class="sett-actions" style="margin-top:10px">'
       + '<button class="sett-action-btn vp-trigger" data-username="' + (s.username||'') + '" data-species="' + (s.species||'') + '" data-name="' + (s.name||'') + '" data-tier="' + (s.tier||'village') + '" data-q="' + tile.q + '" data-r="' + tile.r + '" onclick="openProfileForUser(this.dataset.username,this.dataset.species,this.dataset.name,this.dataset.tier,this.dataset.q,this.dataset.r)">👤 View Profile</button>'
       // Market: towns that have discovered each other (or clanmates) can trade.

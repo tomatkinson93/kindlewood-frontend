@@ -63,7 +63,7 @@ check('3f. dormant: greyed, says why', /tw-wonder done dormant/.test(h) && /Dorm
 console.log('4. Banner');
 const b = els['town-banner'];
 w.KWTown.onSettlement({ town: town({ festival: fest({ active: true, until: soon(3) }) }) });
-check('4a. a festival shows over the map, and opens the town', /town-banner open good/.test(b.className) && /Festival/.test(b.innerHTML) && /KWTown\.open/.test(b.innerHTML));
+check('4a. a festival puts up no banner (fireworks and the panel line show it)', b.innerHTML === '' && b.className === 'town-banner');
 w.KWTown.onSettlement({ town: town({ arrears: true, festival: fest({ active: true, until: soon(3) }) }) });
 check('4b. unpaid upkeep comes first', /bad/.test(b.className) && /Unpaid upkeep/.test(b.innerHTML));
 w.KWTown.onSettlement({ town: town() });

@@ -12,8 +12,8 @@
 .chat-backdrop.open { display: flex; animation: fadeIn .2s ease; }
 
 .chat-card {
-  position: relative; display: grid; grid-template-columns: 220px 1fr;
-  width: 860px; max-width: 96vw; height: 78vh; max-height: 720px; overflow: hidden;
+  position: relative; display: grid; grid-template-columns: 240px 1fr;
+  width: min(1100px, 96vw); max-width: 96vw; height: 84vh; max-height: 860px; overflow: hidden;
   background: linear-gradient(160deg, #1c1610 0%, #110e09 100%);
   border: 1px solid rgba(200,148,26,.3); border-radius: 14px;
   box-shadow: 0 20px 60px rgba(0,0,0,.7);
