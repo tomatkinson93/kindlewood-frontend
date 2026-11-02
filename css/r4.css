@@ -209,3 +209,12 @@ body.kw-shell #screen-game .topbar-right:has(.raid-chip:not([hidden])) { gap: 5p
 .op-camp { border-left: 3px solid #8a2a1a; padding-left: 8px; }
 .op-camp-pick { flex-wrap: wrap; }
 .op-camp-pick .op-worker-select { flex: 1 1 45%; }
+
+/* Dev Tools: raid test controls */
+.dev-raid { display: flex; flex-direction: column; gap: 8px; }
+.dev-raid-row { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #e8dcc4; }
+.dev-raid-row label { display: flex; align-items: center; gap: 4px; }
+.dev-raid-row select, .dev-raid-row input { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(232,220,196,.3); background: #2a2018; color: #f3e9d2; max-width: 160px; }
+.dev-raid-row input[type=number] { width: 70px; }
+.dev-raid-status { font-size: 12px; line-height: 1.5; padding: 6px 8px; border-radius: 8px; background: rgba(160,30,20,.18); border: 1px solid rgba(220,80,60,.4); color: #f3e9d2; }
+.dev-raid-status b { color: #ffb4a0; }

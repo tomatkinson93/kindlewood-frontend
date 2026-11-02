@@ -49,7 +49,7 @@
   <link rel="stylesheet" href="/css/famine.css?v=r3c">
   <link rel="stylesheet" href="/css/mail.css?v=r3">
   <link rel="stylesheet" href="/css/wonders.css?v=r3">
-  <link rel="stylesheet" href="/css/r4.css?v=d5">
+  <link rel="stylesheet" href="/css/r4.css?v=r5b">
   <link rel="stylesheet" href="/css/research.css?v=g4">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
@@ -823,7 +823,7 @@
   <script defer src="/js/help.js?v=d5"></script>
   <script defer src="/js/wonders.js?v=d3"></script>
   <script defer src="/js/cards.js?v=r4b"></script>
-  <script defer src="/js/raids.js?v=d5b"></script>
+  <script defer src="/js/raids.js?v=r5a"></script>
   <script defer src="/js/career-math.js?v=rs6"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
   <script defer src="/js/careers.js?v=cf1"></script>
@@ -902,7 +902,7 @@
   <script defer src="/js/chat-hub.js?v=r2"></script>
   <script defer src="/js/market.js?v=g5"></script>
   <script defer src="/js/travel.js?v=tp2"></script>
-  <script defer src="/js/realtime.js?v=d4"></script>
+  <script defer src="/js/realtime.js?v=r5a"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=r3"></script>
@@ -1074,12 +1074,26 @@
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">🔥 Raids</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="cheat-res-btn" onclick="KWRaids.devSend()">🔥 Send a raid (6 hours' warning)</button>
-          <button class="cheat-res-btn" onclick="KWRaids.devSend(2)">🔥 Send a raid (2 minutes)</button>
-          <button class="cheat-res-btn" onclick="KWRaids.devResolve()">⚔️ Resolve the raid now</button>
-          <button class="cheat-res-btn" onclick="KWRaids.devPeaceClear()">🕊 Clear tribute peace</button>
-          <button class="cheat-res-btn" onclick="KWRaids.devSpawnCamps()">🏕️ Spawn Withered camps</button>
+        <div class="dev-raid">
+          <div class="dev-raid-row">
+            <label>Target <select id="dev-raid-target" onfocus="KWRaids.devStatus()"><option value="">Nearest (normal)</option><option value="town">Your town</option></select></label>
+            <label>Arrives in <input id="dev-raid-min" type="number" min="0" step="1" placeholder="360" inputmode="numeric"> min</label>
+            <label>Strength <input id="dev-raid-str" type="number" min="1" step="1" placeholder="auto" inputmode="numeric"></label>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="cheat-res-btn" onclick="KWRaids.devStart()">🔥 Start raid</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devSend(2)">🔥 Start (2 minutes)</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devCancel()">✖ Cancel raid</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devResolve()">⚔️ Strike now</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devClearCooldown()">⏱ Clear cooldown &amp; peace</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devPeaceClear()">🕊 Clear tribute peace</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devCheck(100)">🎲 Roll the normal check (×100)</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devCheck(1)">🎲 Roll it (normal odds)</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devSpawnCamps()">🏕️ Spawn Withered camps</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devClearCamps()">🧹 Clear all camps</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devStatus()">↻ Status</button>
+          </div>
+          <div id="dev-raid-status" class="dev-raid-status" role="status">Press ↻ Status to see the raid state.</div>
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">💰 Clan</div>

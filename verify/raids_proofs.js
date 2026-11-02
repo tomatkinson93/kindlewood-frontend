@@ -98,7 +98,18 @@ console.log('2. Villages');
 
 console.log('3. Elsewhere');
 check('3a. the Watchtower and Walls panel: town defence and a raid on its way', /Raiders from ' \+ raid\.from \+ ' are on their way to/.test(read('js/settlement-view.js')) && /Town defence/.test(read('js/settlement-view.js')));
-check('3b. Dev Tools: send (6h or 2 min), resolve, clear peace', /KWRaids\.devSend\(\)/.test(read('index.html')) && /KWRaids\.devSend\(2\)/.test(read('index.html')) && /KWRaids\.devResolve\(\)/.test(read('index.html')) && /KWRaids\.devPeaceClear\(\)/.test(read('index.html')));
+check('3b. Dev Tools: start (target, minutes, strength), cancel, strike, clear cooldown, roll the check, camps, status', ['devStart()', 'devSend(2)', 'devCancel()', 'devResolve()', 'devClearCooldown()', 'devPeaceClear()', 'devCheck(100)', 'devSpawnCamps()', 'devClearCamps()', 'devStatus()'].every(f => read('index.html').includes('KWRaids.' + f))
+  && /id="dev-raid-target"/.test(read('index.html')) && /id="dev-raid-min"/.test(read('index.html')) && /id="dev-raid-str"/.test(read('index.html')) && /id="dev-raid-status"/.test(read('index.html')));
+{
+  const J = read('js/raids.js');
+  check('3d. each control hits its admin route', ['/api/raids/admin/send', '/api/raids/admin/cancel', '/api/raids/admin/resolve', '/api/raids/admin/check', '/api/raids/admin/clear-cooldown', '/api/raids/admin/camps/clear', '/api/raids/admin/status'].every(p => J.includes(`'${p}'`)));
+  const h = R._devStatusHtml({ active: { from: 'Rot Warren', target: 'the Quarry', strength: 77, arrives_at: new Date(Date.now() + 1800e3).toISOString() }, peace_until: null, cooldown_until: null, camps: 2, why_not: ['A raid is already on its way.'], chance: 0.0014 });
+  check('3e. the status line: exact strength, peace, cooldown, camps, why the check would skip you', /strength <b>77<\/b>/.test(h) && /No peace/.test(h) && /No cooldown/.test(h) && /2 camps/.test(h) && /would skip you: A raid is already/.test(h));
+  check('3f. eligible: the odds of the normal check', /Eligible — each 10-minute check has a 0\.14% chance/.test(R._devStatusHtml({ active: null, camps: 0, why_not: [], chance: 0.0014 })));
+  els['raid-chip'].hidden = false; R.onSettlement({ raid: { id: 5, arrives_at: new Date(Date.now() + 1e6).toISOString() } });
+  R.onEvent({ type: 'raid_cancelled', raid: { id: 5 } });
+  check('3g. a cancelled raid clears the chip (realtime too)', els['raid-chip'].hidden === true && /raid_cancelled\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')));
+}
 check('3c. Help explains trust, defences, graded raids and tribute', /id: 'raids'/.test(read('js/help.js')) && /Stone Tower/.test(read('js/help.js')) && /15% of each resource/.test(read('js/help.js')) && /tribute<\/b> for 24 hours/.test(read('js/help.js')) && /never below the band/.test(read('js/help.js')));
 
 console.log(`\n${pass} passed, ${fail} failed`);

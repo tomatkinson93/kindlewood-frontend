@@ -10,7 +10,9 @@
 //                     raid would take, and what you can do — tribute, show
 //                     on the map (sally out and call to arms join later)
 //    onEvent(ev)      realtime raid_warning / raid_resolved → toast, chip
-//    devSend(min) / devResolve() / devPeaceClear()   Dev Tools
+//    devStart() / devSend(min) / devCancel() / devResolve() / devCheck(boost) /
+//    devClearCooldown() / devPeaceClear() / devSpawnCamps() / devClearCamps() /
+//    devStatus()   Dev Tools (admin)
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -288,6 +290,7 @@
       toast(`🔥 Raiders from ${ev.raid.from} are gathering — they will strike ${ev.raid.target} in about ${left(ev.raid.arrives_at)}. Tap the red timer to prepare.`);
       load();
     }
+    if (ev.type === 'raid_cancelled') { setRaid(null); closeSheet(); }
     if (ev.type === 'raid_resolved') {
       setRaid(null);
       closeSheet();
@@ -302,7 +305,27 @@
     if (!r.ok) toast('⚠️ ' + (d.error || 'Failed.'), 'error');
     return { ok: r.ok, d };
   }
-  async function devSend(minutes) { const x = await dev('/api/raids/admin/send', minutes != null ? { minutes } : {}); if (x.ok) load(); return x.d; }
+  const $v = id => { const e = global.document && global.document.getElementById(id); return e ? e.value : ''; };
+  async function devSend(minutes) {
+    const x = await dev('/api/raids/admin/send', minutes != null ? { minutes } : {});
+    if (x.ok) { toast(`🔥 Raid sent at ${x.d.raid.target} (strength ${x.d.strength}).`, 'raid'); load(); devStatus(); }
+    return x.d;
+  }
+  // Start with the Dev Tools fields: target, minutes, strength (blank = automatic).
+  async function devStart() {
+    const body = {};
+    if ($v('dev-raid-target')) body.outpost_id = $v('dev-raid-target');
+    if ($v('dev-raid-min') !== '') body.minutes = Number($v('dev-raid-min'));
+    if ($v('dev-raid-str') !== '') body.strength = Number($v('dev-raid-str'));
+    const x = await dev('/api/raids/admin/send', body);
+    if (x.ok) { toast(`🔥 Raid sent at ${x.d.raid.target} (strength ${x.d.strength}).`, 'raid'); load(); devStatus(); }
+    return x.d;
+  }
+  async function devCancel() {
+    const x = await dev('/api/raids/admin/cancel');
+    if (x.ok) { setRaid(null); closeSheet(); toast('✖ Raid called off — no loss, no cooldown.'); devStatus(); }
+    return x.d;
+  }
   async function devResolve() {
     const x = await dev('/api/raids/admin/resolve');
     if (!x.ok) return x.d;
@@ -310,15 +333,57 @@
     const o = x.d.raid || {};
     toast(o.outcome === 'repelled' ? `🛡️ Repelled (defence ${o.defence} vs ${o.strength}).` : `🔥 ${o.outcome === 'partial' ? 'Partly' : 'Fully'} raided — ${Math.round((o.loss_share || 0) * 100)}% (defence ${o.defence} vs ${o.strength}).`, o.outcome === 'repelled' ? 'raid' : 'error');
     if (typeof global.loadGame === 'function') { try { global.loadGame(); } catch (_) {} }
+    devStatus();
     return x.d;
   }
-  async function devSpawnCamps() { const x = await dev('/api/raids/admin/camps'); if (x.ok) { toast(`🏕️ ${x.d.spawned} camp${x.d.spawned === 1 ? '' : 's'} spawned — reload the map to see them.`); } return x.d; }
-  async function devPeaceClear() { const x = await dev('/api/raids/admin/peace-clear'); if (x.ok) toast('🕊 Tribute peace cleared.'); return x.d; }
+  async function devCheck(boost) {
+    const x = await dev('/api/raids/admin/check', { boost });
+    if (!x.ok) return x.d;
+    if (x.d.started) { toast(`🎲 The check fired — raiders head for ${x.d.raid.target}.`, 'raid'); load(); }
+    else toast('🎲 No raid: ' + (x.d.reasons || []).join(' '), 'error');
+    devStatus();
+    return x.d;
+  }
+  async function devClearCooldown() { const x = await dev('/api/raids/admin/clear-cooldown'); if (x.ok) { toast('⏱ Cooldown and peace cleared.'); devStatus(); } return x.d; }
+  async function devSpawnCamps() { const x = await dev('/api/raids/admin/camps'); if (x.ok) { toast(`🏕️ ${x.d.spawned} camp${x.d.spawned === 1 ? '' : 's'} spawned — reload the map to see them.`); devStatus(); } return x.d; }
+  async function devClearCamps() { const x = await dev('/api/raids/admin/camps/clear'); if (x.ok) { toast(`🧹 ${x.d.cleared} camp${x.d.cleared === 1 ? '' : 's'} cleared.`); devStatus(); } return x.d; }
+  async function devPeaceClear() { const x = await dev('/api/raids/admin/peace-clear'); if (x.ok) { toast('🕊 Tribute peace cleared.'); devStatus(); } return x.d; }
+
+  // The Dev Tools status line, and the outposts in the target list.
+  function devStatusHtml(d) {
+    if (!d) return '';
+    const when = t => t ? new Date(t).toLocaleString() : '';
+    const bits = [];
+    bits.push(d.active
+      ? `<b>On its way:</b> ${esc(d.active.from)} → ${esc(d.active.target)} · strength <b>${d.active.strength}</b> · strikes in ${left(d.active.arrives_at)}`
+      : '<b>No raid on its way.</b>');
+    bits.push(d.peace_until ? `🕊 Peace until ${when(d.peace_until)}` : '🕊 No peace');
+    bits.push(d.cooldown_until ? `⏱ Cooldown until ${when(d.cooldown_until)}` : '⏱ No cooldown');
+    bits.push(`🏕️ ${d.camps} camp${d.camps === 1 ? '' : 's'}`);
+    bits.push(d.why_not && d.why_not.length ? `🎲 The normal check would skip you: ${d.why_not.map(esc).join(' ')}` : `🎲 Eligible — each 10-minute check has a ${(d.chance * 100).toFixed(2)}% chance.`);
+    return bits.join('<br>');
+  }
+  async function devStatus() {
+    const doc = global.document;
+    const box = doc && doc.getElementById('dev-raid-status');
+    const r = await global.apiFetch('/api/raids/admin/status');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { if (box) box.textContent = '⚠️ ' + (d.error || 'Failed.'); return d; }
+    if (box) box.innerHTML = devStatusHtml(d);
+    const sel = doc && doc.getElementById('dev-raid-target');
+    if (sel) {
+      const keep = sel.value;
+      sel.innerHTML = '<option value="">Nearest (normal)</option><option value="town">Your town</option>'
+        + (d.outposts || []).map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
+      sel.value = keep;
+    }
+    return d;
+  }
 
   global.KWRaids = {
     onSettlement, onEvent, openSheet, closeSheet, showOnMap, payTribute, load,
     openCalls, closeCalls, reinforce, loadCalls, sally, fightSally, _callsHtml: callsHtml, _setCalls(c) { st.calls = c; renderCallChip(); },
-    devSend, devResolve, devPeaceClear, devSpawnCamps, _sallyHtml: sallyHtml,
+    devSend, devStart, devCancel, devResolve, devCheck, devClearCooldown, devPeaceClear, devSpawnCamps, devClearCamps, devStatus, _devStatusHtml: devStatusHtml, _sallyHtml: sallyHtml,
     explain: openSheet,   // older callers
     state: () => st, _clock: clock, _left: left, _sheetHtml: sheetHtml, _setInfo(i) { st.info = i; st.raid = i && i.active; },
   };
