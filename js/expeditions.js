@@ -134,7 +134,10 @@ async function loadExpeditions() {
     if (!res.ok) return;
     const data = await res.json();
     const prev = activeExpeditions.length;
+    const before = activeExpeditions;
     activeExpeditions = data.expeditions || [];
+    const stillOut = new Set(activeExpeditions.map(e => e.id));
+    const back = before.filter(e => !stillOut.has(e.id));
 
     // Sync expedition status back onto citizensData
     const expByCitizen = {};
@@ -146,7 +149,8 @@ async function loadExpeditions() {
     if (prev > activeExpeditions.length && prev > 0) {
       await loadWorldMap();
       const returned = prev - activeExpeditions.length;
-      showBuildToast(`Scout${returned > 1 ? 's' : ''} returned! New lands revealed. 🗺`, 'success');
+      if (back.length && back.every(e => e.recalled_at)) showBuildToast(`Scout${returned > 1 ? 's' : ''} home again. ↩`, 'success');
+      else showBuildToast(`Scout${returned > 1 ? 's' : ''} returned! New lands revealed. 🗺`, 'success');
       renderCitizensList();
     }
 
@@ -181,6 +185,13 @@ function renderExpeditionBadge() {
   if (activeExpeditions.length > 0) {
     badge.textContent = `🗺 ${activeExpeditions.length} scout${activeExpeditions.length > 1 ? 's' : ''} out`;
     badge.style.display = 'block';
+    // Tap for the Journeys list (time left, Show on map, Recall).
+    badge.style.cursor = 'pointer';
+    badge.title = 'Journeys: time left, show on map, recall';
+    badge.setAttribute('role', 'button');
+    badge.tabIndex = 0;
+    badge.onclick = () => { if (window.KWJourneys) window.KWJourneys.open(); };
+    badge.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); badge.onclick(); } };
   } else {
     badge.style.display = 'none';
   }

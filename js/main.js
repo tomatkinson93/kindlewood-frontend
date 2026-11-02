@@ -1652,7 +1652,10 @@ function _festivalStatusRow() {
 // Without the building the button is greyed, padlocked and just says
 // "Locked" — what it opens stays a mystery until it's built.
 const TIER_ORDER_CLIENT = ['camp', 'village', 'town', 'city'];
+const CRAFT_STATIONS = ['smithy', 'workshop', 'jeweller', 'smelter'];
 function _hasBuilding(type) {
+  // 'craft:any' — any crafting station (Crafting).
+  if (type === 'craft:any') return CRAFT_STATIONS.some(t => _hasBuilding(t));
   // 'tier:city' — a settlement tier rather than a building (Wonders).
   if (String(type).startsWith('tier:')) {
     const need = TIER_ORDER_CLIENT.indexOf(type.slice(5));
@@ -1669,6 +1672,12 @@ function _gatedAction(type, label, onclick) {
     ? '<button class="sett-action" data-sett-gate="' + type + '" data-label="' + label + '" data-onclick="' + onclick + '" onclick="' + onclick + '">' + label + '</button>'
     : '<button class="sett-action locked" data-sett-gate="' + type + '" data-label="' + label + '" data-onclick="' + onclick + '" disabled aria-disabled="true" title="Locked">🔒 Locked</button>';
 }
+// Crafting from the settlement panel: the first station the town has.
+function openCraftingAny() {
+  const t = CRAFT_STATIONS.find(x => _hasBuilding(x));
+  if (t && typeof openCrafting === 'function') openCrafting(t);
+}
+window.openCraftingAny = openCraftingAny;
 // After building something, unlock its button in place (no re-render needed).
 function refreshSettlementActions() {
   document.querySelectorAll('[data-sett-gate]').forEach(el => {
@@ -1864,6 +1873,8 @@ function _selectWorldTileImpl(tile) {
       + _gatedAction('market', '⚖️ Market', 'openMarket()')
       + '<button class="sett-action" onclick="KWTown.open(\'festival\')">🎉 Festival</button>'
       + _gatedAction('tier:city', '🏛 Wonders', "KWTown.open('wonders')")
+      + _gatedAction('craft:any', '🔨 Crafting', 'openCraftingAny()')
+      + '<button class="sett-action" onclick="KWJourneys.open()">🧭 Journeys</button>'
       + '</div>'
       + '</div>';
 
