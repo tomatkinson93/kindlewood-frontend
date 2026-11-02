@@ -194,7 +194,7 @@ function renderSeasonPanel() {
             <div class="sp-flavor">${currentSeason.flavor}</div>
           </div>
         </div>
-        <button class="sp-close" onclick="toggleSeasonPanel()">✕</button>
+        <button class="sp-close" onclick="toggleSeasonPanel()" aria-label="Close">✕</button>
       </div>
 
       <div class="sp-progress-section">

@@ -101,7 +101,7 @@
     el.innerHTML = '<span class="kw-hap-demo-icon">' + _esc(_demo.h.icon) + '</span>'
       + '<span class="kw-hap-demo-main"><span class="kw-hap-demo-title">Demo: ' + _esc(_demo.h.title) + ' <span class="kw-hap-demo-left"></span></span>'
       + _fxHtml(lines) + (lines.length ? '<span class="kw-hap-demo-note">Preview only: modifiers are not applied</span>' : '') + '</span>'
-      + '<button type="button" class="kw-hap-demo-stop" title="Stop the demo">✕</button>';
+      + '<button type="button" class="kw-hap-demo-stop" title="Stop the demo" aria-label="Stop the demo">✕</button>';
     el.querySelector('.kw-hap-demo-stop').onclick = stopDemo;
     doc.body.appendChild(el);
     const tick = () => {

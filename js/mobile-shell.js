@@ -565,7 +565,10 @@
     var ids = [
       'tavern-overlay', 'fishing-overlay', 'combat-modal',
       'settlement-view', 'sq-backdrop', 'bcmp-backdrop',
-      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay'
+      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay',
+      // R5: dialogs that go full screen on phones
+      'diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'away-report-modal', 'tier-upgrade-modal',
+      'jn-overlay', 'rs-overlay', 'cr-overlay', 'cf-overlay', 'raid-sheet', 'call-sheet', 'community-modal', 'events-panel'
     ];
     var wasOpen = false;
 
@@ -573,6 +576,8 @@
       var open = ids.some(function (id) {
         var n = byId(id);
         if (!n) return false;
+        // A panel that fades in reads as hidden at the instant its class flips.
+        if (n.classList.contains('open')) return true;
         var cs = window.getComputedStyle(n);
         return cs.display !== 'none' && cs.visibility !== 'hidden';
       });

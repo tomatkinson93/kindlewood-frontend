@@ -172,7 +172,7 @@ function openItemDetail(itemId) {
     + '<div class="inv-detail-rarity" style="color:' + rarityColor + '">' + INV_RARITY_LABELS[item.rarity] + ' · ' + (INV_CATEGORY_LABELS[item.category] || item.category) + (item.equip_slot ? ' · ' + item.equip_slot : '') + '</div>'
     + _invMarkHtml(item)
     + '</div>'
-    + '<button class="inv-detail-close" onclick="document.getElementById(\'inv-detail-overlay\').remove()">✕</button>'
+    + '<button class="inv-detail-close" onclick="document.getElementById(\'inv-detail-overlay\').remove()" aria-label="Close">✕</button>'
     + '</div>'
     + '<div class="inv-detail-desc">' + _invEsc(item.description || 'No description.') + '</div>'
     + (hasStats ? '<div class="inv-detail-section"><div class="inv-detail-section-title">Stat Bonuses</div><div class="inv-card-stats">'

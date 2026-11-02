@@ -247,7 +247,7 @@
     el.innerHTML = '<div class="qm-card ar-card ev-card-shell" role="dialog" aria-modal="true" aria-labelledby="ev-title">'
       + '<div class="qm-header"><div class="ar-head"><div class="qm-title" id="ev-title">📅 Events</div>'
       + '<div class="ar-away">Timed events change the realm while they run. Times are shown in your local time.</div></div>'
-      + '<button type="button" class="qm-close" data-close title="Close">✕</button></div>'
+      + '<button type="button" class="qm-close" data-close title="Close" aria-label="Close">✕</button></div>'
       + '<div class="ar-tabs" role="tablist"></div><div class="qm-body ev-body"></div></div>';
     el.addEventListener('click', (ev) => {
       const t = ev.target;

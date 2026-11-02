@@ -287,7 +287,7 @@
     el.style.display = 'none';
     el.innerHTML = '<div class="qm-card ar-card" role="dialog" aria-modal="true" aria-labelledby="ar-title">'
       + '<div class="qm-header"><div class="ar-head"><div class="qm-title" id="ar-title">🌙 Since you were gone…</div><div class="ar-away"></div></div>'
-      + '<button type="button" class="qm-close" data-close title="Close">✕</button></div>'
+      + '<button type="button" class="qm-close" data-close title="Close" aria-label="Close">✕</button></div>'
       + '<div class="ar-tabs" role="tablist"></div>'
       + '<div class="qm-body ar-body"></div>'
       + '<div class="ar-footer"><label class="ar-dont"><input type="checkbox" class="ar-dont-box"> Don\'t show me this again</label>'

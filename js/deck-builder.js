@@ -24,7 +24,7 @@ async function openDeckBuilder() {
     modal.className = 'db-overlay';
     modal.addEventListener('click', (e) => { if (e.target === modal) closeDeckBuilder(); });
     modal.innerHTML = '<div class="db-modal"><div class="db-head"><span>🃏 Decks</span>'
-      + '<button class="db-close" onclick="closeDeckBuilder()">✕</button></div>'
+      + '<button class="db-close" onclick="closeDeckBuilder()" aria-label="Close">✕</button></div>'
       + '<div class="db-body" id="db-body"><div class="db-muted">Loading…</div></div></div>';
     document.body.appendChild(modal);
   }
@@ -125,8 +125,8 @@ function _dbDeckRow(c) {
     + '<span class="db-cost" style="background:' + tc + '">' + c.cost + '</span>'
     + '<span class="db-name">' + _dbEsc(c.name) + '</span>'
     + '<span class="db-qty">×' + c.count + '</span>'
-    + '<button class="db-mini" onclick="_dbAdd(\'' + c.key + '\')">＋</button>'
-    + '<button class="db-mini" onclick="_dbRemove(\'' + c.key + '\')">－</button>'
+    + '<button class="db-mini" onclick="_dbAdd(\'' + c.key + '\')" aria-label="Add">＋</button>'
+    + '<button class="db-mini" onclick="_dbRemove(\'' + c.key + '\')" aria-label="Remove">－</button>'
     + '</div>';
 }
 function _dbPoolRow(c) {

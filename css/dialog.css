@@ -55,4 +55,10 @@
 .kw-help-q:hover, .kw-help-q:focus-visible { background: rgba(255, 255, 255, .18); outline: 2px solid #ffd27a; outline-offset: 1px; }
 @media (pointer: coarse) { .kw-help-q { width: 28px; height: 28px; } }
 /* Help opened from another screen sits above it. */
-.community-modal.kw-help-top { z-index: 100030 !important; }
+#community-modal.kw-help-top { z-index: 100030 !important; }
+
+/* Keyboard focus is always visible (mouse clicks don't show it). */
+:where(button, [role="button"], a, summary, select, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}

@@ -48,16 +48,16 @@ function renderBuildingsPanel() {
         </div>
         <div class="building-row-actions">
           <span class="building-tooltip-wrap">
-            <button class="building-help-btn" tabindex="-1">?</button>
+            <button class="building-help-btn" tabindex="-1" aria-label="Help">?</button>
             <span class="building-tooltip">${b.desc}</span>
           </span>
           ${b.currentLevel < b.maxLevel
-            ? `<button class="building-upgrade-btn" onclick="buildBuilding('${b.id}')">↑</button>`
+            ? `<button class="building-upgrade-btn" onclick="buildBuilding('${b.id}')" aria-label="Move up">↑</button>`
             : `<span class="building-maxed">MAX</span>`}
           ${b.id === 'guild_hall' && typeof openClanPanel === 'function'
-            ? `<button class="building-upgrade-btn" onclick="openClanPanel()" title="Clan">🛡️</button>`
+            ? `<button class="building-upgrade-btn" onclick="openClanPanel()" title="Clan" aria-label="Clan">🛡️</button>`
             : ''}
-          <button class="building-remove-btn" onclick="confirmRemoveBuilding('${b.id}','${b.label}')" title="Demolish">🗑</button>
+          <button class="building-remove-btn" onclick="confirmRemoveBuilding('${b.id}','${b.label}')" title="Demolish" aria-label="Demolish">🗑</button>
         </div>
       </div>
     `).join('');
@@ -78,7 +78,7 @@ function renderBuildingsPanel() {
             <div class="building-cost">${costStr}</div>
           </div>
           <span class="building-tooltip-wrap">
-            <button class="building-help-btn" tabindex="-1" onclick="event.stopPropagation()">?</button>
+            <button class="building-help-btn" tabindex="-1" onclick="event.stopPropagation()" aria-label="Help">?</button>
             <span class="building-tooltip tooltip-left">${b.desc}</span>
           </span>
           <button class="btn-build" onclick="event.stopPropagation(); buildBuilding('${b.id}')">Build</button>
@@ -202,6 +202,8 @@ function showBuildToast(msg, type='success') {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'build-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
@@ -668,10 +670,10 @@ function _renderQaList() {
     + '<span class="qa-row-title">' + q.title + (q.quest_source === 'clan' ? ' <span class="qa-src-tag" title="Clan quest (min clan level ' + (q.clan_min_level || 1) + ')">🛡️ Clan L' + (q.clan_min_level || 1) + '</span>' : q.quest_source === 'settlement' ? ' <span class="qa-src-tag">🏡</span>' : '') + '</span>'
     + '<span class="qa-row-diff">' + Math.round(q.base_success*100) + '%</span>'
     + '<div class="qa-row-btns">'
-    + '<button class="qa-btn" data-id="' + q.id + '" onclick="qa_showForm(this.dataset.id)">✏</button>'
+    + '<button class="qa-btn" data-id="' + q.id + '" onclick="qa_showForm(this.dataset.id)" aria-label="Edit">✏</button>'
     + (q.archived
-        ? '<button class="qa-btn qa-btn-archive" data-id="' + q.id + '" onclick="qa_setArchived(this.dataset.id,false)">↩</button>'
-        : '<button class="qa-btn qa-btn-archive" data-id="' + q.id + '" onclick="qa_setArchived(this.dataset.id,true)">🗄</button>'
+        ? '<button class="qa-btn qa-btn-archive" data-id="' + q.id + '" onclick="qa_setArchived(this.dataset.id,false)" aria-label="Restore">↩</button>'
+        : '<button class="qa-btn qa-btn-archive" data-id="' + q.id + '" onclick="qa_setArchived(this.dataset.id,true)" aria-label="Archive">🗄</button>'
       )
     + '</div></div>';
 
@@ -710,7 +712,7 @@ function qa_showForm(id) {
   wrap.style.display = 'block';
   wrap.innerHTML = '<div class="qa-form">'
     + '<div class="qa-form-header">' + (isNew ? '＋ New Quest' : 'Edit: ' + q.title)
-    + '<button onclick="document.getElementById(\'qa-form-wrap\').style.display=\'none\'" style="margin-left:auto;background:none;border:none;color:rgba(192,221,151,.5);cursor:pointer;font-size:14px">✕</button></div>'
+    + '<button onclick="document.getElementById(\'qa-form-wrap\').style.display=\'none\'" style="margin-left:auto;background:none;border:none;color:rgba(192,221,151,.5);cursor:pointer;font-size:14px" aria-label="Close">✕</button></div>'
 
     // ── Identity ──
     + '<div class="qa-section-label">Identity</div>'
@@ -934,7 +936,7 @@ function _qaRenderReqRows() {
     + '</select>'
     + '<input class="ce-input" placeholder="What they do" id="qa-req-desc-' + i + '" value="' + (r.desc||'') + '">'
     + (rows.length > 1
-        ? '<button onclick="_qaRemoveReqRow(' + i + ')" style="background:rgba(220,80,60,.15);border:1px solid rgba(220,80,60,.25);border-radius:4px;color:#e07a6a;cursor:pointer;padding:0 6px;font-size:12px;flex-shrink:0">✕</button>'
+        ? '<button onclick="_qaRemoveReqRow(' + i + ')" style="background:rgba(220,80,60,.15);border:1px solid rgba(220,80,60,.25);border-radius:4px;color:#e07a6a;cursor:pointer;padding:0 6px;font-size:12px;flex-shrink:0" aria-label="Close">✕</button>'
         : '<span style="width:26px"></span>')
     + '</div>'
   ).join('');

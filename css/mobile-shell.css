@@ -111,6 +111,16 @@ body.kw-shell #screen-game .events-panel {
   width: min(320px, calc(100vw - 16px));
   max-height: calc(100dvh - 160px); overflow-y: auto;
 }
+/* The Chronicle opens as a full sheet on phones: readable, and its buttons big enough. */
+body.kw-shell #screen-game .events-panel.open {
+  /* The top bar is its containing block (it has a backdrop filter), so size
+     by the viewport rather than with bottom: 0. */
+  top: 0; right: 0; left: 0; bottom: auto; width: auto;
+  height: 100dvh; max-height: 100dvh;
+  border-radius: 0; z-index: 9000; padding-top: env(safe-area-inset-top);
+}
+body.kw-shell #screen-game .events-panel .events-panel-close,
+body.kw-shell #screen-game .events-panel .ep-clear-all { min-height: 40px; min-width: 40px; }
 body.kw-shell #screen-game .profile-menu {
   position: fixed; top: 84px; right: 8px;
   max-width: calc(100vw - 16px);
@@ -704,6 +714,9 @@ body.kw-shell .bc-you-seat .bc-hand-card { width: 68px !important; }
 body.kw-shell.kw-overlay .kw-tabbar,
 body.kw-shell.kw-overlay .kw-fabs,
 body.kw-shell.kw-overlay .kw-stick { display: none; }
+/* Closed sheets park just behind the tab bar; with it gone they'd peek out. */
+body.kw-shell.kw-overlay .kw-sheet:not(.kw-open),
+body.kw-shell.kw-overlay #screen-game .sidebar:not(.kw-open) { visibility: hidden; }
 
 /* ── Landscape phone: games ─────────────────────────────────────────────
    ~412px of height has to hold an arena, the controls and a hand, so the
@@ -750,3 +763,39 @@ body.kw-shell.kw-overlay .kw-stick { display: none; }
   body.kw-shell .kw-stick { width: 86px; height: 86px; }
   body.kw-shell .kw-stick-knob { width: 38px; height: 38px; margin: -19px 0 0 -19px; }
 }
+
+
+/* ── R5: phone layouts for the remaining dialogs ─────────────────────────
+   Diplomacy, the notice board, active quests, the away report and the tier
+   upgrade are centred cards on desktop; on a phone (portrait or landscape)
+   they take the whole screen, scroll inside, and keep the close button in
+   reach. The tab bar hides behind them (mobile-shell.js watchOverlays). */
+body.kw-shell #diplomacy-modal,
+body.kw-shell #noticeboard-modal,
+body.kw-shell #quests-modal,
+body.kw-shell #away-report-modal,
+body.kw-shell #tier-upgrade-modal { padding: 0 !important; align-items: stretch !important; justify-content: stretch !important; z-index: 9700 !important; }
+body.kw-shell #diplomacy-modal .nb-modal-card,
+body.kw-shell #noticeboard-modal .nb-modal-card,
+body.kw-shell #quests-modal .qm-card,
+body.kw-shell #away-report-modal .ar-card,
+body.kw-shell #tier-upgrade-modal .tier-upgrade-modal-card {
+  width: 100% !important; max-width: none !important;
+  height: 100% !important; max-height: none !important;
+  margin: 0 !important; border-radius: 0 !important;
+  display: flex; flex-direction: column; overflow: hidden;
+  padding-top: env(safe-area-inset-top);
+}
+body.kw-shell #diplomacy-modal .nb-modal-card > :not(:first-child),
+body.kw-shell #noticeboard-modal .nb-modal-card > :not(:first-child),
+body.kw-shell #quests-modal .qm-card .qm-body,
+body.kw-shell #away-report-modal .ar-card .ar-body,
+body.kw-shell #tier-upgrade-modal .tier-upgrade-modal-card > :not(:first-child) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+body.kw-shell #away-report-modal .ar-card .ar-body { flex: 1; min-height: 0; }
+body.kw-shell #quests-modal .qm-card .qm-body { flex: 1; min-height: 0; }
+body.kw-shell .qm-close, body.kw-shell .nb-modal-close, body.kw-shell .tier-upgrade-modal-close { min-width: 44px; min-height: 44px; }
+
+/* Stores: a sheet across the top on phones instead of a small popover. */
+body.kw-shell .stores-pop.open { left: 0 !important; right: 0 !important; top: 0 !important; width: auto !important; max-height: 70dvh; border-radius: 0 0 14px 14px; padding-top: calc(10px + env(safe-area-inset-top)); }
+body.kw-shell .stores-pop .sp-row { min-height: 40px; }
+body.kw-shell .stores-pop .sp-x { min-width: 40px; min-height: 40px; }

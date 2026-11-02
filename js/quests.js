@@ -365,9 +365,9 @@ function _renderSoloCarousel() {
 
   container.innerHTML = '<div class="qp-carousel-wrap"><div class="qp-track" id="sq-track">' + cardsHtml + '</div></div>'
     + '<div class="qp-nav-row">'
-    + '<button class="qp-nav-btn" onclick="_soloCarouselGo(_soloQuestIdx - 1)">←</button>'
+    + '<button class="qp-nav-btn" onclick="_soloCarouselGo(_soloQuestIdx - 1)" aria-label="Previous">←</button>'
     + '<div class="carousel-dots" id="sq-dots"></div>'
-    + '<button class="qp-nav-btn" onclick="_soloCarouselGo(_soloQuestIdx + 1)">→</button>'
+    + '<button class="qp-nav-btn" onclick="_soloCarouselGo(_soloQuestIdx + 1)" aria-label="Next">→</button>'
     + '</div>';
 
   _applySoloCarouselPositions();
@@ -992,9 +992,9 @@ function _renderPartyCarousel() {
     + '<div class="qp-track" id="qp-track">' + cardsHtml + '</div>'
     + '</div>'
     + '<div class="qp-nav-row">'
-    + '<button class="qp-nav-btn" onclick="_partyCarouselGo(_partyQuestIdx - 1)">←</button>'
+    + '<button class="qp-nav-btn" onclick="_partyCarouselGo(_partyQuestIdx - 1)" aria-label="Previous">←</button>'
     + '<div class="carousel-dots" id="qp-dots"></div>'
-    + '<button class="qp-nav-btn" onclick="_partyCarouselGo(_partyQuestIdx + 1)">→</button>'
+    + '<button class="qp-nav-btn" onclick="_partyCarouselGo(_partyQuestIdx + 1)" aria-label="Next">→</button>'
     + '</div>';
 
   _applyPartyCarouselPositions();

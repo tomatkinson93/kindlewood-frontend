@@ -25,7 +25,7 @@ function _fbRenderSubmit() {
   const m = document.getElementById('feedback-modal');
   if (!m) return;
   m.innerHTML = '<div class="fb-modal">'
-    + '<div class="fb-head"><span>🐞 Bug Report / Feedback</span><button class="fb-close" onclick="closeFeedback()">✕</button></div>'
+    + '<div class="fb-head"><span>🐞 Bug Report / Feedback</span><button class="fb-close" onclick="closeFeedback()" aria-label="Close">✕</button></div>'
     + '<div class="fb-tabs"><button class="fb-tab on" onclick="_fbRenderSubmit()">Submit</button>'
     + '<button class="fb-tab" onclick="_fbRenderList()">View Reports</button></div>'
     + '<div class="fb-body">'
@@ -61,7 +61,7 @@ async function _fbRenderList() {
   const m = document.getElementById('feedback-modal');
   if (!m) return;
   m.innerHTML = '<div class="fb-modal">'
-    + '<div class="fb-head"><span>🐞 Reports</span><button class="fb-close" onclick="closeFeedback()">✕</button></div>'
+    + '<div class="fb-head"><span>🐞 Reports</span><button class="fb-close" onclick="closeFeedback()" aria-label="Close">✕</button></div>'
     + '<div class="fb-tabs"><button class="fb-tab" onclick="_fbRenderSubmit()">Submit</button>'
     + '<button class="fb-tab on" onclick="_fbRenderList()">View Reports</button></div>'
     + '<div class="fb-body" id="fb-list"><div class="fb-muted">Loading…</div></div></div>';

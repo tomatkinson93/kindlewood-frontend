@@ -43,7 +43,7 @@ console.log('2. How this works');
   check('2a. a labelled "?" in research, careers, outposts, scouting, journeys, Stores, walls and raids', miss.length === 0, miss.map(m => m[0]).join(', '));
   const H = read('js/help.js');
   check('2b. Help has topics for scouting, journeys and Stores', /id: 'expeditions'/.test(H) && /id: 'travel'/.test(H) && /id: 'stores'/.test(H) && /<b>Recall<\/b>/.test(H));
-  check('2c. opening a topic unfolds it, scrolls to it, and sits above the screen that asked', /d\.open = true; try \{ d\.scrollIntoView/.test(H) && /classList\.add\('kw-help-top'\)/.test(H) && /\.community-modal\.kw-help-top \{ z-index: 100030/.test(read('css/dialog.css')));
+  check('2c. opening a topic unfolds it, scrolls to it, and sits above the screen that asked', /d\.open = true; try \{ d\.scrollIntoView/.test(H) && /classList\.add\('kw-help-top'\)/.test(H) && /#community-modal\.kw-help-top \{ z-index: 100030/.test(read('css/dialog.css')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -548,7 +548,7 @@ const MINE = { ok: true, now: new Date().toISOString(),
   {
     const css = read('css/market.css'), js = read('js/market.js');
     check('7u. chart colours are the validated ones', /#bf8a2c/.test(js) && /#2f9e86/.test(js) && /#d0703c/.test(js));
-    check('7v. phone layout for tiles and the price list', /@media \(max-width: 600px\) \{\s*\.mk-tiles/.test(css));
+    check('7v. phone layout for tiles and the price list', /@media \(max-width: 600px\)(, \(max-height: 560px\) and \(pointer: coarse\))? \{\s*\.mk-tiles/.test(css));
     check('7w. charts redraw on resize; touch taps show the tooltip', /addEventListener\('resize'/.test(js) && /pointerType !== 'mouse'/.test(js));
   }
 

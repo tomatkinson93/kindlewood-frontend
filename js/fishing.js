@@ -1,3 +1,5 @@
+// Touch screens get "tap" wording instead of Click/Space.
+function _fpTouch() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
 
 function toggleCatchInventory() {
   const modal = document.getElementById('fp-inventory-modal');
@@ -380,7 +382,7 @@ function _renderBiteAlert() {
     '<div class="fp-bite-pulse"></div>' +
     '<div class="fp-bite-icon">' + (isJunk ? '❓' : '🎣') + '</div>' +
     '<div class="fp-bite-text">' + (isJunk ? 'Something snagged the line!' : "Something's biting!") + '</div>' +
-    '<div class="fp-bite-sub">Click or Space!</div>' +
+    '<div class="fp-bite-sub">' + (_fpTouch() ? 'Tap now!' : 'Click or Space!') + '</div>' +
     '<div class="fp-bite-timer-bar"><div class="fp-bite-timer-fill" id="fp-bite-timer-fill"></div></div>' +
     '</div>';
   requestAnimationFrame(function() {
@@ -429,7 +431,7 @@ function _renderMinigame() {
     '<div class="fp-minigame">' +
     '<div class="fp-mg-fish-hint">🎣 Something is on the line!</div>' +
     '<div class="fp-mg-state-badge" id="fp-mg-state-badge">💤 Dormant</div>' +
-    '<div class="fp-mg-instruction">Hold <kbd>Space</kbd> or <kbd>Click</kbd> to reel — careful when fish is <span class="fp-mg-hint-red">active</span>!</div>' +
+    '<div class="fp-mg-instruction">' + (_fpTouch() ? 'Press and hold to reel' : 'Hold <kbd>Space</kbd> or <kbd>Click</kbd> to reel') + ' — careful when fish is <span class="fp-mg-hint-red">active</span>!</div>' +
     '<div class="fp-mg-arena" id="fp-mg-arena">' +
     '<div class="fp-mg-progress-wrap" title="Catch progress">' +
     '<div class="fp-mg-progress-fill" id="fp-mg-progress" style="height:' + _progress + '%"></div>' +

@@ -162,7 +162,7 @@ function _renderHouseCard(h, species) {
           ${_genderSymbol(r.gender)}
           <span class="housing-citizen-name">${r.name}</span>
           <span class="housing-citizen-role">${r.role}</span>
-          <button class="housing-evict-btn" onclick="unassignCitizen(${r.id})" title="Remove from house">✕</button>
+          <button class="housing-evict-btn" onclick="unassignCitizen(${r.id})" title="Remove from house" aria-label="Remove from house">✕</button>
         </div>`).join('')
     : `<div class="housing-resident-empty">Empty</div>`;
 
@@ -172,7 +172,7 @@ function _renderHouseCard(h, species) {
         <div class="housing-house-name-wrap">
           <span class="housing-house-icon">🏡</span>
           <span class="housing-house-name" id="hname-${h.id}" onclick="editHouseName(${h.id})">${h.name}</span>
-          <button class="housing-rename-btn" onclick="editHouseName(${h.id})" title="Rename">✏️</button>
+          <button class="housing-rename-btn" onclick="editHouseName(${h.id})" title="Rename" aria-label="Rename">✏️</button>
         </div>
         <span class="housing-house-capacity" style="color:${statusColor}">${occupancy}/${h.capacity}</span>
       </div>

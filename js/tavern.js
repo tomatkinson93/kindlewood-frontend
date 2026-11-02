@@ -658,7 +658,7 @@ function _bcRender(promptHtml) {
 
   area.innerHTML = `
     <div class="card-game briar">
-      <div class="card-game-title">\u{1F33F} Briarwood Court <button class="bc-help-btn" onclick="bcToggleHelp()" title="Rules &amp; roles">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</div>
+      <div class="card-game-title">\u{1F33F} Briarwood Court <button class="bc-help-btn" onclick="bcToggleHelp()" title="Rules &amp; roles" aria-label="Rules &amp; roles">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</div>
       ${helpHtml}
       ${ledgerHtml}
       ${inspectHtml}
@@ -1260,7 +1260,7 @@ function _bcmpRender() {
       <div class="card-game-title">
         <span class="bc-title-name">🌿 Briarwood Court</span>
         <span id="bcmp-deadline" class="bcmp-deadline">${_bcmpDeadlineText(s)}</span>
-        <span class="bc-title-tools"><button class="bc-help-btn" onclick="bcToggleHelp()">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</span>
+        <span class="bc-title-tools"><button class="bc-help-btn" onclick="bcToggleHelp()" aria-label="Help">?</button>${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}</span>
       </div>
       ${absentBanner}
       <div class="bc-seats">${seatHtml}</div>
@@ -2422,8 +2422,8 @@ function _sqRender() {
       <div class="sq-roundbar">
         <span>Round ${s.round}</span>
         <button class="sq-hoard-btn" onclick="sqToggleHoard()" title="See what's left in the pile">🌰 ${pileCount} in pile ▾</button>
-        <button class="bc-help-btn" onclick="sqToggleLedger()" title="The hoard ledger">📜</button>
-        <button class="bc-help-btn" onclick="sqToggleHelp()" title="Rules">?</button>
+        <button class="bc-help-btn" onclick="sqToggleLedger()" title="The hoard ledger" aria-label="The hoard ledger">📜</button>
+        <button class="bc-help-btn" onclick="sqToggleHelp()" title="Rules" aria-label="Rules">?</button>
         ${typeof gameAudioControlHtml === 'function' ? gameAudioControlHtml() : ''}
       </div>
 
@@ -2869,7 +2869,7 @@ function sqToggleHelp() {
     (document.querySelector('.sq-shell') || document.body).appendChild(el);
   }
   el.innerHTML = `<div class="sq-help-card">
-    <button class="sq-help-x" onclick="document.getElementById('sq-help-modal').classList.remove('open')">✕</button>
+    <button class="sq-help-x" onclick="document.getElementById('sq-help-modal').classList.remove('open')" aria-label="Close">✕</button>
     <div class="sq-help-h">Squirrel's Stash</div>
     <div class="sq-help-rules">
       <p>Draw acorns from the pile to build your <b>stash</b>. Your first <b>3 draws each turn are safe</b>. After that, drawing a number already in your stash <b>busts</b> you — the whole stash is lost.</p>

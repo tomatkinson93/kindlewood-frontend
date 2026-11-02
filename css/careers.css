@@ -137,7 +137,7 @@
 .cr-scroll-bad { background: linear-gradient(#e6d9c6, #cbb79a); }
 @keyframes cr-unfurl { from { transform: scaleY(.1); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
 
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 560px) and (pointer: coarse) {
   .cr-overlay { padding: 0; }
   .cr-tree-panel { height: 100%; border-radius: 0; }
   .cr-tree-body { flex-direction: column; }

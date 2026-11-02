@@ -275,7 +275,7 @@
           <button type="button" class="cr-x" data-cr="close" aria-label="Close">✕</button></header>
         <div class="cr-tree-body">
           <div class="cr-tree-view" id="cr-tree-view"><div class="cr-tree-canvas" id="cr-tree-canvas"></div>
-            <div class="cr-tree-tools"><button type="button" data-cr="reset-view" title="Reset view">⟲</button></div></div>
+            <div class="cr-tree-tools"><button type="button" data-cr="reset-view" title="Reset view" aria-label="Reset view">⟲</button></div></div>
           <aside class="cr-node-info" id="cr-node-info"></aside>
         </div>
         <footer class="cr-tree-foot" id="cr-tree-foot"></footer>

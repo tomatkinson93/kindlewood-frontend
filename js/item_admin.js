@@ -53,9 +53,9 @@ function _iaRenderList() {
         + '<span style="font-size:9px;color:rgba(220,185,80,.5)">' + (item.sell_value ? '🪙' + item.sell_value : '') + '</span>'
         + (item.tradeable === false ? '<span style="font-size:9px;color:#e07a6a" title="Not tradeable">🚫⚖️</span>' : '')
         + '<div class="qa-row-btns">'
-        + '<button class="qa-btn" data-key="' + item.item_key + '" onclick="ia_showForm(this.dataset.key)">✏</button>'
-        + '<button class="qa-btn" data-key="' + item.item_key + '" onclick="ia_spawn(this.dataset.key)" title="Add to inventory">⬇</button>'
-        + '<button class="qa-btn qa-btn-archive" data-key="' + item.item_key + '" onclick="ia_delete(this.dataset.key)">🗑</button>'
+        + '<button class="qa-btn" data-key="' + item.item_key + '" onclick="ia_showForm(this.dataset.key)" aria-label="Edit">✏</button>'
+        + '<button class="qa-btn" data-key="' + item.item_key + '" onclick="ia_spawn(this.dataset.key)" title="Add to inventory" aria-label="Add to inventory">⬇</button>'
+        + '<button class="qa-btn qa-btn-archive" data-key="' + item.item_key + '" onclick="ia_delete(this.dataset.key)" aria-label="Delete">🗑</button>'
         + '</div></div>';
     }).join('')
   ).join('');
@@ -79,7 +79,7 @@ function ia_showForm(key) {
 
   wrap.innerHTML = '<div class="qa-form">'
     + '<div class="qa-form-header">' + (isNew ? '＋ New Item' : 'Edit: ' + item.name)
-    + '<button onclick="document.getElementById(\'ia-form-wrap\').style.display=\'none\'" style="margin-left:auto;background:none;border:none;color:rgba(192,221,151,.5);cursor:pointer;font-size:14px">✕</button></div>'
+    + '<button onclick="document.getElementById(\'ia-form-wrap\').style.display=\'none\'" style="margin-left:auto;background:none;border:none;color:rgba(192,221,151,.5);cursor:pointer;font-size:14px" aria-label="Close">✕</button></div>'
 
     // Identity
     + '<div class="qa-section-label">Identity</div>'

@@ -97,8 +97,8 @@ function _caRenderList() {
       + '<span class="ca-row-type" style="color:' + tc + '">' + c.card_type + '</span>'
       + '<span class="ca-row-rarity" style="color:' + rc + '">' + c.rarity + '</span>'
       + '<div class="ca-row-btns" onclick="event.stopPropagation()">'
-      + '<button class="ca-btn" onclick="ca_edit(\'' + c.card_key + '\')">✏</button>'
-      + '<button class="ca-btn ca-btn-del" onclick="ca_delete(\'' + c.card_key + '\')">🗑</button>'
+      + '<button class="ca-btn" onclick="ca_edit(\'' + c.card_key + '\')" aria-label="Edit">✏</button>'
+      + '<button class="ca-btn ca-btn-del" onclick="ca_delete(\'' + c.card_key + '\')" aria-label="Delete">🗑</button>'
       + '</div></div>';
   }).join('');
 }
@@ -140,7 +140,7 @@ function _caRenderEditor(card) {
   overlay.innerHTML =
     '<div class="ca-modal">'
     + '<div class="ca-modal-head"><span>' + (isNew ? '＋ New Card' : 'Edit: ' + _caEsc(c.name)) + '</span>'
-    +   '<button class="ca-modal-close" onclick="ca_cancel()">✕</button></div>'
+    +   '<button class="ca-modal-close" onclick="ca_cancel()" aria-label="Close">✕</button></div>'
     + '<div class="ca-editor-grid">'
     // ── Live card preview ──
     + '<div class="ca-card-preview ca-type-' + c.card_type + '" id="ca-preview" style="' + artStyle + '">'
@@ -166,12 +166,12 @@ function _caRenderEditor(card) {
     +   '<label class="ca-lbl">Background image URL ' + _caTip('Optional. Leave blank for the default card frame.') + '</label>'
     +   '<input class="ca-in" id="ca-art" value="' + _caEsc(c.art_url || '') + '" placeholder="/assets/cards/fire_bolt.png" oninput="_caPreviewArt()">'
     +   '<label class="ca-lbl">Sound effect ' + _caTip('Filename only, e.g. strike_1.mp3 — played from /assets/audio/cards/ when the card is used. Blank = silent.') + '</label>'
-    +   '<div class="ca-sfx-row"><input class="ca-in" id="ca-sfx" value="' + _caEsc(c.sfx || '') + '" placeholder="strike_1.mp3"><button class="ca-help-btn ca-sfx-test" onclick="_caTestSfx()" title="Test play">▶</button></div>'
+    +   '<div class="ca-sfx-row"><input class="ca-in" id="ca-sfx" value="' + _caEsc(c.sfx || '') + '" placeholder="strike_1.mp3"><button class="ca-help-btn ca-sfx-test" onclick="_caTestSfx()" title="Test play" aria-label="Test play">▶</button></div>'
     +   '<label class="ca-lbl" style="display:flex;align-items:center;gap:8px;margin-top:8px">'
     +     '<input type="checkbox" id="ca-wither" style="width:auto"' + (c.wither ? ' checked' : '') + '> Withers '
     +     _caTip('A withering card can be played only ONCE per combat. When played it crumbles to the Withered pile (never reshuffled, never redrawn this battle) and poofs into purple smoke. Shown with a cracked purple-glass frame.')
     +   '</label>'
-    +   '<label class="ca-lbl">Formula ' + _caTip('Click the ? for the formula reference') + ' <button class="ca-help-btn" onclick="_caShowHelp()">?</button></label>'
+    +   '<label class="ca-lbl">Formula ' + _caTip('Click the ? for the formula reference') + ' <button class="ca-help-btn" onclick="_caShowHelp()" aria-label="Help">?</button></label>'
     +   '<textarea class="ca-in ca-formula" id="ca-formula" rows="4" placeholder="damage: strength*0.6 + combat*0.8 + 4" oninput="_caValidateDebounced()">' + _caEsc(c.formula || '') + '</textarea>'
     +   '<div class="ca-formula-status" id="ca-formula-status"></div>'
     +   '<div class="ca-editor-actions">'

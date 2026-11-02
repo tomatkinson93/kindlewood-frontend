@@ -159,7 +159,7 @@
       '<div class="sp-header"><div class="sp-title"><span class="sp-emoji">' + (D.sunAt(ms).up ? '☀️' : moon.glyph) + '</span><div>' +
         '<div class="sp-season-name hc-title">' + esc(labelFor(ph)) + '</div>' +
         '<div class="sp-flavor">Hearth time ' + utcHM(ms) + ' UTC · your time ' + esc(localHM(ms)) + '</div></div></div>' +
-        '<button class="sp-close" onclick="KWHudClock.close()">✕</button></div>' +
+        '<button class="sp-close" onclick="KWHudClock.close()" aria-label="Close">✕</button></div>' +
       '<div class="hc-section"><div class="sp-effects-label">Coming up</div>' + rows + '</div>' +
       '<div class="hc-section"><div class="sp-effects-label">This moon cycle</div><div class="hc-moons">' + moons + '</div>' +
         '<div class="hc-moon-name">' + moon.glyph + ' ' + esc(moon.name) + '</div></div>' +

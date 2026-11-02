@@ -76,7 +76,7 @@ function renderEventsFeed() {
           <div class="ef-message">${ev.message}</div>
           <div class="ef-time">${time}</div>
         </div>
-        <button class="ef-dismiss" onclick="dismissEvent(${ev.id})" title="Dismiss">✕</button>
+        <button class="ef-dismiss" onclick="dismissEvent(${ev.id})" title="Dismiss" aria-label="Dismiss">✕</button>
       </div>
     `;
   }).join('');
