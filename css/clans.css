@@ -13,7 +13,7 @@
 
 .clan-card {
   position: relative;
-  width: 520px; max-width: 95vw; max-height: 86vh;
+  width: min(900px, 95vw); max-width: 95vw; max-height: 88vh;
   display: flex; flex-direction: column; overflow: hidden;
   background: linear-gradient(160deg, #1c1610 0%, #110e09 100%);
   border: 1px solid rgba(200,148,26,.3);
@@ -465,3 +465,10 @@ body.kw-shell #clan-profile .cp-body { padding-bottom: calc(18px + env(safe-area
 .cq-log summary { cursor: pointer; color: rgba(244,201,93,.8); width: max-content; }
 .cq-log ol { margin: 6px 0 0; padding-left: 20px; max-height: 200px; overflow-y: auto; }
 .cq-log li { padding: 1px 0; }
+
+/* Wide panel (defences round): the tabs fit on one row on desktop; the
+   roster and lists use the room. */
+@media (min-width: 760px) {
+  .clan-tabs { flex-wrap: nowrap; }
+  .clan-tab { white-space: nowrap; }
+}

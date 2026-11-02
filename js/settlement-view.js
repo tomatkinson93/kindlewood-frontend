@@ -55,6 +55,7 @@ const SV_SLOTS = [
   { id:'out-smelter',        area:'outskirts', x:44,  y:89, accepts:['smelter'],       label:'Furnace Row',   size:'md' },
   { id:'town-library',       area:'town',      x:80,  y:88, accepts:['library'],       label:"Scholars' Walk", size:'md' },
   { id:'out-watchtower',     area:'outskirts', x:6,   y:62, accepts:['watchtower'],    label:'The Palisade',  size:'md' },
+  { id:'out-walls',          area:'outskirts', x:94,  y:78, accepts:['walls'],         label:'Town Gate',     size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -75,6 +76,7 @@ const SV_VISUALS = {
   mine:          { emoji:'⛏️',        bodyColor:'#5b5248', roofColor:'#3a342e', flavor:'Lamps flicker deep in the hill.' },
   smelter:       { emoji:'🔥',        bodyColor:'#6a3a24', roofColor:'#3e2214', flavor:'The furnace roars; the air shimmers.' },
   library:       { emoji:'📚',        bodyColor:'#4f4a6a', roofColor:'#2f2b48', flavor:'Candles, ink and the scratch of quills.' },
+  walls:         { emoji:'🧱',        bodyColor:'#6b6256', roofColor:'#4a433a', flavor:'Stakes, then stone, then more stone.' },
   watchtower:    { emoji:'🗼',        bodyColor:'#5e5040', roofColor:'#3c3226', flavor:'A lantern burns at the top all night.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
 };
@@ -84,12 +86,14 @@ const SV_VISUALS = {
 function _svWatchHtml() {
   var w = gameData && gameData.settlement && gameData.settlement.town && gameData.settlement.town.watch;
   if (!w) return '';
-  var line = w.posted
+  var line = !w.level ? '' : w.posted
     ? '🛡️ ' + w.posted + ' of ' + w.slots + ' posts manned · +' + Math.min(5, w.posted) + ' happiness · defence ' + w.defence
     : '🛡️ No one on watch — Guards and Archers at home take the posts (' + w.slots + ').';
+  var d = gameData.settlement.defence;
+  if (d) line += (line ? '<br>' : '') + '🧱 Town defence ' + d.own + ' — walls ' + d.walls + ', watch ' + d.watch + '.' + (d.own ? '' : ' <b style="color:#ff6a4a">Undefended</b>');
   var raid = gameData.settlement.raid;
-  if (raid && !raid.resolved_at) line += '<br>🔥 Raiders from ' + raid.from + ' are on their way to ' + raid.target + ' (strength about ' + raid.strength + ').';
-  return '<div class="sv-bp-watch">' + line + '</div>';
+  if (raid && !raid.resolved_at) line += '<br>🔥 Raiders from ' + raid.from + ' are on their way to ' + raid.target + ' (strength about ' + raid.strength_min + '–' + raid.strength_max + ').';
+  return '<div class="sv-bp-watch">' + line + ' <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open(\'raids\')">?</button></div>';
 }
 
 // A building can be started when its building requirements and its minimum
@@ -961,7 +965,7 @@ async function _svBuildHousing() {
 window._svBuildHousing = _svBuildHousing;
 
 async function _svDemolishHouse() {
-  if (!window.confirm('Demolish a Willow Hut? The most recently built home will be removed and its residents will be unhoused. You will receive 50% of build resources back.')) return;
+  if (!await KWDialog.confirm({ title: 'Demolish a Willow Hut?', message: 'The most recently built home will be removed and its residents will be unhoused. You will receive 50% of build resources back.', ok: 'Demolish', danger: true })) return;
   try {
     var res = await apiFetch('/api/buildings/remove', {
       method: 'POST',
@@ -970,7 +974,7 @@ async function _svDemolishHouse() {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Demolition failed.');
+      KWDialog.alert(d.error || 'Demolition failed.');
       return;
     }
     var d = await res.json();
@@ -981,7 +985,7 @@ async function _svDemolishHouse() {
     await _svLoad();
     _openHousingModal();
   } catch(e) {
-    alert('Demolition failed.');
+    KWDialog.alert('Demolition failed.');
   }
 }
 window._svDemolishHouse = _svDemolishHouse;
@@ -998,12 +1002,12 @@ async function _svAssignToHouse(houseId) {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Could not assign citizen.');
+      KWDialog.alert(d.error || 'Could not assign citizen.');
       return;
     }
     _openHousingModal();
   } catch(e) {
-    alert('Assignment failed.');
+    KWDialog.alert('Assignment failed.');
   }
 }
 window._svAssignToHouse = _svAssignToHouse;
@@ -1017,12 +1021,12 @@ async function _svUnassignFromHouse(citizenId) {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Could not move citizen out.');
+      KWDialog.alert(d.error || 'Could not move citizen out.');
       return;
     }
     _openHousingModal();
   } catch(e) {
-    alert('Failed to move citizen out.');
+    KWDialog.alert('Failed to move citizen out.');
   }
 }
 window._svUnassignFromHouse = _svUnassignFromHouse;
@@ -1070,7 +1074,7 @@ function _openBuildPanel(slot, occupant) {
       + (['smithy', 'jeweller', 'workshop', 'smelter'].includes(occupant.id) && typeof openCrafting === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
         : '')
-      + (occupant.id === 'watchtower' ? _svWatchHtml() : '')
+      + (occupant.id === 'watchtower' || occupant.id === 'walls' ? _svWatchHtml() : '')
       + (occupant.id === 'library' && typeof openLibrary === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openLibrary()">📚 Open the Library</button>'
         : '')
@@ -1149,7 +1153,7 @@ async function _svBuild(buildingId) {
 window._svBuild = _svBuild;
 
 async function _svDemolish(buildingId) {
-  if (!window.confirm('Demolish this building? You will receive 50% of resources back.')) return;
+  if (!await KWDialog.confirm({ title: 'Demolish this building?', message: 'You will receive 50% of resources back.', ok: 'Demolish', danger: true })) return;
   _closeBuildPanel();
   try {
     var res = await apiFetch('/api/buildings/remove', {
@@ -1159,7 +1163,7 @@ async function _svDemolish(buildingId) {
     });
     if (!res.ok) {
       var d = await res.json();
-      alert(d.error || 'Demolition failed.');
+      KWDialog.alert(d.error || 'Demolition failed.');
       return;
     }
     var d = await res.json();
@@ -1170,7 +1174,7 @@ async function _svDemolish(buildingId) {
     }
     await _svLoad();
   } catch(e) {
-    alert('Demolition failed.');
+    KWDialog.alert('Demolition failed.');
   }
 }
 window._svDemolish = _svDemolish;

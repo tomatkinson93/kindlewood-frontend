@@ -287,7 +287,7 @@
     el.style.display = 'none';
     el.innerHTML = '<div class="qm-card ar-card" role="dialog" aria-modal="true" aria-labelledby="ar-title">'
       + '<div class="qm-header"><div class="ar-head"><div class="qm-title" id="ar-title">🌙 Since you were gone…</div><div class="ar-away"></div></div>'
-      + '<button type="button" class="qm-close" data-close title="Close">✕</button></div>'
+      + '<button type="button" class="qm-close" data-close title="Close" aria-label="Close">✕</button></div>'
       + '<div class="ar-tabs" role="tablist"></div>'
       + '<div class="qm-body ar-body"></div>'
       + '<div class="ar-footer"><label class="ar-dont"><input type="checkbox" class="ar-dont-box"> Don\'t show me this again</label>'
@@ -347,8 +347,10 @@
     tryFile(0);
   }
 
+  const LAST_KEY = 'kw_away_last';
   function show(report) {
     _report = report;
+    try { root.localStorage.setItem(LAST_KEY, JSON.stringify(report)); } catch (e) { /* private mode */ }
     _openRes = null;
     _tab = 'summary';
     _showAll = {};
@@ -370,5 +372,14 @@
     el.style.display = 'none';
   }
 
-  root.KWAwayReport = { start, show, close, enabled, setEnabled, seen, hasContent, _render, _setTab(t) { _tab = t; _render(); } };
+  // Reopen the last "while you were away" report (events panel).
+  function last() { try { return JSON.parse(root.localStorage.getItem(LAST_KEY) || 'null'); } catch (e) { return null; } }
+  function reopen() {
+    const r = _report || last();
+    if (r) { show(r); return true; }
+    if (typeof root.showToastNotification === 'function') root.showToastNotification('📜 No report yet — one appears when you come back after a while away.', 'default');
+    return false;
+  }
+
+  root.KWAwayReport = { start, show, last, reopen, close, enabled, setEnabled, seen, hasContent, _render, _setTab(t) { _tab = t; _render(); } };
 })(typeof window !== 'undefined' ? window : this);

@@ -571,7 +571,7 @@
           <div class="cm-scene-header">
             <div class="cm-scene-title" id="cm-scene-title">A Battle</div>
             <div class="cm-scene-round" id="cm-scene-round">Round 1</div>
-            <button class="cm-flee" onclick="closeCombat()" title="Retreat">✕</button>
+            <button class="cm-flee" onclick="closeCombat()" title="Retreat" aria-label="Retreat">✕</button>
           </div>
           <div class="cm-stage">
             <div class="cm-sprites cm-sprites-player" id="cm-sprites-player"></div>

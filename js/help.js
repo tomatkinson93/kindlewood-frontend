@@ -50,6 +50,19 @@
       <p>Your tier decides how many outposts you can run and how far away. Outposts can be upgraded to level 3 for more yield — each level eats a little more food.</p>
       <p>Post a <b>worker</b> at an outpost for +25% yield — +50% if their trade suits the land (a Miner in the hills, a Woodcutter in the forest). While posted they don't work in town. If the stores can't feed your outposts, they work at <b>half pace</b> until there is food again. Dismantling one gives back about half of what it cost.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
+    { id: 'expeditions', icon: '🗺', title: 'Scouts and expeditions', body: `
+      <p>Build a <b>Scout Post</b> and give a citizen the <b>Scout</b> job. Then tap a tile under the fog and <b>Dispatch Scout</b>: they walk there and reveal the land around it when they arrive. Fog is slower to cross than land you know; a bigger Scout Post and a skilled scout are faster.</p>
+      <p>Long trips sometimes bring back an <b>ore sample</b> or a <b>schematic</b>.</p>
+      <p>Changed your mind? Open <b>🧭 Journeys</b> (or tap the "scouts out" badge) and <b>Recall</b>: the scout turns round and walks home as long as they have been out — nothing new is revealed.</p>`,
+      open: [['🧭 Journeys', link('KWJourneys.open')]] },
+    { id: 'travel', icon: '🧭', title: 'Journeys and travel', body: `
+      <p>Everyone who leaves town walks the map: scouts, envoys, porters and merchants, quest parties and clan quests. Their paths show on the map (🐾 Paths to hide them).</p>
+      <p><b>🧭 Journeys</b> (settlement panel, or More on a phone) lists everyone away with the time left and <b>Show on map</b>, who is posted at your outposts, and what nearby villages are asking for.</p>`,
+      open: [['🧭 Journeys', link('KWJourneys.open')]] },
+    { id: 'stores', icon: '⛏', title: 'Stores: ores, rare finds and alloys', body: `
+      <p>Food, timber, stone, iron and wealth sit in the top bar. Everything else — copper, tin, coal, silver, gems, bronze, steel… — is in <b>⛏ Stores</b> once you have found it.</p>
+      <p>Undiscovered resources show as <b>??</b>. Mines, hill and mountain outposts and scouts turn up ores; the rarer ones need research first. The Smelter turns ores into alloys.</p>
+      <p>Tap any resource for where it comes from and where it goes.</p>` },
     { id: 'wonders', icon: '🏛', title: 'Festivals, Wonders and upkeep', body: `
       <p>Any town can hold a <b>festival</b>: it costs wealth and food, and for 24 hours brings +10 happiness and +10% production. After one, the town needs 72 hours (from the start) before the next.</p>
       <p>A <b>City</b> whose scholars have learned how to raise great works can build <b>Wonders</b> — five great works, each built in three stages, needing metals and rare materials (the last stage an Ancient Blueprint). A finished wonder gives a permanent bonus.</p>
@@ -72,7 +85,11 @@
     { id: 'raids', icon: '🔥', title: 'Villages, trust and raids', body: `
       <p>Trust with a village fades if you never write: after a week without a gift, trade, envoy, quest or tribute it drops a point a day — but never below the band under the best you reached (an old ally can cool to Friendly, no further). The village panel warns you first.</p>
       <p>An <b>Allied</b> village sends a small daily tribute, teaches fighting cards, and its militia helps guard your outposts within 4 tiles.</p>
-      <p>The <b>Withered</b> sometimes raid towns whose outposts come within 6 tiles of their land — never Camps or brand-new players, and never twice within two days. You get <b>6 hours' warning</b>. Guards and Archers at the Watchtower, Allied militia and clan boons defend you. Win and you earn a little wealth; lose and an outpost sits idle for 6 hours or the raiders carry off a share of one resource (at most 300). Nothing is ever destroyed.</p>` },
+      <p>The <b>Withered</b> sometimes raid towns whose outposts come within 6 tiles of their land — never Camps or brand-new players, and never twice within two days. A red <b>countdown</b> appears in the top bar and a red trail on the map shows where they'll strike; tap the timer for your defences.</p>
+      <p><b>Defend</b> with <b>Walls</b> around your town and a <b>fort</b> at each outpost (Palisade, Stockade, Stone Tower — research in the Building path unlocks them), manned by Guards and Archers. Allied militia, clan boons and clanmates' forts on shared clan land add to it.</p>
+      <p>An undefended spot loses <b>15% of each resource</b> (at most 2,000 of each), and an outpost sits idle for 12 hours. The closer your defence comes to their strength, the less they take; strong enough, and they take nothing. Anyone at a raided spot is hurt and sent home.</p>
+      <p>Raids set out from <b>Withered camps</b> near their villages (⛺💀 on the map). Burn one with a party of up to four and every town within 6 tiles gets 3 days of peace. When raiders are coming you can also <b>sally out</b> to meet them in battle — win and the raid is broken; lose and they come on angrier. Clanmates can answer a <b>call to arms</b> and send Guards and Archers to hold a spot on clan land.</p>
+      <p>You can also pay the Withered <b>tribute</b> for 24 hours of peace — it costs more each time you pay within three days, and double to turn back raiders already on their way.</p>` },
     { id: 'tavern', icon: '🍺', title: 'Tavern games', body: `
       <p>Play <b>Briarwood Court</b> or <b>Squirrel's Stash</b> at the tavern, alone against AI courtiers or with other players.</p>
       <p>A win pays <b>4 wealth</b>, for up to 10 wins a day. Every win counts on the rankings.</p>`,
@@ -117,7 +134,8 @@
     if (title) title.textContent = '❓ Help';
     body.innerHTML = html();
     modal.classList.add('open');
-    if (topic) { const d = document.getElementById('help-' + topic); if (d) d.open = true; }
+    if (topic) modal.classList.add('kw-help-top'); else if (modal.classList.remove) modal.classList.remove('kw-help-top');   // over whatever screen asked
+    if (topic) { const d = document.getElementById('help-' + topic); if (d) { d.open = true; try { d.scrollIntoView({ block: 'start' }); } catch (_) { /* old browser */ } } }
   }
 
   global.KWHelp = { open, go, TOPICS, html };

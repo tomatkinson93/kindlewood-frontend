@@ -83,7 +83,7 @@
 
     modal.innerHTML = `
       <div class="lb-shell">
-        <button class="lb-x" onclick="Leaderboard.close()">✕</button>
+        <button class="lb-x" onclick="Leaderboard.close()" aria-label="Close">✕</button>
         <div class="lb-header">
           <div class="lb-crest">🏆</div>
           <div>

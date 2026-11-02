@@ -105,6 +105,7 @@
     // going through the settlement panel.
     { group: 'Places', label: 'Tavern',  glyph: '🍺', fn: function () { window.visitTavern(); },      needs: 'visitTavern' },
     { group: 'Places', label: 'Fishing', glyph: '🎣', fn: function () { window.visitFishingPost(); }, needs: 'visitFishingPost' },
+    { group: 'Adventure', label: 'Journeys', glyph: '🧭', fn: function () { window.KWJourneys.open(); }, needs: 'openJourneys' },
     { group: 'You',   label: 'Profile',    glyph: '👤', fn: function () { window.openProfile(); },           needs: 'openProfile' },
     { group: 'You',   label: 'Settings',   glyph: '⚙',       fn: function () { window.openSettingsPopover(); },   needs: 'openSettingsPopover' },
     { group: 'You',   label: 'Help',       glyph: '❓',       fn: function () { window.showCommunityTab('help'); },needs: 'showCommunityTab' }
@@ -564,7 +565,10 @@
     var ids = [
       'tavern-overlay', 'fishing-overlay', 'combat-modal',
       'settlement-view', 'sq-backdrop', 'bcmp-backdrop',
-      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay'
+      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay',
+      // R5: dialogs that go full screen on phones
+      'diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'away-report-modal', 'tier-upgrade-modal',
+      'jn-overlay', 'rs-overlay', 'cr-overlay', 'cf-overlay', 'raid-sheet', 'call-sheet', 'community-modal', 'events-panel'
     ];
     var wasOpen = false;
 
@@ -572,6 +576,8 @@
       var open = ids.some(function (id) {
         var n = byId(id);
         if (!n) return false;
+        // A panel that fades in reads as hidden at the instant its class flips.
+        if (n.classList.contains('open')) return true;
         var cs = window.getComputedStyle(n);
         return cs.display !== 'none' && cs.visibility !== 'hidden';
       });

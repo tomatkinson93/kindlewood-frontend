@@ -101,7 +101,7 @@ body.rs-open { overflow: hidden; }
 .rs-miss { color: #f0a08a; }
 .rs-d-act { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 14px; }
 
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 560px) and (pointer: coarse) {
   .rs-hd { padding: 8px 10px; gap: 6px 10px; }
   .rs-hd-title h2 { font-size: 18px; }
   .rs-hd-sch { display: none; }
@@ -133,7 +133,7 @@ body.rs-open { overflow: hidden; }
 .rs-qchip-mv { padding: 3px 5px !important; font-size: 10px !important; color: rgba(242,230,201,.7) !important; }
 .rs-qchip-x { padding: 3px 8px !important; color: rgba(242,230,201,.6) !important; border-left: 1px solid rgba(185,176,255,.25) !important; }
 .rs-qchip button:hover, .rs-qchip button:focus-visible { background: rgba(185,176,255,.18); outline: none; }
-@media (max-width: 700px) {
+@media (max-width: 700px), (max-height: 560px) and (pointer: coarse) {
   .rs-hd-queue { order: 6; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
   .rs-qchip { flex-shrink: 0; }
 }

@@ -247,7 +247,7 @@
       <div class="cf-job-main"><div>${esc(j.options && j.options.named ? `“${j.options.named}”` : j.name)}${active ? '' : ' <span class="cr-muted">— waiting</span>'}${j.options && j.options.list ? ` <span class="cf-tag" title="Goes on a stall when it's done">🏪 ${esc(markupLabel(j.options.list.markup))}</span>` : ''}</div>
         ${active ? `<div class="cf-bar"><div class="cf-bar-fill" style="width:${Math.round(p * 100)}%"></div></div>
           <div class="cf-left cr-muted" data-left="${t1}">${fmtTime((t1 - Date.now()) / 1000)} left</div>` : ''}</div>
-      <button type="button" class="cr-btn cf-cancel" data-cf="cancel" data-id="${j.id}" title="Cancel — materials come back">✕</button>
+      <button type="button" class="cr-btn cf-cancel" data-cf="cancel" data-id="${j.id}" title="Cancel — materials come back" aria-label="Cancel — materials come back">✕</button>
     </div>`;
   }
   function doneRow(j) {
@@ -476,7 +476,7 @@
         <span class="qa-row-icon">${r.discovery === 'hidden' ? '📜' : '🔨'}</span>
         <span class="qa-row-title" title="${esc(r.recipe_key)}">${esc(r.name)}</span>
         <span class="ra-meta">Lv${r.min_level}${r.spec ? ' · ' + esc(r.spec) : ''} · ${fmtTime(r.base_seconds)} · ${r.base_xp}xp${r.archived ? ' · archived' : ''}</span>
-        <div class="qa-row-btns"><button type="button" class="qa-btn ra-edit" title="Edit" onclick="KWCrafting.editRecipe('${esc(r.recipe_key)}')">✏</button></div>
+        <div class="qa-row-btns"><button type="button" class="qa-btn ra-edit" title="Edit" onclick="KWCrafting.editRecipe('${esc(r.recipe_key)}')" aria-label="Edit">✏</button></div>
       </div>`).join('')}`).join('');
   }
   const RA_CHOICES = {

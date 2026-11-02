@@ -85,9 +85,9 @@
 .ra-btn { width: auto; padding: 4px 10px; }
 .ra-muted { opacity: .4; font-size: 11px; padding: 8px; }
 .ra-err { color: #e07a6a; font-size: 11px; padding: 8px; }
-@media (max-width: 600px) { .ra-meta { display: none; } }
+@media (max-width: 600px), (max-height: 560px) and (pointer: coarse) { .ra-meta { display: none; } }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
   .cf-overlay { padding: 0; }
   .cf-panel { height: 100%; border-radius: 0; }
   .cf-main { grid-template-columns: 1fr; overflow-y: auto; }
@@ -104,7 +104,7 @@
 .cf-sub2 { font-size: 12px; color: rgba(242,230,201,.75); margin-top: 2px; }
 .cf-warn { color: #f0a08a; }
 .cf-learn summary { color: #f4c95d; }
-@media (max-width: 760px) { .cf-h { flex-wrap: wrap; gap: 6px; } }
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) { .cf-h { flex-wrap: wrap; gap: 6px; } }
 
 /* How this works (first visit opens it) */
 .cf-help { margin: 8px 18px 0; padding: 6px 10px; border-radius: 10px; background: rgba(244,201,93,.06); border: 1px solid rgba(244,201,93,.2); font-size: 13px; flex-shrink: 0; }
@@ -124,7 +124,7 @@
 .cf-book-who { font-size: 12px; color: rgba(242,230,201,.8); }
 .cf-book-find { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: rgba(242,230,201,.6); }
 .cf-find { padding: 2px 8px; font-size: 12px; }
-@media (max-width: 760px) { .cf-book-row { grid-template-columns: 1fr; } }
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) { .cf-book-row { grid-template-columns: 1fr; } }
 
 /* Dev Tools → 📊 Careers (js/career-balance.js) */
 .cb-tunes { display: grid; gap: 6px; margin-bottom: 10px; }

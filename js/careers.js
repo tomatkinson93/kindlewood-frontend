@@ -271,11 +271,11 @@
     o.id = 'cr-overlay';
     o.className = 'cr-overlay';
     o.innerHTML = `<div class="cr-tree-panel" role="dialog" aria-modal="true" aria-labelledby="cr-tree-title">
-        <header class="cr-tree-head"><div><h2 id="cr-tree-title"></h2><div class="cr-tree-sub" id="cr-tree-sub"></div></div>
+        <header class="cr-tree-head"><div><h2 id="cr-tree-title"></h2><button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('careers')">?</button><div class="cr-tree-sub" id="cr-tree-sub"></div></div>
           <button type="button" class="cr-x" data-cr="close" aria-label="Close">✕</button></header>
         <div class="cr-tree-body">
           <div class="cr-tree-view" id="cr-tree-view"><div class="cr-tree-canvas" id="cr-tree-canvas"></div>
-            <div class="cr-tree-tools"><button type="button" data-cr="reset-view" title="Reset view">⟲</button></div></div>
+            <div class="cr-tree-tools"><button type="button" data-cr="reset-view" title="Reset view" aria-label="Reset view">⟲</button></div></div>
           <aside class="cr-node-info" id="cr-node-info"></aside>
         </div>
         <footer class="cr-tree-foot" id="cr-tree-foot"></footer>

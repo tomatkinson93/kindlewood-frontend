@@ -40,20 +40,23 @@
   <link rel="stylesheet" href="/css/carousel.css?v=spec20a">
   <link rel="stylesheet" href="/css/hero.css?v=spec20c">
   <link rel="stylesheet" href="/css/mobile.css?v=shell2">
-  <link rel="stylesheet" href="/css/mobile-shell.css?v=shell5">
-  <link rel="stylesheet" href="/css/clans.css?v=cq3">
-  <link rel="stylesheet" href="/css/market.css?v=rs5">
-  <link rel="stylesheet" href="/css/careers.css?v=cr1">
-  <link rel="stylesheet" href="/css/crafting.css?v=rs7">
+  <link rel="stylesheet" href="/css/mobile-shell.css?v=r5f">
+  <link rel="stylesheet" href="/css/clans.css?v=d3">
+  <link rel="stylesheet" href="/css/market.css?v=r5d">
+  <link rel="stylesheet" href="/css/careers.css?v=r5d">
+  <link rel="stylesheet" href="/css/crafting.css?v=r5d">
   <link rel="stylesheet" href="/css/stores.css?v=g3">
   <link rel="stylesheet" href="/css/famine.css?v=r3c">
   <link rel="stylesheet" href="/css/mail.css?v=r3">
   <link rel="stylesheet" href="/css/wonders.css?v=r3">
-  <link rel="stylesheet" href="/css/r4.css?v=r4e">
-  <link rel="stylesheet" href="/css/research.css?v=g4">
+  <link rel="stylesheet" href="/css/r4.css?v=r5b">
+  <link rel="stylesheet" href="/css/research.css?v=r5d">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
-  <link rel="stylesheet" href="/css/chat-hub.css?v=cp1">
+  <link rel="stylesheet" href="/css/chat-hub.css?v=d3">
+  <link rel="stylesheet" href="/css/dialog.css?v=r5f">
+  <link rel="stylesheet" href="/css/journeys.css?v=r5c">
+  <link rel="stylesheet" href="/css/first-steps.css?v=r5">
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -102,7 +105,7 @@
 
   <!-- SPECIES MODAL -->
   <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()">
-    <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-card" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Species">
       <button class="modal-close" onclick="closeModal()" aria-label="Close">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
@@ -127,7 +130,7 @@
 
   <!-- SETTLEMENT NAMING MODAL -->
   <div class="naming-backdrop" id="naming-backdrop">
-    <div class="naming-fullscreen">
+    <div class="naming-fullscreen" role="dialog" aria-modal="true" aria-label="Name your settlement">
       <img class="naming-bg" src="/assets/starter_camp.png" alt="Your camp">
       <div class="naming-overlay"></div>
       <div class="naming-content">
@@ -365,7 +368,7 @@
         <div class="arrival-half arrival-species-half">
           <div class="arrival-half-label">Your kin</div>
           <div class="arrival-carousel">
-            <button class="arrival-arrow" onclick="arrivalSpeciesPrev()">←</button>
+            <button class="arrival-arrow" onclick="arrivalSpeciesPrev()" aria-label="Previous">←</button>
             <div class="arrival-card">
               <img class="arrival-sp-img" id="arrival-sp-img" src="/assets/mouse.png" alt="">
               <div class="arrival-sp-name" id="arrival-sp-name">Mice</div>
@@ -374,7 +377,7 @@
               <div class="arrival-sp-stats" id="arrival-sp-stats"></div>
               <div class="arrival-sp-lore" id="arrival-sp-lore"></div>
             </div>
-            <button class="arrival-arrow" onclick="arrivalSpeciesNext()">→</button>
+            <button class="arrival-arrow" onclick="arrivalSpeciesNext()" aria-label="Next">→</button>
           </div>
           <div class="arrival-counter" id="arrival-sp-counter">1 / 6</div>
           <div class="arrival-diversity-note">✦ You can recruit other species as your realm grows ✦</div>
@@ -384,7 +387,7 @@
         <div class="arrival-half arrival-zone-half">
           <div class="arrival-half-label">Your homeland</div>
           <div class="arrival-zone-carousel-row">
-            <button class="arrival-arrow" onclick="arrivalZonePrev()">←</button>
+            <button class="arrival-arrow" onclick="arrivalZonePrev()" aria-label="Previous">←</button>
             <div class="arrival-zone-display">
               <div class="arrival-zone-emoji" id="arrival-zone-emoji">🌲</div>
               <div class="arrival-zone-name" id="arrival-zone-name">Ancient Forest</div>
@@ -396,7 +399,7 @@
               <div class="arrival-zone-divider"></div>
               <div class="arrival-zone-extra" id="arrival-zone-extra"></div>
             </div>
-            <button class="arrival-arrow" onclick="arrivalZoneNext()">→</button>
+            <button class="arrival-arrow" onclick="arrivalZoneNext()" aria-label="Next">→</button>
           </div>
           <div class="arrival-counter" id="arrival-zone-counter">1 / 5</div>
           <div class="arrival-diversity-note">✦ You can found more settlements as your realm grows ✦</div>
@@ -490,24 +493,28 @@
       </div>
       <div class="topbar-version">v0.5.0</div>
       <div class="topbar-right">
+        <!-- A Withered raid on its way: red countdown (js/raids.js) -->
+        <button type="button" id="raid-chip" class="raid-chip" hidden onclick="KWRaids.openSheet()" aria-label="Raid on its way — your defences"></button>
+        <button type="button" id="call-chip" class="raid-chip call-chip" hidden onclick="KWRaids.openCalls()" aria-label="Call to arms — a clanmate needs defenders"></button>
         <div id="season-badge" class="season-badge-wrap"></div>
         <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
         <!-- Events bell -->
         <div class="events-bell-wrap">
-          <button class="btn-events-bell" onclick="openEventsPanel()" title="Settlement Events">🔔</button>
+          <button class="btn-events-bell" onclick="openEventsPanel()" title="Settlement Events" aria-label="Settlement Events">🔔</button>
           <span class="events-badge" id="events-badge" style="display:none">0</span>
           <div class="events-panel" id="events-panel">
             <div class="events-panel-header">
               <div class="events-panel-title">📜 Settlement Chronicle</div>
+              <button class="ep-clear-all ep-away" onclick="closeEventsPanel(); KWAwayReport.reopen()" title="Reopen the last summary of what happened while you were away">📜 While you were away</button>
               <button class="ep-clear-all" onclick="clearAllEvents()">Clear all</button>
-              <button class="events-panel-close" onclick="closeEventsPanel()">✕</button>
+              <button class="events-panel-close" onclick="closeEventsPanel()" aria-label="Close">✕</button>
             </div>
             <div class="events-feed" id="events-feed">
               <div class="ef-empty">No events yet.</div>
             </div>
           </div>
         </div>
-        <button class="btn-cheat" onclick="openCheatMenu()" title="Dev Tools" style="display:none">⚗</button>
+        <button class="btn-cheat" onclick="openCheatMenu()" title="Dev Tools" style="display:none" aria-label="Dev Tools">⚗</button>
         <!-- Profile dropdown -->
         <div class="profile-dropdown-wrap" id="profile-dropdown-wrap">
           <button class="profile-trigger" id="profile-trigger" onclick="toggleProfileMenu()" aria-haspopup="true">
@@ -554,7 +561,6 @@
         <div class="map-banners" id="map-banners">
           <div id="famine-banner" class="famine-banner" role="status" aria-live="polite"></div>
           <div id="town-banner" class="town-banner" role="status" aria-live="polite"></div>
-          <div id="raid-banner" class="raid-banner" role="status" aria-live="polite"></div>
         </div>
 
         <!-- Fixed map frame — grid clips inside this, buttons sit on edges -->
@@ -563,17 +569,17 @@
           <canvas id="map-canvas" style="display:block;position:absolute;inset:0;width:100%;height:100%;cursor:grab"></canvas>
 
           <!-- Arrow buttons absolutely positioned on frame edges -->
-          <button class="map-ctrl-btn map-btn-up"    onclick="panCamera(0,-3)">▲</button>
-          <button class="map-ctrl-btn map-btn-down"  onclick="panCamera(0,3)">▼</button>
-          <button class="map-ctrl-btn map-btn-left"  onclick="panCamera(-3,0)">◄</button>
-          <button class="map-ctrl-btn map-btn-right" onclick="panCamera(3,0)">►</button>
+          <button class="map-ctrl-btn map-btn-up"    onclick="panCamera(0,-3)" aria-label="Pan up">▲</button>
+          <button class="map-ctrl-btn map-btn-down"  onclick="panCamera(0,3)" aria-label="Pan down">▼</button>
+          <button class="map-ctrl-btn map-btn-left"  onclick="panCamera(-3,0)" aria-label="Pan left">◄</button>
+          <button class="map-ctrl-btn map-btn-right" onclick="panCamera(3,0)" aria-label="Pan right">►</button>
           <!-- Citizen travel paths on/off (js/travel.js) -->
           <button class="map-ctrl-btn map-paths-btn on" id="map-paths-btn" aria-pressed="true" title="Hide citizen travel paths"
                   onclick="if(window.KWTravel)KWTravel.toggle()">🐾 <span>Paths</span> <span class="map-paths-n"></span></button>
           <!-- Iso zoom (KWMap.zoom — shown in the iso view only) -->
           <div class="map-zoom-ctrls" id="map-zoom-ctrls" style="display:none">
-            <button class="map-ctrl-btn" data-zoom="in" onclick="KWMap.zoom.step(1)" title="Zoom in (+)">＋</button>
-            <button class="map-ctrl-btn" data-zoom="out" onclick="KWMap.zoom.step(-1)" title="Zoom out (−)">－</button>
+            <button class="map-ctrl-btn" data-zoom="in" onclick="KWMap.zoom.step(1)" title="Zoom in (+)" aria-label="Zoom in">＋</button>
+            <button class="map-ctrl-btn" data-zoom="out" onclick="KWMap.zoom.step(-1)" title="Zoom out (−)" aria-label="Zoom out">－</button>
           </div>
 
           <!-- Action bar — absolute over map bottom -->
@@ -587,13 +593,13 @@
         </div>
         
 <div id="diplomacy-modal" class="nb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeDiplomacyModal()">
-  <div class="nb-modal-card">
+  <div class="nb-modal-card" role="dialog" aria-modal="true" aria-labelledby="dm-title">
     <div class="nb-modal-header">
       <div>
         <div class="nb-modal-title" id="dm-title">Diplomacy</div>
         <div class="nb-modal-sub" id="dm-sub" style="font-size:12px;opacity:.7;margin-top:2px"></div>
       </div>
-      <button class="nb-modal-close" onclick="closeDiplomacyModal()">✕</button>
+      <button class="nb-modal-close" onclick="closeDiplomacyModal()" aria-label="Close">✕</button>
     </div>
     <div id="dm-body" class="nb-modal-body">
       <div class="diplo-loading">Loading diplomacy…</div>
@@ -625,18 +631,18 @@
                 <div class="tavern-card-menu" id="tavern-card-menu" style="display:none"></div>
                 <div class="tavern-game-area" id="tavern-game-area" style="display:none"></div>
               <div class="sq-backdrop" id="sq-backdrop" style="display:none">
-                <div class="sq-shell">
-                  <button class="bcmp-x" onclick="sqLeaveTable()" title="Leave table">✕</button>
+                <div class="sq-shell" role="dialog" aria-modal="true" aria-label="Squirrel's Stash">
+                  <button class="bcmp-x" onclick="sqLeaveTable()" title="Leave table" aria-label="Leave table">✕</button>
                   <div class="sq-game" id="sq-game"></div>
                 </div>
               </div>
               <div class="bcmp-backdrop" id="bcmp-backdrop" style="display:none">
-                <div class="bcmp-shell">
-                  <button class="bcmp-x" onclick="bcRequestLeave()" title="Leave table">✕</button>
+                <div class="bcmp-shell" role="dialog" aria-modal="true" aria-label="Briar Court">
+                  <button class="bcmp-x" onclick="bcRequestLeave()" title="Leave table" aria-label="Leave table">✕</button>
                   <div class="bcmp-game" id="bcmp-game"></div>
                   <button class="bcmp-chat-toggle" id="bcmp-chat-toggle" onclick="bcToggleChatDrawer()" title="Table talk">💬<span class="bcmp-chat-unread" id="bcmp-chat-unread" style="display:none">0</span></button>
                   <div class="bcmp-chat" id="bcmp-chat">
-                    <div class="bcmp-chat-title">Table Talk<button class="bcmp-chat-close" onclick="bcToggleChatDrawer(false)" title="Hide">›</button></div>
+                    <div class="bcmp-chat-title">Table Talk<button class="bcmp-chat-close" onclick="bcToggleChatDrawer(false)" title="Hide" aria-label="Hide">›</button></div>
                     <div class="bcmp-chat-log" id="bcmp-chat-log"></div>
                     <div class="bcmp-chat-row">
                       <select class="bcmp-chat-to" id="bcmp-chat-to"><option value="">All</option></select>
@@ -670,10 +676,10 @@
               </div>
               <!-- Catch inventory modal -->
               <div id="fp-inventory-modal" class="fp-inv-modal">
-                <div class="fp-inv-card">
+                <div class="fp-inv-card" role="dialog" aria-modal="true" aria-label="Catch inventory">
                   <div class="fp-inv-header">
                     <span>📖 Catch Log</span>
-                    <button onclick="toggleCatchInventory()" style="background:none;border:none;color:rgba(192,221,151,.5);font-size:16px;cursor:pointer">✕</button>
+                    <button onclick="toggleCatchInventory()" style="background:none;border:none;color:rgba(192,221,151,.5);font-size:16px;cursor:pointer" aria-label="Close">✕</button>
                   </div>
                   <div id="fp-catch-log"><div class="fp-cl-empty">No catches yet.</div></div>
                 </div>
@@ -704,10 +710,10 @@
           <div class="citizens-toolbar">
             <span class="citizens-count" id="citizens-count">— citizens</span>
             <div style="display:flex;gap:4px">
-              <button class="cpanel-view-btn active" id="cpanel-view-full" onclick="cpanelSetView('full',this)" title="Detailed view">☰</button>
-              <button class="cpanel-view-btn" id="cpanel-view-compact" onclick="cpanelSetView('compact',this)" title="Compact view">⋮⋮</button>
+              <button class="cpanel-view-btn active" id="cpanel-view-full" onclick="cpanelSetView('full',this)" title="Detailed view" aria-label="Detailed view">☰</button>
+              <button class="cpanel-view-btn" id="cpanel-view-compact" onclick="cpanelSetView('compact',this)" title="Compact view" aria-label="Compact view">⋮⋮</button>
             </div>
-            <button class="btn-view-all" onclick="openAllCitizens()">↗</button>
+            <button class="btn-view-all" onclick="openAllCitizens()" aria-label="All citizens">↗</button>
           </div>
           <!-- Search -->
           <div class="cpanel-search-wrap">
@@ -717,10 +723,10 @@
           <div class="cpanel-chips">
             <button class="cpanel-chip active" onclick="cpanelFilter('all',this)">All</button>
             <button class="cpanel-chip" onclick="cpanelFilter('adult',this)">Adults</button>
-            <button class="cpanel-chip" onclick="cpanelFilter('child',this)">🍼</button>
-            <button class="cpanel-chip" onclick="cpanelFilter('unhoused',this)">🚶</button>
-            <button class="cpanel-chip" onclick="cpanelFilter('partnered',this)">💕</button>
-            <button class="cpanel-chip" onclick="cpanelFilter('single',this)">🔓</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('child',this)" aria-label="Children">🍼</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('unhoused',this)" aria-label="Unhoused">🚶</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('partnered',this)" aria-label="Partnered">💕</button>
+            <button class="cpanel-chip" onclick="cpanelFilter('single',this)" aria-label="Single">🔓</button>
           </div>
           <!-- Sort -->
           <div class="cpanel-sort-row">
@@ -733,7 +739,7 @@
               <option value="health">Health</option>
               <option value="generation">Generation</option>
             </select>
-            <button class="cpanel-sort-dir" id="cpanel-sort-dir" onclick="cpanelToggleSortDir()" title="Toggle direction">↑</button>
+            <button class="cpanel-sort-dir" id="cpanel-sort-dir" onclick="cpanelToggleSortDir()" title="Toggle direction" aria-label="Toggle direction">↑</button>
           </div>
           <!-- List -->
           <div class="citizens-list-full">
@@ -746,7 +752,7 @@
 
       <!-- PARTY ASSEMBLY MODAL -->
       <div id="party-assembly-modal" style="display:none">
-        <div id="party-assembly-inner" style="width:100%;max-width:520px;padding:32px 24px 48px;margin:auto"></div>
+        <div id="party-assembly-inner" style="width:100%;max-width:520px;padding:32px 24px 48px;margin:auto" role="dialog" aria-modal="true" aria-label="Assemble a party"></div>
       </div>
 
       <!-- TAVERN OVERLAY -->
@@ -756,10 +762,10 @@
 
   <!-- ══ NOTICEBOARD MODAL — standalone, no tavern dependency ══ -->
   <div id="noticeboard-modal" class="nb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeNoticeboardModal()">
-    <div class="nb-modal-card">
+    <div class="nb-modal-card" role="dialog" aria-modal="true" aria-labelledby="nb-modal-title">
       <div class="nb-modal-header">
         <div class="nb-modal-title" id="nb-modal-title">📜 Notice Board</div>
-        <button class="nb-modal-close" onclick="closeNoticeboardModal()">✕</button>
+        <button class="nb-modal-close" onclick="closeNoticeboardModal()" aria-label="Close">✕</button>
       </div>
       <div id="nb-modal-body" class="nb-modal-body"></div>
     </div>
@@ -767,10 +773,10 @@
 
   <!-- Active Quests Modal -->
   <div id="quests-modal" class="qm-backdrop" style="display:none" onclick="if(event.target===this)closeQuestsModal()">
-    <div class="qm-card">
+    <div class="qm-card" role="dialog" aria-modal="true" aria-label="Active quests">
       <div class="qm-header">
         <div class="qm-title">📜 Active Quests</div>
-        <button class="qm-close" onclick="closeQuestsModal()">✕</button>
+        <button class="qm-close" onclick="closeQuestsModal()" aria-label="Close">✕</button>
       </div>
       <div id="qm-body" class="qm-body">Loading…</div>
       <div class="qm-footer">
@@ -781,7 +787,7 @@
 
   <!-- ══ INVENTORY MODAL ══ -->
   <div id="inventory-modal" class="inv-backdrop" style="display:none" onclick="if(event.target===this)closeInventoryModal()">
-    <div class="inv-modal-card">
+    <div class="inv-modal-card" role="dialog" aria-modal="true" aria-label="Inventory">
       <div class="inv-header">
         <div class="inv-title">🎒 Inventory</div>
         <div class="inv-tabs" id="inv-tabs">
@@ -793,7 +799,7 @@
           <button class="inv-tab" data-cat="trophy" onclick="invSetTab('trophy',this)">🏆 Trophies</button>
           <button class="inv-tab" data-cat="schematic" onclick="invSetTab('schematic',this)">📜 Schematics</button>
         </div>
-        <button class="inv-close" onclick="closeInventoryModal()">✕</button>
+        <button class="inv-close" onclick="closeInventoryModal()" aria-label="Close">✕</button>
       </div>
       <div id="inv-body" class="inv-body">
         <div class="inv-loading">Loading inventory…</div>
@@ -802,83 +808,88 @@
   </div>
 
   <!-- Toast notification stack -->
-  <div id="toast-stack" class="toast-stack"></div>
+  <div id="toast-stack" class="toast-stack" role="status" aria-live="polite"></div>
 
   <script defer src="/js/config.js?v=r2"></script>
+  <script defer src="/js/dialog.js?v=r5"></script>
+  <script defer src="/js/journeys.js?v=r5c"></script>
+  <script defer src="/js/first-steps.js?v=r5"></script>
+  <script defer src="/js/a11y.js?v=r5d"></script>
   <script defer src="/js/day-cycle.js?v=021p6"></script>
   <script defer src="/js/happening-effects.js?v=rs1"></script>
   <script defer src="/js/server-clock.js?v=021adm"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
-  <script defer src="/js/game.js?v=r4c"></script>
+  <script defer src="/js/game.js?v=d2"></script>
   <script defer src="/js/resources.js?v=r3"></script>
   <script defer src="/js/carousel.js?v=spec20b"></script>
-  <script defer src="/js/placement.js?v=r2"></script>
-  <script defer src="/js/arrival.js?v=rs1"></script>
+  <script defer src="/js/placement.js?v=r5"></script>
+  <script defer src="/js/arrival.js?v=r5"></script>
   <script defer src="/js/resource-defs.js?v=tq1"></script>
-  <script defer src="/js/stores.js?v=g3"></script>
+  <script defer src="/js/stores.js?v=r5c"></script>
   <script defer src="/js/famine.js?v=r3"></script>
   <script defer src="/js/mail.js?v=r2"></script>
-  <script defer src="/js/help.js?v=r4d"></script>
-  <script defer src="/js/wonders.js?v=r4c"></script>
+  <script defer src="/js/help.js?v=r5c"></script>
+  <script defer src="/js/wonders.js?v=d3"></script>
   <script defer src="/js/cards.js?v=r4b"></script>
-  <script defer src="/js/raids.js?v=r4c"></script>
+  <script defer src="/js/raids.js?v=r5c"></script>
   <script defer src="/js/career-math.js?v=rs6"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
-  <script defer src="/js/careers.js?v=cf1"></script>
-  <script defer src="/js/crafting.js?v=hd1"></script>
-  <script defer src="/js/research.js?v=r3"></script>
+  <script defer src="/js/careers.js?v=r5d"></script>
+  <script defer src="/js/crafting.js?v=r5d"></script>
+  <script defer src="/js/research.js?v=r5c"></script>
   <script defer src="/js/career-balance.js?v=hd1"></script>
   <script defer src="/js/citizens.js?v=r4a"></script>
-  <script defer src="/js/buildings.js?v=r4a"></script>
-  <script defer src="/js/expeditions.js?v=cr2"></script>
-  <script defer src="/js/seasons.js?v=rs1"></script>
-  <script defer src="/js/hud-clock.js?v=021ev"></script>
-  <script defer src="/js/happenings.js?v=021ev"></script>
-  <script defer src="/js/timed-events.js?v=021ev"></script>
+  <script defer src="/js/buildings.js?v=r5d"></script>
+  <script defer src="/js/expeditions.js?v=r5c"></script>
+  <script defer src="/js/seasons.js?v=r5d"></script>
+  <script defer src="/js/hud-clock.js?v=r5d"></script>
+  <script defer src="/js/happenings.js?v=r5d"></script>
+  <script defer src="/js/timed-events.js?v=r5d"></script>
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=r2"></script>
   <script defer src="/js/profile.js?v=r2b"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script defer src="/js/kwmap-core.js?v=tp1"></script>
+  <script defer src="/js/kwmap-core.js?v=d2"></script>
   <script defer src="/js/clan-territory.js?v=clan9"></script>
   <script defer src="/js/kwmap-settlements.js?v=021p3"></script>
   <script defer src="/js/kwmap-daylight.js?v=021p6"></script>
-  <script defer src="/js/kwmap-happening-fx.js?v=021demo"></script>
+  <script defer src="/js/kwmap-happening-fx.js?v=d3"></script>
   <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
   <script defer src="/js/kwmap-travel.js?v=tp5"></script>
+  <script defer src="/js/kwmap-raid.js?v=d5b"></script>
   <script defer src="/js/kwmap-atmosphere.js?v=1"></script>
-  <script defer src="/js/kwmap-topdown.js?v=tp1"></script>
+  <script defer src="/js/kwmap-topdown.js?v=d3"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
   <script defer src="/js/kwmap-assets.js?v=1"></script>
-  <script defer src="/js/kwmap-iso.js?v=gap1"></script>
+  <script defer src="/js/kwmap-iso.js?v=d3"></script>
   <script defer src="/js/kwmap-decor.js?v=4"></script>
   <script defer src="/js/kwmap-tileactions.js?v=r2"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
-  <script defer src="/js/main.js?v=r4c"></script>
-  <script defer src="/js/away-report.js?v=rs2"></script>
+  <script defer src="/js/main.js?v=r5c"></script>
+  <script defer src="/js/away-report.js?v=r5d"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
-  <script defer src="/js/leaderboard.js?v=r3"></script>
+  <script defer src="/js/leaderboard.js?v=r5d"></script>
   <script defer src="/js/briar_engine.js?v=13"></script>
   <script defer src="/js/squirrel_engine.js?v=16"></script>
   <script defer src="/js/games-meta.js?v=1"></script>
-  <script defer src="/js/lobby.js?v=17"></script>
-  <script defer src="/js/tavern.js?v=r1"></script>
+  <script defer src="/js/lobby.js?v=r5d"></script>
+  <script defer src="/js/tavern.js?v=r5d"></script>
   <script defer src="/js/citizen-picker.js?v=kwp1"></script>
-  <script defer src="/js/quests.js?v=r4a"></script>
-  <script defer src="/js/fishing.js?v=021fish"></script>
-  <script defer src="/js/housing.js?v=r2"></script>
-  <script defer src="/js/events.js?v=g5"></script>
-  <script defer src="/js/inventory.js?v=cf5"></script>
-  <script defer src="/js/diplomacy.js?v=r4c"></script>
-  <script defer src="/js/village-requests.js?v=g5"></script>
-  <script defer src="/js/item_admin.js?v=tr2"></script>
-  <script defer src="/js/happenings-admin.js?v=021demo"></script>
+  <script defer src="/js/quests.js?v=r5d"></script>
+  <script defer src="/js/fishing.js?v=r5d"></script>
+  <script defer src="/js/housing.js?v=r5d"></script>
+  <script defer src="/js/events.js?v=r5d"></script>
+  <script defer src="/js/inventory.js?v=r5d"></script>
+  <script defer src="/js/diplomacy.js?v=r5f"></script>
+  <script defer src="/js/village-requests.js?v=r5b"></script>
+  <script defer src="/js/item_admin.js?v=r5d"></script>
+  <script defer src="/js/happenings-admin.js?v=r5d"></script>
   <script defer src="/js/kw-tooltip.js?v=021tip"></script>
-  <script defer src="/js/enemy_admin.js?v=021p5"></script>
+  <script defer src="/js/enemy_admin.js?v=r5d"></script>
   <script defer src="/js/combat-engine.js?v=r1"></script>
   <script defer src="/js/card-definitions.js?v=r4b"></script>
   <script defer src="/js/card-formula.js?v=1778502300"></script>
@@ -886,31 +897,31 @@
   <script defer src="/js/card-engine.js?v=1778502600"></script>
   <script defer src="/js/card-combat.js?v=r1"></script>
   <script defer src="/js/card-hand-ui.js?v=mobilefix1"></script>
-  <script defer src="/js/card-admin.js?v=1778502700"></script>
-  <script defer src="/js/deck-builder.js?v=r4b"></script>
-  <script defer src="/js/feedback.js?v=r1"></script>
-  <script defer src="/js/combat-ui.js?v=r4b"></script>
-  <script defer src="/js/battles.js?v=1778441000"></script>
+  <script defer src="/js/card-admin.js?v=r5d"></script>
+  <script defer src="/js/deck-builder.js?v=r5d"></script>
+  <script defer src="/js/feedback.js?v=r5d"></script>
+  <script defer src="/js/combat-ui.js?v=r5d"></script>
+  <script defer src="/js/battles.js?v=r5d"></script>
   <script defer src="/js/clan-palette.js?v=cp2"></script>
-  <script defer src="/js/clans.js?v=r4d"></script>
+  <script defer src="/js/clans.js?v=d4"></script>
   <script defer src="/js/clan-profile.js?v=r4d"></script>
   <script defer src="/js/clan-quests.js?v=r4a"></script>
   <script defer src="/js/clan-treasury.js?v=r4d"></script>
-  <script defer src="/js/chat-hub.js?v=r2"></script>
+  <script defer src="/js/chat-hub.js?v=r5"></script>
   <script defer src="/js/market.js?v=g5"></script>
   <script defer src="/js/travel.js?v=tp2"></script>
-  <script defer src="/js/realtime.js?v=r4c"></script>
+  <script defer src="/js/realtime.js?v=r5a"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
-  <script defer src="/js/mobile-shell.js?v=r3"></script>
+  <script defer src="/js/mobile-shell.js?v=r5f"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
   <!-- HOUSING MODAL -->
   <div class="housing-backdrop" id="housing-modal">
-    <div class="housing-modal">
+    <div class="housing-modal" role="dialog" aria-modal="true" aria-label="Housing">
       <div class="housing-modal-header">
         <div class="housing-modal-title">🏡 Settlement Housing</div>
-        <button class="housing-modal-close" onclick="closeHousingModal()">✕</button>
+        <button class="housing-modal-close" onclick="closeHousingModal()" aria-label="Close">✕</button>
       </div>
       <div class="housing-modal-body" id="housing-modal-body">
         <div class="housing-loading">Loading…</div>
@@ -920,21 +931,21 @@
 
   <!-- CITIZEN PROFILE MODAL -->
   <div class="citizen-profile-backdrop" id="citizen-profile-modal">
-    <div class="citizen-profile-modal">
-      <button class="citizen-profile-close" onclick="closeCitizenProfile()">✕</button>
+    <div class="citizen-profile-modal" role="dialog" aria-modal="true" aria-label="Citizen profile">
+      <button class="citizen-profile-close" onclick="closeCitizenProfile()" aria-label="Close">✕</button>
       <div id="citizen-profile-body"></div>
     </div>
   </div>
 
   <div class="all-citizens-backdrop" id="all-citizens-modal">
-    <div class="all-citizens-modal">
+    <div class="all-citizens-modal" role="dialog" aria-modal="true" aria-label="All citizens">
       <div class="ac-header">
         <div class="ac-title">Your People <span class="ac-count" id="ac-count"></span></div>
         <div class="ac-search-wrap">
           <input class="ac-search" id="ac-search" placeholder="Search name or role…"
             oninput="renderAllCitizens(null, null, this.value)">
         </div>
-        <button class="ac-close" onclick="closeAllCitizens()">✕</button>
+        <button class="ac-close" onclick="closeAllCitizens()" aria-label="Close">✕</button>
       </div>
 
       <!-- Filter chips -->
@@ -964,7 +975,7 @@
               <th><button class="ac-sort-btn" data-sort="generation" onclick="acSort('generation')">Gen ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="role" onclick="acSort('role')">Role ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="level" onclick="acSort('level')">Lv ↕</button></th>
-              <th><button class="ac-sort-btn" data-sort="happiness" onclick="acSort('happiness')">😊 ↕</button></th>
+              <th><button class="ac-sort-btn" data-sort="happiness" onclick="acSort('happiness')" aria-label="Sort by happiness">😊 ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="health" onclick="acSort('health')">HP ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="strength" onclick="acSort('strength')">STR ↕</button></th>
               <th><button class="ac-sort-btn" data-sort="agility" onclick="acSort('agility')">AGI ↕</button></th>
@@ -985,11 +996,11 @@
 
   <!-- CHEAT MENU -->
   <div class="cheat-backdrop" id="cheat-modal">
-    <div class="cheat-card cheat-card--wide">
+    <div class="cheat-card cheat-card--wide" role="dialog" aria-modal="true" aria-label="Dev Tools">
       <div class="cheat-header">
         <div class="cheat-title">⚗ Dev Tools</div>
         <div class="cheat-sub">Developer testing only</div>
-        <button class="cheat-close" onclick="closeCheatMenu()">✕</button>
+        <button class="cheat-close" onclick="closeCheatMenu()" aria-label="Close">✕</button>
       </div>
       <!-- Tab bar -->
       <div class="cheat-tabs">
@@ -1071,10 +1082,26 @@
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">🔥 Raids</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="cheat-res-btn" onclick="KWRaids.devSend()">🔥 Send a raid (6 hours' warning)</button>
-          <button class="cheat-res-btn" onclick="KWRaids.devSend(2)">🔥 Send a raid (2 minutes)</button>
-          <button class="cheat-res-btn" onclick="KWRaids.devResolve()">⚔️ Resolve the raid now</button>
+        <div class="dev-raid">
+          <div class="dev-raid-row">
+            <label>Target <select id="dev-raid-target" onfocus="KWRaids.devStatus()"><option value="">Nearest (normal)</option><option value="town">Your town</option></select></label>
+            <label>Arrives in <input id="dev-raid-min" type="number" min="0" step="1" placeholder="360" inputmode="numeric"> min</label>
+            <label>Strength <input id="dev-raid-str" type="number" min="1" step="1" placeholder="auto" inputmode="numeric"></label>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="cheat-res-btn" onclick="KWRaids.devStart()">🔥 Start raid</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devSend(2)">🔥 Start (2 minutes)</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devCancel()">✖ Cancel raid</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devResolve()">⚔️ Strike now</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devClearCooldown()">⏱ Clear cooldown &amp; peace</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devPeaceClear()">🕊 Clear tribute peace</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devCheck(100)">🎲 Roll the normal check (×100)</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devCheck(1)">🎲 Roll it (normal odds)</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devSpawnCamps()">🏕️ Spawn Withered camps</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devClearCamps()">🧹 Clear all camps</button>
+            <button class="cheat-res-btn" onclick="KWRaids.devStatus()">↻ Status</button>
+          </div>
+          <div id="dev-raid-status" class="dev-raid-status" role="status">Press ↻ Status to see the raid state.</div>
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">💰 Clan</div>
@@ -1424,19 +1451,19 @@
 
   <!-- COMMUNITY PANEL -->
   <div class="online-backdrop" id="online-modal">
-    <div class="online-card">
+    <div class="online-card" role="dialog" aria-modal="true" aria-label="Who is online">
       <div class="online-card-header">
         <div class="online-card-title">🟢 Currently in the Realm</div>
-        <button class="community-close" onclick="closeOnlineList()">✕</button>
+        <button class="community-close" onclick="closeOnlineList()" aria-label="Close">✕</button>
       </div>
       <div class="online-card-body" id="online-list-body"></div>
     </div>
   </div>
   <div class="community-backdrop" id="community-modal">
-    <div class="community-card">
+    <div class="community-card" role="dialog" aria-modal="true" aria-labelledby="community-title">
       <div class="community-card-header">
         <div class="community-card-title" id="community-title">Realm News</div>
-        <button class="community-close" onclick="closeCommunity()">✕</button>
+        <button class="community-close" onclick="closeCommunity()" aria-label="Close">✕</button>
       </div>
       <div class="community-card-body" id="community-body">
         <!-- Filled by the page that opens it (js/help.js; Letters use their own modal). -->
@@ -1457,7 +1484,7 @@
   </div>
   <!-- TIER CELEBRATION MODAL -->
   <div class="tier-celebration-backdrop" id="tier-celebration-modal">
-    <div class="tier-celebration-box">
+    <div class="tier-celebration-box" role="dialog" aria-modal="true" aria-labelledby="tier-cel-title">
       <div class="tier-cel-emoji" id="tier-cel-emoji">🏘</div>
       <div class="tier-cel-title" id="tier-cel-title"></div>
       <div class="tier-cel-sub" id="tier-cel-sub"></div>
@@ -1470,8 +1497,8 @@
 
   <!-- ═══ PROFILE MODAL ═══ -->
   <div class="profile-modal-backdrop" id="profile-modal" onclick="closeProfileIfOutside(event)">
-    <div class="profile-modal-box kw-ornate-frame">
-      <button class="profile-modal-close" onclick="closeProfile()">✕</button>
+    <div class="profile-modal-box kw-ornate-frame" role="dialog" aria-modal="true" aria-labelledby="pm-title">
+      <button class="profile-modal-close" onclick="closeProfile()" aria-label="Close">✕</button>
 
       <div class="pm-header">
         <div class="pm-avatar-wrap" id="pm-avatar-wrap" style="cursor:default">
@@ -1541,8 +1568,8 @@
 
   <!-- ═══ VIEW OTHER PLAYER PROFILE ═══ -->
   <div class="profile-modal-backdrop" id="view-profile-modal" onclick="closeViewProfileIfOutside(event)">
-    <div class="profile-modal-box kw-ornate-frame">
-      <button class="profile-modal-close" onclick="closeViewProfile()">✕</button>
+    <div class="profile-modal-box kw-ornate-frame" role="dialog" aria-modal="true" aria-labelledby="vp-title">
+      <button class="profile-modal-close" onclick="closeViewProfile()" aria-label="Close">✕</button>
 
       <div class="pm-header">
         <div class="pm-avatar-wrap" style="cursor:default">
@@ -1597,7 +1624,7 @@
 
   <!-- TAVERN CELEBRATION MODAL -->
   <div class="tavern-cel-backdrop" id="tavern-cel-modal" style="display:none">
-    <div class="tavern-cel-box">
+    <div class="tavern-cel-box" role="dialog" aria-modal="true" aria-label="Tavern">
       <div class="tavern-cel-emoji">🍺</div>
       <div class="tavern-cel-title">The Tavern is Open!</div>
       <div class="tavern-cel-sub">Your settlement now has a gathering place.<br>Assign a Tavernkeep to welcome guests.</div>
@@ -1636,10 +1663,10 @@
 
   <!-- ── Map Generation Preview Modal ── -->
   <div class="map-preview-backdrop" id="map-preview-modal" onclick="if(event.target===this)closeMapPreview()" style="display:none">
-    <div class="map-preview-card">
+    <div class="map-preview-card" role="dialog" aria-modal="true" aria-label="Map preview">
       <div class="map-preview-header">
         <span>🗺 World Map Tools</span>
-        <button class="map-preview-close" onclick="closeMapPreview()">✕</button>
+        <button class="map-preview-close" onclick="closeMapPreview()" aria-label="Close">✕</button>
       </div>
 
       <div class="map-preview-worldinfo" id="map-preview-worldinfo">
@@ -1686,10 +1713,10 @@
 
   <!-- Settings modal — Audio / Graphics / General tabs (js/audio.js + js/settings-panel.js) -->
   <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettingsPopover(event)">
-    <div class="settings-card kw-ornate-frame" onclick="event.stopPropagation()">
+    <div class="settings-card kw-ornate-frame" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Settings">
       <div class="settings-header">
         <div class="settings-title">⚙️ Settings</div>
-        <button class="settings-close" onclick="closeSettingsPopover()">✕</button>
+        <button class="settings-close" onclick="closeSettingsPopover()" aria-label="Close">✕</button>
       </div>
       <div class="settings-tabs" role="tablist">
         <button class="settings-tab active" role="tab" data-settings-tab="audio" onclick="settingsSwitchTab('audio')">🔊 Audio</button>
@@ -1781,7 +1808,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=r4c"></script>
+    <script defer src="js/settlement-view.js?v=d2"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

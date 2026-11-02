@@ -43,7 +43,7 @@ const LobbySystem = (() => {
       m = document.createElement('div');
       m.id = 'lobby-modal';
       m.className = 'lobby-backdrop';
-      m.innerHTML = '<div class="lobby-card-shell"><button class="lobby-x" onclick="LobbySystem.close()">\u2715</button><div id="lobby-modal-body"></div></div>';
+      m.innerHTML = '<div class="lobby-card-shell"><button class="lobby-x" onclick="LobbySystem.close()" aria-label="Close">\u2715</button><div id="lobby-modal-body"></div></div>';
       document.body.appendChild(m);
     }
     return document.getElementById('lobby-modal-body');
@@ -334,7 +334,7 @@ const LobbySystem = (() => {
         const crown = p.id === r.hostId ? ' \u{1F451}' : '';
         const aiTag = p.isAI ? ' <span class="lobby-ai-tag">AI</span>' : '';
         const kick = (isHost && p.isAI)
-          ? ` <button class="lobby-seat-x" onclick="LobbySystem.removeAI('${code}','${p.id}')" title="Remove">\u2715</button>` : '';
+          ? ` <button class="lobby-seat-x" onclick="LobbySystem.removeAI('${code}','${p.id}')" title="Remove" aria-label="Remove">\u2715</button>` : '';
         seats.push(`<div class="lobby-seat filled">${_esc(p.name)}${crown}${aiTag}${kick}</div>`);
       } else if (isHost) {
         seats.push(`<button class="lobby-seat add-ai" onclick="LobbySystem.openCourtierPicker('${code}')" title="Add an AI courtier">+ Add AI</button>`);
@@ -428,7 +428,7 @@ const LobbySystem = (() => {
       const cls = 'courtier-card' + (isSeated ? ' seated' : (full ? ' disabled' : ''));
       const onclick = (!isSeated && !full) ? ` onclick="LobbySystem.pickCourtier('${_pickerCode}','${_esc(name)}')"` : '';
       const removeBtn = isSeated
-        ? `<button class="courtier-remove" title="Remove from the table" onclick="event.stopPropagation();LobbySystem.unpickCourtier('${_pickerCode}','${_esc(name)}')">✕</button>` : '';
+        ? `<button class="courtier-remove" title="Remove from the table" onclick="event.stopPropagation();LobbySystem.unpickCourtier('${_pickerCode}','${_esc(name)}')" aria-label="Remove from the table">✕</button>` : '';
       const footer = isSeated ? `<div class="courtier-status seated">Already at the table</div>`
         : full ? `<div class="courtier-status">Table is full</div>`
                : `<div class="courtier-status add">+ Seat this courtier</div>`;
@@ -446,7 +446,7 @@ const LobbySystem = (() => {
     }).join('');
 
     m.innerHTML = `<div class="courtier-picker-shell">
-        <button class="lobby-x" onclick="LobbySystem.closeCourtierPicker()">✕</button>
+        <button class="lobby-x" onclick="LobbySystem.closeCourtierPicker()" aria-label="Close">✕</button>
         <div class="courtier-picker-title">Select a Courtier</div>
         <div class="courtier-picker-sub">Seat an AI rival — each plays a different game.</div>
         <div class="courtier-grid">${cards}</div>

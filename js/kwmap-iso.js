@@ -692,6 +692,7 @@
       if (window.KWDaylight) window.KWDaylight.draw(ctx, W, H, dpr, this, frame.now);
       // 7. Happening visuals (kwmap-happening-fx.js) — last; a no-op when none run.
       if (window.KWHappeningFX) window.KWHappeningFX.draw(ctx, W, H, dpr, this, frame.now);
+      if (window.KWHappeningFX && window.KWHappeningFX.drawFestivals) window.KWHappeningFX.drawFestivals(ctx, W, H, this, frame.now);   // a town's festival
 
       this._lastFrameMs = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
       if (_debug) this._drawHud(g, seasonId);

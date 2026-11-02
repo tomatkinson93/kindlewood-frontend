@@ -116,7 +116,7 @@
             </div>
           </div>
           <button class="bm-engage" onclick="engageBattle(${b.id})">⚔ Engage</button>
-          <button class="bm-cancel" onclick="forfeitBattle(${b.id})" title="Forfeit — the party loses and the quest fails.">✕</button>
+          <button class="bm-cancel" onclick="forfeitBattle(${b.id})" title="Forfeit — the party loses and the quest fails." aria-label="Forfeit — the party loses and the quest fails.">✕</button>
         </div>`;
     }).join('');
   }
@@ -177,7 +177,7 @@
             <div class="bm-header-title" id="br-title">Battle Report</div>
             <div class="bm-header-sub" id="br-sub">—</div>
           </div>
-          <button class="bm-close" onclick="closeBattleReport()">✕</button>
+          <button class="bm-close" onclick="closeBattleReport()" aria-label="Close">✕</button>
         </div>
         <div id="br-body" class="br-body"></div>
       </div>
@@ -295,7 +295,7 @@
   // marks the quest failed and clears the combat lock. No reward, no skill
   // bump. Different from /resolve because there's no battle state to verify.
   async function forfeitBattle(questRunId) {
-    if (!confirm('Forfeit this battle? The party will be defeated and the quest will fail.')) return;
+    if (!await KWDialog.confirm({ title: 'Forfeit this battle?', message: 'The party will be defeated and the quest will fail.', ok: 'Forfeit', danger: true })) return;
     try {
       const r = await apiFetch('/api/combat/forfeit/' + questRunId, { method: 'POST' });
       if (r.ok) {
@@ -327,7 +327,7 @@
             <div class="bm-header-title">⚔ Pending Battles</div>
             <div class="bm-header-sub">Quests on hold awaiting your command.</div>
           </div>
-          <button class="bm-close" onclick="closeBattlesModal()">✕</button>
+          <button class="bm-close" onclick="closeBattlesModal()" aria-label="Close">✕</button>
         </div>
         <div id="battles-list" class="bm-list"></div>
       </div>

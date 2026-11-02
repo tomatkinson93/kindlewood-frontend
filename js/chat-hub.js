@@ -643,12 +643,10 @@
         await openThread(st.thread.id);
       }); break;
       case 'del-thread':
-        if (!confirm(`Delete the thread “${st.thread.title}” and all its replies?`)) break;
-        run(async () => { await call('DELETE', `/api/chat/threads/${st.thread.id}`); toast('Thread deleted.'); await go('forum'); });
+        run(async () => { if (!await global.KWDialog.confirm({ title: 'Delete this thread?', message: `“${st.thread.title}” and all its replies will be deleted.`, ok: 'Delete', danger: true })) return; await call('DELETE', `/api/chat/threads/${st.thread.id}`); toast('Thread deleted.'); await go('forum'); });
         break;
       case 'del-post':
-        if (!confirm('Delete this reply?')) break;
-        run(async () => { await call('DELETE', `/api/chat/posts/${id}`); await openThread(st.thread.id); });
+        run(async () => { if (!await global.KWDialog.confirm({ title: 'Delete this reply?', ok: 'Delete', danger: true })) return; await call('DELETE', `/api/chat/posts/${id}`); await openThread(st.thread.id); });
         break;
       case 'report': openReport(t.dataset.type, id); break;
       case 'clan-profile': if (global.openClanProfile) global.openClanProfile(id); break;
@@ -660,9 +658,10 @@
         const action = t.dataset.action;
         const sel = document.querySelector(`#chat-hub select[name="hours-${id}"]`);
         const hours = sel ? parseInt(sel.value, 10) : 24;
-        if (action !== 'dismiss' && !confirm(action === 'remove' ? 'Remove this content?'
-          : `Remove this content and mute its author ${hours ? 'for ' + sel.selectedOptions[0].textContent : 'until lifted'}?`)) break;
+        const ask = action === 'remove' ? 'Remove this content?'
+          : `Remove this content and mute its author ${hours ? 'for ' + sel.selectedOptions[0].textContent : 'until lifted'}?`;
         run(async () => {
+          if (action !== 'dismiss' && !await global.KWDialog.confirm({ title: ask, ok: 'Remove', danger: true })) return;
           await call('POST', `/api/chat/reports/${id}/resolve`, { action, mute_hours: action === 'remove_and_mute' ? hours : undefined });
           toast(action === 'dismiss' ? 'Report dismissed.' : 'Done — thanks for keeping the realm kind.');
           await go('mod-reports');
@@ -673,8 +672,7 @@
         run(async () => { await call('DELETE', `/api/chat/mutes/${id}`); toast('Mute lifted.'); await go('mod-mutes'); });
         break;
       case 'revoke':
-        if (!confirm(`Remove ${t.dataset.name}'s moderator role?`)) break;
-        run(async () => { await call('POST', '/api/chat/staff', { username: t.dataset.name, role: 'player' }); await go('mod-staff'); });
+        run(async () => { if (!await global.KWDialog.confirm({ title: `Remove ${t.dataset.name}'s moderator role?`, ok: 'Remove', danger: true })) return; await call('POST', '/api/chat/staff', { username: t.dataset.name, role: 'player' }); await go('mod-staff'); });
         break;
       case 'del-msg':
         run(async () => { await call('DELETE', `/api/chat/messages/${id}`); removeMessage(id); });

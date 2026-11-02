@@ -58,8 +58,8 @@ function _eaRenderList() {
       + '</span>'
       + _eaGateBadge(enemy)
       + '<div class="qa-row-btns">'
-      +   '<button class="qa-btn" data-key="' + enemy.id + '" onclick="ea_showForm(this.dataset.key)" title="Edit">✏</button>'
-      +   '<button class="qa-btn qa-btn-archive" data-key="' + enemy.id + '" onclick="ea_delete(this.dataset.key)" title="' + (enemy.archived ? 'Hard delete' : 'Archive') + '">🗑</button>'
+      +   '<button class="qa-btn" data-key="' + enemy.id + '" onclick="ea_showForm(this.dataset.key)" title="Edit" aria-label="Edit">✏</button>'
+      +   '<button class="qa-btn qa-btn-archive" data-key="' + enemy.id + '" onclick="ea_delete(this.dataset.key)" title="' + (enemy.archived ? 'Hard delete' : 'Archive') + '" aria-label="Delete">🗑</button>'
       + '</div></div>';
   };
 
@@ -138,7 +138,7 @@ function ea_showForm(key) {
 
   wrap.innerHTML = '<div class="qa-form">'
     + '<div class="qa-form-header">' + (isNew ? '＋ New Enemy' : 'Edit: ' + cur.name)
-    + '<button class="qa-btn" onclick="ea_cancelForm()" title="Cancel">✕</button></div>'
+    + '<button class="qa-btn" onclick="ea_cancelForm()" title="Cancel" aria-label="Cancel">✕</button></div>'
     + '<div class="ce-grid" style="grid-template-columns:1fr 1fr">'
     +   '<div class="ce-field"><label>Id <span class="qa-tip" title="Permanent unique key, lowercase + underscores. Cannot be changed after creation.">?</span></label>'
     +     '<input type="text" id="ea-id" class="ce-input" value="' + cur.id + '"'
@@ -175,7 +175,7 @@ function ea_showForm(key) {
     + '</div>'
 
     + '<div class="qa-section-label" style="margin-top:14px">Moves '
-    +   '<button class="ca-help-btn" type="button" onclick="ea_showFormulaHelp()">?</button></div>'
+    +   '<button class="ca-help-btn" type="button" onclick="ea_showFormulaHelp()" aria-label="Help">?</button></div>'
     + '<div class="ea-help-pop" id="ea-help-pop" style="display:none"></div>'
     + '<div class="ce-field"><label>Move Order</label>'
     +   '<select id="ea-movemode" class="ce-input">'
@@ -222,9 +222,9 @@ function _eaRenderMoves() {
     + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
     +   '<span style="color:#c9a45c;font-size:11px;font-weight:700">#' + (i + 1) + '</span>'
     +   '<input class="ce-input" style="flex:1" placeholder="Move name" value="' + _eaEsc(m.name || '') + '" oninput="_eaMoves[' + i + '].name=this.value">'
-    +   '<button class="qa-btn" title="Move up" onclick="ea_moveMoveUp(' + i + ')" ' + (i === 0 ? 'disabled style="opacity:.3"' : '') + '>↑</button>'
-    +   '<button class="qa-btn" title="Move down" onclick="ea_moveMoveDown(' + i + ')" ' + (i === _eaMoves.length - 1 ? 'disabled style="opacity:.3"' : '') + '>↓</button>'
-    +   '<button class="qa-btn qa-btn-archive" title="Remove" onclick="ea_removeMove(' + i + ')">🗑</button>'
+    +   '<button class="qa-btn" title="Move up" onclick="ea_moveMoveUp(' + i + ')" ' + (i === 0 ? 'disabled style="opacity:.3"' : '') + ' aria-label="Move up">↑</button>'
+    +   '<button class="qa-btn" title="Move down" onclick="ea_moveMoveDown(' + i + ')" ' + (i === _eaMoves.length - 1 ? 'disabled style="opacity:.3"' : '') + ' aria-label="Move down">↓</button>'
+    +   '<button class="qa-btn qa-btn-archive" title="Remove" onclick="ea_removeMove(' + i + ')" aria-label="Remove">🗑</button>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">'
     +   '<select class="ce-input" onchange="_eaMoves[' + i + '].intent=this.value" title="Intent (telegraph icon)">' + opt(EA_INTENTS, m.intent || 'attack') + '</select>'
@@ -239,7 +239,7 @@ function _eaRenderMoves() {
     + '<textarea class="ce-input" rows="2" placeholder="Formula, e.g. damage: strength*1.0+5" oninput="_eaMoves[' + i + '].formula=this.value" style="font-family:monospace;font-size:12px">' + _eaEsc(m.formula || '') + '</textarea>'
     + '<div style="display:flex;gap:6px;align-items:center;margin-top:6px">'
     +   '<input class="ce-input" style="flex:1" placeholder="Sound effect file, e.g. bite.mp3" value="' + _eaEsc(m.sfx || '') + '" oninput="_eaMoves[' + i + '].sfx=this.value" title="Plays from /assets/audio/enemies/<file> when this move is used">'
-    +   '<button class="qa-btn" type="button" title="Test play" onclick="ea_testMoveSfx(' + i + ')">▶</button>'
+    +   '<button class="qa-btn" type="button" title="Test play" onclick="ea_testMoveSfx(' + i + ')" aria-label="Test play">▶</button>'
     + '</div>'
     + (document.getElementById('ea-movemode') && document.getElementById('ea-movemode').value === 'weighted'
         ? '<div style="margin-top:6px"><label style="font-size:10px;color:#c9a45c">Weight</label> <input class="ce-input" style="width:70px;display:inline-block" type="number" min="1" value="' + (m.weight || 1) + '" oninput="_eaMoves[' + i + '].weight=parseInt(this.value)||1"></div>'
@@ -270,7 +270,7 @@ function _eaRenderDrops() {
     + '<input class="ce-input" style="width:80px" type="number" step="0.05" min="0" max="1" placeholder="chance" value="' + (d.chance != null ? d.chance : 1) + '" oninput="_eaDrops[' + i + '].chance=parseFloat(this.value)" title="Drop chance 0–1">'
     + '<input class="ce-input" style="width:60px" type="number" min="0" placeholder="min" value="' + (d.min != null ? d.min : 1) + '" oninput="_eaDrops[' + i + '].min=parseInt(this.value)" title="Min qty">'
     + '<input class="ce-input" style="width:60px" type="number" min="0" placeholder="max" value="' + (d.max != null ? d.max : 1) + '" oninput="_eaDrops[' + i + '].max=parseInt(this.value)" title="Max qty">'
-    + '<button class="qa-btn qa-btn-archive" onclick="ea_removeDrop(' + i + ')">🗑</button>'
+    + '<button class="qa-btn qa-btn-archive" onclick="ea_removeDrop(' + i + ')" aria-label="Delete">🗑</button>'
     + '</div>'
   ).join('');
 }

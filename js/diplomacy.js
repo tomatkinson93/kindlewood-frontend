@@ -209,6 +209,9 @@ async function openDiplomacyModal(npcId) {
   const modal = document.getElementById('diplomacy-modal');
   const body  = document.getElementById('dm-body');
   if (!modal || !body) return;
+  // It lives inside .game-body (z-index 5), under the top bar; lift it out so
+  // it covers the whole screen on phones.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
 
   modal.style.cssText = 'display:flex';
   body.innerHTML = '<div class="diplo-loading">Loading diplomacy…</div>';

@@ -65,5 +65,5 @@
     global.openMarket({ wanted: r.kind === 'item' ? { itemKey: r.item.item_key, itemName: r.item.name } : { resource: r.resource } });
   }
 
-  global.KWRequests = { start, check, forNpc, panelHtml, fill, what, _set(list, hasMarket) { _list = list; _hasMarket = hasMarket; } };
+  global.KWRequests = { start, check, forNpc, all: () => _list.filter(r => r.remaining > 0), hasMarket: () => _hasMarket, panelHtml, fill, what, _set(list, hasMarket) { _list = list; _hasMarket = hasMarket; } };
 })(typeof window !== 'undefined' ? window : this);

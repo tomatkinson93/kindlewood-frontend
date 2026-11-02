@@ -25,7 +25,7 @@ function _fbRenderSubmit() {
   const m = document.getElementById('feedback-modal');
   if (!m) return;
   m.innerHTML = '<div class="fb-modal">'
-    + '<div class="fb-head"><span>🐞 Bug Report / Feedback</span><button class="fb-close" onclick="closeFeedback()">✕</button></div>'
+    + '<div class="fb-head"><span>🐞 Bug Report / Feedback</span><button class="fb-close" onclick="closeFeedback()" aria-label="Close">✕</button></div>'
     + '<div class="fb-tabs"><button class="fb-tab on" onclick="_fbRenderSubmit()">Submit</button>'
     + '<button class="fb-tab" onclick="_fbRenderList()">View Reports</button></div>'
     + '<div class="fb-body">'
@@ -61,7 +61,7 @@ async function _fbRenderList() {
   const m = document.getElementById('feedback-modal');
   if (!m) return;
   m.innerHTML = '<div class="fb-modal">'
-    + '<div class="fb-head"><span>🐞 Reports</span><button class="fb-close" onclick="closeFeedback()">✕</button></div>'
+    + '<div class="fb-head"><span>🐞 Reports</span><button class="fb-close" onclick="closeFeedback()" aria-label="Close">✕</button></div>'
     + '<div class="fb-tabs"><button class="fb-tab" onclick="_fbRenderSubmit()">Submit</button>'
     + '<button class="fb-tab on" onclick="_fbRenderList()">View Reports</button></div>'
     + '<div class="fb-body" id="fb-list"><div class="fb-muted">Loading…</div></div></div>';
@@ -94,7 +94,7 @@ function _fbCard(r, admin) {
     + '</div>';
 }
 async function _fbToggle(id, status) { await apiFetch('/api/feedback/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); _fbRenderList(); }
-async function _fbDelete(id) { if (!confirm('Delete this report?')) return; await apiFetch('/api/feedback/' + id, { method: 'DELETE' }); _fbRenderList(); }
+async function _fbDelete(id) { if (!await KWDialog.confirm({ title: 'Delete this report?', ok: 'Delete', danger: true })) return; await apiFetch('/api/feedback/' + id, { method: 'DELETE' }); _fbRenderList(); }
 
 function _fbFeedback(msg) { const el = document.getElementById('fb-feedback'); if (!el) return; el.textContent = msg; el.style.color = msg.startsWith('✓') ? '#8ecf7e' : '#e07a6a'; setTimeout(() => { if (el) el.textContent = ''; }, 3500); }
 function _fbEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

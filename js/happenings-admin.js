@@ -67,7 +67,7 @@ function _haRenderList() {
       +   '<span class="ha-rule">' + _haEsc(_haDescribe(h.rule)) + '</span></span>'
       + badges
       + '<div class="qa-row-btns">'
-      +   '<button class="qa-btn" data-id="' + _haEsc(h.id) + '" onclick="ha_showForm(this.dataset.id)" title="Edit">✏</button>'
+      +   '<button class="qa-btn" data-id="' + _haEsc(h.id) + '" onclick="ha_showForm(this.dataset.id)" title="Edit" aria-label="Edit">✏</button>'
       +   '<button class="qa-btn qa-btn-archive" data-id="' + _haEsc(h.id) + '" onclick="ha_archive(this.dataset.id)" title="' + (h.archived ? 'Restore' : 'Archive') + '">' + (h.archived ? '♻' : '🗑') + '</button>'
       + '</div></div>';
   }).join('');
@@ -84,7 +84,7 @@ function ha_showForm(id) {
   wrap.style.display = 'block';
   wrap.innerHTML = '<div class="qa-form" oninput="ha_preview()" onchange="ha_preview()">'
     + '<div class="qa-form-header">' + (isNew ? '＋ New Happening' : 'Edit: ' + _haEsc(cur.title))
-    +   '<button class="qa-btn" onclick="ha_cancelForm()" title="Cancel">✕</button></div>'
+    +   '<button class="qa-btn" onclick="ha_cancelForm()" title="Cancel" aria-label="Cancel">✕</button></div>'
     + '<div class="ce-grid" style="grid-template-columns:1fr 1fr">'
     +   '<div class="ce-field"><label>Id <span class="qa-tip" title="Permanent unique key: lowercase letters, digits and underscores. Cannot be changed later.">?</span></label>'
     +     '<input type="text" id="ha-id" class="ce-input" value="' + _haEsc(cur.id) + '"' + (isNew ? '' : ' disabled style="opacity:.5"') + '></div>'
@@ -281,7 +281,7 @@ function _haRenderFxList(effects, rule) {
     let text = FX.describeEffect(e), tone = '';
     if (e.type === 'modifier') tone = FX.isGood(e.stat, e.value) ? ' ha-fx-good' : ' ha-fx-bad';
     if (e.type === 'random_modifier' && rolled) text += ' — next window: ' + FX.describeEffect(rolled[i]).replace(' (random)', '');
-    return '<div class="ha-fx-row' + tone + '"><span>' + _haEsc(text) + '</span><button class="qa-btn" type="button" onclick="ha_removeEffect(' + i + ')" title="Remove">✕</button></div>';
+    return '<div class="ha-fx-row' + tone + '"><span>' + _haEsc(text) + '</span><button class="qa-btn" type="button" onclick="ha_removeEffect(' + i + ')" title="Remove" aria-label="Remove">✕</button></div>';
   }).join('');
 }
 

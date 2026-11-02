@@ -1,0 +1,64 @@
+/* KWDialog — in-game alert / confirm / prompt (js/dialog.js) */
+.kwd-backdrop {
+  position: fixed; inset: 0; z-index: 100000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 6, 2, .55);
+  padding: 16px;
+  animation: kwd-fade .12s ease-out;
+}
+.kwd-card {
+  width: min(420px, 100%);
+  background: linear-gradient(180deg, #3a2c1e, #2a2016);
+  color: #f3e9d2;
+  border: 1px solid rgba(232, 200, 140, .35);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .55);
+  padding: 18px 18px 14px;
+  font-family: inherit;
+}
+.kwd-title { font-size: 17px; font-weight: 700; color: #f6d78a; margin-bottom: 8px; }
+.kwd-msg { font-size: 14px; line-height: 1.5; color: #eadfc8; margin-bottom: 14px; overflow-wrap: anywhere; }
+.kwd-input {
+  width: 100%; box-sizing: border-box; margin: 0 0 14px;
+  font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(232, 200, 140, .4); background: #1e1710; color: #f3e9d2;
+}
+.kwd-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.kwd-btn {
+  min-height: 40px; min-width: 96px; padding: 8px 16px;
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  border-radius: 10px; border: 1px solid rgba(232, 200, 140, .35);
+  background: rgba(255, 255, 255, .06); color: #f3e9d2;
+}
+.kwd-btn.kwd-ok { background: #c99a3c; border-color: #e0b85e; color: #2a1d0c; }
+.kwd-btn.kwd-ok.kwd-danger { background: #a8352a; border-color: #d0574a; color: #fff3ec; }
+.kwd-btn:focus-visible, .kwd-input:focus-visible { outline: 2px solid #ffd27a; outline-offset: 2px; }
+@keyframes kwd-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .kwd-backdrop { animation: none; } }
+
+/* Phones: a bottom sheet with full-width buttons. */
+@media (max-width: 600px), (pointer: coarse) and (max-height: 500px) {
+  .kwd-backdrop { align-items: flex-end; padding: 0; }
+  .kwd-card { width: 100%; border-radius: 16px 16px 0 0; padding: 18px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .kwd-actions { flex-direction: column-reverse; }
+  .kwd-btn { width: 100%; min-height: 46px; }
+}
+
+/* "?" — How this works (opens the matching Help topic). */
+.kw-help-q {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; margin: 0 4px; vertical-align: middle;
+  border-radius: 50%; border: 1px solid rgba(232, 200, 140, .55);
+  background: rgba(255, 255, 255, .08); color: #f6d78a;
+  font: 700 13px/1 system-ui, sans-serif; cursor: pointer;
+}
+.kw-help-q:hover, .kw-help-q:focus-visible { background: rgba(255, 255, 255, .18); outline: 2px solid #ffd27a; outline-offset: 1px; }
+@media (pointer: coarse) { .kw-help-q { width: 28px; height: 28px; } }
+/* Help opened from another screen sits above it. */
+#community-modal.kw-help-top { z-index: 100030 !important; }
+
+/* Keyboard focus is always visible (mouse clicks don't show it). */
+:where(button, [role="button"], a, summary, select, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 2px;
+}

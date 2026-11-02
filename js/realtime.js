@@ -166,6 +166,10 @@
     // Withered raids (js/raids.js): the warning and the outcome.
     raid_warning(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
     raid_resolved(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
+    raid_cancelled(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
+    raid_reinforced(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
+    // A clanmate's spot on clan land is targeted (js/raids.js call to arms).
+    clan_call_to_arms(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
     card_unlocked(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
     // Letters (js/mail.js): one arrived — badge and toast.
     mail(ev) { if (global.KWMail) global.KWMail.onEvent(ev); },

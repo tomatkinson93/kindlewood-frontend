@@ -37,7 +37,7 @@ function makeEnv(status, have, discovered, citizens) {
     "function _resIcon(k) { const R = KWResources, kn = R.knownSet(gameData.settlement.discovered); return R.isKnown(k, kn) ? R.icon(k) : '??'; }",
     take('function _yieldChips('), take('function _oreChips('), take('function _costChips('),
     take('function _outpostSectionHtml('), take('function _outpostUpgradeHtml('),
-    takeObj('const OP_CLASS_LABELS = {').split('\n')[0], take('function _opFreeCitizens('), take('function _outpostWorkerHtml('), take('function _outpostRaidHtml('),
+    takeObj('const OP_CLASS_LABELS = {').split('\n')[0], take('function _opFreeCitizens('), take('function _outpostWorkerHtml('), take('function _outpostRaidHtml('), take('function _outpostDefenceHtml('), take('function _opAffordable('), 'const OP_FORT_ICON = { 1: "🪵", 2: "🏯", 3: "🏰" };',
     'const _opRefreshedFor = new Set();',
     'this.section = _outpostSectionHtml;',
   ].join('\n'), w);
@@ -102,12 +102,12 @@ console.log('5. Workers');
   let h = e.w.section(tile);
   check('5a. no worker: says what one adds (+25%, +50% for a Miner)', /No one works here\. A worker adds \+25% \(\+50% for a Miner ★\)/.test(h));
   check('5b. the picker lists free adults, the Miner first and starred', /<option value="1">Pick ★<\/option><option value="2">Hoe<\/option>/.test(h) && !/Kid|Away/.test(h) && /data-op-assign="11"/.test(h));
-  e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ worker: { id: 1, name: 'Pick', role: 'miner', fit: true }, notes: [{ key: 'worker', label: 'x' }] })], worker_bonus: WB }, RICH, [], cits);
+  e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ worker_slots: 2, workers: [{ id: 1, name: 'Pick', role: 'miner', fit: true }], notes: [{ key: 'worker', label: 'x' }] })], worker_bonus: WB }, RICH, [], cits);
   h = e.w.section(tile);
-  check('5c. a worker: named, +50%, knows the land, with Bring home', /<b>Pick<\/b> works here \(\+50%, knows this land\)/.test(h) && /data-op-unassign="11"/.test(h) && !/op-note-warn/.test(h));
+  check('5c. workers listed (1/2), each with Home; room for one more', /Workers <span>1\/2<\/span>/.test(h) && /<b>Pick<\/b> \+50% ★/.test(h) && /data-op-unassign="11" data-cid="1"/.test(h) && /data-op-assign="11" data-post="worker"/.test(h) && !/op-note-warn/.test(h));
   e = makeEnv({ config: { hills: HILLS }, outposts: [mine()], worker_bonus: WB }, RICH, [], [{ id: 4, name: 'Away', role: 'miner', outpost: { id: 2 } }]);
   check('5d. everyone busy: says so', /Everyone is busy right now\./.test(e.w.section(tile)));
-  check('5e. wired: assign / unassign post to the server, citizens refresh', /\/api\/game\/outposts\/\$\{id\}\/\$\{unassign \? 'unassign' : 'assign'\}/.test(MAIN) && /querySelector\('\[data-op-assign\]'\)/.test(MAIN) && /querySelector\('\[data-op-unassign\]'\)/.test(MAIN));
+  check('5e. wired: assign / unassign (with the post) and fortify post to the server', /\/api\/game\/outposts\/\$\{id\}\/\$\{unassign \? 'unassign' : 'assign'\}/.test(MAIN) && /querySelectorAll\('\[data-op-assign\]'\)/.test(MAIN) && /querySelectorAll\('\[data-op-unassign\]'\)/.test(MAIN) && /\/api\/game\/outposts\/\$\{id\}\/fortify/.test(MAIN) && /citizen_id: cid, post/.test(MAIN));
 }
 
 console.log('6. Warnings and refunds');
@@ -121,8 +121,24 @@ console.log('6. Warnings and refunds');
   r.w.gameData.settlement.raid = { id: 3, outpost_id: 11, from: 'Rot Warren', target: 'the Quarry', arrives_at: new Date(Date.now() + 4 * 3600e3 + 60e3).toISOString() };
   r.w.KWRaids = { _left: () => '4h 0m' };
   const h2 = r.w.section(tile);
-  check('6d. a raid on its way to this outpost: a warning with the time left', /op-raid">🔥 Raiders from Rot Warren will strike here in 4h 0m/.test(h2));
+  check('6d. a raid on its way to this outpost: a warning with the time left', /op-raid"[^>]*>🔥 Raiders from Rot Warren will strike here in 4h 0m/.test(h2));
   check('6e. a raided outpost says so', /op-note-warn">🔥 Raiders left it in ruins/.test(h2));
+}
+
+console.log('7. Defence');
+{
+  const cits = [{ id: 5, name: 'Spear', role: 'soldier' }, { id: 6, name: 'Hoe', role: 'farmer' }];
+  let e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ fort: { level: 0, defence: 0, slots: 0, next: { level: 1, name: 'Palisade', defence: 10, cost: { timber: 150 }, researchMet: true } }, defence: { own: 0 } })] }, RICH, [], cits);
+  let h = e.w.section(tile);
+  check('7a. no fort, no garrison: Undefended in red, and Build a Palisade', /op-undefended">Undefended/.test(h) && /data-op-fortify="11" >Build a Palisade \(\+10\)/.test(h));
+  e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ fort: { level: 0, defence: 0, slots: 0, next: { level: 1, name: 'Palisade', defence: 10, cost: { timber: 150 }, researchMet: false, research: '??' } }, defence: { own: 0 } })] }, RICH, [], cits);
+  check('7b. locked by research: the project, or ?? when it is still distant', /🔒 A Palisade needs \?\?/.test(e.w.section(tile)));
+  e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ fort: { level: 1, name: 'Palisade', defence: 10, slots: 1, next: null }, garrison: [], defence: { own: 10 } })] }, RICH, [], cits);
+  h = e.w.section(tile);
+  check('7c. a palisade: defence 10, garrison 0/1, only Guards and Archers offered', /op-def-total">10/.test(h) && /Garrison <span>0\/1<\/span>/.test(h) && /Spear \(Guard\)/.test(h) && !/Hoe \(/.test(h) && /data-post="garrison"/.test(h));
+  e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ fort: { level: 1, name: 'Palisade', defence: 10, slots: 1, next: null }, garrison: [{ id: 5, name: 'Spear', role: 'soldier', class_level: 2 }], defence: { own: 20 } })] }, RICH, [], []);
+  h = e.w.section(tile);
+  check('7d. garrisoned: listed with their defence and Home; full', /<b>Spear<\/b> \+10/.test(h) && /data-op-unassign="11" data-cid="5"/.test(h) && !/data-post="garrison"/.test(h));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

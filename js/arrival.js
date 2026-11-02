@@ -198,7 +198,7 @@ async function confirmArrival() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: nameInput }),
       });
-      if (!r.ok) { alert('Rename failed.'); reset(); return; }
+      if (!r.ok) { KWDialog.alert({ title: 'Could not rename', message: 'Rename failed.' }); reset(); return; }
     }
 
     const res = await apiFetch('/api/map/arrive', {
@@ -207,7 +207,7 @@ async function confirmArrival() {
       body: JSON.stringify({ species, zone }),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Something went wrong.'); reset(); return; }
+    if (!res.ok) { KWDialog.alert({ title: 'Could not arrive', message: data.error || 'Something went wrong.' }); reset(); return; }
 
     await loadGame(true);
     reset();

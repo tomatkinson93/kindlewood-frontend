@@ -202,10 +202,7 @@
     if (t && t.arrears) {
       el.className = 'town-banner open bad';
       el.innerHTML = '<button type="button" class="town-banner-inner" onclick="KWTown.open(\'festival\')">⚠️ <b>Unpaid upkeep</b> <span>Wonders lie dormant and happiness is down. Raise wealth to recover.</span></button>';
-    } else if (t && t.festival && t.festival.active) {
-      el.className = 'town-banner open good';
-      el.innerHTML = `<button type="button" class="town-banner-inner" onclick="KWTown.open('festival')">🎉 <b>Festival</b> <span>+${t.festival.happiness} happiness, +${Math.round(t.festival.production * 100)}% production · ${esc(left(t.festival.until))} left</span></button>`;
-    } else {
+    } else {   // a festival shows as fireworks over the town and a line in its panel, not a banner
       el.className = 'town-banner';
       el.innerHTML = '';
     }

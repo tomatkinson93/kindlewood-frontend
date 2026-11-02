@@ -55,6 +55,13 @@
     carry: v => `+${pctTxt(v)} porter and merchant carry weight`,
     wonder_speed: v => `Wonder stages build ${pctTxt(v)} faster`,
     wonder_upkeep: v => `−${pctTxt(v)} Wonder upkeep`,
+    fort_level: () => 'a stronger fort at every outpost',
+    walls_level: () => 'Walls can rise higher',
+    walls_defence: v => `Walls defend ${pctTxt(v)} better`,
+    garrison_defence: v => `+${pctTxt(v)} garrison and watch defence`,
+    raid_warning_h: v => `raids spotted ${v} hours sooner`,
+    scout_range: () => 'raiders\' strength judged more closely',
+    raid_loss: v => `raiders carry off ${pctTxt(v)} less`,
   };
   // p.unlocks comes from the server (only for projects the town can see).
   function unlockList(proj) {
@@ -295,7 +302,7 @@
     o.setAttribute('aria-labelledby', 'rs-title');
     o.innerHTML = `
       <header class="rs-hd">
-        <div class="rs-hd-title"><h2 id="rs-title">📚 Library</h2><div class="rs-sub" id="rs-sub"></div></div>
+        <div class="rs-hd-title"><h2 id="rs-title">📚 Library <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('research')">?</button></h2><div class="rs-sub" id="rs-sub"></div></div>
         <div class="rs-hd-now" id="rs-now"></div>
         <div class="rs-hd-sch" id="rs-sch"></div>
         <div class="rs-hd-queue" id="rs-queue" hidden></div>
