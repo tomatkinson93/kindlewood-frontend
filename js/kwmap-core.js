@@ -295,6 +295,8 @@ window.KWMap = (() => {
       // traveller leaving home isn't hidden; draws nothing when switched off
       // or nobody is travelling.
       if (window.KWTravelLayer && this._uifxCtx) window.KWTravelLayer.draw(this._uifxCtx, prep.W, prep.H, r, camera, now);
+      // A Withered raid on its way (js/kwmap-raid.js): red trail and target ring.
+      if (window.KWRaidLayer && this._uifxCtx) window.KWRaidLayer.draw(this._uifxCtx, prep.W, prep.H, r, camera, now);
     },
 
     requestRender() {

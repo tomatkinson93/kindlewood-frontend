@@ -11,27 +11,53 @@ const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + na
 
 const els = {};
 const doc = { getElementById: id => els[id] || null };
-const w = { console, Date, Math, document: doc, setInterval: () => 1, clearInterval: () => {}, showToastNotification: (m) => { w._toast = m; }, gameData: { settlement: {} }, apiFetch: async () => ({ ok: false }) };
+const w = { console, Date, Math, Number, document: doc, setInterval: () => 1, clearInterval: () => {}, showToastNotification: (m) => { w._toast = m; }, gameData: { settlement: {} }, apiFetch: async () => ({ ok: false }) };
 w.window = w; vm.createContext(w);
 vm.runInContext(read('js/raids.js'), w);
 const R = w.KWRaids;
 
-console.log('1. The raid banner');
+console.log('1. The raid countdown');
 {
-  els['raid-banner'] = { className: 'raid-banner', innerHTML: '' };
-  const raid = { id: 4, from: 'Rot Warren', target: 'the Quarry', outpost_id: 11, arrives_at: new Date(Date.now() + (4 * 60 + 12) * 60000 + 20000).toISOString() };
+  els['raid-chip'] = { hidden: true, className: 'raid-chip', innerHTML: '', title: '' };
+  const raid = { id: 4, from: 'Rot Warren', target: 'the Quarry', outpost_id: 11, strength_min: 40, strength_max: 70,
+    warned_at: new Date(Date.now() - 3600e3).toISOString(), arrives_at: new Date(Date.now() + (4 * 3600 + 12 * 60 + 9) * 1000 + 300).toISOString(),
+    from_at: { q: 10, r: 4 }, target_at: { q: 12, r: 5 } };
   R.onSettlement({ raid });
-  const b = els['raid-banner'];
-  check('1a. while a raid is on its way: open, from whom, where, how long', /open/.test(b.className) && /Raiders coming/.test(b.innerHTML) && /From Rot Warren — they strike the Quarry in 4h 12m/.test(b.innerHTML));
-  check('1b. it shares the map-banners stack', /<div id="raid-banner" class="raid-banner"/.test(read('index.html')) && read('index.html').indexOf('id="raid-banner"') > read('index.html').indexOf('id="map-banners"'));
-  check('1c. with the defence once known', /your defence 31/.test(R._bannerHtml(raid, { total: 31 })));
-  check('1d. the settlement remembers it (outpost panel reads it)', w.gameData.settlement.raid && w.gameData.settlement.raid.id === 4);
+  const c = els['raid-chip'];
+  check('1a. a red chip in the top bar: 🔥 Raid 4:12:09', c.hidden === false && /🔥/.test(c.innerHTML) && /raid-chip-clock">4:12:0[89]</.test(c.innerHTML));
+  check('1b. it sits in the top bar and opens the raid sheet', /<button type="button" id="raid-chip" class="raid-chip" hidden onclick="KWRaids\.openSheet\(\)"/.test(read('index.html')) && read('index.html').indexOf('id="raid-chip"') < read('index.html').indexOf('id="season-badge"'));
+  check('1c. no raid banner over the map any more', !/raid-banner/.test(read('index.html')));
+  check('1d. the settlement remembers it (outpost panel and map trail read it)', w.gameData.settlement.raid && w.gameData.settlement.raid.id === 4 && R.state().raid.id === 4);
+  R._setInfo({ active: raid, defence: { kind: 'outpost', fort: 25, garrison: 9, own: 34, militia: 15, town: 0, land: 0, clan: 0, total: 49, undefended: false }, tribute: { cost: 400 }, full_raid: { food: 2000, timber: 300 } });
+  const sh = R._sheetHtml();
+  check('1e. the sheet: clock, scouted range vs your defence, the breakdown', /id="raid-sheet-clock"/.test(sh) && /<b>40–70<\/b>/.test(sh) && /<small>Your defence<\/small><b>49<\/b>/.test(sh) && /🏯 Fort<\/span><b>25/.test(sh) && /Allied militia<\/span><b>15/.test(sh));
+  check('1f. …a verdict, what a full raid takes, and tribute', /It could go either way/.test(sh) && /🍎 2,000/.test(sh) && /Pay 400 to turn them back/.test(sh));
+  R._setInfo({ active: raid, defence: { kind: 'town', walls: 0, watch: 0, own: 0, total: 0, undefended: true }, tribute: { cost: 400 } });
+  check('1g. undefended says so', /Undefended — they will take everything/.test(R._sheetHtml()));
   R.onSettlement({ raid: null });
-  check('1e. gone when there is none', b.className === 'raid-banner' && b.innerHTML === '');
-  R.onEvent({ type: 'raid_resolved', raid: { outcome: 'repelled' }, message: '🛡️ The raiders broke against your defences.' });
-  check('1f. the outcome arrives as a toast', /broke against your defences/.test(w._toast));
-  check('1g. both load paths call it', /KWRaids\.onSettlement\(data\.settlement\)/.test(read('js/game.js')) && /KWRaids\.onSettlement\(gameData\.settlement\)/.test(read('js/main.js')));
-  check('1h. realtime raid_warning / raid_resolved', /raid_warning\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')) && /raid_resolved\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')));
+  check('1h. gone when there is none', c.hidden === true);
+  R.onEvent({ type: 'raid_resolved', raid: { outcome: 'partial' }, message: '🔥 They broke through.' });
+  check('1i. the outcome arrives as a toast', /broke through/.test(w._toast));
+  check('1j. both load paths call it; realtime too', /KWRaids\.onSettlement\(data\.settlement\)/.test(read('js/game.js')) && /KWRaids\.onSettlement\(gameData\.settlement\)/.test(read('js/main.js'))
+    && /raid_warning\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')));
+}
+
+console.log('1b. The red trail');
+{
+  const L = read('js/kwmap-raid.js'), CORE = read('js/kwmap-core.js');
+  check('1k. drawn each frame after the travel layer', /window\.KWRaidLayer\.draw\(this\._uifxCtx, prep\.W, prep\.H, r, camera, now\)/.test(CORE) && /kwmap-raid\.js\?v=/.test(read('index.html')));
+  check('1l. no network, no randomness in the map layer', !/apiFetch|fetch\(|Math\.random/.test(L));
+  const ctxCalls = [];
+  const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : (...a) => ctxCalls.push(k)), set: (t, k, v) => { t[k] = v; ctxCalls.push('set:' + k); return true; } });
+  const m = { console, Date, Math, Proxy, matchMedia: () => ({ matches: false }) };
+  m.window = m; vm.createContext(m);
+  vm.runInContext(L, m);
+  m.KWRaids = { state: () => ({ raid: null }) };
+  m.KWRaidLayer.draw(ctx, 800, 600, { projectAxial: (q, r) => ({ x: q * 10, y: r * 10, hexW: 48 }) }, {}, 0);
+  check('1m. nothing on its way: the canvas is untouched', ctxCalls.length === 0);
+  m.KWRaids = { state: () => ({ raid: { from_at: { q: 10, r: 4 }, target_at: { q: 12, r: 5 }, warned_at: new Date(Date.now() - 1000).toISOString(), arrives_at: new Date(Date.now() + 1000).toISOString() } }) };
+  m.KWRaidLayer.draw(ctx, 800, 600, { projectAxial: (q, r) => ({ x: q * 10, y: r * 10, hexW: 48 }) }, {}, 0);
+  check('1n. a raid on its way: a dashed trail, the raiders and a ring', ctxCalls.includes('setLineDash') && ctxCalls.includes('lineTo') && ctxCalls.includes('arc') && ctxCalls.includes('fillText'));
 }
 
 console.log('2. Villages');
@@ -44,9 +70,9 @@ console.log('2. Villages');
 }
 
 console.log('3. Elsewhere');
-check('3a. the Watchtower panel mentions a raid on its way', /Raiders from ' \+ raid\.from \+ ' are on their way to/.test(read('js/settlement-view.js')));
-check('3b. Dev Tools: send (6h or 2 min) and resolve', /KWRaids\.devSend\(\)/.test(read('index.html')) && /KWRaids\.devSend\(2\)/.test(read('index.html')) && /KWRaids\.devResolve\(\)/.test(read('index.html')));
-check('3c. Help explains trust, tribute and raids', /id: 'raids'/.test(read('js/help.js')) && /6 hours' warning/.test(read('js/help.js')) && /never below the band/.test(read('js/help.js')));
+check('3a. the Watchtower and Walls panel: town defence and a raid on its way', /Raiders from ' \+ raid\.from \+ ' are on their way to/.test(read('js/settlement-view.js')) && /Town defence/.test(read('js/settlement-view.js')));
+check('3b. Dev Tools: send (6h or 2 min), resolve, clear peace', /KWRaids\.devSend\(\)/.test(read('index.html')) && /KWRaids\.devSend\(2\)/.test(read('index.html')) && /KWRaids\.devResolve\(\)/.test(read('index.html')) && /KWRaids\.devPeaceClear\(\)/.test(read('index.html')));
+check('3c. Help explains trust, defences, graded raids and tribute', /id: 'raids'/.test(read('js/help.js')) && /Stone Tower/.test(read('js/help.js')) && /15% of each resource/.test(read('js/help.js')) && /tribute<\/b> for 24 hours/.test(read('js/help.js')) && /never below the band/.test(read('js/help.js')));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

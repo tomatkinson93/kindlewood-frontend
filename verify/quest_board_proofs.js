@@ -41,7 +41,7 @@ check('3d. it posts to /abandon and refreshes the board', /apiFetch\(`\/api\/que
 console.log('4. Elsewhere');
 const SV = read('js/settlement-view.js'), B = read('js/buildings.js'), H = read('js/help.js'), C = read('js/citizens.js'), IDX = read('index.html');
 check('4a. the Watchtower has a plot and a look', /accepts:\['watchtower'\]/.test(SV) && /watchtower: *\{ emoji:'🗼'/.test(SV));
-check('4b. its panel shows the watch (posts, happiness, defence)', /occupant\.id === 'watchtower' \? _svWatchHtml\(\)/.test(SV) && /posts manned · \+/.test(SV));
+check('4b. its panel shows the watch (posts, happiness, defence)', /occupant\.id === 'watchtower' \|\| occupant\.id === 'walls' \? _svWatchHtml\(\)/.test(SV) && /posts manned · \+/.test(SV));
 check('4c. the quest editor has a time window, saved as active_phases / moon_phases', /_qaTimeWindowFields\(q\)/.test(B) && /active_phases: Array\.prototype\.map\.call\(document\.querySelectorAll\('\.qa-phase:checked'\)/.test(B) && /moon_phases: +Array\.prototype\.map/.test(B));
 check('4d. Help explains the board, abandoning and the Watchtower', /id: 'quests'/.test(H) && /abandoned/.test(H) && /Watchtower/.test(H));
 check('4e. citizens at an outpost show as such', /atOutpost \? 'At ' \+ c\.outpost\.name/.test(C) && /Working at the \$\{c\.outpost\.name\}/.test(C));

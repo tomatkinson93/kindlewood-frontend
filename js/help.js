@@ -72,7 +72,10 @@
     { id: 'raids', icon: '🔥', title: 'Villages, trust and raids', body: `
       <p>Trust with a village fades if you never write: after a week without a gift, trade, envoy, quest or tribute it drops a point a day — but never below the band under the best you reached (an old ally can cool to Friendly, no further). The village panel warns you first.</p>
       <p>An <b>Allied</b> village sends a small daily tribute, teaches fighting cards, and its militia helps guard your outposts within 4 tiles.</p>
-      <p>The <b>Withered</b> sometimes raid towns whose outposts come within 6 tiles of their land — never Camps or brand-new players, and never twice within two days. You get <b>6 hours' warning</b>. Guards and Archers at the Watchtower, Allied militia and clan boons defend you. Win and you earn a little wealth; lose and an outpost sits idle for 6 hours or the raiders carry off a share of one resource (at most 300). Nothing is ever destroyed.</p>` },
+      <p>The <b>Withered</b> sometimes raid towns whose outposts come within 6 tiles of their land — never Camps or brand-new players, and never twice within two days. A red <b>countdown</b> appears in the top bar and a red trail on the map shows where they'll strike; tap the timer for your defences.</p>
+      <p><b>Defend</b> with <b>Walls</b> around your town and a <b>fort</b> at each outpost (Palisade, Stockade, Stone Tower — research in the Building path unlocks them), manned by Guards and Archers. Allied militia, clan boons and clanmates' forts on shared clan land add to it.</p>
+      <p>An undefended spot loses <b>15% of each resource</b> (at most 2,000 of each), and an outpost sits idle for 12 hours. The closer your defence comes to their strength, the less they take; strong enough, and they take nothing. Anyone at a raided spot is hurt and sent home.</p>
+      <p>You can also pay the Withered <b>tribute</b> for 24 hours of peace — it costs more each time you pay within three days, and double to turn back raiders already on their way.</p>` },
     { id: 'tavern', icon: '🍺', title: 'Tavern games', body: `
       <p>Play <b>Briarwood Court</b> or <b>Squirrel's Stash</b> at the tavern, alone against AI courtiers or with other players.</p>
       <p>A win pays <b>4 wealth</b>, for up to 10 wins a day. Every win counts on the rankings.</p>`,

@@ -55,6 +55,13 @@
     carry: v => `+${pctTxt(v)} porter and merchant carry weight`,
     wonder_speed: v => `Wonder stages build ${pctTxt(v)} faster`,
     wonder_upkeep: v => `−${pctTxt(v)} Wonder upkeep`,
+    fort_level: () => 'a stronger fort at every outpost',
+    walls_level: () => 'Walls can rise higher',
+    walls_defence: v => `Walls defend ${pctTxt(v)} better`,
+    garrison_defence: v => `+${pctTxt(v)} garrison and watch defence`,
+    raid_warning_h: v => `raids spotted ${v} hours sooner`,
+    scout_range: () => 'raiders\' strength judged more closely',
+    raid_loss: v => `raiders carry off ${pctTxt(v)} less`,
   };
   // p.unlocks comes from the server (only for projects the town can see).
   function unlockList(proj) {

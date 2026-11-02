@@ -49,7 +49,7 @@
   <link rel="stylesheet" href="/css/famine.css?v=r3c">
   <link rel="stylesheet" href="/css/mail.css?v=r3">
   <link rel="stylesheet" href="/css/wonders.css?v=r3">
-  <link rel="stylesheet" href="/css/r4.css?v=r4e">
+  <link rel="stylesheet" href="/css/r4.css?v=d2">
   <link rel="stylesheet" href="/css/research.css?v=g4">
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
@@ -490,6 +490,8 @@
       </div>
       <div class="topbar-version">v0.5.0</div>
       <div class="topbar-right">
+        <!-- A Withered raid on its way: red countdown (js/raids.js) -->
+        <button type="button" id="raid-chip" class="raid-chip" hidden onclick="KWRaids.openSheet()" aria-label="Raid on its way — your defences"></button>
         <div id="season-badge" class="season-badge-wrap"></div>
         <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
         <!-- Events bell -->
@@ -554,7 +556,6 @@
         <div class="map-banners" id="map-banners">
           <div id="famine-banner" class="famine-banner" role="status" aria-live="polite"></div>
           <div id="town-banner" class="town-banner" role="status" aria-live="polite"></div>
-          <div id="raid-banner" class="raid-banner" role="status" aria-live="polite"></div>
         </div>
 
         <!-- Fixed map frame — grid clips inside this, buttons sit on edges -->
@@ -809,7 +810,7 @@
   <script defer src="/js/happening-effects.js?v=rs1"></script>
   <script defer src="/js/server-clock.js?v=021adm"></script>
   <script defer src="/js/particles.js?v=spec20b"></script>
-  <script defer src="/js/game.js?v=r4c"></script>
+  <script defer src="/js/game.js?v=d2"></script>
   <script defer src="/js/resources.js?v=r3"></script>
   <script defer src="/js/carousel.js?v=spec20b"></script>
   <script defer src="/js/placement.js?v=r2"></script>
@@ -818,15 +819,15 @@
   <script defer src="/js/stores.js?v=g3"></script>
   <script defer src="/js/famine.js?v=r3"></script>
   <script defer src="/js/mail.js?v=r2"></script>
-  <script defer src="/js/help.js?v=r4d"></script>
+  <script defer src="/js/help.js?v=d2"></script>
   <script defer src="/js/wonders.js?v=r4c"></script>
   <script defer src="/js/cards.js?v=r4b"></script>
-  <script defer src="/js/raids.js?v=r4c"></script>
+  <script defer src="/js/raids.js?v=d2"></script>
   <script defer src="/js/career-math.js?v=rs6"></script>
   <script defer src="/js/career-tree.js?v=cr1"></script>
   <script defer src="/js/careers.js?v=cf1"></script>
   <script defer src="/js/crafting.js?v=hd1"></script>
-  <script defer src="/js/research.js?v=r3"></script>
+  <script defer src="/js/research.js?v=d2"></script>
   <script defer src="/js/career-balance.js?v=hd1"></script>
   <script defer src="/js/citizens.js?v=r4a"></script>
   <script defer src="/js/buildings.js?v=r4a"></script>
@@ -841,13 +842,14 @@
   <script defer src="/js/profile.js?v=r2b"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script defer src="/js/kwmap-core.js?v=tp1"></script>
+  <script defer src="/js/kwmap-core.js?v=d2"></script>
   <script defer src="/js/clan-territory.js?v=clan9"></script>
   <script defer src="/js/kwmap-settlements.js?v=021p3"></script>
   <script defer src="/js/kwmap-daylight.js?v=021p6"></script>
   <script defer src="/js/kwmap-happening-fx.js?v=021demo"></script>
   <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
   <script defer src="/js/kwmap-travel.js?v=tp5"></script>
+  <script defer src="/js/kwmap-raid.js?v=d2"></script>
   <script defer src="/js/kwmap-atmosphere.js?v=1"></script>
   <script defer src="/js/kwmap-topdown.js?v=tp1"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
@@ -857,7 +859,7 @@
   <script defer src="/js/kwmap-tileactions.js?v=r2"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
-  <script defer src="/js/main.js?v=r4c"></script>
+  <script defer src="/js/main.js?v=d2"></script>
   <script defer src="/js/away-report.js?v=rs2"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=1"></script>
@@ -1075,6 +1077,7 @@
           <button class="cheat-res-btn" onclick="KWRaids.devSend()">🔥 Send a raid (6 hours' warning)</button>
           <button class="cheat-res-btn" onclick="KWRaids.devSend(2)">🔥 Send a raid (2 minutes)</button>
           <button class="cheat-res-btn" onclick="KWRaids.devResolve()">⚔️ Resolve the raid now</button>
+          <button class="cheat-res-btn" onclick="KWRaids.devPeaceClear()">🕊 Clear tribute peace</button>
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">💰 Clan</div>
@@ -1781,7 +1784,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=r4c"></script>
+    <script defer src="js/settlement-view.js?v=d2"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

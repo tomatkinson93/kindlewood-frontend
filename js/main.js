@@ -1261,6 +1261,7 @@ function _outpostSectionHtml(tile) {
         <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         ${(mine?.notes || []).filter(n => n.key !== 'worker').map(n => `<div class="op-note op-note-warn">${n.key === 'unfed' ? '🍂' : '🔥'} ${n.label}</div>`).join('')}
         ${_outpostRaidHtml(mine)}
+        ${_outpostDefenceHtml(mine)}
         ${_outpostWorkerHtml(mine)}
         ${_outpostUpgradeHtml(mine)}
         <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
@@ -1342,7 +1343,7 @@ function _outpostRaidHtml(mine) {
   const r = gameData?.settlement?.raid;
   if (!mine || !r || r.outpost_id !== mine.id || r.resolved_at) return '';
   const left = window.KWRaids ? KWRaids._left(r.arrives_at) : '';
-  return `<div class="op-note op-note-warn op-raid">🔥 Raiders from ${r.from} will strike here in ${left}. Guards and Archers at the Watchtower defend it.</div>`;
+  return `<div class="op-note op-note-warn op-raid" onclick="KWRaids.openSheet()" role="button">🔥 Raiders from ${r.from} will strike here in ${left}. Raise its fort and garrison it — tap for details.</div>`;
 }
 
 // The worker row: who works here (and bring them home), or post someone.
@@ -1358,30 +1359,82 @@ function _outpostWorkerHtml(mine) {
   const wb = st.worker_bonus || { base: 0.25, fit: 0.5, fit_class: {} };
   const fitKey = (wb.fit_class || {})[mine.terrain];
   const fitLabel = OP_CLASS_LABELS[fitKey] || null;
-  if (mine.worker) {
-    const pct = Math.round((mine.worker.fit ? wb.fit : wb.base) * 100);
-    return `<div class="op-worker"><span>👷 <b>${mine.worker.name}</b> works here (+${pct}%${mine.worker.fit ? ', knows this land' : ''}).</span>`
-      + `<button class="action-btn op-worker-btn" data-op-unassign="${mine.id}">Bring home</button></div>`;
-  }
+  const workers = mine.workers || (mine.worker ? [mine.worker] : []);
+  const slots = mine.worker_slots || 1;
+  const rows = workers.map(w => `<div class="op-crew-row"><span>👷 <b>${w.name}</b> +${Math.round((w.fit ? wb.fit : wb.base) * 100)}%${w.fit ? ' ★' : ''}</span>`
+    + `<button class="action-btn op-worker-btn" data-op-unassign="${mine.id}" data-cid="${w.id}">Home</button></div>`).join('');
   const free = _opFreeCitizens();
   const sorted = free.slice().sort((a, b) => (b.role === fitKey) - (a.role === fitKey) || String(a.name).localeCompare(String(b.name)));
   const opts = sorted.map(c => `<option value="${c.id}">${c.name}${c.role === fitKey ? ' ★' : ''}</option>`).join('');
-  return `<div class="op-worker op-worker-empty">`
-    + `<div class="op-worker-hint">👷 No one works here. A worker adds +${Math.round(wb.base * 100)}%${fitLabel ? ` (+${Math.round(wb.fit * 100)}% for a ${fitLabel} ★)` : ''}.</div>`
-    + (sorted.length
+  const pick = workers.length >= slots ? ''
+    : sorted.length
       ? `<div class="op-worker-pick"><select class="op-worker-select" data-op-worker-select="${mine.id}"><option value="">— Choose a citizen —</option>${opts}</select>`
-        + `<button class="action-btn op-worker-btn" data-op-assign="${mine.id}">Post</button></div>`
-      : `<div class="op-worker-hint op-worker-none">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`)
-    + `</div>`;
+        + `<button class="action-btn op-worker-btn" data-op-assign="${mine.id}" data-post="worker">Post</button></div>`
+      : `<div class="op-worker-hint op-worker-none">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`;
+  return `<div class="op-worker${workers.length ? '' : ' op-worker-empty'}">`
+    + `<div class="op-crew-head">👷 Workers <span>${workers.length}/${slots}</span></div>`
+    + (workers.length ? rows : `<div class="op-worker-hint">No one works here. A worker adds +${Math.round(wb.base * 100)}%${fitLabel ? ` (+${Math.round(wb.fit * 100)}% for a ${fitLabel} ★)` : ''}.</div>`)
+    + pick + `</div>`;
+}
+// Defence: the fort (and its next level), the garrison (Guards and Archers),
+// and the total — red "Undefended" when there's nothing.
+const OP_FORT_ICON = { 1: '🪵', 2: '🏯', 3: '🏰' };
+function _outpostDefenceHtml(mine) {
+  if (!mine || !mine.fort) return '';
+  const f = mine.fort, d = mine.defence || { own: 0 };
+  const garrison = mine.garrison || [];
+  const head = d.own > 0
+    ? `<div class="op-crew-head">🛡️ Defence <b class="op-def-total">${d.own}</b></div>`
+    : `<div class="op-crew-head">🛡️ Defence <b class="op-def-total op-undefended">Undefended</b></div>`;
+  const fortLine = f.level
+    ? `<div class="op-fort">${OP_FORT_ICON[f.level] || '🛡️'} <b>${f.name}</b> +${f.defence} · holds ${f.slots}</div>`
+    : `<div class="op-worker-hint">No fort. Raiders walk straight in.</div>`;
+  let up = '';
+  if (f.next) {
+    const n = f.next;
+    up = n.researchMet
+      ? `<div class="op-fort-next"><div class="op-chips">${_costChips(n.cost, _liveResources())}</div><button class="action-btn op-worker-btn" data-op-fortify="${mine.id}" ${_opAffordable(n.cost) ? '' : 'disabled'}>${f.level ? 'Raise' : 'Build'} a ${n.name} (+${n.defence})</button></div>`
+      : `<div class="op-worker-hint">🔒 A ${n.name} needs ${n.research}.</div>`;
+  }
+  const rows = garrison.map(g => `<div class="op-crew-row"><span>${g.role === 'archer' ? '🏹' : '🛡️'} <b>${g.name}</b> +${8 + (g.class_level || 1)}</span>`
+    + `<button class="action-btn op-worker-btn" data-op-unassign="${mine.id}" data-cid="${g.id}">Home</button></div>`).join('');
+  const guards = _opFreeCitizens().filter(c => c.role === 'soldier' || c.role === 'archer');
+  const pick = f.slots && garrison.length < f.slots
+    ? (guards.length
+      ? `<div class="op-worker-pick"><select class="op-worker-select" data-op-garrison-select="${mine.id}"><option value="">— Choose a Guard or Archer —</option>${guards.map(c => `<option value="${c.id}">${c.name} (${c.role === 'archer' ? 'Archer' : 'Guard'})</option>`).join('')}</select>`
+        + `<button class="action-btn op-worker-btn" data-op-assign="${mine.id}" data-post="garrison">Garrison</button></div>`
+      : `<div class="op-worker-hint">No Guards or Archers free to stand here.</div>`)
+    : '';
+  return `<div class="op-worker op-defence">${head}${fortLine}${up}${f.slots ? `<div class="op-crew-head op-sub">Garrison <span>${garrison.length}/${f.slots}</span></div>` : ''}${rows}${pick}</div>`;
+}
+function _opAffordable(cost) {
+  const have = _liveResources();
+  return Object.entries(cost || {}).every(([r, v]) => (have[r] ?? 0) >= v);
+}
+async function _fortifyOutpost(btn, tile) {
+  const id = Number(btn.dataset.opFortify);
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/game/outposts/${id}/fortify`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) { btn.disabled = false; _opShowReason(btn, data.error || 'That didn\'t work.'); return; }
+    _applyOutpostResponse(data);
+    if (_outpostStatus?.outposts) _outpostStatus.outposts = _outpostStatus.outposts.map(o => (o.id === id ? data.outpost : o));
+    if (typeof showToastNotification === 'function') showToastNotification(`🛡️ ${data.outpost.name} now has a ${data.outpost.fort.name} (+${data.outpost.fort.defence}).`, 'outpost');
+    selectWorldTile(tile);
+  } catch (e) { btn.disabled = false; _opShowReason(btn, 'Connection hiccup — try again.'); }
 }
 async function _assignOutpostWorker(btn, tile, unassign) {
   const id = Number(btn.dataset.opAssign || btn.dataset.opUnassign);
+  const post = btn.dataset.post === 'garrison' ? 'garrison' : 'worker';
   let body;
   if (!unassign) {
-    const sel = btn.closest('.op-section')?.querySelector('[data-op-worker-select]');
+    const sel = btn.closest('.op-worker-pick')?.querySelector('select');
     const cid = Number(sel && sel.value);
-    if (!cid) { _opShowReason(btn, 'Choose who should go.'); return; }
-    body = JSON.stringify({ citizen_id: cid });
+    if (!cid) { _opShowReason(btn, post === 'garrison' ? 'Choose a Guard or Archer.' : 'Choose who should go.'); return; }
+    body = JSON.stringify({ citizen_id: cid, post });
+  } else {
+    body = JSON.stringify(btn.dataset.cid ? { citizen_id: Number(btn.dataset.cid) } : {});
   }
   btn.disabled = true;
   try {
@@ -1391,7 +1444,7 @@ async function _assignOutpostWorker(btn, tile, unassign) {
     _applyOutpostResponse(data);
     if (_outpostStatus?.outposts) _outpostStatus.outposts = _outpostStatus.outposts.map(o => (o.id === id ? data.outpost : o));
     if (typeof loadCitizens === 'function') await loadCitizens();
-    if (typeof showToastNotification === 'function') showToastNotification(unassign ? `👷 The worker heads home from ${data.outpost.name}.` : `👷 ${data.outpost.worker?.name || 'A worker'} sets out for ${data.outpost.name}.`, 'outpost');
+    if (typeof showToastNotification === 'function') showToastNotification(unassign ? `🏠 They head home from ${data.outpost.name}.` : post === 'garrison' ? `🛡️ A defender takes their post at ${data.outpost.name}.` : `👷 A worker sets out for ${data.outpost.name}.`, 'outpost');
     selectWorldTile(tile);
   } catch (e) {
     btn.disabled = false;
@@ -1435,10 +1488,10 @@ function _wireOutpostSection(body, tile) {
   if (disBtn) {
     disBtn.addEventListener('click', () => _dismantleOutpost(disBtn, tile));
   }
-  const asBtn = body.querySelector('[data-op-assign]');
-  if (asBtn) asBtn.addEventListener('click', () => _assignOutpostWorker(asBtn, tile, false));
-  const unBtn = body.querySelector('[data-op-unassign]');
-  if (unBtn) unBtn.addEventListener('click', () => _assignOutpostWorker(unBtn, tile, true));
+  body.querySelectorAll('[data-op-assign]').forEach(b => b.addEventListener('click', () => _assignOutpostWorker(b, tile, false)));
+  body.querySelectorAll('[data-op-unassign]').forEach(b => b.addEventListener('click', () => _assignOutpostWorker(b, tile, true)));
+  const fortBtn = body.querySelector('[data-op-fortify]');
+  if (fortBtn) fortBtn.addEventListener('click', () => _fortifyOutpost(fortBtn, tile));
   // The citizen list feeds the worker picker; fetch it once if it's empty.
   if (body.querySelector('.op-worker-none') && !_opCitizensAsked && typeof loadCitizens === 'function') {
     _opCitizensAsked = true;
