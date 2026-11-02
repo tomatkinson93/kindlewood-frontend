@@ -356,6 +356,7 @@ function _renderSoloCarousel() {
         + (skillLabel ? ' &nbsp;·&nbsp; <span style="color:rgba(192,221,151,.7)">' + skillLabel + '</span>' : '')
         + '</div>'
       + '<div class="qp-card-title">' + q.title + '</div>'
+      + _questGateBadge(q)
       + '<div class="qp-card-desc">' + q.description + '</div>'
       + '<div class="qp-card-meta">⏱ ' + formatDuration(q.duration_s) + ' &nbsp;·&nbsp; 🪙 ' + (q.reward_gold || 0) + ' gold</div>'
       + '<div class="qp-card-hint">Tap to assign</div>'
@@ -514,6 +515,7 @@ function openSoloQuestPanel(q) {
 function _citizenBusyLabel(c, busyIds) {
   if (c.active_quest) return c.active_quest.clan ? (c.active_quest.forming ? 'Waiting for a clan party' : 'On a clan quest') : 'On a quest';
   if (c.expedition) return 'Scouting';
+  if (c.outpost) return 'Working at an outpost';
   if (c.trade) return c.trade.on_road ? (c.trade.porter ? 'Out as a porter' : 'On a trade run') : c.trade.shop ? 'Minding a shop' : 'Working as a merchant';
   if (busyIds && busyIds.has(c.id)) return 'Busy';
   return '';
@@ -720,7 +722,7 @@ function renderQuestBoard(loadingHtml) {
       + modeActive.map(q => renderActiveQuest(q)).join('') + '</div>';
   }
 
-  html += '<div class="qb-section-label">📋 Available</div>';
+  html += '<div class="qb-section-label">📋 Available' + _questRotateHtml(_questData.rotates_at) + '</div>';
   if (isParty) {
     html += '<div id="qb-party-carousel" class="qb-party-carousel"></div>';
   } else {
@@ -778,6 +780,51 @@ function renderAvailableQuest(q, inProgress) {
     </div>`;
 }
 
+// "New quests in 5h 12m" — the board turns over at 00:00 UTC (server rotates_at).
+function _questRotateHtml(at) {
+  const ms = at ? Date.parse(at) - Date.now() : NaN;
+  if (!(ms > 0)) return '';
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  return '<span class="qb-rotates" title="Each day the notice board shows a fresh set of quests.">New quests in ' + (h ? h + 'h ' : '') + m + 'm</span>';
+}
+// A badge for quests only on the board at certain times.
+function _questGateBadge(q) {
+  if (!q || !q.time_limited) return '';
+  const moon = Array.isArray(q.moon_phases) && q.moon_phases.length;
+  const label = moon ? (q.moon_phases.length === 1 && q.moon_phases[0] === 'full' ? '🌕 Full moon only' : '🌙 Moon-touched')
+                     : (q.active_phases || []).every(p => p === 'night' || p === 'dusk') ? '🌙 Tonight only' : '⏳ For a short while';
+  return '<span class="qb-gate-badge" title="Only on the board at certain times — take it while you can.">' + label + '</span>';
+}
+// Solo quests can be called off until a battle starts.
+function _canAbandon(q) {
+  return q.status === 'active' && q.quest_type !== 'party' && !(q.party_members && q.party_members.length > 1)
+    && !['pending', 'in_progress', 'resolved'].includes(q.combat_status || 'none');
+}
+async function abandonQuest(id, btn) {
+  if (btn && !btn.dataset.armed) {   // first tap arms it
+    btn.dataset.armed = '1';
+    btn.textContent = 'Really turn back?';
+    btn.classList.add('qb-abandon-armed');
+    setTimeout(() => { if (btn.isConnected && btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = 'Abandon'; btn.classList.remove('qb-abandon-armed'); } }, 4000);
+    return;
+  }
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/quests/${id}/abandon`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { if (btn) btn.disabled = false; _questFlash('⚠️ ' + (data.error || 'Could not abandon the quest.')); return; }
+    const msg = '↩️ ' + (data.citizen_name || 'Your citizen') + ' turns back for home.';
+    if (typeof showToastNotification === 'function') showToastNotification(msg, 'quest'); else _questFlash(msg);
+    const r = await apiFetch('/api/quests');
+    if (r.ok) _questData = await r.json();
+    if (typeof loadCitizens === 'function') loadCitizens();
+    renderQuestBoard();
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    _questFlash('⚠️ Connection hiccup — try again.');
+  }
+}
+
 function renderActiveQuest(q) {
   const quest = _getQuestDef(q.quest_id);
   const remaining = Math.max(0, new Date(q.completes_at) - Date.now());
@@ -802,6 +849,7 @@ function renderActiveQuest(q) {
       <div class="qb-progress-bar-wrap">
         <div class="qb-progress-bar" id="qb-progress-${q.id}" style="width:${_progressPct(q)}%"></div>
       </div>
+      ${_canAbandon(q) ? `<div class="qb-abandon-row"><button class="qb-abandon-btn" data-abandon="${q.id}" onclick="abandonQuest(${q.id}, this)">Abandon</button></div>` : ''}
     </div>`;
 }
 
@@ -931,6 +979,7 @@ function _renderPartyCarousel() {
       + '<div class="qp-card-body">'
       + '<div class="qp-card-diff" style="color:' + diff.color + '">' + diff.label + ' &nbsp;·&nbsp; 👥 ' + (q.requires||[]).length + '</div>'
       + '<div class="qp-card-title">' + q.title + '</div>'
+      + _questGateBadge(q)
       + '<div class="qp-card-desc">' + q.description + '</div>'
       + '<div class="qp-card-skills">' + skills + '</div>'
       + '<div class="qp-card-meta">⏱ ' + formatDuration(q.duration_s) + ' &nbsp;·&nbsp; 🎁 ' + (q.reward_label||'Rewards') + '</div>'

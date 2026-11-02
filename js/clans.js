@@ -164,14 +164,15 @@
     byId('clan-head-banner').innerHTML = bannerHtml(c.banner, 40);
     const reqs = (d.join_requests || []).length;
     const TAB_LABEL = { overview: `Overview${reqs ? ' <span class="clan-tab-dot"></span>' : ''}`, roster: `Roster (${c.member_count})`,
-      quests: 'Quests', unlocks: 'Unlocks', territory: 'Territory', activity: 'Activity' };
-    byId('clan-tabs').innerHTML = ['overview', 'roster', 'quests', 'unlocks', 'territory', 'activity'].map(t =>
+      quests: 'Quests', goals: 'Goals', treasury: 'Treasury', unlocks: 'Unlocks', territory: 'Territory', activity: 'Activity' };
+    byId('clan-tabs').innerHTML = ['overview', 'roster', 'quests', 'goals', 'treasury', 'unlocks', 'territory', 'activity'].map(t =>
       `<button type="button" class="clan-tab${state.tab === t ? ' on' : ''}" data-act="tab" data-tab="${t}">${TAB_LABEL[t]}</button>`
     ).join('');
     byId('clan-body').innerHTML = state.tab === 'roster' ? rosterHtml()
       : state.tab === 'activity' ? activityHtml()
       : state.tab === 'unlocks' ? unlocksHtml()
       : state.tab === 'quests' ? (global.ClanQuests ? global.ClanQuests.html() : '')
+      : (state.tab === 'goals' || state.tab === 'treasury') ? (global.ClanTreasury ? global.ClanTreasury.html(state.tab) : '')
       : state.tab === 'territory' ? territoryHtml() : overviewHtml();
     if (state.tab === 'quests' && global.ClanQuests) global.ClanQuests.afterRender();
     if (state.tab === 'activity' && state.activity === null) loadActivity();
@@ -179,7 +180,7 @@
 
   // ── Activity feed ───────────────────────────────────────────────────────
 
-  const SOURCE_LABEL = { clan_quest: 'a clan quest', quest: 'a quest', battle: 'a battle', outpost: 'a new outpost', tier: 'a settlement upgrade' };
+  const SOURCE_LABEL = { clan_quest: 'a clan quest', quest: 'a quest', battle: 'a battle', outpost: 'a new outpost', tier: 'a settlement upgrade', donation: 'a gift to the treasury' };
 
   function activityLine(a) {
     const p = a.payload || {}, who = `<b>${esc(a.actor || 'Someone')}</b>`, name = `<b>${esc(p.username || '')}</b>`;
@@ -197,6 +198,10 @@
       case 'clan_quest_completed':   return ['📜', `${p.members && p.members.length ? `<b>${esc(p.members.join(', '))}</b>` : 'The clan'} completed <b>${esc(p.title || '')}</b>.`];
       case 'clan_quest_failed':      return ['🥀', `${p.members && p.members.length ? esc(p.members.join(', ')) : 'The clan'} came back from <b>${esc(p.title || '')}</b> without success.`];
       case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
+      case 'boon_bought':            return ['🛡', `${who} bought the boon <b>${esc(p.label || p.boon || '')}</b> for ${esc(p.cost)}.`];
+      case 'goal_met':               return ['🎯', `Weekly goal met: <b>${esc(p.label || p.goal || '')}</b> (+${esc(p.prestige)} prestige, +${esc(p.treasury)} treasury).`];
+      case 'honor_earned':           return ['🏅', `The clan earned the honor <b>${esc(p.label || p.honor || '')}</b>.`];
+      case 'territory_released':     return ['🏳️', `${who} gave up the tile (${esc(p.q)}, ${esc(p.r)}).`];
       case 'prestige_adjusted':      return ['🛠️', `${who} ${p.amount > 0 ? 'added' : 'removed'} <b>${esc(Math.abs(p.amount))}</b> prestige <span class="clan-muted">(Dev Tools)</span>.`];
       case 'prestige_earned':        return ['✦', `${who} earned <b>${esc(p.amount)}</b> prestige from ${esc(SOURCE_LABEL[p.source] || p.source)}${
         p.amount < p.raw ? ` <span class="clan-muted">(daily cap: ${esc(p.raw)} earned)</span>` : ''}.`];
@@ -662,13 +667,15 @@
         <p class="clan-muted">${can('claim_territory')
           ? 'To claim, tap an explored tile that borders your land, open it with 🔍, and choose <b>Claim</b>.'
           : 'Officers and above can claim tiles that border your land.'}
-          Claims can't be undone, so your land always stays connected.</p>
+          ${can('release_territory') ? 'Leaders can give up a tile (the hall\'s own stays).' : ''} Each tile pays the treasury 2 wealth a day, and members' outposts on clan land work harder and are harder to raid.</p>
       </section>
       <section class="clan-sec">
         <h3>Holdings</h3>
         <ul class="clan-list">${t.tiles.map(x => `<li><span>(${x.q}, ${x.r})${
           t.hq && x.q === t.hq.q && x.r === t.hq.r ? ' <span class="clan-muted">· HQ</span>' : ''}</span>
-          <button type="button" class="clan-btn small ghost" data-act="goto-tile" data-q="${x.q}" data-r="${x.r}">Show</button></li>`).join('')}</ul>
+          <span><button type="button" class="clan-btn small ghost" data-act="goto-tile" data-q="${x.q}" data-r="${x.r}">Show</button>${
+          can('release_territory') && !(t.hq && x.q === t.hq.q && x.r === t.hq.r)
+            ? ` <button type="button" class="clan-btn small ghost" data-act="terr-release" data-q="${x.q}" data-r="${x.r}">Give up</button>` : ''}</span></li>`).join('')}</ul>
       </section>`;
   }
 
@@ -834,6 +841,9 @@
     // Quests tab + its citizen picker (js/clan-quests.js).
     const cq = e.target.closest('[data-cq]');
     if (cq && global.ClanQuests) { if (!cq.disabled) global.ClanQuests.onClick(cq); return; }
+    // Treasury and Goals tabs (js/clan-treasury.js).
+    const ct = e.target.closest('[data-ct]');
+    if (ct && global.ClanTreasury) { if (!ct.disabled) global.ClanTreasury.onClick(ct); return; }
     const t = e.target.closest('[data-act]');
     if (!t) return;
     const act = t.dataset.act, id = parseInt(t.dataset.id, 10);
@@ -841,6 +851,12 @@
     switch (act) {
       case 'tab': state.tab = t.dataset.tab; render(); break;
       case 'activity-more': loadActivity(true); break;
+      case 'terr-release': {
+        const q = parseInt(t.dataset.q, 10), r = parseInt(t.dataset.r, 10);
+        confirmSheet('Give up this tile', `The clan will no longer hold (${q}, ${r}). Claiming it back costs prestige.`, 'Give it up',
+          () => run(async () => { await call('DELETE', `/api/clans/territory/${q}/${r}`); if (global.ClanUI && global.ClanUI.refreshTerritoryOnMap) global.ClanUI.refreshTerritoryOnMap(); }, 'Tile given up.'));
+        break;
+      }
       case 'goto-tile': {
         const q = parseInt(t.dataset.q, 10), r = parseInt(t.dataset.r, 10);
         closeClanPanel();

@@ -366,9 +366,45 @@ function _renderDiplomacyModalBody(data, npc, npcId, trust, level, status, rel) 
         ${trustBarHtml}
       </div>
       <div class="diplo-milestones">${milestonesHtml}</div>
+      ${data.decay_warning ? `<div class="diplo-decay ${data.decay_warning.decaying ? 'decaying' : ''}">🍂 ${data.decay_warning.text}</div>` : ''}
     </div>
+    ${_tributeHtml(npcId, data.tribute)}
     <div class="dm-section diplo-actions">${actionsHtml}</div>
+    ${trust > 0 && window.KWCards ? `<div class="dm-section" id="dm-cards-${npcId}"></div>` : ''}
   `;
+  // An Allied village teaches two combat cards a week (js/cards.js).
+  if (trust > 0 && window.KWCards) KWCards.loadVillage(npcId);
+}
+
+// Allied: once a day the village sends a little of what it makes.
+function _tributeHtml(npcId, t) {
+  if (!t || !t.allied) return '';
+  const icon = r => (window.KWResources && KWResources.icon) ? KWResources.icon(r) : '';
+  const bundle = Object.entries(t.bundle || {}).map(([r, v]) => `${icon(r)} ${v}`).join(' · ');
+  return `<div class="dm-section diplo-tribute">
+      <div class="diplo-action-label">⭐ Allied tribute</div>
+      <div class="diplo-tribute-row"><span>Today: ${bundle}</span>
+        ${t.available
+          ? `<button class="diplo-btn" data-tribute="${npcId}" onclick="diplomacyCollectTribute(${npcId}, this)">Collect</button>`
+          : '<span class="diplo-tribute-done">✓ Collected — more tomorrow</span>'}
+      </div>
+    </div>`;
+}
+async function diplomacyCollectTribute(npcId, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/diplomacy/${npcId}/tribute`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { if (btn) btn.disabled = false; if (typeof showToastNotification === 'function') showToastNotification('⚠️ ' + (data.error || 'No tribute today.'), 'error'); return; }
+    if (data.resources && gameData?.settlement) {
+      gameData.settlement.resources = { ...gameData.settlement.resources, ...data.resources };
+      if (typeof startResourceTick === 'function' && gameData.settlement.rates) startResourceTick(gameData.settlement.resources, gameData.settlement.rates);
+      if (typeof updateTopbarDisplay === 'function') updateTopbarDisplay();
+    }
+    const icon = r => (window.KWResources && KWResources.icon) ? KWResources.icon(r) : r;
+    if (typeof showToastNotification === 'function') showToastNotification(`⭐ ${data.village} sends tribute: ` + Object.entries(data.bundle).map(([r, v]) => `${icon(r)} ${v}`).join(' · ') + '.', 'trade');
+    openDiplomacyModal(npcId);
+  } catch (e) { if (btn) btn.disabled = false; }
 }
 
 // Builds the en-route walker block (shared between contact + goodwill + gift).
@@ -524,7 +560,7 @@ function _trustUnlockText(status) {
     contacted: 'Unlocks: Goodwill, Gifts',
     familiar:  'Better gift returns · 🏪 Trades at your Market',
     friendly:  'Unlocks: NPC Quests · Market trades ×1.5, 5% better prices',
-    allied:    'Unlocks: Alliance · Shared Scouts · Market trades ×2, 10% better prices',
+    allied:    'Unlocks: a daily tribute · their militia guards your outposts nearby · fighting cards · Market trades ×2, 10% better prices',
   };
   return map[status] || '';
 }

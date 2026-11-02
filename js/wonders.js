@@ -209,6 +209,7 @@
       el.className = 'town-banner';
       el.innerHTML = '';
     }
+    if (typeof global._placeFamineBanner === 'function') global._placeFamineBanner();   // phones: under the topbar
   }
 
   // Dev Tools

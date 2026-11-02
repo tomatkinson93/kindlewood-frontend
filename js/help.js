@@ -48,6 +48,7 @@
     { id: 'outposts', icon: '⛺', title: 'Outposts and exploring', body: `
       <p>Found an <b>outpost</b> on a nearby tile to gather what that land offers: food on plains, timber in forests, stone and ores in hills, iron and rare finds in mountains.</p>
       <p>Your tier decides how many outposts you can run and how far away. Outposts can be upgraded to level 3 for more yield — each level eats a little more food.</p>
+      <p>Post a <b>worker</b> at an outpost for +25% yield — +50% if their trade suits the land (a Miner in the hills, a Woodcutter in the forest). While posted they don't work in town. If the stores can't feed your outposts, they work at <b>half pace</b> until there is food again. Dismantling one gives back about half of what it cost.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
     { id: 'wonders', icon: '🏛', title: 'Festivals, Wonders and upkeep', body: `
       <p>Any town can hold a <b>festival</b>: it costs wealth and food, and for 24 hours brings +10 happiness and +10% production. After one, the town needs 72 hours (from the start) before the next.</p>
@@ -55,8 +56,23 @@
       <p>Grandeur costs upkeep: each finished wonder, and each City building level above 3, takes wealth every hour. If the treasury runs dry, wonders lie dormant and happiness drops until wealth returns.</p>`,
       open: [['🏛 Your town', link('KWTown.open', 'festival')]] },
     { id: 'clans', icon: '🛡', title: 'Clans', body: `
-      <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>`,
+      <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>
+      <p>Members can give wealth to the clan <b>treasury</b> (up to 2,000 a day, earning prestige). Officers and above spend it on week-long <b>boons</b> for everyone: more food, faster crafting, quicker research, lower Market fees, or an Iron Wall against raids. Clan land pays the treasury every day, and members' outposts on it work harder and are harder to raid.</p>
+      <p>Each week brings three clan <b>goals</b> — quests, battles, crafting, gifts, raids repelled. Meeting one pays prestige and treasury; a clan also earns <b>honors</b> for goals, land, levels and Wonders, shown on its profile.</p>`,
       open: [['🛡 Clan', link('openClanPanel')]] },
+    { id: 'quests', icon: '📜', title: 'Quests and the Watchtower', body: `
+      <p>The tavern's <b>notice board</b> shows a fresh set of quests every day (it turns over at midnight UTC). Some quests only appear at night or under a full moon — take them while you can.</p>
+      <p>A solo quest can be <b>abandoned</b> while it's under way, as long as no battle has started; the citizen comes home empty-handed.</p>
+      <p>A <b>Watchtower</b> (Village) gives Guards and Archers a post: each one on watch cheers the town (+1 happiness, up to +5) and adds to its defence.</p>`,
+      open: [['📜 Notice board', link('openNoticeboard')]] },
+    { id: 'battles', icon: '⚔', title: 'Battles and cards', body: `
+      <p>Quests can lead to a fight. The creatures you meet belong to the land — marsh things in the marsh, ogres in the hills — and some only come out at night. Many have tricks: poison, stuns, shrieks that weaken, healers that patch up their kin.</p>
+      <p>Win and the loot they carried goes straight into your stores. Your party fights with a <b>deck of cards</b>. Everyone starts with nine; more are won in battle now and then, found on quests, or taught by an <b>Allied</b> village (two a week, for wealth). A deck can only hold cards you own.</p>`,
+      open: [['🃏 Deck Builder', link('openDeckBuilder')]] },
+    { id: 'raids', icon: '🔥', title: 'Villages, trust and raids', body: `
+      <p>Trust with a village fades if you never write: after a week without a gift, trade, envoy, quest or tribute it drops a point a day — but never below the band under the best you reached (an old ally can cool to Friendly, no further). The village panel warns you first.</p>
+      <p>An <b>Allied</b> village sends a small daily tribute, teaches fighting cards, and its militia helps guard your outposts within 4 tiles.</p>
+      <p>The <b>Withered</b> sometimes raid towns whose outposts come within 6 tiles of their land — never Camps or brand-new players, and never twice within two days. You get <b>6 hours' warning</b>. Guards and Archers at the Watchtower, Allied militia and clan boons defend you. Win and you earn a little wealth; lose and an outpost sits idle for 6 hours or the raiders carry off a share of one resource (at most 300). Nothing is ever destroyed.</p>` },
     { id: 'tavern', icon: '🍺', title: 'Tavern games', body: `
       <p>Play <b>Briarwood Court</b> or <b>Squirrel's Stash</b> at the tavern, alone against AI courtiers or with other players.</p>
       <p>A win pays <b>4 wealth</b>, for up to 10 wins a day. Every win counts on the rankings.</p>`,

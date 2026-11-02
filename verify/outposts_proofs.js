@@ -5,6 +5,8 @@
 //   2. The upgrade button: cost chips (bronze by icon or ??), and why not.
 //   3. At the top level; before the status has loaded.
 //   4. Wiring: the click posts to /upgrade and refreshes the panel.
+//   5. Workers (R4): who works here, posting someone, the fit bonus.
+//   6. Warnings (unfed) and the dismantle refund.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -16,9 +18,10 @@ const MAIN = read('js/main.js');
 const take = start => { const i = MAIN.indexOf(start); if (i < 0) throw new Error('missing ' + start); return MAIN.slice(i, MAIN.indexOf('\n}', i) + 2); };
 const takeObj = start => { const i = MAIN.indexOf(start); return MAIN.slice(i, MAIN.indexOf('\n};', i) + 3); };
 
-function makeEnv(status, have, discovered) {
+function makeEnv(status, have, discovered, citizens) {
   const refreshed = [];
   const w = {
+    citizensData: citizens || [],
     console, Set, Object, Math, Number, JSON,
     gameData: { settlement: { discovered: discovered || [] } },
     _outpostStatus: status,
@@ -34,6 +37,7 @@ function makeEnv(status, have, discovered) {
     "function _resIcon(k) { const R = KWResources, kn = R.knownSet(gameData.settlement.discovered); return R.isKnown(k, kn) ? R.icon(k) : '??'; }",
     take('function _yieldChips('), take('function _oreChips('), take('function _costChips('),
     take('function _outpostSectionHtml('), take('function _outpostUpgradeHtml('),
+    takeObj('const OP_CLASS_LABELS = {').split('\n')[0], take('function _opFreeCitizens('), take('function _outpostWorkerHtml('), take('function _outpostRaidHtml('),
     'const _opRefreshedFor = new Set();',
     'this.section = _outpostSectionHtml;',
   ].join('\n'), w);
@@ -88,6 +92,37 @@ console.log('4. Wiring');
   check('4a. the button posts to /upgrade', /apiFetch\(`\/api\/game\/outposts\/\$\{id\}\/upgrade`, \{ method: 'POST' \}\)/.test(MAIN));
   check('4b. …then syncs the top bar, the status and the map tile, and re-renders', /_upgradeOutpost[\s\S]*?_applyOutpostResponse\(data\);[\s\S]*?_outpostStatus\.outposts = [\s\S]*?t\.outpost\.level = data\.outpost\.level[\s\S]*?selectWorldTile\(tile\)/.test(MAIN));
   check('4c. wired with the other outpost buttons', /querySelector\('\[data-op-upgrade\]'\)/.test(MAIN) && /_upgradeOutpost\(upBtn, tile\)/.test(MAIN));
+}
+
+console.log('5. Workers');
+{
+  const WB = { base: 0.25, fit: 0.5, fit_class: { hills: 'miner', plains: 'farmer' } };
+  const cits = [{ id: 1, name: 'Pick', role: 'miner' }, { id: 2, name: 'Hoe', role: 'farmer' }, { id: 3, name: 'Kid', role: 'idle', life_stage: 'child' }, { id: 4, name: 'Away', role: 'miner', active_quest: { id: 9 } }];
+  let e = makeEnv({ config: { hills: HILLS }, outposts: [mine()], worker_bonus: WB }, RICH, [], cits);
+  let h = e.w.section(tile);
+  check('5a. no worker: says what one adds (+25%, +50% for a Miner)', /No one works here\. A worker adds \+25% \(\+50% for a Miner ★\)/.test(h));
+  check('5b. the picker lists free adults, the Miner first and starred', /<option value="1">Pick ★<\/option><option value="2">Hoe<\/option>/.test(h) && !/Kid|Away/.test(h) && /data-op-assign="11"/.test(h));
+  e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ worker: { id: 1, name: 'Pick', role: 'miner', fit: true }, notes: [{ key: 'worker', label: 'x' }] })], worker_bonus: WB }, RICH, [], cits);
+  h = e.w.section(tile);
+  check('5c. a worker: named, +50%, knows the land, with Bring home', /<b>Pick<\/b> works here \(\+50%, knows this land\)/.test(h) && /data-op-unassign="11"/.test(h) && !/op-note-warn/.test(h));
+  e = makeEnv({ config: { hills: HILLS }, outposts: [mine()], worker_bonus: WB }, RICH, [], [{ id: 4, name: 'Away', role: 'miner', outpost: { id: 2 } }]);
+  check('5d. everyone busy: says so', /Everyone is busy right now\./.test(e.w.section(tile)));
+  check('5e. wired: assign / unassign post to the server, citizens refresh', /\/api\/game\/outposts\/\$\{id\}\/\$\{unassign \? 'unassign' : 'assign'\}/.test(MAIN) && /querySelector\('\[data-op-assign\]'\)/.test(MAIN) && /querySelector\('\[data-op-unassign\]'\)/.test(MAIN));
+}
+
+console.log('6. Warnings and refunds');
+{
+  const e = makeEnv({ config: { hills: HILLS }, outposts: [mine({ notes: [{ key: 'unfed', label: 'Its food upkeep is going unpaid — half yield until the stores can feed it.' }] })] }, RICH, []);
+  const h = e.w.section(tile);
+  check('6a. unfed: a warning line', /op-note-warn">🍂 Its food upkeep is going unpaid/.test(h));
+  check('6b. the dismantle confirm names the refund, and a toast says what came back', /About half of what it cost comes back/.test(MAIN) && /Outpost dismantled — recovered/.test(MAIN));
+  check('6c. no more "materials are not recovered"', !/materials are not recovered/.test(MAIN));
+  const r = makeEnv({ config: { hills: HILLS }, outposts: [mine({ notes: [{ key: 'raided', label: 'Raiders left it in ruins — idle until it is set right.' }] })] }, RICH, []);
+  r.w.gameData.settlement.raid = { id: 3, outpost_id: 11, from: 'Rot Warren', target: 'the Quarry', arrives_at: new Date(Date.now() + 4 * 3600e3 + 60e3).toISOString() };
+  r.w.KWRaids = { _left: () => '4h 0m' };
+  const h2 = r.w.section(tile);
+  check('6d. a raid on its way to this outpost: a warning with the time left', /op-raid">🔥 Raiders from Rot Warren will strike here in 4h 0m/.test(h2));
+  check('6e. a raided outpost says so', /op-note-warn">🔥 Raiders left it in ruins/.test(h2));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

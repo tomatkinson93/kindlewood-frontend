@@ -317,6 +317,7 @@ async function loadGame(force = false) {
     if (window.KWClock) KWClock.sync();   // refresh /time/me for this login (admin flag → Dev Tools button)
     if (typeof renderFamineBanner === 'function') renderFamineBanner(gameData.settlement.famine);
     if (window.KWTown) KWTown.onSettlement(gameData.settlement);   // festival / unpaid upkeep banner
+    if (window.KWRaids) KWRaids.onSettlement(gameData.settlement); // raid on its way banner
     preloadTileImages();
     if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 
@@ -1258,6 +1259,9 @@ function _outpostSectionHtml(tile) {
       <div class="op-section">
         <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'} <span class="op-level">Lv ${lvl}/${mine?.max_level || 3}</span></div>
         <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
+        ${(mine?.notes || []).filter(n => n.key !== 'worker').map(n => `<div class="op-note op-note-warn">${n.key === 'unfed' ? '🍂' : '🔥'} ${n.label}</div>`).join('')}
+        ${_outpostRaidHtml(mine)}
+        ${_outpostWorkerHtml(mine)}
         ${_outpostUpgradeHtml(mine)}
         <button class="action-btn op-dismantle" data-op-dismantle="${tile.outpost.id}" data-q="${tile.q}" data-r="${tile.r}">Dismantle outpost</button>
         <div class="op-reason" data-op-reason style="display:none"></div>
@@ -1333,6 +1337,69 @@ function _outpostUpgradeHtml(o) {
 }
 const _opRefreshedFor = new Set();
 
+// A Withered raid on its way to this outpost (settlement.raid, js/raids.js).
+function _outpostRaidHtml(mine) {
+  const r = gameData?.settlement?.raid;
+  if (!mine || !r || r.outpost_id !== mine.id || r.resolved_at) return '';
+  const left = window.KWRaids ? KWRaids._left(r.arrives_at) : '';
+  return `<div class="op-note op-note-warn op-raid">🔥 Raiders from ${r.from} will strike here in ${left}. Guards and Archers at the Watchtower defend it.</div>`;
+}
+
+// The worker row: who works here (and bring them home), or post someone.
+// A worker adds +25%, or +50% when their class knows the land.
+const OP_CLASS_LABELS = { farmer: 'Farmer', woodcutter: 'Woodcutter', miner: 'Miner', fisher: 'Fisher', forager: 'Forager', scout: 'Scout' };
+function _opFreeCitizens() {
+  const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
+  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost);
+}
+function _outpostWorkerHtml(mine) {
+  if (!mine) return '';
+  const st = _outpostStatus || {};
+  const wb = st.worker_bonus || { base: 0.25, fit: 0.5, fit_class: {} };
+  const fitKey = (wb.fit_class || {})[mine.terrain];
+  const fitLabel = OP_CLASS_LABELS[fitKey] || null;
+  if (mine.worker) {
+    const pct = Math.round((mine.worker.fit ? wb.fit : wb.base) * 100);
+    return `<div class="op-worker"><span>👷 <b>${mine.worker.name}</b> works here (+${pct}%${mine.worker.fit ? ', knows this land' : ''}).</span>`
+      + `<button class="action-btn op-worker-btn" data-op-unassign="${mine.id}">Bring home</button></div>`;
+  }
+  const free = _opFreeCitizens();
+  const sorted = free.slice().sort((a, b) => (b.role === fitKey) - (a.role === fitKey) || String(a.name).localeCompare(String(b.name)));
+  const opts = sorted.map(c => `<option value="${c.id}">${c.name}${c.role === fitKey ? ' ★' : ''}</option>`).join('');
+  return `<div class="op-worker op-worker-empty">`
+    + `<div class="op-worker-hint">👷 No one works here. A worker adds +${Math.round(wb.base * 100)}%${fitLabel ? ` (+${Math.round(wb.fit * 100)}% for a ${fitLabel} ★)` : ''}.</div>`
+    + (sorted.length
+      ? `<div class="op-worker-pick"><select class="op-worker-select" data-op-worker-select="${mine.id}"><option value="">— Choose a citizen —</option>${opts}</select>`
+        + `<button class="action-btn op-worker-btn" data-op-assign="${mine.id}">Post</button></div>`
+      : `<div class="op-worker-hint op-worker-none">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`)
+    + `</div>`;
+}
+async function _assignOutpostWorker(btn, tile, unassign) {
+  const id = Number(btn.dataset.opAssign || btn.dataset.opUnassign);
+  let body;
+  if (!unassign) {
+    const sel = btn.closest('.op-section')?.querySelector('[data-op-worker-select]');
+    const cid = Number(sel && sel.value);
+    if (!cid) { _opShowReason(btn, 'Choose who should go.'); return; }
+    body = JSON.stringify({ citizen_id: cid });
+  }
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/game/outposts/${id}/${unassign ? 'unassign' : 'assign'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    const data = await res.json();
+    if (!res.ok || !data.ok) { btn.disabled = false; _opShowReason(btn, data.error || 'That didn\'t work.'); return; }
+    _applyOutpostResponse(data);
+    if (_outpostStatus?.outposts) _outpostStatus.outposts = _outpostStatus.outposts.map(o => (o.id === id ? data.outpost : o));
+    if (typeof loadCitizens === 'function') await loadCitizens();
+    if (typeof showToastNotification === 'function') showToastNotification(unassign ? `👷 The worker heads home from ${data.outpost.name}.` : `👷 ${data.outpost.worker?.name || 'A worker'} sets out for ${data.outpost.name}.`, 'outpost');
+    selectWorldTile(tile);
+  } catch (e) {
+    btn.disabled = false;
+    _opShowReason(btn, 'Connection hiccup — try again.');
+  }
+}
+let _opCitizensAsked = false;
+
 async function _upgradeOutpost(btn, tile) {
   btn.disabled = true;
   try {
@@ -1367,6 +1434,15 @@ function _wireOutpostSection(body, tile) {
   const disBtn = body.querySelector('[data-op-dismantle]');
   if (disBtn) {
     disBtn.addEventListener('click', () => _dismantleOutpost(disBtn, tile));
+  }
+  const asBtn = body.querySelector('[data-op-assign]');
+  if (asBtn) asBtn.addEventListener('click', () => _assignOutpostWorker(asBtn, tile, false));
+  const unBtn = body.querySelector('[data-op-unassign]');
+  if (unBtn) unBtn.addEventListener('click', () => _assignOutpostWorker(unBtn, tile, true));
+  // The citizen list feeds the worker picker; fetch it once if it's empty.
+  if (body.querySelector('.op-worker-none') && !_opCitizensAsked && typeof loadCitizens === 'function') {
+    _opCitizensAsked = true;
+    loadCitizens().then(() => { if ((typeof citizensData !== 'undefined') && citizensData.length) selectWorldTile(tile); });
   }
 }
 
@@ -1432,7 +1508,9 @@ async function _foundOutpostHere(btn, tile) {
 }
 
 async function _dismantleOutpost(btn, tile) {
-  if (!confirm('Dismantle this outpost? Its materials are not recovered.')) return;
+  const mine = (_outpostStatus?.outposts || []).find(o => String(o.id) === String(btn.dataset.opDismantle));
+  const back = mine?.refund ? Object.entries(mine.refund).map(([r, v]) => `${RES_GLYPHS[r] || _resIcon(r)} ${v}`).join(' · ') : '';
+  if (!confirm('Dismantle this outpost?' + (back ? ` About half of what it cost comes back: ${back}.` : ''))) return;
   btn.disabled = true;
   try {
     const id = btn.dataset.opDismantle;
@@ -1445,6 +1523,9 @@ async function _dismantleOutpost(btn, tile) {
     }
     _applyOutpostResponse(data);
     if (_outpostStatus) { _outpostStatus.used = data.used; }
+    if (data.refund && Object.keys(data.refund).length && typeof showToastNotification === 'function') {
+      showToastNotification('⛺ Outpost dismantled — recovered ' + Object.entries(data.refund).map(([r, v]) => `${RES_GLYPHS[r] || _resIcon(r)} ${v}`).join(' · ') + '.', 'outpost');
+    }
     if (worldMapData?.tiles) {
       const t = worldMapData.tiles.find(x => x.q === tile.q && x.r === tile.r);
       if (t) { t.outpost = null; t.claimed_by_me = false; tile.outpost = null; tile.claimed_by_me = false; }

@@ -72,8 +72,11 @@ function _dbRender() {
     ? inDeck.map(c => _dbDeckRow(c)).join('')
     : '<div class="db-muted">Empty deck — add cards from the pool →</div>';
 
-  // Full pool (everything in catalog).
-  const pool = Object.values(_dbData.catalog).sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
+  // Full pool: owned cards first, then the ones still to earn (greyed, with
+  // how to get them). `owned` is absent on older servers → treat as owned.
+  const isOwned = c => c.owned !== false;
+  const pool = Object.values(_dbData.catalog).sort((a, b) => (isOwned(b) - isOwned(a)) || (a.cost - b.cost) || a.name.localeCompare(b.name));
+  const nOwned = pool.filter(isOwned).length;
   const poolHtml = pool.map(c => _dbPoolRow(c)).join('');
 
   const cur = (_dbData.templates || []).find(t => t.id === _dbActiveId);
@@ -104,7 +107,7 @@ function _dbRender() {
     + '    <div class="db-list">' + deckHtml + '</div>'
     + '  </div>'
     + '  <div class="db-col">'
-    + '    <div class="db-col-head">Card Pool</div>'
+    + '    <div class="db-col-head">Card Pool <span class="db-collected" title="' + _dbEsc(_dbData.how_to_get || '') + '">' + nOwned + ' / ' + pool.length + ' collected</span></div>'
     + '    <div class="db-list">' + poolHtml + '</div>'
     + '  </div>'
     + '</div>'
@@ -129,6 +132,14 @@ function _dbDeckRow(c) {
 function _dbPoolRow(c) {
   const tc = DB_TYPE_COLORS[c.type] || '#888';
   const inDeck = _dbDraft[c.key] || 0;
+  if (c.owned === false) {   // still to earn: greyed, with how to get it
+    return '<div class="db-row db-pool-row db-locked" onclick="_dbAdd(\'' + c.key + '\')" title="' + _dbEsc((c.desc || '') + ' — ' + (_dbData.how_to_get || 'Not unlocked yet.')) + '">'
+      + '<span class="db-cost" style="background:#555">' + c.cost + '</span>'
+      + '<span class="db-name">🔒 ' + _dbEsc(c.name) + '</span>'
+      + '<span class="db-type db-rarity-' + _dbEsc(c.rarity || 'common') + '">' + _dbEsc(c.rarity || 'common') + '</span>'
+      + '<span class="db-add-hint">not yet</span>'
+      + '</div>';
+  }
   return '<div class="db-row db-pool-row" onclick="_dbAdd(\'' + c.key + '\')">'
     + '<span class="db-cost" style="background:' + tc + '">' + c.cost + '</span>'
     + '<span class="db-name">' + _dbEsc(c.name) + '</span>'
@@ -138,6 +149,8 @@ function _dbPoolRow(c) {
 }
 
 function _dbAdd(key) {
+  const c = _dbData.catalog[key];
+  if (c && c.owned === false) { _dbFeedback('🔒 ' + c.name + ' isn\'t unlocked yet. ' + (_dbData.how_to_get || '')); return; }
   if (_dbCount(_dbDraft) >= _dbData.deck_max) { _dbFeedback('⚠️ Max ' + _dbData.deck_max + ' cards.'); return; }
   _dbDraft[key] = (_dbDraft[key] || 0) + 1;
   _dbRender();

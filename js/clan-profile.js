@@ -189,8 +189,9 @@
     }).join('');
 
     // Hidden until clan honors exist (clan-palette CLAN_HONORS_LIVE).
-    const honorsHtml = honors.live ? `<div class="cp-honors">
-        ${stat('0', 'Honor points')}${stat('0', 'Deeds')}${stat('0', 'Trophies')}
+    const honorsHtml = honors.live ? `<div class="cp-honors cp-honor-list">${(honors.items || []).length
+        ? honors.items.map(h => `<div class="cp-honor" title="${esc(h.desc || '')}"><span class="cp-honor-icon">${esc(h.icon || '🏅')}</span><span>${esc(h.label)}</span></div>`).join('')
+        : '<div class="cp-muted">No honors yet.</div>'}
       </div>` : '';
 
     byId('cp-scroll').innerHTML = `
