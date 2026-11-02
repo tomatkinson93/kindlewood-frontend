@@ -42,6 +42,21 @@ console.log('1. The raid countdown');
     && /raid_warning\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')));
 }
 
+console.log('1a. Call to arms');
+{
+  els['call-chip'] = { hidden: true, innerHTML: '', title: '' };
+  const call = { raid_id: 9, town: 'Oakhollow', target: 'the Farmstead', from: 'Rot Warren', arrives_at: new Date(Date.now() + 2 * 3600e3).toISOString(), mine: false,
+    reinforcements: [{ id: 3, name: 'Pike', from_town: 'Fernby' }], max_total: 6, max_per_member: 2 };
+  R._setCalls([call, { ...call, raid_id: 10, mine: true }]);
+  check('1o. an amber Call to arms chip when a clanmate needs help (not for your own raid)', els['call-chip'].hidden === false && /📯/.test(els['call-chip'].innerHTML) && !/<b>2<\/b>/.test(els['call-chip'].innerHTML));
+  const h = R._callsHtml();
+  check('1p. the calls sheet: town, target, time, who is holding it', /<b>Oakhollow<\/b>/.test(h) && /the Farmstead/.test(h) && /Holding it: Pike \(Fernby\)/.test(h) && /1\/6/.test(h));
+  check('1q. sending posts to /reinforce', /\/api\/raids\/\$\{raidId\}\/reinforce/.test(read('js/raids.js')) && /id="call-chip"/.test(read('index.html')));
+  check('1r. realtime: clan_call_to_arms and raid_reinforced reach KWRaids', /clan_call_to_arms\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')) && /raid_reinforced\(ev\) \{ if \(global\.KWRaids\)/.test(read('js/realtime.js')));
+  check('1s. clan activity: call to arms and reinforcements', /case 'call_to_arms':/.test(read('js/clans.js')) && /case 'reinforced':/.test(read('js/clans.js')));
+  R._setCalls([]);
+}
+
 console.log('1b. The red trail');
 {
   const L = read('js/kwmap-raid.js'), CORE = read('js/kwmap-core.js');

@@ -198,6 +198,8 @@
       case 'clan_quest_completed':   return ['📜', `${p.members && p.members.length ? `<b>${esc(p.members.join(', '))}</b>` : 'The clan'} completed <b>${esc(p.title || '')}</b>.`];
       case 'clan_quest_failed':      return ['🥀', `${p.members && p.members.length ? esc(p.members.join(', ')) : 'The clan'} came back from <b>${esc(p.title || '')}</b> without success.`];
       case 'level_up':               return ['🎉', `The clan reached <b>level ${esc(p.level)}</b>!`];
+      case 'call_to_arms':           return ['📯', `Call to arms: raiders from ${esc(p.from || 'the Withered')} are coming for <b>${esc(p.target || '')}</b> of ${esc(p.town || 'a clanmate')}.`];
+      case 'reinforced':             return ['🛡️', `${who} sent <b>${esc(p.citizen || '')}</b> to hold ${esc(p.target || '')}.`];
       case 'boon_bought':            return ['🛡', `${who} bought the boon <b>${esc(p.label || p.boon || '')}</b> for ${esc(p.cost)}.`];
       case 'goal_met':               return ['🎯', `Weekly goal met: <b>${esc(p.label || p.goal || '')}</b> (+${esc(p.prestige)} prestige, +${esc(p.treasury)} treasury).`];
       case 'honor_earned':           return ['🏅', `The clan earned the honor <b>${esc(p.label || p.honor || '')}</b>.`];

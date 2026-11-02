@@ -194,3 +194,10 @@ body.kw-shell #screen-game .topbar-right:has(.raid-chip:not([hidden])) { gap: 5p
 /* Festival: a line in your settlement's status list, a note on others'. */
 .sett-festival-row .sett-status-val { color: #f1d27a; }
 .sett-festival-note { margin-top: 8px; padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #f1d27a; background: rgba(184, 149, 47, .15); border: 1px solid rgba(232, 200, 122, .35); }
+
+/* Call to arms: an amber chip and its sheet. */
+.raid-chip.call-chip { background: linear-gradient(180deg, #a86a10, #6d4207); border-color: #f0b040; box-shadow: 0 0 10px rgba(240, 176, 64, .5); animation: none; }
+.call-card { padding: 8px 10px; margin: 8px 0; border-radius: 8px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(240, 176, 64, .35); }
+.call-pick { display: flex; gap: 8px; margin-top: 6px; }
+.call-pick select { flex: 1; min-width: 0; font: inherit; padding: 4px 6px; border-radius: 6px; color: #f1dcc8; background: rgba(20, 10, 6, .8); border: 1px solid rgba(255, 180, 140, .4); }
+.raid-rf { background: rgba(240, 176, 64, .12) !important; }

@@ -19,7 +19,7 @@
   const toast = (m, t) => { if (typeof global.showToastNotification === 'function') global.showToastNotification(m, t || 'raid'); };
   const n = v => Number(v || 0).toLocaleString();
   const RES = { food: '🍎', timber: '🪵', stone: '🪨', metal: '⚙️', wealth: '🪙' };
-  const st = { raid: null, info: null, timer: null };
+  const st = { raid: null, info: null, timer: null, calls: [] };
 
   // "3:42:10" (or "42:10" under an hour).
   function clock(iso) {
@@ -63,6 +63,7 @@
     const was = st.raid && st.raid.id;
     setRaid((s && s.raid) || null);
     if (st.raid && st.raid.id !== was) load();
+    loadCalls();
   }
 
   async function load() {
@@ -87,7 +88,9 @@
       ['🛡 Clan boons', d.town],
       ['📯 Reinforcements', d.reinforcements],
     ].filter(([, v]) => v > 0);
-    return rows.map(([k, v]) => `<li><span>${k}</span><b>${n(v)}</b></li>`).join('') || '<li class="raid-none"><span>Nothing stands in their way.</span></li>';
+    const list = rows.map(([k, v]) => `<li><span>${k}</span><b>${n(v)}</b></li>`).join('') || '<li class="raid-none"><span>Nothing stands in their way.</span></li>';
+    const rf = (d.reinforcement_list || []).map(c => esc(c.name)).join(', ');
+    return list + (rf ? `<li class="raid-rf"><span>📯 Holding with you: ${rf}</span></li>` : '');
   }
 
   function sheetHtml() {
@@ -167,8 +170,82 @@
     } catch (e) { if (btn) btn.disabled = false; }
   }
 
+  // ── Call to arms: clanmates' spots on clan land under threat ────────────
+  function renderCallChip() {
+    const el = document.getElementById('call-chip');
+    if (!el) return;
+    const others = (st.calls || []).filter(c => !c.mine);
+    if (others.length) {
+      el.hidden = false;
+      el.innerHTML = `📯 <span class="raid-chip-label">Call to arms</span>${others.length > 1 ? ` <b>${others.length}</b>` : ''}`;
+      el.title = others.map(c => `${c.town}: ${c.target} in ${left(c.arrives_at)}`).join('\n');
+    } else { el.hidden = true; el.innerHTML = ''; }
+  }
+  async function loadCalls() {
+    try {
+      const r = await global.apiFetch('/api/raids/calls');
+      if (!r.ok) return;
+      st.calls = (await r.json()).calls || [];
+      renderCallChip();
+      if (document.getElementById('call-sheet')) renderCalls();
+    } catch (e) { /* offline */ }
+  }
+  function freeDefenders() {
+    // citizensData is a top-level `let` in js/citizens.js — shared scope, not window.
+    const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : (Array.isArray(global.citizensData) ? global.citizensData : []);
+    return list.filter(c => (c.role === 'soldier' || c.role === 'archer') && (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost);
+  }
+  function callsHtml() {
+    const others = (st.calls || []).filter(c => !c.mine);
+    const guards = freeDefenders();
+    const opts = guards.map(c => `<option value="${c.id}">${esc(c.name)} (${c.role === 'archer' ? 'Archer' : 'Guard'})</option>`).join('');
+    const body = others.length ? others.map(c => `<div class="call-card">
+        <div><b>${esc(c.town)}</b> — raiders from ${esc(c.from)} strike ${esc(c.target)} in <b>${esc(left(c.arrives_at))}</b></div>
+        <div class="raid-muted">${c.reinforcements.length ? 'Holding it: ' + c.reinforcements.map(x => `${esc(x.name)} (${esc(x.from_town)})`).join(', ') : 'No one has answered yet.'} · ${c.reinforcements.length}/${c.max_total}</div>
+        ${guards.length ? `<div class="call-pick"><select data-call-select="${c.raid_id}"><option value="">— Send a Guard or Archer —</option>${opts}</select><button class="raid-btn gold" onclick="KWRaids.reinforce(${c.raid_id}, this)">Send</button></div>`
+          : '<div class="raid-muted">You have no Guards or Archers free.</div>'}
+      </div>`).join('') : '<p class="raid-muted">No clanmate needs help right now.</p>';
+    return `<div class="raid-sheet-head"><b>📯 Call to arms</b><button class="raid-x" onclick="KWRaids.closeCalls()" aria-label="Close">✕</button></div>
+      <p class="raid-muted">Clanmates' spots on clan land are under threat. Defenders you send hold the spot until the raid ends, then come home — hurt, if it falls.</p>${body}`;
+  }
+  function renderCalls() { const el = document.getElementById('call-sheet'); if (el) el.querySelector('.raid-sheet-card').innerHTML = callsHtml(); }
+  function openCalls() {
+    let el = document.getElementById('call-sheet');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'call-sheet'; el.className = 'raid-sheet call-sheet';
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Call to arms');
+      el.innerHTML = '<div class="raid-sheet-card"></div>';
+      el.addEventListener('click', e => { if (e.target === el) closeCalls(); });
+      document.body.appendChild(el);
+    }
+    renderCalls();
+    if (typeof global.loadCitizens === 'function' && !freeDefenders().length) global.loadCitizens().then(renderCalls).catch(() => {});
+    loadCalls();
+  }
+  function closeCalls() { const el = document.getElementById('call-sheet'); if (el) el.remove(); }
+  async function reinforce(raidId, btn) {
+    const sel = btn && btn.parentElement.querySelector('select');
+    const cid = Number(sel && sel.value);
+    if (!cid) { toast('Choose a Guard or Archer to send.', 'error'); return; }
+    btn.disabled = true;
+    try {
+      const r = await global.apiFetch(`/api/raids/${raidId}/reinforce`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ citizen_id: cid }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { btn.disabled = false; toast('⚠️ ' + (d.error || 'They could not go.'), 'error'); return; }
+      toast(`📯 ${d.citizen.name} marches to hold the line.`);
+      if (typeof global.loadCitizens === 'function') await global.loadCitizens();
+      loadCalls();
+    } catch (e) { btn.disabled = false; }
+  }
+
   function onEvent(ev) {
     if (!ev) return;
+    if (ev.type === 'clan_call_to_arms') {
+      if (!(st.raid && st.raid.id === ev.raid_id)) toast(ev.message || `📯 Call to arms: ${ev.town} needs defenders.`, 'raid');
+      loadCalls();
+    }
+    if (ev.type === 'raid_reinforced') { toast(`📯 ${ev.citizen && ev.citizen.name} came from a clanmate to hold the line.`); load(); }
     if (ev.type === 'raid_warning' && ev.raid) {
       setRaid(ev.raid);
       toast(`🔥 Raiders from ${ev.raid.from} are gathering — they will strike ${ev.raid.target} in about ${left(ev.raid.arrives_at)}. Tap the red timer to prepare.`);
@@ -202,6 +279,7 @@
 
   global.KWRaids = {
     onSettlement, onEvent, openSheet, closeSheet, showOnMap, payTribute, load,
+    openCalls, closeCalls, reinforce, loadCalls, _callsHtml: callsHtml, _setCalls(c) { st.calls = c; renderCallChip(); },
     devSend, devResolve, devPeaceClear,
     explain: openSheet,   // older callers
     state: () => st, _clock: clock, _left: left, _sheetHtml: sheetHtml, _setInfo(i) { st.info = i; st.raid = i && i.active; },
