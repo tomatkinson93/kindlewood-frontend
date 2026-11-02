@@ -1286,7 +1286,7 @@ function _outpostSectionHtml(tile) {
     const lvl = mine?.level || tile.outpost.level || 1;
     return `
       <div class="op-section">
-        <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'} <span class="op-level">Lv ${lvl}/${mine?.max_level || 3}</span></div>
+        <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'} <span class="op-level">Lv ${lvl}/${mine?.max_level || 3}</span> <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('outposts')">?</button></div>
         <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         ${(mine?.notes || []).filter(n => n.key !== 'worker').map(n => `<div class="op-note op-note-warn">${n.key === 'unfed' ? '🍂' : '🔥'} ${n.label}</div>`).join('')}
         ${_outpostRaidHtml(mine)}
@@ -1339,7 +1339,7 @@ function _outpostSectionHtml(tile) {
 
   return `
     <div class="op-section">
-      <div class="op-title">${OUTPOST_ICONS[tile.terrain] || '⛺'} ${cfg.name}</div>
+      <div class="op-title">${OUTPOST_ICONS[tile.terrain] || '⛺'} ${cfg.name} <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('outposts')">?</button></div>
       <div class="op-chips">${_yieldChips(cfg.yields)}${_oreChips(cfg.ores)}<span class="op-chip op-chip-minus">🍎 −${st.upkeep_food_per_hr}/hr upkeep</span></div>
       <div class="op-cost-label">Cost</div>
       <div class="op-chips">${_costChips(st.cost, have)}</div>
@@ -1837,6 +1837,7 @@ function _selectWorldTileImpl(tile) {
       + '</div>';
 
     body.innerHTML = _settlementTierCard(s.tier, s.name, true)
+      + '<div id="fs-slot">' + (window.KWFirstSteps ? KWFirstSteps.cardHtml() : '') + '</div>'
       + '<div class="sett-panel">'
 
       // Name + tags
@@ -1878,6 +1879,7 @@ function _selectWorldTileImpl(tile) {
       + '</div>'
       + '</div>';
 
+    if (window.KWFirstSteps) KWFirstSteps.load();
     title.textContent = '';
     sub.innerHTML = '';
 

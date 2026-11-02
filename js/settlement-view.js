@@ -93,7 +93,7 @@ function _svWatchHtml() {
   if (d) line += (line ? '<br>' : '') + '🧱 Town defence ' + d.own + ' — walls ' + d.walls + ', watch ' + d.watch + '.' + (d.own ? '' : ' <b style="color:#ff6a4a">Undefended</b>');
   var raid = gameData.settlement.raid;
   if (raid && !raid.resolved_at) line += '<br>🔥 Raiders from ' + raid.from + ' are on their way to ' + raid.target + ' (strength about ' + raid.strength_min + '–' + raid.strength_max + ').';
-  return '<div class="sv-bp-watch">' + line + '</div>';
+  return '<div class="sv-bp-watch">' + line + ' <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open(\'raids\')">?</button></div>';
 }
 
 // A building can be started when its building requirements and its minimum

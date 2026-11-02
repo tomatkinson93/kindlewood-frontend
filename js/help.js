@@ -50,6 +50,19 @@
       <p>Your tier decides how many outposts you can run and how far away. Outposts can be upgraded to level 3 for more yield — each level eats a little more food.</p>
       <p>Post a <b>worker</b> at an outpost for +25% yield — +50% if their trade suits the land (a Miner in the hills, a Woodcutter in the forest). While posted they don't work in town. If the stores can't feed your outposts, they work at <b>half pace</b> until there is food again. Dismantling one gives back about half of what it cost.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
+    { id: 'expeditions', icon: '🗺', title: 'Scouts and expeditions', body: `
+      <p>Build a <b>Scout Post</b> and give a citizen the <b>Scout</b> job. Then tap a tile under the fog and <b>Dispatch Scout</b>: they walk there and reveal the land around it when they arrive. Fog is slower to cross than land you know; a bigger Scout Post and a skilled scout are faster.</p>
+      <p>Long trips sometimes bring back an <b>ore sample</b> or a <b>schematic</b>.</p>
+      <p>Changed your mind? Open <b>🧭 Journeys</b> (or tap the "scouts out" badge) and <b>Recall</b>: the scout turns round and walks home as long as they have been out — nothing new is revealed.</p>`,
+      open: [['🧭 Journeys', link('KWJourneys.open')]] },
+    { id: 'travel', icon: '🧭', title: 'Journeys and travel', body: `
+      <p>Everyone who leaves town walks the map: scouts, envoys, porters and merchants, quest parties and clan quests. Their paths show on the map (🐾 Paths to hide them).</p>
+      <p><b>🧭 Journeys</b> (settlement panel, or More on a phone) lists everyone away with the time left and <b>Show on map</b>, who is posted at your outposts, and what nearby villages are asking for.</p>`,
+      open: [['🧭 Journeys', link('KWJourneys.open')]] },
+    { id: 'stores', icon: '⛏', title: 'Stores: ores, rare finds and alloys', body: `
+      <p>Food, timber, stone, iron and wealth sit in the top bar. Everything else — copper, tin, coal, silver, gems, bronze, steel… — is in <b>⛏ Stores</b> once you have found it.</p>
+      <p>Undiscovered resources show as <b>??</b>. Mines, hill and mountain outposts and scouts turn up ores; the rarer ones need research first. The Smelter turns ores into alloys.</p>
+      <p>Tap any resource for where it comes from and where it goes.</p>` },
     { id: 'wonders', icon: '🏛', title: 'Festivals, Wonders and upkeep', body: `
       <p>Any town can hold a <b>festival</b>: it costs wealth and food, and for 24 hours brings +10 happiness and +10% production. After one, the town needs 72 hours (from the start) before the next.</p>
       <p>A <b>City</b> whose scholars have learned how to raise great works can build <b>Wonders</b> — five great works, each built in three stages, needing metals and rare materials (the last stage an Ancient Blueprint). A finished wonder gives a permanent bonus.</p>
@@ -121,7 +134,8 @@
     if (title) title.textContent = '❓ Help';
     body.innerHTML = html();
     modal.classList.add('open');
-    if (topic) { const d = document.getElementById('help-' + topic); if (d) d.open = true; }
+    if (topic) modal.classList.add('kw-help-top'); else if (modal.classList.remove) modal.classList.remove('kw-help-top');   // over whatever screen asked
+    if (topic) { const d = document.getElementById('help-' + topic); if (d) { d.open = true; try { d.scrollIntoView({ block: 'start' }); } catch (_) { /* old browser */ } } }
   }
 
   global.KWHelp = { open, go, TOPICS, html };

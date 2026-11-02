@@ -43,3 +43,16 @@
   .kwd-actions { flex-direction: column-reverse; }
   .kwd-btn { width: 100%; min-height: 46px; }
 }
+
+/* "?" — How this works (opens the matching Help topic). */
+.kw-help-q {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; margin: 0 4px; vertical-align: middle;
+  border-radius: 50%; border: 1px solid rgba(232, 200, 140, .55);
+  background: rgba(255, 255, 255, .08); color: #f6d78a;
+  font: 700 13px/1 system-ui, sans-serif; cursor: pointer;
+}
+.kw-help-q:hover, .kw-help-q:focus-visible { background: rgba(255, 255, 255, .18); outline: 2px solid #ffd27a; outline-offset: 1px; }
+@media (pointer: coarse) { .kw-help-q { width: 28px; height: 28px; } }
+/* Help opened from another screen sits above it. */
+.community-modal.kw-help-top { z-index: 100030 !important; }

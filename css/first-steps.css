@@ -1,0 +1,25 @@
+/* KWFirstSteps — the new-town checklist (js/first-steps.js) */
+.fs-card { margin: 8px 10px 4px; border-radius: 12px; background: linear-gradient(180deg, rgba(120, 160, 80, .18), rgba(60, 80, 40, .12)); border: 1px solid rgba(160, 200, 110, .4); color: #f0ead6; }
+.fs-card summary { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.fs-card summary::-webkit-details-marker { display: none; }
+.fs-card summary::after { content: '▾'; margin-left: 2px; opacity: .7; transition: transform .15s; }
+.fs-card:not([open]) summary::after { transform: rotate(-90deg); }
+.fs-title { font-weight: 700; color: #cfe8a0; font-size: 14px; }
+.fs-count { font-size: 12px; color: #dfe9c8; }
+.fs-bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.fs-bar span { display: block; height: 100%; background: #9fd36a; }
+.fs-next { font-size: 12px; color: #e3eccc; padding: 0 12px 6px; }
+.fs-list { list-style: none; margin: 0; padding: 0 8px 4px; }
+.fs-step { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-top: 1px solid rgba(255, 255, 255, .06); font-size: 13px; }
+.fs-step.done { opacity: .6; }
+.fs-step.done b { text-decoration: line-through; font-weight: 500; }
+.fs-tick { width: 22px; text-align: center; flex: none; }
+.fs-step.done .fs-tick { color: #9fd36a; }
+.fs-text { flex: 1; min-width: 0; }
+.fs-text small { display: block; font-size: 11px; color: #cfd6bd; margin-top: 1px; }
+.fs-show { flex: none; font: inherit; font-size: 12px; padding: 4px 10px; min-height: 30px; border-radius: 8px; border: 1px solid rgba(160, 200, 110, .5); background: rgba(160, 200, 110, .15); color: #eaf5d6; cursor: pointer; }
+.fs-show:hover, .fs-show:focus-visible { background: rgba(160, 200, 110, .3); }
+.fs-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.fs-foot { text-align: right; padding: 2px 12px 10px; }
+.fs-hide { font: inherit; font-size: 11px; background: none; border: 0; color: #cfd6bd; text-decoration: underline; cursor: pointer; }
+@media (pointer: coarse) { .fs-show { min-height: 38px; } }

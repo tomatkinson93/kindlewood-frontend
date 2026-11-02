@@ -85,7 +85,7 @@
     o.id = 'jn-overlay';
     o.className = 'jn-overlay';
     o.innerHTML = `<div class="jn-card" role="dialog" aria-modal="true" aria-labelledby="jn-title">
-      <div class="jn-head"><div class="jn-title" id="jn-title">🧭 Journeys</div>
+      <div class="jn-head"><div class="jn-title" id="jn-title">🧭 Journeys <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('travel')">?</button></div>
         <button type="button" class="jn-close" aria-label="Close" onclick="KWJourneys.close()">✕</button></div>
       <div class="jn-body" id="jn-body"><div class="jn-empty">Loading…</div></div></div>`;
     o.addEventListener('click', onClick);

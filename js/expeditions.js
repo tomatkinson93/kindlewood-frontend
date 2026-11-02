@@ -60,7 +60,7 @@ function selectFogTile(wx, wy) {
       </div>
 
       <div class="scout-select-section">
-        <div class="scout-select-label">Choose a scout</div>
+        <div class="scout-select-label">Choose a scout <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('expeditions')">?</button></div>
         <select class="scout-select" id="scout-picker" ${!hasScouts ? 'disabled' : ''}>
           ${scoutOptions}
         </select>

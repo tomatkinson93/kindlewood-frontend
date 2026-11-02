@@ -102,7 +102,7 @@
     const t = i.tribute || {};
     const full = i.full_raid ? Object.entries(i.full_raid).filter(([, v]) => v > 0).map(([k, v]) => `${RES[k] || k} ${n(v)}`).join(' · ') : '';
     if (!r) {
-      return `<div class="raid-sheet-head"><b>🛡 Your defences</b><button class="raid-x" onclick="KWRaids.closeSheet()" aria-label="Close">✕</button></div>
+      return `<div class="raid-sheet-head"><b>🛡 Your defences</b><button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('raids')">?</button><button class="raid-x" onclick="KWRaids.closeSheet()" aria-label="Close">✕</button></div>
         <p class="raid-muted">No raid is coming.${t.peace_until ? ` The Withered are paid — peace until ${esc(new Date(t.peace_until).toLocaleString())}.` : ''}</p>
         <ul class="raid-def">${defenceRows(d)}</ul>`;
     }
@@ -112,7 +112,7 @@
       : total >= r.strength_max ? '<div class="raid-verdict good">Your defences should hold.</div>'
       : total >= r.strength_min ? '<div class="raid-verdict mid">It could go either way.</div>'
       : '<div class="raid-verdict bad">They are likely to break through.</div>';
-    return `<div class="raid-sheet-head"><b>🔥 Raiders coming</b><button class="raid-x" onclick="KWRaids.closeSheet()" aria-label="Close">✕</button></div>
+    return `<div class="raid-sheet-head"><b>🔥 Raiders coming</b><button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('raids')">?</button><button class="raid-x" onclick="KWRaids.closeSheet()" aria-label="Close">✕</button></div>
       <div class="raid-count"><span>They strike ${esc(r.target)} in</span><b id="raid-sheet-clock">${clock(r.arrives_at)}</b></div>
       <p class="raid-muted">From ${esc(r.from)}. Scouts put their strength at <b>${n(r.strength_min)}–${n(r.strength_max)}</b>.</p>
       <div class="raid-vs"><div><small>Your defence</small><b>${n(total)}</b></div><div class="raid-vs-x">vs</div><div><small>Raiders</small><b>${n(r.strength_min)}–${n(r.strength_max)}</b></div></div>

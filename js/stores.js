@@ -75,7 +75,7 @@
       if (!rows.length) return '';
       return `<div class="sp-group">${esc(R().GROUP_LABEL[g])}</div>` + rows.join('');
     }).join('');
-    return `<div class="sp-head">⛏ Stores <button class="sp-x" aria-label="Close" onclick="KWStores.close()">✕</button></div>
+    return `<div class="sp-head">⛏ Stores <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('stores')">?</button><button class="sp-x" aria-label="Close" onclick="KWStores.close()">✕</button></div>
       ${body}
       ${hidden ? `<div class="sp-row sp-unknown"><span class="sp-ic">❔</span><span class="sp-name">?? — ${hidden} more not yet discovered</span></div>
         <div class="sp-hint">Mines, hills and mountain outposts turn up ores. Rarer finds need research${typeof openLibrary === 'function' ? ' — <button type="button" class="sp-link" onclick="KWStores.close();openLibrary()">📚 Library</button>' : ''}.</div>` : ''}`;
