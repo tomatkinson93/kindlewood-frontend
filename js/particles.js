@@ -1,3 +1,5 @@
+// Load guard helper (index.html); falls back to plain DOMContentLoaded where the page's guard isn't loaded.
+var kwWhenReady = (typeof kwWhenReady === 'function' && kwWhenReady) || function (f, t) { (t || document).addEventListener('DOMContentLoaded', f); };
 // ══════════════════════════════════════════════════════════════════════════
 //  particles.js — hero ambience (spec 20 §B4)
 //    • embers rising from the left lantern
@@ -12,7 +14,7 @@
 //           pre-existing ember/leaf loop and the entrance stagger).
 // ══════════════════════════════════════════════════════════════════════════
 
-window.addEventListener('DOMContentLoaded', () => {
+kwWhenReady(() => {
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // Entrance stagger is DOM-only and runs even without the particle canvas —
@@ -245,7 +247,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   requestAnimationFrame(tick);
-});
+}, window);
 
 // One-time entrance stagger for the hero title block (spec 20 §B4). The class
 // drives the CSS keyframes; it is removed once done so the elements return to

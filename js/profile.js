@@ -1,3 +1,5 @@
+// Load guard helper (index.html); falls back to plain DOMContentLoaded where the page's guard isn't loaded.
+var kwWhenReady = (typeof kwWhenReady === 'function' && kwWhenReady) || function (f, t) { (t || document).addEventListener('DOMContentLoaded', f); };
 // Destination: js/profile.js
 // Changes in this version:
 //  • renderHonors() stub for the achievement honors strip + trophy cabinet
@@ -146,7 +148,7 @@ function updateBioCounter() {
   if (bio && counter) counter.textContent = bio.value.length;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+kwWhenReady(() => {
   const bio = document.getElementById('pm-bio');
   if (bio) bio.addEventListener('input', updateBioCounter);
 });

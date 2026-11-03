@@ -2,6 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Load guard (must stay the first script). The cPanel host turns requests
+       away with 503 when the page asks for too many files at once; retry any
+       same-origin script or stylesheet that fails (0.5s, 1.5s, 4s), then say so.
+       kwWhenReady(fn, target) runs boot code even when a retried script
+       arrives after DOMContentLoaded. See verify/assets_proofs.js. -->
+  <script>
+  (function () {
+    var fired = false, tries = {}, DELAYS = [500, 1500, 4000], failed = [], pending = 0, queue = [], loaded = {}, waiters = [];
+    var strip = function (u) { return String(u || '').replace(/[?&]kwr=\d+$/, ''); };
+    // Every same-origin script/stylesheet that arrives (the loading screen counts them).
+    window.addEventListener('load', function (e) {
+      var el = e.target, u = el && (el.tagName === 'SCRIPT' ? el.src : el.tagName === 'LINK' ? el.href : '');
+      if (u && u.indexOf(location.origin + '/') === 0) loaded[strip(u)] = 1;
+    }, true);
+    function settle() { if (fired && pending === 0) { var w = waiters; waiters = []; w.forEach(function (f) { f(); }); } }
+    // Boot code waits for the page AND for any file still being retried
+    // (main.js arriving late must not leave other modules calling apiFetch
+    // before it exists). Never waits more than 10s.
+    function flush() { settle(); if (!fired || pending > 0) return; var q = queue; queue = []; q.forEach(function (f) { try { f(); } catch (e) { setTimeout(function () { throw e; }); } }); }
+    document.addEventListener('DOMContentLoaded', function () { fired = true; flush(); });
+    window.addEventListener('DOMContentLoaded', function () { flush(); });
+    setTimeout(function () { pending = 0; flush(); }, 10000);
+    window.kwWhenReady = function (fn, target) {
+      if (fired && pending === 0) return void setTimeout(fn, 0);
+      if (!fired && target === window) { window.addEventListener('DOMContentLoaded', function () { pending ? queue.push(fn) : fn(); }); return; }
+      queue.push(fn);
+    };
+    function banner() {
+      if (document.getElementById('kw-load-banner') || !document.body || window.KWLoad.acknowledged) return;
+      // The loading screen reports problems itself while it is up.
+      var ls = document.getElementById('loading-screen');
+      if (ls && ls.style.display !== 'none' && ls.style.display !== '') return void setTimeout(banner, 1000);
+      var b = document.createElement('div');
+      b.id = 'kw-load-banner';
+      b.setAttribute('role', 'alert');
+      b.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:2147483000;background:#5a1d14;color:#fff3e6;border:1px solid #d0574a;border-radius:10px;padding:10px 14px;font:14px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px)';
+      b.innerHTML = '<span>Part of the game didn’t load.</span>';
+      var r = document.createElement('button');
+      r.type = 'button'; r.textContent = 'Reload';
+      r.style.cssText = 'font:inherit;font-weight:700;padding:6px 12px;border-radius:8px;border:0;background:#f6d78a;color:#2a1d0c;cursor:pointer';
+      r.onclick = function () { location.reload(); };
+      b.appendChild(r);
+      document.body.appendChild(b);
+    }
+    window.addEventListener('error', function (e) {
+      var el = e.target;
+      if (!el || (el.tagName !== 'SCRIPT' && !(el.tagName === 'LINK' && /stylesheet/i.test(el.rel)))) return;
+      var url = el.tagName === 'SCRIPT' ? el.src : el.href;
+      if (!url || url.indexOf(location.origin + '/') !== 0) return;
+      var base = url.replace(/[?&]kwr=\d+$/, '');
+      var n = tries[base] = (tries[base] || 0) + 1;
+      if (n > DELAYS.length) {
+        failed.push(base);
+        pending = Math.max(0, pending - 1); flush();
+        console.warn('[load] gave up on', base);
+        if (document.body) banner(); else document.addEventListener('DOMContentLoaded', banner);
+        return;
+      }
+      console.warn('[load] retrying', base, '(' + n + ')');
+      if (n === 1) pending++;
+      setTimeout(function () {
+        var again = base + (base.indexOf('?') < 0 ? '?' : '&') + 'kwr=' + n;
+        var x;
+        if (el.tagName === 'SCRIPT') { x = document.createElement('script'); x.src = again; x.async = false; }
+        else { x = document.createElement('link'); x.rel = 'stylesheet'; x.href = again; }
+        x.addEventListener('load', function () { pending = Math.max(0, pending - 1); flush(); });
+        (el.parentNode || document.head).insertBefore(x, el.nextSibling);
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, DELAYS[n - 1]);
+    }, true);
+    window.KWLoad = {
+      failed: failed, tries: tries, pending: function () { return pending; },
+      // { total, done, retrying: [file names], failed: [file names] } for the loading screen.
+      progress: function () {
+        var els = document.querySelectorAll('script[src], link[rel="stylesheet"]'), total = 0, done = 0, seen = {};
+        for (var i = 0; i < els.length; i++) {
+          var u = strip(els[i].src || els[i].href);
+          if (u.indexOf(location.origin + '/') !== 0 || seen[u]) continue;
+          seen[u] = 1; total++; if (loaded[u]) done++;
+        }
+        var name = function (u) { return u.split('/').pop().split('?')[0]; };
+        var retrying = Object.keys(tries).filter(function (u) { return !loaded[u] && failed.indexOf(u) < 0; }).map(function (u) { return { file: name(u), attempt: tries[u] }; });
+        return { total: total, done: done, retrying: retrying, failed: failed.map(name), finished: fired && pending === 0 };
+      },
+      // Resolves once the page has loaded and no file is still being retried.
+      ready: function () { return new Promise(function (r) { waiters.push(r); settle(); }); },
+      acknowledged: false,
+    };
+  })();
+  </script>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Kindlewood — Rise of the Woodland Realms</title>
   <meta name="description" content="Kindlewood is a woodland strategy game — build your settlement, lead your kin, and forge an empire from the forest floor.">
@@ -31,7 +122,7 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
-  <link rel="stylesheet" href="/css/main.css?v=g5">
+  <link rel="stylesheet" href="/css/main.css?v=ls1">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=r2b">
@@ -478,9 +569,32 @@
       <div class="ls-bar-wrap">
         <div class="ls-bar" id="ls-bar"></div>
       </div>
-      <div class="ls-status" id="ls-status">Entering the realm…</div>
+      <div class="ls-status" id="ls-status" role="status" aria-live="polite">Entering the realm…</div>
+      <ul class="ls-steps" id="ls-steps" aria-label="Loading steps"></ul>
+      <div class="ls-problem" id="ls-problem" role="alert" hidden></div>
     </div>
   </div>
+  <script>
+  // Signed-in players see the loading screen from the very start, counting the
+  // game files in as they arrive (KWLoad, the load guard in <head>); main.js's
+  // loadGame takes over from there (window.__kwLoadingOwned).
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('kw_token'); } catch (e) { /* private mode */ }
+    if (!t || !window.KWLoad) return;
+    var el = document.getElementById('loading-screen');
+    el.style.display = 'flex'; el.style.opacity = '1';
+    var tick = setInterval(function () {
+      if (window.__kwLoadingOwned) return clearInterval(tick);
+      var p = KWLoad.progress(), bar = document.getElementById('ls-bar'), txt = document.getElementById('ls-status');
+      if (bar) bar.style.width = Math.round(4 + 26 * (p.total ? p.done / p.total : 0)) + '%';
+      if (!txt) return;
+      if (p.retrying.length) txt.textContent = 'The host is busy — trying ' + p.retrying[0].file + ' again (' + p.retrying[0].attempt + ' of 3)…';
+      else if (!p.finished) txt.textContent = 'Fetching the game files… ' + p.done + ' of ' + p.total;
+      else txt.textContent = 'Checking you in…';
+    }, 150);
+  })();
+  </script>
 
   <div class="screen" id="screen-game">
     <div class="topbar">
@@ -818,10 +932,10 @@
   <script defer src="/js/day-cycle.js?v=021p6"></script>
   <script defer src="/js/happening-effects.js?v=rs1"></script>
   <script defer src="/js/server-clock.js?v=021adm"></script>
-  <script defer src="/js/particles.js?v=spec20b"></script>
+  <script defer src="/js/particles.js?v=r5g"></script>
   <script defer src="/js/game.js?v=d2"></script>
   <script defer src="/js/resources.js?v=r3"></script>
-  <script defer src="/js/carousel.js?v=spec20b"></script>
+  <script defer src="/js/carousel.js?v=r5g"></script>
   <script defer src="/js/placement.js?v=r5"></script>
   <script defer src="/js/arrival.js?v=r5"></script>
   <script defer src="/js/resource-defs.js?v=tq1"></script>
@@ -839,16 +953,16 @@
   <script defer src="/js/research.js?v=r5c"></script>
   <script defer src="/js/career-balance.js?v=hd1"></script>
   <script defer src="/js/citizens.js?v=r4a"></script>
-  <script defer src="/js/buildings.js?v=r5d"></script>
+  <script defer src="/js/buildings.js?v=r5g"></script>
   <script defer src="/js/expeditions.js?v=r5c"></script>
-  <script defer src="/js/seasons.js?v=r5d"></script>
+  <script defer src="/js/seasons.js?v=r5g"></script>
   <script defer src="/js/hud-clock.js?v=r5d"></script>
   <script defer src="/js/happenings.js?v=r5d"></script>
   <script defer src="/js/timed-events.js?v=r5d"></script>
   <script defer src="/js/season-atmosphere.js?v=021p3"></script>
   <script defer src="/js/dev-time.js?v=021p3"></script>
   <script defer src="/js/tier.js?v=r2"></script>
-  <script defer src="/js/profile.js?v=r2b"></script>
+  <script defer src="/js/profile.js?v=r5g"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
   <script defer src="/js/kwmap-core.js?v=d2"></script>
@@ -868,10 +982,10 @@
   <script defer src="/js/kwmap-tileactions.js?v=r2"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
-  <script defer src="/js/main.js?v=r5c"></script>
+  <script defer src="/js/main.js?v=ls2"></script>
   <script defer src="/js/away-report.js?v=r5d"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
-  <script defer src="/js/online.js?v=1"></script>
+  <script defer src="/js/online.js?v=r5g"></script>
   <script defer src="/js/leaderboard.js?v=r5d"></script>
   <script defer src="/js/briar_engine.js?v=13"></script>
   <script defer src="/js/squirrel_engine.js?v=16"></script>
@@ -901,7 +1015,7 @@
   <script defer src="/js/deck-builder.js?v=r5d"></script>
   <script defer src="/js/feedback.js?v=r5d"></script>
   <script defer src="/js/combat-ui.js?v=r5d"></script>
-  <script defer src="/js/battles.js?v=r5d"></script>
+  <script defer src="/js/battles.js?v=r5g"></script>
   <script defer src="/js/clan-palette.js?v=cp2"></script>
   <script defer src="/js/clans.js?v=d4"></script>
   <script defer src="/js/clan-profile.js?v=r4d"></script>
@@ -909,7 +1023,7 @@
   <script defer src="/js/clan-treasury.js?v=r4d"></script>
   <script defer src="/js/chat-hub.js?v=r5"></script>
   <script defer src="/js/market.js?v=g5"></script>
-  <script defer src="/js/travel.js?v=tp2"></script>
+  <script defer src="/js/travel.js?v=r5g"></script>
   <script defer src="/js/realtime.js?v=r5a"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
@@ -1808,7 +1922,7 @@
     </div>
   </div>
 
-    <script defer src="js/settlement-view.js?v=d2"></script>
+    <script defer src="/js/settlement-view.js?v=r5g"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

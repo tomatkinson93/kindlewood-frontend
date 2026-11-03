@@ -1,3 +1,5 @@
+// Load guard helper (index.html); falls back to plain DOMContentLoaded where the page's guard isn't loaded.
+var kwWhenReady = (typeof kwWhenReady === 'function' && kwWhenReady) || function (f, t) { (t || document).addEventListener('DOMContentLoaded', f); };
 const BUILDING_IMG_BASE = '/assets/images/buildings/';
 
 function _buildingIcon(b, size) {
@@ -332,7 +334,7 @@ function _syncCheatButton() {
   document.querySelectorAll('.btn-cheat').forEach(b => { b.style.display = admin ? '' : 'none'; });
   if (!admin) document.getElementById('cheat-modal')?.classList.remove('open');
 }
-document.addEventListener('DOMContentLoaded', () => {
+kwWhenReady(() => {
   _syncCheatButton();
   if (window.KWClock) window.KWClock.onChange(e => { if (e && e.reason === 'sync') _syncCheatButton(); });
 });

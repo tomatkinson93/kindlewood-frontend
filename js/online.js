@@ -82,7 +82,9 @@
     if (_token()) startPresence();
     else setTimeout(boot, 4000); // wait for login
   }
-  if (document.readyState === 'loading') {
+  // kwWhenReady (index.html load guard) also waits for main.js if it is being retried.
+  if (typeof kwWhenReady === 'function') kwWhenReady(boot);
+  else if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else { boot(); }
 })();

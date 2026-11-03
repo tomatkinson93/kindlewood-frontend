@@ -161,7 +161,9 @@
       try { token = global.localStorage.getItem('kw_token'); } catch (e) {}
       if (token) start(); else setTimeout(go, 3000);   // not logged in yet
     };
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else setTimeout(go, 0);
+    // kwWhenReady (index.html load guard) also waits for main.js if it is being retried.
+    if (typeof kwWhenReady === 'function') kwWhenReady(go);
+    else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else setTimeout(go, 0);
   }
 
   global.KWTravel = {

@@ -354,7 +354,9 @@
       if (typeof apiFetch === 'function') startBattlePolling();
     }, 1500);
   }
-  if (document.readyState === 'loading') {
+  // kwWhenReady (index.html load guard) also waits for main.js if it is being retried.
+  if (typeof kwWhenReady === 'function') kwWhenReady(_autoStart);
+  else if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _autoStart);
   } else {
     _autoStart();
