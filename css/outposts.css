@@ -1,0 +1,51 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Outposts tab and outpost stores (js/outposts.js)
+   ══════════════════════════════════════════════════════════════════════════ */
+.kwop-body { display: flex; flex-direction: column; gap: 10px; }
+.kwop-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: rgba(232,222,196,.8); }
+.kwop-empty { font-size: 13px; line-height: 1.5; color: rgba(232,222,196,.7); padding: 8px 2px; }
+.kwop-muted { font-size: 11.5px; color: rgba(232,222,196,.55); }
+
+.kwop-card { border: 1px solid rgba(192,221,151,.16); border-radius: 10px; background: rgba(255,255,255,.03); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.kwop-card-h { display: flex; align-items: center; gap: 8px; }
+.kwop-card-ic { font-size: 22px; line-height: 1; }
+.kwop-card-t { flex: 1; min-width: 0; font-size: 13.5px; color: #f0e6cc; }
+.kwop-lv { font-size: 11px; color: #e8c76a; margin-left: 4px; }
+
+.kwop-head { font-size: 12px; font-weight: 600; color: rgba(232,222,196,.85); margin-bottom: 4px; display: flex; gap: 6px; align-items: baseline; }
+.kwop-store, .kwop-porters { display: flex; flex-direction: column; gap: 4px; }
+.kwop-bar-row { display: grid; grid-template-columns: 20px 1fr auto auto; align-items: center; gap: 6px; font-size: 12px; color: #e8dec4; }
+.kwop-bar-ic { text-align: center; }
+.kwop-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
+.kwop-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #8ecf6e, #c8d86a); border-radius: 3px; }
+.kwop-bar-row.full .kwop-bar > span { background: linear-gradient(90deg, #e0a050, #e07a5a); }
+.kwop-bar-n { font-variant-numeric: tabular-nums; }
+.kwop-bar-n small { color: rgba(232,222,196,.45); }
+.kwop-rate { font-size: 11px; color: #9fd36a; min-width: 52px; text-align: right; }
+.kwop-bar-row.full .kwop-rate { color: #ef9a72; }
+.kwop-warn { font-size: 12px; color: #f2b58a; background: rgba(224,122,90,.1); border-radius: 6px; padding: 5px 8px; }
+
+.kwop-haul, .kwop-crew-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: #e8dec4; }
+.kwop-crew-row { justify-content: space-between; }
+.kwop-time { margin-left: auto; font-variant-numeric: tabular-nums; color: #e8c76a; font-size: 12px; }
+.kwop-chip { display: inline-block; padding: 0 5px; border-radius: 4px; background: rgba(255,255,255,.07); font-size: 11.5px; margin-right: 3px; }
+.kwop-pick { display: flex; gap: 6px; }
+.kwop-select { flex: 1; min-width: 0; font: inherit; font-size: 12.5px; min-height: 32px; border-radius: 7px; padding: 4px 6px;
+  background: rgba(0,0,0,.25); color: #f0e6cc; border: 1px solid rgba(192,221,151,.22); }
+.kwop-btn { font: inherit; font-size: 12.5px; font-weight: 600; min-height: 32px; padding: 4px 10px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  background: rgba(232,199,106,.16); color: #f3e2b0; border: 1px solid rgba(232,199,106,.4); }
+.kwop-btn:hover:not(:disabled) { background: rgba(232,199,106,.26); }
+.kwop-btn:disabled { opacity: .45; cursor: default; }
+.kwop-btn-sm { min-height: 28px; padding: 2px 8px; font-size: 11.5px; }
+.kwop-trip { margin-top: -1px; }
+.kwop-reason { font-size: 12px; color: #ef9a72; }
+
+/* Inside the outpost's tile panel the store sits with the other op- blocks. */
+.op-section .kwop-store, .op-section .kwop-porters { margin: 8px 0; padding-top: 8px; border-top: 1px solid rgba(192,221,151,.12); }
+
+/* Phones: bigger touch targets. */
+body.kw-shell .kwop-btn, body.kw-shell .kwop-select { min-height: 40px; }
+
+/* The sidebar tabs (Settlement · Citizens · Outposts; Build is hidden) share the width. */
+.sidebar .sidebar-tabs .sidebar-tab { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: 13px; letter-spacing: .03em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
