@@ -2,11 +2,13 @@
 //  Your Town — festivals, upkeep and Wonders (server: routes/town.js,
 //  routes/wonders.js; rules in lib/town_mods.js and lib/wonders.js).
 //
-//  KWTown.open('festival' | 'wonders') opens one screen with three parts:
-//    🎉 Festival — cost, Hold a festival, the countdown or cooldown
-//    Upkeep      — what the treasury pays each hour, and arrears
-//    🏛 Wonders   — five cards: stage pips, next cost (?? until discovered,
-//                  red when short), Build, time left, bonus, dormant
+//  Two separate screens (they share a sheet, not a menu):
+//    KWTown.open('festival') — 🎉 Festivals: cost, Hold a festival, the
+//                  countdown or cooldown
+//    KWTown.open('wonders')  — 🏛 Wonders: five cards (stage pips, next cost,
+//                  ?? until discovered, red when short, Build, time left,
+//                  bonus, dormant) and the town's 🪙 Upkeep and arrears.
+//    KWTown.open('upkeep')   — the Wonders screen, scrolled to Upkeep.
 //  KWTown.onSettlement(s) draws the banner over the map from
 //  settlement.town: arrears first, else a running festival.
 // ══════════════════════════════════════════════════════════════════════════
@@ -64,7 +66,7 @@
     o.setAttribute('aria-modal', 'true');
     o.setAttribute('aria-labelledby', 'tw-title');
     o.innerHTML = `<div class="tw-card">
-        <div class="tw-head"><div class="tw-title" id="tw-title">🏛 Your Town</div>
+        <div class="tw-head"><div class="tw-title" id="tw-title">🏛 Wonders</div>
           <button type="button" class="tw-close" data-tw="close" aria-label="Close">✕</button></div>
         <div class="tw-body" id="tw-body"><div class="tw-muted">Gathering the council…</div></div></div>`;
     o.addEventListener('click', onClick);
@@ -73,12 +75,16 @@
     return o;
   }
 
+  const TITLES = { festival: '🎉 Festivals', wonders: '🏛 Wonders' };
   async function open(focus) {
-    st.focus = focus || 'festival';
+    const scrollTo = focus === 'upkeep' ? 'tw-upkeep' : null;
+    st.focus = focus === 'wonders' || focus === 'upkeep' ? 'wonders' : 'festival';
     ensure().classList.add('open');
+    const t = byId('tw-title'); if (t) t.textContent = TITLES[st.focus];
+    const body0 = byId('tw-body'); if (body0) { body0.scrollTop = 0; body0.innerHTML = '<div class="tw-muted">Gathering the council…</div>'; }
     await load();
     // Scroll only the body (scrollIntoView would also shift the card itself).
-    const target = byId(st.focus === 'wonders' ? 'tw-wonders' : 'tw-festival'), body = byId('tw-body');
+    const target = scrollTo && byId(scrollTo), body = byId('tw-body');
     if (target && body) body.scrollTop = Math.max(0, target.offsetTop - body.offsetTop);
     if (_ticker) clearInterval(_ticker);
     _ticker = setInterval(() => { if (byId('tw-overlay') && byId('tw-overlay').classList.contains('open')) render(); else clearInterval(_ticker); }, 30000);
@@ -115,7 +121,7 @@
     const parts = [];
     if (u.wonders) parts.push(`wonders ${u.wonders}`);
     if (u.city) parts.push(`City buildings ${u.city}`);
-    return `<section class="tw-section">
+    return `<section class="tw-section" id="tw-upkeep">
         <h3>🪙 Upkeep</h3>
         ${u.total ? `<p class="tw-desc">The treasury pays <b>${u.total} wealth an hour</b> (${parts.join(', ')}). In a City, every building level above 3 costs 2 an hour; each finished wonder costs its own upkeep.</p>`
           : '<p class="tw-desc">Nothing to pay yet. Finished wonders, and a City\'s building levels above 3, cost wealth each hour.</p>'}
@@ -157,7 +163,10 @@
   function render() {
     const b = byId('tw-body');
     if (!b || !st.town || !st.wonders) return;
-    b.innerHTML = festivalHtml(st.town.festival) + upkeepHtml(st.town) + wondersHtml(st.wonders);
+    b.innerHTML = st.focus === 'wonders'
+      ? wondersHtml(st.wonders) + upkeepHtml(st.town)
+      : festivalHtml(st.town.festival) + (st.town.arrears
+        ? '<div class="tw-status bad">⚠️ Upkeep is unpaid — happiness is down 10. <button type="button" class="tw-link" onclick="KWTown.open(\'upkeep\')">See upkeep</button></div>' : '');
   }
 
   // Bring the top bar up to date after spending.
@@ -201,7 +210,7 @@
     const t = s && s.town;
     if (t && t.arrears) {
       el.className = 'town-banner open bad';
-      el.innerHTML = '<button type="button" class="town-banner-inner" onclick="KWTown.open(\'festival\')">⚠️ <b>Unpaid upkeep</b> <span>Wonders lie dormant and happiness is down. Raise wealth to recover.</span></button>';
+      el.innerHTML = '<button type="button" class="town-banner-inner" onclick="KWTown.open(\'upkeep\')">⚠️ <b>Unpaid upkeep</b> <span>Wonders lie dormant and happiness is down. Raise wealth to recover.</span></button>';
     } else {   // a festival shows as fireworks over the town and a line in its panel, not a banner
       el.className = 'town-banner';
       el.innerHTML = '';
@@ -219,5 +228,5 @@
     catch (e) { toast(e.message, 'error'); }
   }
 
-  global.KWTown = { open, close, load, render, onSettlement, devFinish, devFestival, _state: () => st, _set(town, wonders) { st.town = town; st.wonders = wonders; }, left };
+  global.KWTown = { open, close, load, render, onSettlement, devFinish, devFestival, _state: () => st, _set(town, wonders, focus) { st.town = town; st.wonders = wonders; if (focus) st.focus = focus; }, left };
 })(typeof window !== 'undefined' ? window : this);

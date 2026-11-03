@@ -6711,6 +6711,18 @@ body.login-mode .hero-text-welcome {
 .ls-problem-btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .ls-btn { font: inherit; font-size: 13px; font-weight: 600; min-height: 38px; padding: 6px 16px; border-radius: 9px; cursor: pointer; border: 1px solid rgba(232,200,140,.4); background: rgba(255,255,255,.06); color: #f3e9d2; }
 .ls-btn-main { background: #e8c76a; border-color: #e8c76a; color: #2a1d0c; }
+/* The big "Start playing" button once everything has loaded (main.js lsReadyToPlay). */
+.ls-play { margin-top: 18px; width: 100%; min-height: 64px; padding: 14px 24px; border-radius: 14px; cursor: pointer;
+  font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; letter-spacing: .04em;
+  color: #2a1d0c; background: linear-gradient(180deg, #f2d67e, #d9ae4a); border: 1px solid #f6e2a0;
+  box-shadow: 0 6px 24px rgba(232,199,106,.35), inset 0 1px 0 rgba(255,255,255,.4);
+  animation: ls-play-in .45s ease-out both, ls-play-glow 2.4s ease-in-out .5s infinite; }
+.ls-play:hover { filter: brightness(1.06); }
+.ls-play:active { transform: translateY(1px); }
+.ls-play:focus-visible { outline: 3px solid #f6e2a0; outline-offset: 3px; }
+@keyframes ls-play-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ls-play-glow { 50% { box-shadow: 0 6px 34px rgba(232,199,106,.6), inset 0 1px 0 rgba(255,255,255,.4); } }
+@media (prefers-reduced-motion: reduce) { .ls-play { animation: none; } }
 
 /* Fixed happiness tooltip — appended to body, zero layout impact */
 .cp-happiness-tooltip-fixed {
@@ -7004,6 +7016,10 @@ body.login-mode .hero-text-welcome {
 /* Child row styling */
 .ac-row--child { opacity: 0.75; }
 .ac-row--child:hover { opacity: 1; }
+/* Away from the settlement (citizens.js citizenAway): greyed, like the side list's placard. */
+.ac-row--away { opacity: .5; filter: grayscale(.7); }
+.ac-row--away:hover { opacity: .85; }
+.ac-role-away { font-style: italic; white-space: nowrap; }
 .ac-child-tag {
   font-size: 9px;
   background: rgba(192,221,151,.12);

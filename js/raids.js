@@ -130,7 +130,7 @@
   // Sally out: up to three citizens meet the raiders in a card battle first.
   function adults() {
     const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
-    return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost);
+    return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul);
   }
   function sallyHtml(r) {
     if (r.sally === 'lost') return '<div class="raid-verdict bad">Your sally was driven back — they come on stronger.</div>';
@@ -232,7 +232,7 @@
   function freeDefenders() {
     // citizensData is a top-level `let` in js/citizens.js — shared scope, not window.
     const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : (Array.isArray(global.citizensData) ? global.citizensData : []);
-    return list.filter(c => (c.role === 'soldier' || c.role === 'archer') && (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost);
+    return list.filter(c => (c.role === 'soldier' || c.role === 'archer') && (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul);
   }
   function callsHtml() {
     const others = (st.calls || []).filter(c => !c.mine);

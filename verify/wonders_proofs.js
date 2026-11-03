@@ -26,19 +26,22 @@ const soon = h => new Date(Date.now() + h * 3600e3).toISOString();
 const fest = o => Object.assign({ active: false, until: null, cooldown_until: null, cost: { wealth: 300, food: 200 }, can_start: false, why: 'Not enough food.', hours: 24, cooldown_hours: 72, happiness: 10, production: 0.1 }, o || {});
 const W = (key, o) => Object.assign({ key, label: key, icon: '⚒️', desc: 'd', bonus: '+10% all production', stage: 0, stages: 3, complete: false, building_until: null,
   next: { stage: 1, cost: { steel: 40, mithril: 10 }, items: [], hours: 12 }, can_build: true, why: null, active: false, dormant: false }, o || {});
-const draw = (town, wonders) => { w.KWTown._set(town, wonders); w.KWTown.render(); return els['tw-body'].innerHTML; };
+const draw = (town, wonders, focus) => { w.KWTown._set(town, wonders, focus || 'wonders'); w.KWTown.render(); return els['tw-body'].innerHTML; };
+const drawF = (town, wonders) => draw(town, wonders, 'festival');
 const town = o => Object.assign({ festival: fest(), upkeep: { wonders: 0, city: 0, total: 0 }, arrears: false, sources: [] }, o || {});
 const wonders = (list, o) => Object.assign({ wonders: list, locked: null, arrears: false, upkeep_each: 12 }, o || {});
 
 console.log('1. Festival');
-let h = draw(town(), wonders([]));
+let h = drawF(town(), wonders([]));
 check('1a. what it does and costs; short food is red; the button says why not', /\+10 happiness/.test(h) && /\+10% production/.test(h) && /tw-chip short" title="Food">🌿 200/.test(h) && /data-tw="festival" disabled title="Not enough food\."/.test(h));
-h = draw(town({ festival: fest({ can_start: true, why: null }) }), wonders([]));
+h = drawF(town({ festival: fest({ can_start: true, why: null }) }), wonders([]));
 check('1b. affordable: an enabled "Hold a festival"', /data-tw="festival">Hold a festival/.test(h));
-h = draw(town({ festival: fest({ active: true, until: soon(5), why: 'A festival is already under way.' }) }), wonders([]));
+h = drawF(town({ festival: fest({ active: true, until: soon(5), why: 'A festival is already under way.' }) }), wonders([]));
 check('1c. running: the countdown', /A festival is under way — [45]h \d+m left/.test(h));
-h = draw(town({ festival: fest({ cooldown_until: soon(30), why: 'The town is still recovering from the last one.' }) }), wonders([]));
+h = drawF(town({ festival: fest({ cooldown_until: soon(30), why: 'The town is still recovering from the last one.' }) }), wonders([]));
 check('1d. afterwards: the cooldown', /the next festival in 1d [56]h/.test(h));
+h = drawF(town({ arrears: true }), wonders([W('spire')]));
+check('1e. its own screen: no wonders or upkeep, but unpaid upkeep links across', !/tw-wonder/.test(h) && !/id="tw-upkeep"/.test(h) && /KWTown\.open\('upkeep'\)/.test(h));
 
 console.log('2. Upkeep');
 h = draw(town({ upkeep: { wonders: 12, city: 4, total: 16 } }), wonders([]));
@@ -60,12 +63,15 @@ check('3e. complete: its bonus, a lit card', /tw-wonder done/.test(h) && /✓ Co
 h = draw(town(), wonders([W('spire', { stage: 3, complete: true, dormant: true, next: null })]));
 check('3f. dormant: greyed, says why', /tw-wonder done dormant/.test(h) && /Dormant — unpaid upkeep/.test(h));
 
+h = draw(town({ upkeep: { wonders: 12, city: 0, total: 12 } }), wonders([W('spire')]));
+check('3g. the Wonders screen has no festival', !/data-tw="festival"/.test(h) && /id="tw-wonders"/.test(h) && /id="tw-upkeep"/.test(h));
+
 console.log('4. Banner');
 const b = els['town-banner'];
 w.KWTown.onSettlement({ town: town({ festival: fest({ active: true, until: soon(3) }) }) });
 check('4a. a festival puts up no banner (fireworks and the panel line show it)', b.innerHTML === '' && b.className === 'town-banner');
 w.KWTown.onSettlement({ town: town({ arrears: true, festival: fest({ active: true, until: soon(3) }) }) });
-check('4b. unpaid upkeep comes first', /bad/.test(b.className) && /Unpaid upkeep/.test(b.innerHTML));
+check('4b. unpaid upkeep comes first, and opens Upkeep', /bad/.test(b.className) && /Unpaid upkeep/.test(b.innerHTML) && /KWTown\.open\('upkeep'\)/.test(b.innerHTML));
 w.KWTown.onSettlement({ town: town() });
 check('4c. nothing to say: no banner', b.innerHTML === '' && b.className === 'town-banner');
 
@@ -76,7 +82,7 @@ check('5b. settlement panel: Festival, and Wonders locked until a City', /KWTown
 check('5c. the banner follows load and every sync', /KWTown\.onSettlement\(gameData\.settlement\)/.test(main) && /KWTown\.onSettlement\(data\.settlement\)/.test(read('js/game.js')));
 const res = read('js/resources.js');
 check('5d. breakdown rows: town bonuses and both upkeeps', /kind === 'town_bonus'/.test(res) && /kind === 'wonder_upkeep'/.test(res) && /kind === 'city_upkeep'/.test(res) && /sum\.wonder_upkeep/.test(res));
-check('5e. the Great Works board and a Help topic', /B\('greatworks', 'Great Works'/.test(read('js/leaderboard.js')) && /id: 'wonders'/.test(read('js/help.js')));
+check('5e. the Great Works board and a Help topic opening both screens', /B\('greatworks', 'Great Works'/.test(read('js/leaderboard.js')) && /id: 'wonders'/.test(read('js/help.js')) && /link\('KWTown\.open', 'wonders'\)/.test(read('js/help.js')));
 check('5f. Dev Tools: finish a wonder stage, a free festival', /KWTown\.devFinish\(/.test(html) && /KWTown\.devFestival\(\)/.test(html));
 check('5g. the research labels for the new Building projects', /wonder_speed:/.test(read('js/research.js')) && /wonder_upkeep:/.test(read('js/research.js')));
 check('5h. a full-screen sheet on phones; the map controls hide under it', /\.tw-card \{ max-height: none; height: 100%/.test(read('css/wonders.css')) && /'tw-overlay'/.test(read('js/mobile-shell.js')));

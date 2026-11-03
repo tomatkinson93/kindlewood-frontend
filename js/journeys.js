@@ -51,10 +51,17 @@
   function outpostHtml(list) {
     const rows = [];
     for (const o of list || []) {
-      const crew = [...(o.workers || []).map(c => ({ ...c, post: 'worker' })), ...(o.garrison || []).map(c => ({ ...c, post: 'garrison' }))];
+      const crew = [...(o.workers || []).map(c => ({ ...c, post: 'worker' })), ...(o.garrison || []).map(c => ({ ...c, post: 'garrison' })),
+        ...(o.haulers || []).map(c => ({ ...c, post: 'hauler' }))];
+      const runs = new Map((o.hauls || []).map(h => [h.citizen_id, h]));
+      // One-off porters on the road (haulers' runs show on their own row).
+      for (const h of o.hauls || []) if (!h.standing) crew.push({ id: h.citizen_id, name: h.name, post: 'porter' });
       for (const c of crew) {
-        rows.push(`<div class="jn-row"><div class="jn-icon" aria-hidden="true">${c.post === 'garrison' ? '🛡️' : '⛏️'}</div>
-          <div class="jn-main"><div class="jn-who"><b>${esc(c.name)}</b> · ${c.post === 'garrison' ? 'Guarding' : 'Working at'} the ${esc(o.name || 'outpost')}</div></div>
+        const h = runs.get(c.id);
+        const doing = c.post === 'garrison' ? 'Guarding' : c.post === 'hauler' ? 'Hauling for' : c.post === 'porter' ? 'Fetching goods from' : 'Working at';
+        const road = h ? ` <span class="jn-sub">${h.status === 'outbound' ? 'on the way' : 'coming home'} · <span data-jn-end="${esc(h.status === 'outbound' ? h.arrives_at : h.returns_at)}">${fmtLeft(Math.max(0, Math.round((new Date(h.status === 'outbound' ? h.arrives_at : h.returns_at) - Date.now()) / 1000)))}</span></span>` : '';
+        rows.push(`<div class="jn-row"><div class="jn-icon" aria-hidden="true">${c.post === 'garrison' ? '🛡️' : c.post === 'hauler' || c.post === 'porter' ? '🧺' : '⛏️'}</div>
+          <div class="jn-main"><div class="jn-who"><b>${esc(c.name)}</b> · ${doing} the ${esc(o.name || 'outpost')}${road}</div></div>
           <div class="jn-side"><button type="button" class="jn-btn" data-jn-tile="${Number(o.tile_q)},${Number(o.tile_r)}">Show on map</button></div></div>`);
       }
     }

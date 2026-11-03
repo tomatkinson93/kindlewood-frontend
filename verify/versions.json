@@ -8,8 +8,12 @@
   "sha": "7140e189e052"
  },
  "js/journeys.js": {
-  "v": "r5c",
-  "sha": "228a1ca2dae3"
+  "v": "os1",
+  "sha": "b2dbb3957edc"
+ },
+ "js/outposts.js": {
+  "v": "os1",
+  "sha": "57e0dca549e5"
  },
  "js/first-steps.js": {
   "v": "r5",
@@ -72,20 +76,20 @@
   "sha": "7629ef5aef9e"
  },
  "js/help.js": {
-  "v": "r5c",
-  "sha": "dd0bf50303e3"
+  "v": "os1",
+  "sha": "e33fe0951e75"
  },
  "js/wonders.js": {
-  "v": "d3",
-  "sha": "ed8aaa6ea67f"
+  "v": "os1",
+  "sha": "d34879816737"
  },
  "js/cards.js": {
   "v": "r4b",
   "sha": "7ad2fa1708e4"
  },
  "js/raids.js": {
-  "v": "r5c",
-  "sha": "7d2c9ce7903a"
+  "v": "os1",
+  "sha": "1b1908b485bc"
  },
  "js/career-math.js": {
   "v": "rs6",
@@ -112,8 +116,8 @@
   "sha": "d74b710b8eef"
  },
  "js/citizens.js": {
-  "v": "r4a",
-  "sha": "2ce95697c927"
+  "v": "os1",
+  "sha": "916be5dd3c7d"
  },
  "js/buildings.js": {
   "v": "r5g",
@@ -224,8 +228,8 @@
   "sha": "2c85832b2c39"
  },
  "js/main.js": {
-  "v": "ls2",
-  "sha": "ce292f53beec"
+  "v": "os1",
+  "sha": "d2fb1f32e7dc"
  },
  "js/away-report.js": {
   "v": "r5d",
@@ -392,20 +396,20 @@
   "sha": "359f5b30a0af"
  },
  "js/realtime.js": {
-  "v": "r5a",
-  "sha": "66ca24fe5a67"
+  "v": "os1",
+  "sha": "97823d7fbf94"
  },
  "js/mobile-shell.js": {
-  "v": "r5f",
-  "sha": "97579dd8ce29"
+  "v": "os1",
+  "sha": "5ebeae5e8c46"
  },
  "js/settlement-view.js": {
   "v": "r5g",
   "sha": "592ab6315691"
  },
  "css/main.css": {
-  "v": "ls1",
-  "sha": "1c71ca5a6d0e"
+  "v": "os1",
+  "sha": "73414faa54db"
  },
  "css/card-hand-ui.css": {
   "v": "mobilefix1",
@@ -472,8 +476,8 @@
   "sha": "04dd06c45ed1"
  },
  "css/wonders.css": {
-  "v": "r3",
-  "sha": "00ca904c50f8"
+  "v": "os1",
+  "sha": "98392d970b6e"
  },
  "css/r4.css": {
   "v": "r5b",
@@ -502,6 +506,10 @@
  "css/journeys.css": {
   "v": "r5c",
   "sha": "8a583cdefc75"
+ },
+ "css/outposts.css": {
+  "v": "os3",
+  "sha": "f8927391947a"
  },
  "css/first-steps.css": {
   "v": "r5",

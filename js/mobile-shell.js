@@ -106,6 +106,7 @@
     { group: 'Places', label: 'Tavern',  glyph: '🍺', fn: function () { window.visitTavern(); },      needs: 'visitTavern' },
     { group: 'Places', label: 'Fishing', glyph: '🎣', fn: function () { window.visitFishingPost(); }, needs: 'visitFishingPost' },
     { group: 'Adventure', label: 'Journeys', glyph: '🧭', fn: function () { window.KWJourneys.open(); }, needs: 'openJourneys' },
+    { group: 'Places', label: 'Outposts', glyph: '⛺', fn: function () { window.switchTab('outposts'); }, needs: 'switchTab', sheet: true },
     { group: 'You',   label: 'Profile',    glyph: '👤', fn: function () { window.openProfile(); },           needs: 'openProfile' },
     { group: 'You',   label: 'Settings',   glyph: '⚙',       fn: function () { window.openSettingsPopover(); },   needs: 'openSettingsPopover' },
     { group: 'You',   label: 'Help',       glyph: '❓',       fn: function () { window.showCommunityTab('help'); },needs: 'showCommunityTab' }

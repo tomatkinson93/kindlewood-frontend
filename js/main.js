@@ -42,6 +42,7 @@ function showLoadingScreen() {
   const el = document.getElementById('loading-screen');
   if (!el) return;
   window.__kwLoadingOwned = true;   // the early file ticker (index.html) stops
+  const play = document.getElementById('ls-play'); if (play) play.hidden = true;
   el.style.display = 'flex';
   el.style.opacity = '1';
   setLoadingProgress(Math.max(_lsPct(), 30), 'Entering the realm…');
@@ -123,6 +124,18 @@ function lsProblem(files) {
       resolve();
     };
     const first = box.querySelector('.ls-btn-main'); if (first) first.focus();
+  });
+}
+
+// Everything has loaded: swap the checklist's spinner for a big "Start playing"
+// button. Resolves when the player presses it (Enter/Space work, it has focus).
+function lsReadyToPlay() {
+  const btn = document.getElementById('ls-play');
+  if (!btn) return Promise.resolve();
+  btn.hidden = false;
+  try { btn.focus({ preventScroll: true }); } catch (e) { btn.focus(); }
+  return new Promise(resolve => {
+    btn.onclick = () => { btn.onclick = null; btn.hidden = true; resolve(); };
   });
 }
 
@@ -493,17 +506,21 @@ async function loadGame(force = false) {
       }
     }
 
-    // Close the loading screen once the map has had time to settle.
     _gameShownOnce = true;
-    setTimeout(() => {
-      setLoadingProgress(100, 'Welcome back!');
-      setTimeout(hideLoadingScreen, first ? 600 : 400);
-    }, first ? 200 : 600);
+    _loadGameLock = false;
     // "Since you were gone…" splash + the last-seen heartbeat (js/away-report.js).
     // After GET /settlement above, so the server's away ledger is up to date.
-    if (window.KWAwayReport) setTimeout(() => window.KWAwayReport.start(), 1200);
-
-    _loadGameLock = false;
+    const startAway = () => { if (window.KWAwayReport) setTimeout(() => window.KWAwayReport.start(), 500); };
+    if (first) {
+      // First load: everything is in — wait for the player to press Start.
+      setLoadingProgress(100, 'Everything is ready.');
+      await lsReadyToPlay();
+      hideLoadingScreen();
+      startAway();
+    } else {
+      setTimeout(() => { setLoadingProgress(100, 'Welcome back!'); setTimeout(hideLoadingScreen, 400); }, 600);
+      startAway();
+    }
   } catch (err) {
     console.error('loadGame error:', err);
     _loadGameLock = false;
@@ -539,6 +556,8 @@ function switchTab(tab) {
 
   if (tab === 'citizens') {
     showCitizensPanel();
+  } else if (tab === 'outposts') {
+    if (window.KWOutposts) KWOutposts.show();   // js/outposts.js
   } else if (tab === 'buildings') {
     showMapPanel();
     const title = document.getElementById('panel-title');
@@ -1415,6 +1434,7 @@ function _outpostSectionHtml(tile) {
         <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         ${(mine?.notes || []).filter(n => n.key !== 'worker').map(n => `<div class="op-note op-note-warn">${n.key === 'unfed' ? '🍂' : '🔥'} ${n.label}</div>`).join('')}
         ${_outpostRaidHtml(mine)}
+        ${window.KWOutposts && mine ? KWOutposts.storeHtml(mine) + KWOutposts.haulHtml(mine) : ''}
         ${_outpostDefenceHtml(mine)}
         ${_outpostWorkerHtml(mine)}
         ${_outpostUpgradeHtml(mine)}
@@ -1505,8 +1525,10 @@ function _outpostRaidHtml(mine) {
 const OP_CLASS_LABELS = { farmer: 'Farmer', woodcutter: 'Woodcutter', miner: 'Miner', fisher: 'Fisher', forager: 'Forager', scout: 'Scout' };
 function _opFreeCitizens() {
   const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
-  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost);
+  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul);
 }
+// The Outposts tab shares the last GET /api/game/outposts (js/outposts.js).
+function _setOutpostStatus(d) { _outpostStatus = d; }
 function _outpostWorkerHtml(mine) {
   if (!mine) return '';
   const st = _outpostStatus || {};
@@ -1723,7 +1745,7 @@ async function _foundOutpostHere(btn, tile) {
 async function _dismantleOutpost(btn, tile) {
   const mine = (_outpostStatus?.outposts || []).find(o => String(o.id) === String(btn.dataset.opDismantle));
   const back = mine?.refund ? Object.entries(mine.refund).map(([r, v]) => `${RES_GLYPHS[r] || _resIcon(r)} ${v}`).join(' · ') : '';
-  if (!await KWDialog.confirm({ title: 'Dismantle this outpost?', message: back ? `About half of what it cost comes back: ${back}.` : 'Its crew comes home.', ok: 'Dismantle', danger: true })) return;
+  if (!await KWDialog.confirm({ title: 'Dismantle this outpost?', message: (back ? `About half of what it cost comes back: ${back}.` : 'Its crew comes home.') + (mine && mine.store && Object.keys(mine.store.items || {}).length ? ' Its crew carry its store home too.' : ''), ok: 'Dismantle', danger: true })) return;
   btn.disabled = true;
   try {
     const id = btn.dataset.opDismantle;
@@ -1924,7 +1946,7 @@ function _selectWorldTileImpl(tile) {
     const elders   = citizens.filter(c => c.life_stage === 'elder');
     // Count diplomatic envoys from _diploRelations cache (populated by diplomacy.js)
     const diploEnvoys = (typeof _diploEnvoyIds !== 'undefined' ? _diploEnvoyIds : new Set());
-    const onMission = adults.filter(c => c.expedition || c.active_quest || (c.trade && c.trade.on_road) || diploEnvoys.has(c.id)).length;
+    const onMission = adults.filter(c => (typeof citizenAway === 'function' ? citizenAway(c) : (c.expedition || c.active_quest || (c.trade && c.trade.on_road) || diploEnvoys.has(c.id)))).length;
     const idle      = adults.filter(c => !c.expedition && !c.active_quest && !diploEnvoys.has(c.id) && (!c.role || c.role === 'idle')).length;
 
     // Attention pills — citizen states that may need the player's eye.
@@ -1937,7 +1959,7 @@ function _selectWorldTileImpl(tile) {
       ? '<button class="sett-pill ' + (cls||'') + '" onclick="switchTab(\'citizens\')" title="View citizens">' + label + ' <b>' + n + '</b></button>'
       : '';
     const pillsHtml = _pill('Idle', idle, idle > 3 ? 'sett-pill--warn' : '')
-      + _pill('Adventuring', onMission, '')
+      + _pill('Away', onMission, '')
       + _pill('Unhoused', unhoused, 'sett-pill--alert')
       + _pill('Sick', sick, 'sett-pill--alert');
     const pillsRow = pillsHtml ? '<div class="sett-pills">' + pillsHtml + '</div>' : '';

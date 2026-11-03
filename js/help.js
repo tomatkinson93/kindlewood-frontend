@@ -48,7 +48,9 @@
     { id: 'outposts', icon: '⛺', title: 'Outposts and exploring', body: `
       <p>Found an <b>outpost</b> on a nearby tile to gather what that land offers: food on plains, timber in forests, stone and ores in hills, iron and rare finds in mountains.</p>
       <p>Your tier decides how many outposts you can run and how far away. Outposts can be upgraded to level 3 for more yield — each level eats a little more food.</p>
-      <p>Post a <b>worker</b> at an outpost for +25% yield — +50% if their trade suits the land (a Miner in the hills, a Woodcutter in the forest). While posted they don't work in town. If the stores can't feed your outposts, they work at <b>half pace</b> until there is food again. Dismantling one gives back about half of what it cost.</p>
+      <p>Post a <b>worker</b> at an outpost for +25% yield — +50% if their trade suits the land (a Miner in the hills, a Woodcutter in the forest). While posted they don't work in town. If the stores can't feed your outposts, they work at <b>half pace</b> until there is food again. Dismantling one gives back about half of what it cost, and its crew carry its store home.</p>
+      <p>An outpost keeps what it produces in its <b>own store</b> — 300 of each resource per level. When a resource is full, production of it stops. To use the goods, <b>porters</b> must carry them home: <b>Send a porter</b> for one trip, or make someone the outpost's <b>hauler</b> and they go back and forth on their own. A trip takes about 10 minutes per tile each way; a porter carries 20 weight (more with a Market, and with Porter perks). Raiders who strike an outpost loot its store, so don't let it pile up.</p>
+      <p>The <b>⛺ Outposts</b> tab beside Citizens shows every outpost, its store and who is on the road.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
     { id: 'expeditions', icon: '🗺', title: 'Scouts and expeditions', body: `
       <p>Build a <b>Scout Post</b> and give a citizen the <b>Scout</b> job. Then tap a tile under the fog and <b>Dispatch Scout</b>: they walk there and reveal the land around it when they arrive. Fog is slower to cross than land you know; a bigger Scout Post and a skilled scout are faster.</p>
@@ -67,7 +69,7 @@
       <p>Any town can hold a <b>festival</b>: it costs wealth and food, and for 24 hours brings +10 happiness and +10% production. After one, the town needs 72 hours (from the start) before the next.</p>
       <p>A <b>City</b> whose scholars have learned how to raise great works can build <b>Wonders</b> — five great works, each built in three stages, needing metals and rare materials (the last stage an Ancient Blueprint). A finished wonder gives a permanent bonus.</p>
       <p>Grandeur costs upkeep: each finished wonder, and each City building level above 3, takes wealth every hour. If the treasury runs dry, wonders lie dormant and happiness drops until wealth returns.</p>`,
-      open: [['🏛 Your town', link('KWTown.open', 'festival')]] },
+      open: [['🎉 Festivals', link('KWTown.open', 'festival')], ['🏛 Wonders', link('KWTown.open', 'wonders')]] },
     { id: 'clans', icon: '🛡', title: 'Clans', body: `
       <p>Build a <b>Guild Hall</b> (a Town building) to found or join a clan. Clans share a hall, a forum and chat, take on clan quests together and earn prestige for the clan rankings.</p>
       <p>Members can give wealth to the clan <b>treasury</b> (up to 2,000 a day, earning prestige). Officers and above spend it on week-long <b>boons</b> for everyone: more food, faster crafting, quicker research, lower Market fees, or an Iron Wall against raids. Clan land pays the treasury every day, and members' outposts on it work harder and are harder to raid.</p>

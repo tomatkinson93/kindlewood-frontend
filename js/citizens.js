@@ -167,8 +167,9 @@ function renderCitizensList() {
       ? ' <span class="crf-hunger-badge" title="Hungry">🥣</span>'
       : '';
 
-    const isAway = isScouting || isOnQuest || isOnDiplo;
-    const awayLabel = isOnQuest ? '⚔️ On Quest' : isOnDiplo ? '📨 Diplomat' : '🗺 Scouting';
+    const away = citizenAway(c);
+    const isAway = !!away;
+    const awayLabel = away ? away.label : '';
 
     if (compact) {
       if (isAway) {
@@ -220,6 +221,19 @@ function renderCitizensList() {
       + '</div>';
     return fullBase;
   }).join('');
+}
+
+// Away from the settlement (greyed placard in the lists): { icon, label } or
+// null. Shopkeepers and merchants minding an order are at home, so not away.
+function citizenAway(c) {
+  if (!c) return null;
+  if (c.active_quest) return { icon: '⚔️', label: '⚔️ ' + (c.active_quest.clan ? 'On a clan quest' : 'On Quest') };
+  if (window._diploEnvoyIds && window._diploEnvoyIds.has(c.id)) return { icon: '📨', label: '📨 Diplomat' };
+  if (c.expedition) return { icon: '🗺', label: '🗺 Scouting' };
+  if (c.haul) return { icon: '🧺', label: '🧺 ' + (c.haul.status === 'returning' ? 'Hauling home from ' : 'Fetching from ') + (c.haul.outpost_name || 'an outpost') };
+  if (c.trade && c.trade.on_road) return { icon: c.trade.porter === 'ironhaven' ? '🏰' : c.trade.porter ? '🧺' : '🐾', label: c.trade.porter === 'ironhaven' ? '🏰 Off to Ironhaven' : c.trade.porter ? '🧺 Porter run' : '🐾 Trading' };
+  if (c.outpost) return { icon: c.outpost.post === 'garrison' ? '🛡️' : c.outpost.post === 'hauler' ? '🧺' : '👷', label: (c.outpost.post === 'garrison' ? '🛡️ Guarding ' : c.outpost.post === 'hauler' ? '🧺 Hauling for ' : '👷 At ') + 'the ' + c.outpost.name };
+  return null;
 }
 
 // ── Citizen Profile Modal ─────────────────────
@@ -807,12 +821,14 @@ async function updateCitizenRole(id, role) {
 // ── Tab switching ──
 
 function showCitizensPanel() {
+  if (window.KWOutposts) KWOutposts.hide();
   document.getElementById('panel-map-view').style.display = 'none';
   document.getElementById('panel-citizens-view').style.display = 'flex';
   loadCitizens();
 }
 
 function showMapPanel() {
+  if (window.KWOutposts) KWOutposts.hide();
   document.getElementById('panel-citizens-view').style.display = 'none';
   document.getElementById('panel-map-view').style.display = 'flex';
 }
@@ -932,17 +948,16 @@ function renderAllCitizens(sortKey, sortDir, filter) {
     // Role cell — no dropdown for children or citizens on quests
     const roleCell = isChild(c)
       ? '<td class="ac-role-child">🍼 Child</td>'
-      : c.active_quest
-        ? '<td class="ac-role-child">⚔️ On Quest</td>'
-      : c.outpost
-        ? '<td class="ac-role-child">👷 At ' + c.outpost.name + '</td>'
+      : away
+        ? '<td class="ac-role-child ac-role-away">' + away.label + '</td>'
       : c.trade
         ? '<td class="ac-role-child">' + (c.trade.on_road ? (c.trade.porter ? '🧺 Porter' : '🐾 Trading') : c.trade.shop ? '🏪 Shopkeeper' : '⚖️ Merchant') + '</td>'
         : '<td><select class="ac-role-select" onchange="updateCitizenRole(' + c.id + ', this.value)" onclick="event.stopPropagation()">' +
           ((window.KWCareers && KWCareers.roleOptionsHtml(c)) || getAvailableRoles().map(r => '<option value="' + r + '"' + (c.role===r?' selected':'') + '>' + (ROLE_ICONS[r]||'?') + ' ' + r + '</option>').join('')) +
           '</select></td>';
 
-    return '<tr class="ac-row' + (isChild(c) ? ' ac-row--child' : '') + '" id="ac-row-' + c.id + '" onclick="openCitizenProfile(' + c.id + ')" style="cursor:pointer">'
+    const away = citizenAway(c);
+    return '<tr class="ac-row' + (isChild(c) ? ' ac-row--child' : '') + (away ? ' ac-row--away' : '') + '" id="ac-row-' + c.id + '"' + (away ? ' title="' + away.label.replace(/"/g, '') + ' — not in the settlement"' : '') + ' onclick="openCitizenProfile(' + c.id + ')" style="cursor:pointer">'
       + '<td class="ac-name">' + c.name + (isChild(c) ? ' <span class="ac-child-tag">child</span>' : '') + '</td>'
       + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y</td>'
       + '<td class="ac-meta">Gen ' + (c.generation??1) + '</td>'
