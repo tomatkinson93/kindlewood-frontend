@@ -6686,10 +6686,31 @@ body.login-mode .hero-text-welcome {
 
 .ls-status {
   font-size: 12px;
-  color: rgba(192,221,151,.4);
+  color: rgba(192,221,151,.65);
   letter-spacing: .04em;
-  height: 18px;
+  min-height: 18px;
+  text-align: center;
 }
+
+/* The loading checklist (main.js lsStep): what the game is checking, one row each. */
+.ls-content { max-width: calc(100vw - 32px); }
+.ls-steps { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.ls-step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(232,222,196,.75); }
+.ls-step small { color: rgba(232,222,196,.45); }
+.ls-step .ls-ic { width: 16px; text-align: center; flex: none; font-weight: 700; }
+.ls-step.ls-ok .ls-ic { color: #9fd36a; }
+.ls-step.ls-warn .ls-ic { color: #e8c76a; }
+.ls-step.ls-fail .ls-ic { color: #ef7a62; }
+.ls-step.ls-run { color: #f0e6cc; }
+.ls-spin { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(232,199,106,.25); border-top-color: #e8c76a; animation: ls-spin .8s linear infinite; vertical-align: middle; }
+@keyframes ls-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ls-spin { animation: none; border-color: #e8c76a; } }
+.ls-problem { width: 100%; margin-top: 8px; padding: 12px 14px; border-radius: 10px; background: rgba(120,30,20,.35); border: 1px solid rgba(239,122,98,.5); color: #f6e7da; font-size: 13px; line-height: 1.45; }
+.ls-problem p { margin: 0 0 6px; }
+.ls-problem-sub { color: rgba(246,231,218,.75); font-size: 12px; }
+.ls-problem-btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.ls-btn { font: inherit; font-size: 13px; font-weight: 600; min-height: 38px; padding: 6px 16px; border-radius: 9px; cursor: pointer; border: 1px solid rgba(232,200,140,.4); background: rgba(255,255,255,.06); color: #f3e9d2; }
+.ls-btn-main { background: #e8c76a; border-color: #e8c76a; color: #2a1d0c; }
 
 /* Fixed happiness tooltip — appended to body, zero layout impact */
 .cp-happiness-tooltip-fixed {

@@ -41,16 +41,89 @@ function apiFetch(path, options = {}) {
 function showLoadingScreen() {
   const el = document.getElementById('loading-screen');
   if (!el) return;
+  window.__kwLoadingOwned = true;   // the early file ticker (index.html) stops
   el.style.display = 'flex';
   el.style.opacity = '1';
-  setLoadingProgress(0, 'Entering the realm…');
+  setLoadingProgress(Math.max(_lsPct(), 30), 'Entering the realm…');
 }
 
+function _lsPct() { const b = document.getElementById('ls-bar'); return b ? parseFloat(b.style.width) || 0 : 0; }
 function setLoadingProgress(pct, status) {
   const bar = document.getElementById('ls-bar');
   const txt = document.getElementById('ls-status');
   if (bar) bar.style.width = pct + '%';
   if (txt && status) txt.textContent = status;
+}
+
+// ── Loading checklist ─────────────────────────────────────────────────────
+// Rows under the bar ("✓ Drawing the world map"); each step is awaited for
+// real, capped so a slow one never strands the player (it's marked ⚠ and the
+// game carries on).
+const LS_STEPS = [];
+function lsStep(key, label) {
+  const row = LS_STEPS.find(r => r.key === key);
+  if (row) Object.assign(row, { label, state: 'run', note: '' }); else LS_STEPS.push({ key, label, state: 'run', note: '' });
+  _lsRender();
+}
+function lsDone(key, state = 'ok', note = '') {
+  const row = LS_STEPS.find(r => r.key === key);
+  if (row) { row.state = state; row.note = note; _lsRender(); }
+}
+function _lsRender() {
+  const ul = document.getElementById('ls-steps');
+  if (!ul) return;
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const icon = { run: '<span class="ls-spin" aria-hidden="true"></span>', ok: '✓', warn: '⚠', fail: '✕' };
+  ul.innerHTML = LS_STEPS.map(r => `<li class="ls-step ls-${r.state}"><span class="ls-ic">${icon[r.state]}</span><span>${esc(r.label)}${r.note ? ` <small>— ${esc(r.note)}</small>` : ''}</span></li>`).join('');
+}
+// Await `p`, but give up waiting after `ms` (returns 'timeout').
+function lsWithin(p, ms) {
+  return Promise.race([Promise.resolve(p).then(() => 'ok', () => 'error'), new Promise(r => setTimeout(() => r('timeout'), ms))]);
+}
+async function lsRun(key, label, p, ms = 15000) {
+  lsStep(key, label);
+  const out = await lsWithin(p, ms);
+  lsDone(key, out === 'ok' ? 'ok' : 'warn', out === 'timeout' ? 'slow — carrying on' : out === 'error' ? 'didn\u2019t answer — carrying on' : '');
+  return out;
+}
+// The API sleeps when nobody has played for a while (Render) and takes up to a
+// minute to wake: retry network errors and 5xx with a message saying so.
+const WAKE_DELAYS = [2000, 4000, 6000, 8000, 10000, 15000, 15000];
+async function apiFetchWaking(path, onWait) {
+  for (let i = 0; ; i++) {
+    let res = null;
+    try { res = await apiFetch(path); } catch (e) { res = null; }
+    if (res && res.status < 500) return res;
+    if (i >= WAKE_DELAYS.length) { if (res) return res; throw new Error('The realm\u2019s server did not answer.'); }
+    if (onWait) onWait(i + 1, WAKE_DELAYS.length + 1);
+    await new Promise(r => setTimeout(r, WAKE_DELAYS[i]));
+  }
+}
+// Friendly names for game files that never arrived.
+const LS_FILE_NAMES = { 'market.js': 'the Market', 'chat-hub.js': 'chat', 'travel.js': 'travel paths', 'realtime.js': 'live updates',
+  'settlement-view.js': 'your settlement view', 'mobile-shell.js': 'the phone layout', 'main.js': 'the core game', 'clans.js': 'clans',
+  'research.js': 'research', 'crafting.js': 'crafting', 'careers.js': 'careers', 'raids.js': 'raids', 'quests.js': 'quests', 'tavern.js': 'the tavern' };
+// When files are still missing after their retries: say which, and let the
+// player reload or carry on without them. Resolves when they choose to carry on.
+function lsProblem(files) {
+  const box = document.getElementById('ls-problem');
+  if (!box) return Promise.resolve();
+  const what = files.map(f => LS_FILE_NAMES[f] ? `${LS_FILE_NAMES[f]} (${f})` : f);
+  box.innerHTML = `<p><b>Some of the game didn\u2019t arrive:</b> ${what.map(w => w.replace(/[&<>]/g, '')).join(', ')}.</p>
+    <p class="ls-problem-sub">The game host was busy. Reloading usually fixes it; you can also carry on without ${files.length === 1 ? 'it' : 'them'} for now.</p>
+    <div class="ls-problem-btns"><button type="button" class="ls-btn ls-btn-main" data-ls="reload">Reload</button><button type="button" class="ls-btn" data-ls="go">Carry on</button></div>`;
+  box.hidden = false;
+  return new Promise(resolve => {
+    box.onclick = e => {
+      const b = e.target.closest('[data-ls]');
+      if (!b) return;
+      if (b.dataset.ls === 'reload') return location.reload();
+      if (window.KWLoad) KWLoad.acknowledged = true;
+      box.hidden = true;
+      resolve();
+    };
+    const first = box.querySelector('.ls-btn-main'); if (first) first.focus();
+  });
 }
 
 function hideLoadingScreen() {
@@ -277,6 +350,7 @@ async function logout() {
 
 let _loadGameLock = false;
 
+let _gameShownOnce = false;   // the first load gets the full checklist; later reloads are quick
 async function loadGame(force = false) {
   if (_loadGameLock && !force) {
     console.log('loadGame blocked by lock');
@@ -285,13 +359,28 @@ async function loadGame(force = false) {
 
   _loadGameLock = true;
   console.log('loadGame called at', Date.now());
+  const first = !_gameShownOnce;
 
   try {
-    const res = await apiFetch('/api/game/settlement');
+    if (first) {
+      showLoadingScreen();
+      LS_STEPS.length = 0;
+      // 1. Every game file (the load guard retries the ones the host turned away).
+      if (window.KWLoad) {
+        lsStep('files', 'Fetching the game files');
+        const p0 = KWLoad.progress();
+        lsDone('files', p0.failed.length ? 'warn' : 'ok', p0.failed.length ? `${p0.failed.length} missing` : `${p0.total} files`);
+      }
+      lsStep('settlement', 'Reading your settlement');
+    }
+    const res = await apiFetchWaking('/api/game/settlement', (n, of) => {
+      if (first) setLoadingProgress(Math.max(_lsPct(), 32), `The realm's server is waking up — this can take up to a minute (try ${n + 1} of ${of})…`);
+    });
     console.log('settlement response:', res.status);
 
     if (!res.ok) {
       _loadGameLock = false;
+      if (first) hideLoadingScreen();
       showScreen('login');
       return;
     }
@@ -305,14 +394,15 @@ async function loadGame(force = false) {
 
     if (needsPlacement) {
       console.log('loadGame -> showing ARRIVAL screen');
+      if (first) hideLoadingScreen();
       showArrivalScreen(gameData.settlement.name);
       _loadGameLock = false;
       return;
     }
 
     console.log('loadGame -> showing GAME screen');
-    showLoadingScreen();
-    setLoadingProgress(15, 'Loading settlement data…');
+    if (first) lsDone('settlement'); else showLoadingScreen();
+    setLoadingProgress(40, first ? 'Laying out the town…' : 'Loading settlement data…');
 
     showScreen('game');
     renderTopbar();
@@ -320,23 +410,30 @@ async function loadGame(force = false) {
     if (typeof renderFamineBanner === 'function') renderFamineBanner(gameData.settlement.famine);
     if (window.KWTown) KWTown.onSettlement(gameData.settlement);   // festival / unpaid upkeep banner
     if (window.KWRaids) KWRaids.onSettlement(gameData.settlement); // raid on its way banner
-    preloadTileImages();
+    const tiles = preloadTileImages();
     if (typeof generatePixelArtTiles === 'function') generatePixelArtTiles();
 
-    setLoadingProgress(35, 'Building the world map…');
-    renderMap();
+    setLoadingProgress(50, 'Drawing the world map…');
+    const map = loadWorldMap();
+    if (first) await lsRun('map', 'Drawing the world map', map);
 
-    setLoadingProgress(55, 'Preparing your citizens…');
-    if (typeof loadCitizens === 'function') loadCitizens();
+    setLoadingProgress(62, 'Waking your citizens…');
+    const cit = typeof loadCitizens === 'function' ? loadCitizens() : null;
     initGuardArt();
     if (typeof initProfileDisplay === 'function') initProfileDisplay(gameData.username, gameData.species);
-
-    setLoadingProgress(70, 'Loading buildings…');
-    loadBuildings();
-
-    setLoadingProgress(82, 'Checking expeditions…');
-    loadExpeditions();
+    const bld = loadBuildings();
+    const exp = loadExpeditions();
     startExpeditionPoll();
+    if (first) {
+      setLoadingProgress(70, 'Counting heads, checking buildings, finding your scouts…');
+      await Promise.all([
+        lsRun('citizens', 'Waking your citizens', cit),
+        lsRun('buildings', 'Checking your buildings', bld),
+        lsRun('expeditions', 'Finding your scouts', exp),
+      ]);
+      setLoadingProgress(84, 'Painting the land…');
+      await lsRun('art', 'Painting the land', tiles, 5000);
+    }
 
     setLoadingProgress(92, 'Finishing up…');
     startResourceTick(gameData.settlement.resources, gameData.settlement.rates);
@@ -384,11 +481,24 @@ async function loadGame(force = false) {
     _populateProfileTrigger();
     setTimeout(selectHomeTile2, 800);
 
-    // Hide loading screen once the map has had time to render
+    // Anything the host still hasn't sent after its retries: say so here,
+    // rather than leaving buttons that do nothing.
+    if (first && window.KWLoad) {
+      await lsWithin(KWLoad.ready(), 12000);
+      const missing = KWLoad.progress().failed;
+      if (missing.length) {
+        lsDone('files', 'fail', `${missing.length} missing`);
+        setLoadingProgress(96, 'Some of the game didn’t arrive.');
+        await lsProblem(missing);
+      }
+    }
+
+    // Close the loading screen once the map has had time to settle.
+    _gameShownOnce = true;
     setTimeout(() => {
       setLoadingProgress(100, 'Welcome back!');
-      setTimeout(hideLoadingScreen, 400);
-    }, 600);
+      setTimeout(hideLoadingScreen, first ? 600 : 400);
+    }, first ? 200 : 600);
     // "Since you were gone…" splash + the last-seen heartbeat (js/away-report.js).
     // After GET /settlement above, so the server's away ledger is up to date.
     if (window.KWAwayReport) setTimeout(() => window.KWAwayReport.start(), 1200);
@@ -401,9 +511,22 @@ async function loadGame(force = false) {
     // A throw in a late, non-critical step (audio preload, a badge fetch,
     // profile widget) must NOT eject a player with a valid session.
     if (!gameData || !gameData.settlement) {
+      if (first && /did not answer/.test(err && err.message)) {
+        // The server never woke: say so on the loading screen and offer a retry.
+        lsDone('settlement', 'fail', 'no answer');
+        setLoadingProgress(_lsPct(), 'The realm’s server isn’t answering.');
+        const box = document.getElementById('ls-problem');
+        if (box) {
+          box.innerHTML = '<p><b>The realm’s server isn’t answering.</b></p><p class="ls-problem-sub">It may be restarting. Try again in a minute.</p><div class="ls-problem-btns"><button type="button" class="ls-btn ls-btn-main" onclick="location.reload()">Try again</button></div>';
+          box.hidden = false;
+        }
+        return;
+      }
+      if (first) hideLoadingScreen();
       showScreen('login');
     } else {
       console.warn('loadGame: late non-critical step failed; staying in game.');
+      _gameShownOnce = true;
       try { hideLoadingScreen(); } catch (e) {}
     }
   }
@@ -1011,7 +1134,7 @@ function preloadTileImages() {
       img.src = src;
     })
   );
-  Promise.all(promises).then(() => { _tileImagesLoaded = true; });
+  return Promise.all(promises).then(() => { _tileImagesLoaded = true; });
 }
 
 // ── Fog texture ────────────────────────────────
@@ -2076,19 +2199,24 @@ kwWhenReady(async () => {
   const token = localStorage.getItem('kw_token');
   if (!token) return;
   try {
-    const res = await apiFetch('/api/auth/me');
+    const res = await apiFetchWaking('/api/auth/me', (n, of) => {
+      window.__kwLoadingOwned = true;   // stop the file counter (index.html) overwriting this
+      setLoadingProgress(Math.max(_lsPct(), 30), `The realm's server is waking up — this can take up to a minute (try ${n + 1} of ${of})…`);
+    });
     if (res.ok) {
       try {
         const me = await res.json();
         window._authUser = { userId: me.userId, username: me.username, species: me.species };
       } catch (e) {}
       await loadGame();
-    } else if (res.status === 401) {
-      localStorage.removeItem('kw_token');
+    } else {
+      if (res.status === 401) localStorage.removeItem('kw_token');
+      hideLoadingScreen();   // the early loading screen (index.html): back to the welcome screen
     }
   } catch (e) {
     // Network error — keep the token, don't log the user out on a blip.
     console.error('DOMContentLoaded auth check failed:', e);
+    hideLoadingScreen();
   }
 }, window);
 

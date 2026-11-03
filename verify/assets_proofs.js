@@ -102,5 +102,17 @@ console.log('4. Browser caching on the host');
   check('4c. compression on', /AddOutputFilterByType DEFLATE[^\n]*application\/javascript/.test(A) && /text\/css/.test(A));
 }
 
+console.log('5. The loading screen waits for everything');
+{
+  const M = read('js/main.js');
+  check('5a. signed-in players see it from the start, counting the files in (and who is being retried)', /if \(!t \|\| !window\.KWLoad\) return;[^]*Fetching the game files… ' \+ p\.done \+ ' of ' \+ p\.total/.test(H) && /The host is busy — trying ' \+ p\.retrying\[0\]\.file/.test(H));
+  check('5b. KWLoad.progress() and ready() for it', /progress: function \(\)/.test(H) && /ready: function \(\)/.test(H));
+  check('5c. each step is awaited for real, with a cap (map, citizens, buildings, scouts, art)', ["lsRun('map'", "lsRun('citizens'", "lsRun('buildings'", "lsRun('expeditions'", "lsRun('art'"].every(k => M.includes(k)) && /function lsWithin\(p, ms\)/.test(M));
+  check('5d. a sleeping server is woken with retries and says so', /const WAKE_DELAYS = \[/.test(M) && /server is waking up — this can take up to a minute/.test(M) && /apiFetchWaking\('\/api\/game\/settlement'/.test(M) && /apiFetchWaking\('\/api\/auth\/me'/.test(M));
+  check('5e. files still missing: named on the loading screen, with Reload or Carry on', /await lsProblem\(missing\)/.test(M) && /data-ls="reload">Reload/.test(M) && /data-ls="go">Carry on/.test(M) && /KWLoad\.acknowledged = true/.test(M));
+  check('5f. signed out or 401: the early loading screen closes again', /if \(res\.status === 401\) localStorage\.removeItem\('kw_token'\);\s*hideLoadingScreen\(\);/.test(M));
+  check('5g. only the first load gets the full checklist (later reloads stay quick)', /const first = !_gameShownOnce;/.test(M));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
