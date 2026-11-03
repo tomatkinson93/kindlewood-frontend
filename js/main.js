@@ -1,3 +1,5 @@
+// Load guard helper (index.html); falls back to plain DOMContentLoaded where the page's guard isn't loaded.
+var kwWhenReady = (typeof kwWhenReady === 'function' && kwWhenReady) || function (f, t) { (t || document).addEventListener('DOMContentLoaded', f); };
 const API = window.KINDLEWOOD_API || '';
 
 let chosenSpecies = null;
@@ -566,7 +568,7 @@ function stopLoginArtCycle() {
 
   // Init on page load. Drive the pill icon from the ACTUAL audio state so it can
   // never disagree with what's playing (whoever calls play/pause).
-  document.addEventListener('DOMContentLoaded', () => {
+  kwWhenReady(() => {
     const audio = getAudio();
     if (audio) {
       audio.addEventListener('play',  () => { _bgFadeIn(audio); setMusicPlaying(true); });
@@ -2070,7 +2072,7 @@ setInterval(() => {
   fetch(API + '/health', { credentials: 'include' }).catch(() => {});
 }, 14 * 60 * 1000);
 
-window.addEventListener('DOMContentLoaded', async () => {
+kwWhenReady(async () => {
   const token = localStorage.getItem('kw_token');
   if (!token) return;
   try {
@@ -2088,7 +2090,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Network error — keep the token, don't log the user out on a blip.
     console.error('DOMContentLoaded auth check failed:', e);
   }
-});
+}, window);
 
 // ── Action bar ──
 function actionScout() {

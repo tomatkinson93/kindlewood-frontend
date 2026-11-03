@@ -1,3 +1,5 @@
+// Load guard helper (index.html); falls back to plain DOMContentLoaded where the page's guard isn't loaded.
+var kwWhenReady = (typeof kwWhenReady === 'function' && kwWhenReady) || function (f, t) { (t || document).addEventListener('DOMContentLoaded', f); };
 const CAROUSEL_SPECIES = ['mouse','badger','fox','otter','hare','mole'];
 let carouselIdx = 0;
 
@@ -95,7 +97,7 @@ document.addEventListener('touchend', e => {
   if (dx > 40) carouselPrev();
 });
 
-window.addEventListener('DOMContentLoaded', () => { carouselRender(); });
+kwWhenReady(() => { carouselRender(); }, window);
 
 function scrollToSpecies() {
   document.querySelector('.species-section').scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -1,3 +1,5 @@
+// Load guard helper (index.html); falls back to plain DOMContentLoaded where the page's guard isn't loaded.
+var kwWhenReady = (typeof kwWhenReady === 'function' && kwWhenReady) || function (f, t) { (t || document).addEventListener('DOMContentLoaded', f); };
 // ── Season display system ──
 
 let currentSeason = null;
@@ -244,7 +246,7 @@ document.getElementById('season-panel')?.addEventListener('click', () => {
 });
 
 // Show season badge immediately on page load
-document.addEventListener('DOMContentLoaded', () => {
+kwWhenReady(() => {
   const badge = document.getElementById('season-badge');
   if (badge) {
     currentSeason = calcCurrentSeason();
