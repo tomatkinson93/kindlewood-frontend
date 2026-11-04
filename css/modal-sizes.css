@@ -1,0 +1,23 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Fixed sizes for tabbed windows. Switching tabs must not make a window grow
+   or shrink: each card keeps one height and its body scrolls instead. Loaded
+   after the other stylesheets; phone layouts (body.kw-shell) still win.
+   Measured with the scratch "measure" run: these were the ones that moved.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* "Since you were gone…": wide enough for all seven tabs. */
+.ar-card { width: min(880px, calc(100vw - 32px)); }
+.ar-tabs { justify-content: flex-start; }
+
+/* Citizen profile (Stats, Career, Traits, Relationships, Family, Scars). */
+.citizen-profile-modal { height: min(820px, 88vh); max-height: 88vh; }
+
+/* Mail (Inbox, Sent, Write, Blocked). */
+.mail-card { height: min(620px, calc(100vh - 32px)); }
+.mail-card .mail-body { flex: 1; min-height: 0; }
+
+/* Inventory (All, Equipment, Materials, …). */
+.inv-modal-card { height: min(700px, 85vh); }
+
+/* Clan panel (Hall, Members, Forum, Treasury, …). */
+.clan-card { height: min(780px, 88vh); }

@@ -200,6 +200,7 @@ async function refreshResources() {
 }
 
 function showBuildToast(msg, type='success') {
+  if (typeof _holdToast === 'function' && _holdToast(showBuildToast, arguments)) return;   // waits for Start playing (main.js)
   let toast = document.getElementById('build-toast');
   if (!toast) {
     toast = document.createElement('div');

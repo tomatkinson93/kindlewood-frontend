@@ -10,7 +10,7 @@
   'use strict';
   const ROOTS = [
     'jn-overlay', 'rs-overlay', 'cr-overlay', 'cf-overlay', 'raid-sheet', 'call-sheet', 'market-panel', 'tw-overlay',
-    'clan-panel', 'chat-hub', 'clan-profile', 'mail-modal', 'away-report-modal',
+    'kwop-modal', 'clan-panel', 'chat-hub', 'clan-profile', 'mail-modal', 'away-report-modal',
     'diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'inventory-modal', 'housing-modal', 'citizen-profile-modal',
     'all-citizens-modal', 'cheat-modal', 'online-modal', 'community-modal', 'tier-upgrade-modal', 'tier-celebration-modal',
     'profile-modal', 'view-profile-modal', 'map-preview-modal', 'settings-backdrop', 'stores-pop', 'events-panel',

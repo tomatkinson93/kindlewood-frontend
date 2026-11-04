@@ -42,6 +42,7 @@ function showLoadingScreen() {
   const el = document.getElementById('loading-screen');
   if (!el) return;
   window.__kwLoadingOwned = true;   // the early file ticker (index.html) stops
+  if (!_gameShownOnce) window.__kwHoldToasts = true;   // toasts wait for Start playing
   const play = document.getElementById('ls-play'); if (play) play.hidden = true;
   el.style.display = 'flex';
   el.style.opacity = '1';
@@ -141,6 +142,7 @@ function lsReadyToPlay() {
 
 function hideLoadingScreen() {
   const el = document.getElementById('loading-screen');
+  releaseHeldToasts();
   if (!el) return;
   el.style.transition = 'opacity 0.6s ease';
   el.style.opacity = '0';
@@ -1431,6 +1433,7 @@ function _outpostSectionHtml(tile) {
     return `
       <div class="op-section">
         <div class="op-title">${OUTPOST_ICONS[tile.outpost.terrain] || '⛺'} ${cfg?.name || 'Outpost'} <span class="op-level">Lv ${lvl}/${mine?.max_level || 3}</span> <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('outposts')">?</button></div>
+        <button type="button" class="action-btn op-manage" data-kwop="manage" data-id="${tile.outpost.id}">🏕️ Manage outpost — buildings, crew, store</button>
         <div class="op-chips">${_yieldChips(mine?.yields || cfg?.yields)}${_oreChips(mine?.ores || cfg?.ores)}<span class="op-chip op-chip-minus">🍎 −${mine?.upkeep_food_per_hr ?? st?.upkeep_food_per_hr ?? 1}/hr upkeep</span></div>
         ${(mine?.notes || []).filter(n => n.key !== 'worker').map(n => `<div class="op-note op-note-warn">${n.key === 'unfed' ? '🍂' : '🔥'} ${n.label}</div>`).join('')}
         ${_outpostRaidHtml(mine)}
@@ -1537,7 +1540,7 @@ function _outpostWorkerHtml(mine) {
   const fitLabel = OP_CLASS_LABELS[fitKey] || null;
   const workers = mine.workers || (mine.worker ? [mine.worker] : []);
   const slots = mine.worker_slots || 1;
-  const rows = workers.map(w => `<div class="op-crew-row"><span>👷 <b>${w.name}</b> +${Math.round((w.fit ? wb.fit : wb.base) * 100)}%${w.fit ? ' ★' : ''}</span>`
+  const rows = workers.map(w => `<div class="op-crew-row"><span>${w.arriving ? '🚶' : '👷'} <b>${w.name}</b> ${w.arriving ? `<span class="op-arriving">on the way · <span data-kwop-end="${w.arrives_at}">${window.KWOutposts ? KWOutposts.fmtLeft(w.arrives_at) : ''}</span></span>` : `+${Math.round((w.fit ? wb.fit : wb.base) * 100)}%${w.fit ? ' ★' : ''}`}</span>`
     + `<button class="action-btn op-worker-btn" data-op-unassign="${mine.id}" data-cid="${w.id}">Home</button></div>`).join('');
   const free = _opFreeCitizens();
   const sorted = free.slice().sort((a, b) => (b.role === fitKey) - (a.role === fitKey) || String(a.name).localeCompare(String(b.name)));
@@ -1572,7 +1575,7 @@ function _outpostDefenceHtml(mine) {
       ? `<div class="op-fort-next"><div class="op-chips">${_costChips(n.cost, _liveResources())}</div><button class="action-btn op-worker-btn" data-op-fortify="${mine.id}" ${_opAffordable(n.cost) ? '' : 'disabled'}>${f.level ? 'Raise' : 'Build'} a ${n.name} (+${n.defence})</button></div>`
       : `<div class="op-worker-hint">🔒 A ${n.name} needs ${n.research}.</div>`;
   }
-  const rows = garrison.map(g => `<div class="op-crew-row"><span>${g.role === 'archer' ? '🏹' : '🛡️'} <b>${g.name}</b> +${8 + (g.class_level || 1)}</span>`
+  const rows = garrison.map(g => `<div class="op-crew-row"><span>${g.arriving ? '🚶' : g.role === 'archer' ? '🏹' : '🛡️'} <b>${g.name}</b> ${g.arriving ? `<span class="op-arriving">on the way · <span data-kwop-end="${g.arrives_at}">${window.KWOutposts ? KWOutposts.fmtLeft(g.arrives_at) : ''}</span></span>` : `+${8 + (g.class_level || 1)}`}</span>`
     + `<button class="action-btn op-worker-btn" data-op-unassign="${mine.id}" data-cid="${g.id}">Home</button></div>`).join('');
   const guards = _opFreeCitizens().filter(c => c.role === 'soldier' || c.role === 'archer');
   const pick = f.slots && garrison.length < f.slots
@@ -1775,6 +1778,8 @@ async function _dismantleOutpost(btn, tile) {
 
 function selectWorldTile(tile) {
   _selectWorldTileImpl(tile);
+  // The outpost window (js/outposts.js) redraws from the same status.
+  if (window.KWOutposts) KWOutposts.refreshModal();
   // Append dev terrain editor to whatever the impl just rendered. Lives
   // outside the branched logic so it's visible on every tile (player,
   // NPC, unoccupied) without having to inject it in three places.
@@ -2531,7 +2536,23 @@ const EVENT_TOAST_ICONS = {
   expedition_complete: '🗺', harvest: '🌿', default: '📜',
 };
 
+// Toasts that arrive while the loading screen is up (village offers, market
+// news, …) wait until the player presses Start playing, then play in turn.
+const _heldToasts = [];
+function _holdToast(fn, args) {
+  if (!window.__kwHoldToasts) return false;
+  _heldToasts.push([fn, Array.prototype.slice.call(args)]);
+  return true;
+}
+function releaseHeldToasts() {
+  if (!window.__kwHoldToasts) return;
+  window.__kwHoldToasts = false;
+  const list = _heldToasts.splice(0);
+  list.forEach(([fn, args], i) => setTimeout(() => { try { fn.apply(null, args); } catch (e) { /* one bad toast never blocks the rest */ } }, 300 + i * 700));
+}
+
 function showToastNotification(message, type) {
+  if (_holdToast(showToastNotification, arguments)) return;
   const stack = document.getElementById('toast-stack');
   if (!stack) return;
 

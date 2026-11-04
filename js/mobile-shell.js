@@ -566,7 +566,7 @@
     var ids = [
       'tavern-overlay', 'fishing-overlay', 'combat-modal',
       'settlement-view', 'sq-backdrop', 'bcmp-backdrop',
-      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay',
+      'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay', 'kwop-modal',
       // R5: dialogs that go full screen on phones
       'diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'away-report-modal', 'tier-upgrade-modal',
       'jn-overlay', 'rs-overlay', 'cr-overlay', 'cf-overlay', 'raid-sheet', 'call-sheet', 'community-modal', 'events-panel'
