@@ -12,8 +12,8 @@
   "sha": "b2dbb3957edc"
  },
  "js/outposts.js": {
-  "v": "ob2",
-  "sha": "746009cc43f0"
+  "v": "r6c",
+  "sha": "b4f1eb6d77af"
  },
  "js/first-steps.js": {
   "v": "r5",
@@ -76,8 +76,8 @@
   "sha": "7629ef5aef9e"
  },
  "js/help.js": {
-  "v": "ob1",
-  "sha": "473b28b4b04d"
+  "v": "r6c",
+  "sha": "8f343a06f240"
  },
  "js/wonders.js": {
   "v": "os1",
@@ -164,8 +164,8 @@
   "sha": "29e174043a33"
  },
  "js/kwmap-core.js": {
-  "v": "d2",
-  "sha": "f5fca235ac76"
+  "v": "r6c",
+  "sha": "1e262c794586"
  },
  "js/clan-territory.js": {
   "v": "clan9",
@@ -194,6 +194,10 @@
  "js/kwmap-raid.js": {
   "v": "d5b",
   "sha": "71eaea42df88"
+ },
+ "js/kwmap-roads.js": {
+  "v": "rd1",
+  "sha": "39e56abce5e7"
  },
  "js/kwmap-atmosphere.js": {
   "v": "1",
@@ -228,8 +232,8 @@
   "sha": "2c85832b2c39"
  },
  "js/main.js": {
-  "v": "ob1",
-  "sha": "8990c5579ddc"
+  "v": "r6c",
+  "sha": "312902013945"
  },
  "js/away-report.js": {
   "v": "r5d",
@@ -396,8 +400,8 @@
   "sha": "359f5b30a0af"
  },
  "js/realtime.js": {
-  "v": "ob1",
-  "sha": "b7a92058d98b"
+  "v": "r6c",
+  "sha": "b30a0461e19e"
  },
  "js/mobile-shell.js": {
   "v": "ob1",
@@ -508,8 +512,8 @@
   "sha": "8a583cdefc75"
  },
  "css/outposts.css": {
-  "v": "ob1",
-  "sha": "0bcb7a98b853"
+  "v": "r6c",
+  "sha": "f04a52180461"
  },
  "css/first-steps.css": {
   "v": "r5",

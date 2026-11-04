@@ -53,6 +53,10 @@
       <p>The <b>⛺ Outposts</b> tab beside Citizens shows every outpost, its store and who is on the road. <b>🏕️ Manage</b> opens the outpost's own window.</p>
       <p><b>Buildings:</b> an outpost has building plots — two at level 1, one more per level. A Storehouse, Bunkhouse (one more worker), Waystation (faster trips), Mule Pen (bigger loads) or Watchfire (+8 defence) suit any land; each land has its own too, such as a Sawpit in the forest or a Smokehouse on the river. They're paid from the town's stores and take an hour or two to go up.</p>
       <p>Workers and guards <b>walk</b> out to a new post and only start once they arrive; brought home, they walk back. You can watch them on the map.</p>
+      <p><b>Roads:</b> lay a <b>Track</b> to an outpost (trips 25% faster), then pave it (50%). Cost and time go by the distance. Roads show on the map.</p>
+      <p><b>Haul settings</b> (in the outpost's People tab): choose what porters bring home, and how full the store gets before its hauler sets out.</p>
+      <p><b>Happenings:</b> now and then something turns up at an outpost — a rich vein, a trader, wolves, a lost traveller, a storm. Choose what to do within 12 hours, or the crew decide for themselves.</p>
+      <p><b>Clans:</b> on your clan's land an outpost's store is a quarter bigger, and you can raise a <b>Signal Tower</b> that shares its defence with clanmates further off. Tap a clanmate's outpost to send a porter to <b>help carry</b> its goods home to them. Clans can buy the <b>Outpost Network</b> boon (porters carry 25% more), and some weekly goals ask members to carry goods home.</p>
       <p>Scouting reveals the map around you; long expeditions sometimes bring back ore samples.</p>` },
     { id: 'expeditions', icon: '🗺', title: 'Scouts and expeditions', body: `
       <p>Build a <b>Scout Post</b> and give a citizen the <b>Scout</b> job. Then tap a tile under the fog and <b>Dispatch Scout</b>: they walk there and reveal the land around it when they arrive. Fog is slower to cross than land you know; a bigger Scout Post and a skilled scout are faster.</p>

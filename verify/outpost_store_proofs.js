@@ -102,5 +102,26 @@ check('7a. toasts wait while the loading screen is up and play after Start', /fu
 const ms = read('css/modal-sizes.css');
 check('7b. tabbed windows keep one size; the away report is wider', /\.ar-card \{ width: min\(880px/.test(ms) && /\.citizen-profile-modal \{ height: min\(820px/.test(ms) && /\.mail-card \{ height:/.test(ms) && /\.inv-modal-card \{ height:/.test(ms) && /\.clan-card \{ height:/.test(ms) && /href="\/css\/modal-sizes\.css\?v=\w+"/.test(html));
 
+console.log('8. Events, roads, haul settings, clanmates, Dev Tools (R6c)');
+const oe = op({ events: [{ id: 3, kind: 'wolves', icon: '🐺', title: 'Wolves at the store', text: 'A pack…', options: [{ key: 'fight', label: 'Drive them off' }, { key: 'let', label: 'Let them eat' }], expires_at: soon(600) }],
+  road: { level: 1, built: 1, trip: 0.75, tiles: 2, building: null, next: { level: 2, name: 'Paved Road', icon: '🛣️', desc: 'Flagstones.', cost: { stone: 240 }, hours: 2 } },
+  settings: { haul_filter: ['stone'], haul_threshold: 50 } });
+h = O.eventsHtml(oe);
+check('8a. an event: what happened, time to decide, a button per choice', /Wolves at the store/.test(h) && /decide within/.test(h) && /data-kwop="event" data-id="7" data-eid="3" data-choice="fight">Drive them off/.test(h));
+check('8b. no events: nothing drawn', O.eventsHtml(op()) === '');
+h = O.roadHtml(oe, Date.now());
+check('8c. the road: what it is now, and paving it next with cost and time', /Track — trips 25% faster/.test(h) && /<b>Paved Road<\/b>/.test(h) && /data-kwop="road" data-id="7">Pave it/.test(h));
+h = O.settingsHtml(oe);
+check('8d. haul settings: a box per good (ticked as saved) and the hauler threshold', /data-kwop-filter="stone" checked/.test(h) && /data-kwop-filter="copper">/.test(h) && /<option value="50" selected>half full/.test(h) && /data-kwop="settings" data-id="7"/.test(h));
+check('8e. a clanmate\'s outpost: Help carry; nobody else\'s', /data-kwop="help" data-id="5">🤝 Help carry/.test(O.helpHtml({ outpost: { id: 5, owner: 'Bo', clanmate: true } })) && O.helpHtml({ outpost: { id: 5, owner: 'Bo' } }) === '');
+check('8f. the card flags an event and the road', /kwop-evbadge" data-kwop="manage"/.test(O.cardHtml(oe, Date.now())) && /🟫 Track<\/span>|Track<\/span> to town|🟫 Track to town/.test(O.cardHtml(oe, Date.now())));
+const rl = read('js/kwmap-roads.js');
+const rv = vm.createContext({ console }); rv.window = rv; vm.runInContext(rl, rv);
+const roads = rv.KWRoadLayer.roadsOf({ tiles: [{ q: 1, r: 1, settlement: { isOwn: true } }, { q: 3, r: 1, outpost: { mine: true, road: 2 } }, { q: 5, r: 1, outpost: { mine: true, road: 0 } }, { q: 6, r: 1, outpost: { mine: false, road: 1 } }] });
+check('8g. the map draws your roads only (town → outpost)', roads.length === 1 && roads[0].level === 2 && roads[0].to.q === 3 && /window\.KWRoadLayer\.draw\(/.test(read('js/kwmap-core.js')) && /kwmap-roads\.js\?v=\w+/.test(html));
+check('8h. the roads layer fetches nothing and draws nothing without roads', !/fetch\(|apiFetch|Math\.random/.test(rl) && /if \(!roads\.length \|\| !renderer/.test(rl));
+check('8i. Dev Tools: finish, arrive, porters, fill, start and clear events', ['finish', 'arrive', 'porters', 'fill', 'events-clear'].every(a => html.includes(`KWOutposts.devAction('${a}')`)) && /KWOutposts\.devEvent\(\)/.test(html) && /id="dev-op-event"/.test(html));
+check('8j. the live stream tells the outpost window about events', /outpost_event\(ev\) \{ if \(global\.KWOutposts\)/.test(read('js/realtime.js')) && /Help carry|help carry/.test(read('js/help.js')));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -147,7 +147,7 @@
   <link rel="stylesheet" href="/css/chat-hub.css?v=d3">
   <link rel="stylesheet" href="/css/dialog.css?v=r5f">
   <link rel="stylesheet" href="/css/journeys.css?v=r5c">
-  <link rel="stylesheet" href="/css/outposts.css?v=ob1">
+  <link rel="stylesheet" href="/css/outposts.css?v=r6c">
   <link rel="stylesheet" href="/css/first-steps.css?v=r5">
   <link rel="stylesheet" href="/css/modal-sizes.css?v=ms1">
   <script>
@@ -938,7 +938,7 @@
   <script defer src="/js/config.js?v=r2"></script>
   <script defer src="/js/dialog.js?v=r5"></script>
   <script defer src="/js/journeys.js?v=os1"></script>
-  <script defer src="/js/outposts.js?v=ob2"></script>
+  <script defer src="/js/outposts.js?v=r6c"></script>
   <script defer src="/js/first-steps.js?v=r5"></script>
   <script defer src="/js/a11y.js?v=ob1"></script>
   <script defer src="/js/day-cycle.js?v=021p6"></script>
@@ -954,7 +954,7 @@
   <script defer src="/js/stores.js?v=r5c"></script>
   <script defer src="/js/famine.js?v=r3"></script>
   <script defer src="/js/mail.js?v=r2"></script>
-  <script defer src="/js/help.js?v=ob1"></script>
+  <script defer src="/js/help.js?v=r6c"></script>
   <script defer src="/js/wonders.js?v=os1"></script>
   <script defer src="/js/cards.js?v=r4b"></script>
   <script defer src="/js/raids.js?v=os1"></script>
@@ -977,7 +977,7 @@
   <script defer src="/js/profile.js?v=r5g"></script>
   <script defer src="/js/pixelart.js?v=1777763000"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
-  <script defer src="/js/kwmap-core.js?v=d2"></script>
+  <script defer src="/js/kwmap-core.js?v=r6c"></script>
   <script defer src="/js/clan-territory.js?v=clan9"></script>
   <script defer src="/js/kwmap-settlements.js?v=021p3"></script>
   <script defer src="/js/kwmap-daylight.js?v=021p6"></script>
@@ -985,6 +985,7 @@
   <script defer src="/js/kwmap-nameplates.js?v=np2"></script>
   <script defer src="/js/kwmap-travel.js?v=ob1"></script>
   <script defer src="/js/kwmap-raid.js?v=d5b"></script>
+  <script defer src="/js/kwmap-roads.js?v=rd1"></script>
   <script defer src="/js/kwmap-atmosphere.js?v=1"></script>
   <script defer src="/js/kwmap-topdown.js?v=d3"></script>
   <!-- KWMap Phase 2 — iso renderer: manifest + placeholder atlas, then the renderer -->
@@ -994,7 +995,7 @@
   <script defer src="/js/kwmap-tileactions.js?v=r2"></script>
   <script defer src="/js/audio.js?v=021p4"></script>
   <script defer src="/js/settings-panel.js?v=tp1"></script>
-  <script defer src="/js/main.js?v=ob1"></script>
+  <script defer src="/js/main.js?v=r6c"></script>
   <script defer src="/js/away-report.js?v=r5d"></script>
   <script defer src="/js/welcome-music-guard.js?v=spec20d"></script>
   <script defer src="/js/online.js?v=r5g"></script>
@@ -1036,7 +1037,7 @@
   <script defer src="/js/chat-hub.js?v=r5"></script>
   <script defer src="/js/market.js?v=g5"></script>
   <script defer src="/js/travel.js?v=r5g"></script>
-  <script defer src="/js/realtime.js?v=ob1"></script>
+  <script defer src="/js/realtime.js?v=r6c"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=ob1"></script>
@@ -1228,6 +1229,21 @@
             <button class="cheat-res-btn" onclick="KWRaids.devStatus()">↻ Status</button>
           </div>
           <div id="dev-raid-status" class="dev-raid-status" role="status">Press ↻ Status to see the raid state.</div>
+        </div>
+
+        <div class="cheat-section-label" style="margin-top:14px">⛺ Outposts</div>
+        <div class="dev-raid">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="cheat-res-btn" onclick="KWOutposts.devAction('finish')">🏗️ Finish buildings &amp; roads</button>
+            <button class="cheat-res-btn" onclick="KWOutposts.devAction('arrive')">🚶 Crew arrive now</button>
+            <button class="cheat-res-btn" onclick="KWOutposts.devAction('porters')">🧺 Porters home now</button>
+            <button class="cheat-res-btn" onclick="KWOutposts.devAction('fill')">📦 Fill every store</button>
+          </div>
+          <div class="dev-raid-row">
+            <label>Event <select id="dev-op-event"><option value="">Any that fits</option><option value="rich_vein">⛏️ Rich vein</option><option value="trader">🧳 Trader</option><option value="wolves">🐺 Wolves</option><option value="traveller">🧳 Traveller</option><option value="cache">🏺 Cache</option><option value="storm">⛈️ Storm</option><option value="harvest">🌻 Harvest</option></select></label>
+            <button class="cheat-res-btn" onclick="KWOutposts.devEvent()">❗ Start an event (first outpost)</button>
+            <button class="cheat-res-btn" onclick="KWOutposts.devAction('events-clear')">🧹 Clear events</button>
+          </div>
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">💰 Clan</div>
