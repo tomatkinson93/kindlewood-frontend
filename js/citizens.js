@@ -230,6 +230,8 @@ function citizenAway(c) {
   if (c.active_quest) return { icon: '⚔️', label: '⚔️ ' + (c.active_quest.clan ? 'On a clan quest' : 'On Quest') };
   if (window._diploEnvoyIds && window._diploEnvoyIds.has(c.id)) return { icon: '📨', label: '📨 Diplomat' };
   if (c.expedition) return { icon: '🗺', label: '🗺 Scouting' };
+  if (c.haul && c.haul.kind === 'post') return { icon: '🚶', label: '🚶 Walking to the ' + (c.haul.outpost_name || 'outpost') };
+  if (c.haul && c.haul.kind === 'return') return { icon: '🏠', label: '🏠 Walking home from the ' + (c.haul.outpost_name || 'outpost') };
   if (c.haul) return { icon: '🧺', label: '🧺 ' + (c.haul.status === 'returning' ? 'Hauling home from ' : 'Fetching from ') + (c.haul.outpost_name || 'an outpost') };
   if (c.trade && c.trade.on_road) return { icon: c.trade.porter === 'ironhaven' ? '🏰' : c.trade.porter ? '🧺' : '🐾', label: c.trade.porter === 'ironhaven' ? '🏰 Off to Ironhaven' : c.trade.porter ? '🧺 Porter run' : '🐾 Trading' };
   if (c.outpost) return { icon: c.outpost.post === 'garrison' ? '🛡️' : c.outpost.post === 'hauler' ? '🧺' : '👷', label: (c.outpost.post === 'garrison' ? '🛡️ Guarding ' : c.outpost.post === 'hauler' ? '🧺 Hauling for ' : '👷 At ') + 'the ' + c.outpost.name };

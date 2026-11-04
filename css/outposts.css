@@ -49,3 +49,60 @@ body.kw-shell .kwop-btn, body.kw-shell .kwop-select { min-height: 40px; }
 /* The sidebar tabs (Settlement · Citizens · Outposts; Build is hidden) share the width. */
 .sidebar .sidebar-tabs .sidebar-tab { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: 13px; letter-spacing: .03em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── The outpost's own window (js/outposts.js KWOutposts.manage) ── fixed size;
+   the body scrolls, so switching tabs never resizes it. */
+.kwop-overlay { position: fixed; inset: 0; z-index: 1200; display: none; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(8,6,3,.7); backdrop-filter: blur(2px); }
+.kwop-overlay.open { display: flex; }
+.kwop-mcard { width: min(980px, 100%); height: min(720px, calc(100vh - 32px)); display: flex; flex-direction: column; overflow: hidden;
+  background: linear-gradient(170deg, #241a10, #17110a); color: #f0e6cc; border: 1px solid rgba(232,199,106,.35); border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.65); }
+.kwop-mhead { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; border-bottom: 1px solid rgba(232,199,106,.15); }
+.kwop-mic { font-size: 30px; line-height: 1; }
+.kwop-mt { flex: 1; min-width: 0; }
+.kwop-mtitle { font-family: 'Playfair Display', serif; font-size: 21px; color: #f2d67e; }
+.kwop-mclose { font: inherit; font-size: 18px; width: 36px; height: 36px; border-radius: 9px; cursor: pointer; background: rgba(255,255,255,.05);
+  color: #e8dec4; border: 1px solid rgba(232,199,106,.25); }
+.kwop-mtabs { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid rgba(232,199,106,.15); overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.kwop-mtab { font: inherit; font-size: 14px; padding: 10px 14px 9px; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+  color: rgba(240,230,204,.6); white-space: nowrap; }
+.kwop-mtab.on { color: #f2d67e; border-bottom-color: #e8c76a; }
+.kwop-mbody { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px 20px; }
+.kwop-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.kwop-sec { margin-bottom: 14px; }
+.kwop-mbody .op-section { border: 1px solid rgba(192,221,151,.14); border-radius: 10px; padding: 10px 12px; background: rgba(255,255,255,.02); }
+.kwop-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.kwop-chip.short { background: rgba(224,122,90,.18); color: #f2b58a; }
+.kwop-good { font-size: 12px; color: #b9e08e; background: rgba(142,207,110,.1); border-radius: 6px; padding: 5px 8px; margin-bottom: 8px; }
+.kwop-warn + .kwop-sec, .kwop-good + .kwop-sec { margin-top: 8px; }
+.kwop-ok { font-size: 12px; color: #9fd36a; }
+
+/* Building plots and what can go up. */
+.kwop-plots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.kwop-plot, .kwop-opt { border: 1px solid rgba(232,199,106,.22); border-radius: 10px; padding: 10px; background: rgba(255,255,255,.03); display: flex; flex-direction: column; gap: 6px; }
+.kwop-plot.building { border-style: dashed; }
+.kwop-plot.empty { border-style: dashed; border-color: rgba(232,222,196,.18); align-items: center; justify-content: center; min-height: 92px; color: rgba(232,222,196,.4); font-size: 12.5px; }
+.kwop-plot-h { display: flex; align-items: center; gap: 6px; font-size: 13.5px; }
+.kwop-plot-ic { font-size: 20px; }
+.kwop-plot-d { font-size: 12px; color: rgba(232,222,196,.72); line-height: 1.4; }
+.kwop-btn-quiet { align-self: flex-start; background: transparent; border-color: rgba(232,222,196,.2); color: rgba(232,222,196,.7); }
+.kwop-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.kwop-opt.land { border-color: rgba(142,207,110,.4); }
+.kwop-opt-f { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+.kwop-tag { margin-left: auto; font-size: 10.5px; padding: 1px 6px; border-radius: 9px; background: rgba(142,207,110,.16); color: #b9e08e; }
+.kwop-bstrip { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.kwop-bchip { font-size: 15px; }
+.kwop-bchip.building { opacity: .45; }
+.op-arriving { font-size: 11.5px; color: #e8c76a; }
+.action-btn.op-manage { width: 100%; margin: 6px 0 4px; }
+
+/* Phones: full screen, one column. */
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
+  .kwop-overlay { padding: 0; }
+  .kwop-mcard { width: 100%; height: 100%; border-radius: 0; }
+  .kwop-cols { grid-template-columns: 1fr; }
+}
+body.kw-shell .kwop-overlay { padding: 0; }
+body.kw-shell .kwop-mcard { width: 100%; height: 100%; border-radius: 0; }
+body.kw-shell .kwop-cols { grid-template-columns: 1fr; }

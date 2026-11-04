@@ -12,16 +12,16 @@
   "sha": "b2dbb3957edc"
  },
  "js/outposts.js": {
-  "v": "os1",
-  "sha": "57e0dca549e5"
+  "v": "ob2",
+  "sha": "746009cc43f0"
  },
  "js/first-steps.js": {
   "v": "r5",
   "sha": "6f9ac0ab6734"
  },
  "js/a11y.js": {
-  "v": "r5d",
-  "sha": "f3f520740c4b"
+  "v": "ob1",
+  "sha": "54daeb5b31df"
  },
  "js/day-cycle.js": {
   "v": "021p6",
@@ -76,8 +76,8 @@
   "sha": "7629ef5aef9e"
  },
  "js/help.js": {
-  "v": "os1",
-  "sha": "e33fe0951e75"
+  "v": "ob1",
+  "sha": "473b28b4b04d"
  },
  "js/wonders.js": {
   "v": "os1",
@@ -116,12 +116,12 @@
   "sha": "d74b710b8eef"
  },
  "js/citizens.js": {
-  "v": "os1",
-  "sha": "916be5dd3c7d"
+  "v": "ob1",
+  "sha": "bf787916d226"
  },
  "js/buildings.js": {
-  "v": "r5g",
-  "sha": "8d5dbd09474c"
+  "v": "ob1",
+  "sha": "7a9f247e86a2"
  },
  "js/expeditions.js": {
   "v": "r5c",
@@ -188,8 +188,8 @@
   "sha": "78001a351ff8"
  },
  "js/kwmap-travel.js": {
-  "v": "tp5",
-  "sha": "4c68502c92d6"
+  "v": "ob1",
+  "sha": "c1134fb9a5ec"
  },
  "js/kwmap-raid.js": {
   "v": "d5b",
@@ -228,8 +228,8 @@
   "sha": "2c85832b2c39"
  },
  "js/main.js": {
-  "v": "os1",
-  "sha": "d2fb1f32e7dc"
+  "v": "ob1",
+  "sha": "8990c5579ddc"
  },
  "js/away-report.js": {
   "v": "r5d",
@@ -396,12 +396,12 @@
   "sha": "359f5b30a0af"
  },
  "js/realtime.js": {
-  "v": "os1",
-  "sha": "97823d7fbf94"
+  "v": "ob1",
+  "sha": "b7a92058d98b"
  },
  "js/mobile-shell.js": {
-  "v": "os1",
-  "sha": "5ebeae5e8c46"
+  "v": "ob1",
+  "sha": "c7b16572c48f"
  },
  "js/settlement-view.js": {
   "v": "r5g",
@@ -508,11 +508,15 @@
   "sha": "8a583cdefc75"
  },
  "css/outposts.css": {
-  "v": "os3",
-  "sha": "f8927391947a"
+  "v": "ob1",
+  "sha": "0bcb7a98b853"
  },
  "css/first-steps.css": {
   "v": "r5",
   "sha": "05c0fe7a0022"
+ },
+ "css/modal-sizes.css": {
+  "v": "ms1",
+  "sha": "e7de3129711a"
  }
 }

@@ -79,5 +79,28 @@ check('5f. phones: Outposts in the More sheet', /label: 'Outposts', glyph: '⛺'
 check('5g. Help explains stores and porters', /own store/.test(read('js/help.js')) && /Send a porter/.test(read('js/help.js')));
 check('5h. loading screen: a big Start playing button, waited for on first load', /<button type="button" class="ls-play" id="ls-play" hidden>▶ Start playing<\/button>/.test(html) && /await lsReadyToPlay\(\);\s*\n\s*hideLoadingScreen\(\);/.test(main) && /\.ls-play \{/.test(read('css/main.css')));
 
+console.log('6. Outpost window, buildings, walks (R6b)');
+const ob = op({ max_level: 3, upkeep_food_per_hr: 1, buildings: { slots: 2, used: 2,
+  built: [{ key: 'sawpit', name: 'Sawpit', icon: '🪚', desc: '+25% timber.', ready: false, ready_at: soon(30) }, { key: 'storehouse', name: 'Storehouse', icon: '📦', desc: 'Room.', ready: true, ready_at: soon(-5) }],
+  options: [{ key: 'mule_pen', name: 'Mule Pen', icon: '🫏', desc: 'More carried.', cost: { timber: 80 }, hours: 1, land: false }, { key: 'ore_sorter', name: 'Ore Sorter', icon: '🪨', desc: '+40% ores.', cost: { metal: 40 }, hours: 2, land: true }] },
+  hauls: [{ id: 9, citizen_id: 4, name: 'Wren', kind: 'post', status: 'outbound', arrives_at: soon(8), returns_at: soon(8) }, { id: 10, citizen_id: 5, name: 'Moss', kind: 'return', status: 'returning', arrives_at: soon(0), returns_at: soon(6) }] });
+h = O.buildingsHtml(ob, Date.now());
+check('6a. plots: built ones, going up with a countdown, working, Pull down', /2 of 2 in use/.test(h) && /kwop-plot built building/.test(h) && /Going up · <span class="kwop-time" data-kwop-end=/.test(h) && /✓ Working/.test(h) && /data-kwop="pulldown" data-id="7" data-key="sawpit"/.test(h));
+check('6b. what can go up: cost, time, this-land tag; plots full disables Build and says so', /Ore Sorter<\/b><span class="kwop-tag">this land/.test(h) && /data-kwop="build" data-id="7" data-key="mule_pen" disabled title="Every plot is in use"/.test(h) && /Every plot is in use\. Upgrade the outpost/.test(h));
+w.KWOutposts._modal.tab = 'people';
+h = O.modalHtml(ob, Date.now());
+check('6c. People: crew walking out or home are on the road', /🚶 On the road/.test(h) && /<b>Wren<\/b> <span class="kwop-muted">walking out to start work/.test(h) && /<b>Moss<\/b> <span class="kwop-muted">walking home/.test(h));
+check('6d. walks are not porters', !/Wren<\/b> <span class="kwop-muted">On the way/.test(O.haulHtml(ob, Date.now())));
+check('6e. away placards for walks', away({ haul: { kind: 'post', outpost_name: 'Mine' } }) === '🚶 Walking to the Mine' && away({ haul: { kind: 'return', outpost_name: 'Mine' } }) === '🏠 Walking home from the Mine');
+const tv = read('js/kwmap-travel.js');
+check('6f. the map: outpost journeys are labelled and open the outpost window', /outpost: 'Outpost'/.test(tv) && /j\.open === 'outpost' && global\.KWOutposts\) global\.KWOutposts\.manage\(j\.outpost_id\)/.test(tv));
+check('6g. Manage from the tile panel and the tab; Escape and the phone shell know the window', /data-kwop="manage" data-id="\$\{tile\.outpost\.id\}"/.test(main) && /data-kwop="manage" data-id="\$\{o\.id\}"/.test(read('js/outposts.js')) && /'kwop-modal'/.test(read('js/a11y.js')) && /'kwop-modal'/.test(read('js/mobile-shell.js')));
+check('6h. a fixed-size window: the body scrolls', /\.kwop-mcard \{ width: min\(980px, 100%\); height: min\(720px/.test(read('css/outposts.css')) && /\.kwop-mbody \{ flex: 1; min-height: 0; overflow-y: auto/.test(read('css/outposts.css')));
+
+console.log('7. Held toasts and fixed windows');
+check('7a. toasts wait while the loading screen is up and play after Start', /function _holdToast\(fn, args\)/.test(main) && /if \(_holdToast\(showToastNotification, arguments\)\) return;/.test(main) && /_holdToast\(showBuildToast, arguments\)/.test(read('js/buildings.js')) && /function hideLoadingScreen\(\) \{\s*\n\s*const el = document\.getElementById\('loading-screen'\);\s*\n\s*releaseHeldToasts\(\);/.test(main) && /window\.__kwHoldToasts = true;/.test(html));
+const ms = read('css/modal-sizes.css');
+check('7b. tabbed windows keep one size; the away report is wider', /\.ar-card \{ width: min\(880px/.test(ms) && /\.citizen-profile-modal \{ height: min\(820px/.test(ms) && /\.mail-card \{ height:/.test(ms) && /\.inv-modal-card \{ height:/.test(ms) && /\.clan-card \{ height:/.test(ms) && /href="\/css\/modal-sizes\.css\?v=\w+"/.test(html));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
