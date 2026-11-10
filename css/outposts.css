@@ -118,3 +118,14 @@ body.kw-shell .kwop-cols { grid-template-columns: 1fr; }
 .kwop-checks { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 8px; }
 .kwop-check { font-size: 12.5px; color: #e8dec4; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .kwop-check input { accent-color: #e8c76a; }
+
+/* Dev Tools → New players (js/funnel-admin.js) */
+.fn-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 6px 0; }
+.fn-table th { text-align: left; font-weight: 600; color: rgba(232,222,196,.6); padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.fn-table td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,.05); color: #e8dec4; }
+.fn-n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fn-bad { color: #ef9a72; font-weight: 700; }
+.fn-bar { position: relative; min-width: 140px; }
+.fn-bar span { position: absolute; left: 6px; top: 5px; bottom: 5px; max-width: calc(100% - 12px); background: rgba(142,207,110,.3); border-radius: 3px; }
+.fn-bar b { position: relative; padding-left: 6px; font-weight: 600; }
+.kwop-carter { font-size: 12.5px; line-height: 1.45; color: #dfe8c8; background: rgba(142,207,110,.09); border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; }

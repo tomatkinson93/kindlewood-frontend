@@ -19,23 +19,8 @@ console.log('1. Every file is versioned');
   check('1c. every tag points at a file that exists', missing.length === 0, missing.join(', '));
 }
 
-console.log('1d. A changed file gets a new ?v=');
-{
-  // Browsers keep js/css for a year (.htaccess), so a file edited without a
-  // new ?v= would stay stale for returning players. verify/versions.json
-  // remembers each file's hash under its current ?v=; refresh it with
-  //   node verify/assets_proofs.js --update
-  const crypto = require('crypto');
-  const MAN = path.join(ROOT, 'verify/versions.json');
-  const tags = [...H.matchAll(/<script[^>]*\bsrc="(\/[^"?]+)\?v=([^"]+)"/g), ...H.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="(\/[^"?]+)\?v=([^"]+)"/g)]
-    .map(m => ({ file: m[1].slice(1), v: m[2] })).filter(t => fs.existsSync(path.join(ROOT, t.file)));
-  const hash = f => crypto.createHash('sha1').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 12);
-  const now = Object.fromEntries(tags.map(t => [t.file, { v: t.v, sha: hash(t.file) }]));
-  if (process.argv.includes('--update')) { fs.writeFileSync(MAN, JSON.stringify(now, null, 1) + '\n'); console.log('  (versions.json updated)'); }
-  const was = fs.existsSync(MAN) ? JSON.parse(fs.readFileSync(MAN, 'utf8')) : {};
-  const stale = Object.entries(now).filter(([f, x]) => was[f] && was[f].v === x.v && was[f].sha !== x.sha).map(([f, x]) => `${f}?v=${x.v}`);
-  check('1d. every file that changed has a new ?v= (else returning players keep the old copy)', stale.length === 0, stale.join(', '));
-}
+// (1d retired: the uploaded site is built by scripts/build.js, whose file
+// names carry a hash of their contents — see verify/build_proofs.js.)
 
 console.log('2. Failed files are retried');
 {

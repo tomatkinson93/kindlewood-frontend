@@ -32,7 +32,10 @@ let h = O.storeHtml(op());
 check('1a. a bar per resource, with what is held of the cap and its rate', /🪨<\/span>/.test(h) && /120<small>\/300<\/small>/.test(h) && /\+5\/hr/.test(h));
 check('1b. discovered ores by name; undiscovered ones as ??', /title="Copper"/.test(h) && /title="Not yet discovered"/.test(h));
 h = O.storeHtml(op({ store: { items: { stone: 300 }, cap: 300, full: ['stone'], weight: 300 } }));
-check('1c. full: the bar turns, the rate says stopped, and a nudge to send a porter', /kwop-bar-row full/.test(h) && />stopped</.test(h) && /production of stone has stopped\. Send a porter\./.test(h));
+check('1c. full: the bar turns, the rate says stopped, and a nudge to send a porter or lay a road', /kwop-bar-row full/.test(h) && />stopped</.test(h) && /waits for a porter is being lost\. Send one, or lay a road\./.test(h));
+h = O.storeHtml(op({ trickle: { share: 0.6, per_hour: { stone: 3 }, shares: { 0: 0.6, 1: 0.8, 2: 1 } } }));
+check('1e. the carter: what comes home by itself, and how a road raises it', /A carter brings 60% home by itself<\/b> \(🪨 \+3\/hr\)/.test(h) && /The other 40% waits here for a porter/.test(h) && /track raises the carter's share to 80%, a paved road to 100%/.test(h));
+check('1f. on a paved road everything comes home', /Everything comes home along the paved road/.test(O.carterHtml(op({ trickle: { share: 1, per_hour: { stone: 5 } } }))));
 check('1d. nothing to show without a store', O.storeHtml({ id: 1 }) === '');
 
 console.log('2. Porters');

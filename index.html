@@ -12,7 +12,8 @@
     var fired = false, tries = {}, DELAYS = [500, 1500, 4000], failed = [], pending = 0, queue = [], loaded = {}, waiters = [];
     var strip = function (u) { return String(u || '').replace(/[?&]kwr=\d+$/, ''); };
     // Every same-origin script/stylesheet that arrives (the loading screen counts them).
-    window.addEventListener('load', function (e) {
+    // On document: a file's load event never reaches window, even when capturing.
+    document.addEventListener('load', function (e) {
       var el = e.target, u = el && (el.tagName === 'SCRIPT' ? el.src : el.tagName === 'LINK' ? el.href : '');
       if (u && u.indexOf(location.origin + '/') === 0) loaded[strip(u)] = 1;
     }, true);
@@ -147,7 +148,7 @@
   <link rel="stylesheet" href="/css/chat-hub.css?v=d3">
   <link rel="stylesheet" href="/css/dialog.css?v=r5f">
   <link rel="stylesheet" href="/css/journeys.css?v=r5c">
-  <link rel="stylesheet" href="/css/outposts.css?v=r6c">
+  <link rel="stylesheet" href="/css/outposts.css?v=p0">
   <link rel="stylesheet" href="/css/first-steps.css?v=r5">
   <link rel="stylesheet" href="/css/modal-sizes.css?v=ms1">
   <script>
@@ -939,6 +940,7 @@
   <script defer src="/js/dialog.js?v=r5"></script>
   <script defer src="/js/journeys.js?v=os1"></script>
   <script defer src="/js/outposts.js?v=r6c"></script>
+  <script defer src="/js/funnel-admin.js?v=p0"></script>
   <script defer src="/js/first-steps.js?v=r5"></script>
   <script defer src="/js/a11y.js?v=ob1"></script>
   <script defer src="/js/day-cycle.js?v=021p6"></script>
@@ -1229,6 +1231,15 @@
             <button class="cheat-res-btn" onclick="KWRaids.devStatus()">↻ Status</button>
           </div>
           <div id="dev-raid-status" class="dev-raid-status" role="status">Press ↻ Status to see the raid state.</div>
+        </div>
+
+        <div class="cheat-section-label" style="margin-top:14px">📈 New players</div>
+        <div class="dev-raid">
+          <div class="dev-raid-row">
+            <label>Registered in the last <select id="dev-funnel-days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="3650">ever</option></select></label>
+            <button class="cheat-res-btn" onclick="KWFunnel.load()">📈 Show where players stop</button>
+          </div>
+          <div id="dev-funnel"></div>
         </div>
 
         <div class="cheat-section-label" style="margin-top:14px">⛺ Outposts</div>

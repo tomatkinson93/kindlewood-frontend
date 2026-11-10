@@ -79,8 +79,21 @@
           <span class="kwop-bar-n">${have.toLocaleString('en-GB')}<small>/${Number(s.cap).toLocaleString('en-GB')}</small></span>${rate}
         </div>`;
     }).join('');
-    const warn = full.size ? `<div class="kwop-warn">Full: production of ${[...full].map(r => esc(resLook(r)[1].toLowerCase())).join(', ')} has stopped. Send a porter.</div>` : '';
-    return `<div class="kwop-store"><div class="kwop-head">📦 Store <span class="kwop-muted">${Number(s.cap)} of each</span></div>${rows}${warn}</div>`;
+    const warn = full.size ? `<div class="kwop-warn">Full: the share of ${[...full].map(r => esc(resLook(r)[1].toLowerCase())).join(', ')} that waits for a porter is being lost. Send one, or lay a road.</div>` : '';
+    return `<div class="kwop-store"><div class="kwop-head">📦 Store <span class="kwop-muted">${Number(s.cap)} of each</span></div>${carterHtml(o)}${rows}${warn}</div>`;
+  }
+
+  // The carter: a share of what the outpost makes comes home by itself
+  // (60%; 80% along a track; all of it on a paved road). The rest waits in
+  // the store for porters.
+  function carterHtml(o) {
+    const t = o.trickle;
+    if (!t || !t.per_hour) return '';
+    const chips = Object.entries(t.per_hour).filter(([, v]) => v > 0).map(([r, v]) => `${resLook(r)[0]} +${Math.round(v * 10) / 10}/hr`).join(' · ');
+    const pct = Math.round(t.share * 100);
+    const more = pct >= 100 ? 'Everything comes home along the paved road.'
+      : `The other ${100 - pct}% waits here for a porter. ${pct < 80 ? 'A track raises the carter\'s share to 80%, a paved road to 100%.' : 'Paving the road brings it all home.'}`;
+    return `<div class="kwop-carter">🛒 <b>A carter brings ${pct}% home by itself</b>${chips ? ` (${chips})` : ''}. <span class="kwop-muted">${more}</span></div>`;
   }
 
   // ── Porters ────────────────────────────────────────────────────────────
@@ -539,7 +552,7 @@
     clearTimeout(st._ev); st._ev = setTimeout(refreshAll, 800);
   }
 
-  global.KWOutposts = { show, hide, load, render, storeHtml, haulHtml, tabHtml, cardHtml, onEvent, freeCitizens, _set(d) { st.data = d; }, fmtLeft,
+  global.KWOutposts = { show, hide, load, render, storeHtml, carterHtml, haulHtml, tabHtml, cardHtml, onEvent, freeCitizens, _set(d) { st.data = d; }, fmtLeft,
     manage, closeModal, refreshModal, modalHtml, buildingsHtml, eventsHtml, roadHtml, settingsHtml, helpHtml, _modal: M,
     devAction, devEvent };
 })(typeof window !== 'undefined' ? window : this);
