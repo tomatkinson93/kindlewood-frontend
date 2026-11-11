@@ -1,9 +1,8 @@
 # Kindlewood frontend — browser caching and compression for the cPanel host.
 #
-# Why: the page loads ~100 scripts and ~30 stylesheets. The shared host turns
-# requests away (503) when too many arrive at once, so let browsers keep what
-# they've fetched. Scripts and styles are always loaded with ?v=…, and a
-# change ships with a new ?v=, so they can be cached for a year. index.html is
+# Why: the uploaded site is built by scripts/build.js (npm run build): a few
+# bundles whose names carry a hash of their contents, so browsers can keep
+# them for a year and a change always arrives under a new name. index.html is
 # never cached, so a new upload is picked up straight away.
 #
 # If the host already has a .htaccess here (e.g. an HTTPS redirect), paste

@@ -1,0 +1,50 @@
+# Builds the site and uploads it to the cPanel host whenever main changes.
+#
+# One-time setup (GitHub → repository → Settings → Secrets and variables → Actions):
+#   FTP_SERVER    the host's FTP address, e.g. ftp.kindlewood.quest
+#   FTP_USERNAME  the FTP account
+#   FTP_PASSWORD  its password
+#   FTP_DIR       (optional) the site's folder on the host, ending in "/", e.g. public_html/
+#
+# Until the secrets exist the upload step is skipped; the built site is still
+# attached to the run as "kindlewood-site" and can be uploaded by hand.
+# /assets is not part of the build: it stays on the host as it is.
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_FTP: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run proofs
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kindlewood-site
+          path: dist/
+          include-hidden-files: true
+      - name: Upload to the host
+        if: env.HAS_FTP == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_DIR || './' }}

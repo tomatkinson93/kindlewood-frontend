@@ -142,6 +142,7 @@
     market_sale(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     outpost_haul_home(ev) { if (global.KWOutposts) global.KWOutposts.onEvent(ev); },
     outpost_walk(ev) { if (global.KWOutposts) global.KWOutposts.onEvent(ev); },
+    outpost_event(ev) { if (global.KWOutposts) global.KWOutposts.onEvent(ev); },
     market_porter_home(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_run_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_want_filling(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },

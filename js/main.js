@@ -1448,6 +1448,8 @@ function _outpostSectionHtml(tile) {
 
   // Someone else's outpost / claim — informational only
   if (tile.outpost) {
+    // A clanmate's outpost: help carry its goods home (js/outposts.js).
+    if (tile.outpost.clanmate && window.KWOutposts) return KWOutposts.helpHtml(tile);
     return `<div class="op-section"><div class="op-note">⛺ ${tile.outpost.owner}'s outpost stands here.</div></div>`;
   }
   if (tile.claim_owner) {

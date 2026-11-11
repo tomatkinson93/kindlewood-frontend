@@ -1,0 +1,13 @@
+{
+  "name": "kindlewood-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kindlewood web client. Development uses the plain files; `npm run build` makes the bundled site in dist/ for upload.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "proofs": "node scripts/run-proofs.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
