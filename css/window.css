@@ -1,0 +1,182 @@
+/* ════════════════════════════════════════════════════════════════
+   KWWindow (js/window.js) and the shared pieces used inside windows
+   (docs/LAYOUT_SPEC.md §3). Tokens only: css/tokens.css.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── The layer and the card ─────────────────────────────────────── */
+.kww-backdrop {
+  position: fixed; inset: 0;
+  z-index: var(--z-window);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--kw-s-4);
+  background: var(--kw-scrim);
+  animation: kww-fade .12s ease-out;
+}
+/* Only the top window darkens the screen; the ones under it stay as they are. */
+.kww-backdrop:not(.kww-top) { background: transparent; }
+
+.kww {
+  display: flex; flex-direction: column;
+  box-sizing: border-box;
+  max-width: 100%; max-height: 100%;
+  background: var(--kw-panel);
+  color: var(--kw-cream);
+  border: 1px solid var(--kw-line-2);
+  border-radius: var(--kw-radius-l);
+  box-shadow: var(--kw-shadow);
+  font-family: var(--kw-font-body);
+  font-size: var(--kw-fs-3);
+  overflow: hidden;
+}
+.kww:focus { outline: none; }
+.kww:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+
+/* Fixed sizes: the body scrolls, tabs never resize the window. */
+.kww-S    { width: 420px; height: min(520px, 100%); }
+.kww-M    { width: 680px; height: min(620px, 100%); }
+.kww-L    { width: 980px; height: min(720px, 100%); }
+.kww-full { width: 100%;  height: 100%; }
+
+/* ── Header ────────────────────────────────────────────────────── */
+.kww-head {
+  display: flex; align-items: center; gap: var(--kw-s-3);
+  padding: var(--kw-s-3) var(--kw-s-3) var(--kw-s-3) var(--kw-s-4);
+  border-bottom: 1px solid var(--kw-line);
+  flex: none;
+}
+.kww-icon { width: 26px; height: 26px; flex: none; color: var(--kw-gold); }
+.kww-emoji { font-size: var(--kw-fs-5); line-height: 26px; text-align: center; }
+.kww-titles { flex: 1; min-width: 0; }
+.kww-title {
+  margin: 0;
+  font-family: var(--kw-font-title); font-size: var(--kw-fs-4); font-weight: 700;
+  color: var(--kw-gold);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kww-sub { font-size: var(--kw-fs-2); color: var(--kw-muted); margin-top: 2px; }
+.kww-hbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: var(--kw-touch); height: var(--kw-touch); flex: none;
+  padding: 0; border: 0; border-radius: var(--kw-radius);
+  background: transparent; color: var(--kw-muted); cursor: pointer;
+}
+.kww-hbtn svg { width: 20px; height: 20px; }
+.kww-hbtn:hover { background: var(--kw-hover); color: var(--kw-cream); }
+.kww-hbtn:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 1px; }
+
+/* ── Tabs ──────────────────────────────────────────────────────── */
+.kw-tabs {
+  display: flex; gap: var(--kw-s-1);
+  overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--kw-line);
+}
+.kw-tabs::-webkit-scrollbar { display: none; }
+.kww-tabs { padding: 0 var(--kw-s-3); flex: none; }
+.kw-tabs-item {
+  position: relative; flex: none;
+  min-height: var(--kw-touch); padding: var(--kw-s-2) var(--kw-s-3);
+  border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: var(--kw-fs-3); color: var(--kw-muted);
+}
+.kw-tabs-item:hover { color: var(--kw-cream); }
+.kw-tabs-item.is-on { color: var(--kw-gold); }
+.kw-tabs-item.is-on::after {
+  content: ''; position: absolute; left: var(--kw-s-2); right: var(--kw-s-2); bottom: -1px;
+  height: 2px; border-radius: 2px; background: var(--kw-gold-deep);
+}
+.kw-tabs-item:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: -2px; }
+
+/* ── Body ──────────────────────────────────────────────────────── */
+.kww-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--kw-s-4);
+}
+.kww-body:focus { outline: none; }
+
+/* ── Phones: every size is a full-screen sheet ─────────────────── */
+@media (max-width: 759px), (pointer: coarse) and (orientation: landscape) and (max-height: 560px) {
+  .kww-backdrop { padding: 0; align-items: stretch; }
+  .kww, .kww-S, .kww-M, .kww-L, .kww-full {
+    width: 100%; height: 100%; max-height: none;
+    border-radius: 0; border: 0;
+  }
+  .kww-head { padding-top: calc(var(--kw-s-2) + env(safe-area-inset-top)); }
+  .kww-body { padding-bottom: calc(var(--kw-s-4) + env(safe-area-inset-bottom)); }
+}
+
+@keyframes kww-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .kww-backdrop { animation: none; } }
+
+/* ════════════════════════════════════════════════════════════════
+   Shared pieces (§3.3): kw-btn, kw-box (the spec's kw-card), kw-chip,
+   kw-bar, kw-list-row (kw-row), kw-empty, kw-note; kw-tabs above.
+   kw-card, kw-tab, kw-row and kw-item were taken by battle cards, the
+   phone tab bar and the sidebar.
+   ════════════════════════════════════════════════════════════════ */
+.kw-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--kw-s-2);
+  min-height: var(--kw-touch); padding: var(--kw-s-2) var(--kw-s-4);
+  border: 1px solid var(--kw-line-2); border-radius: var(--kw-radius);
+  background: var(--kw-wood-2); color: var(--kw-cream);
+  font: inherit; font-size: var(--kw-fs-3); font-weight: 600;
+  cursor: pointer;
+}
+.kw-btn:hover { background: var(--kw-border); }
+.kw-btn:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kw-btn:disabled { opacity: .5; cursor: default; }
+.kw-btn.primary { background: var(--kw-gold-btn); border-color: var(--kw-gold); color: var(--kw-on-gold); }
+.kw-btn.primary:hover { background: var(--kw-gold); }
+.kw-btn.quiet { background: transparent; border-color: transparent; color: var(--kw-muted); }
+.kw-btn.quiet:hover { background: var(--kw-hover); color: var(--kw-cream); }
+.kw-btn.danger { background: var(--kw-bad-fill); border-color: var(--kw-bad); color: var(--kw-on-bad); }
+.kw-btn.small { min-height: 30px; padding: var(--kw-s-1) var(--kw-s-3); font-size: var(--kw-fs-2); }
+
+.kw-box {
+  background: var(--kw-panel-2);
+  border: 1px solid var(--kw-line);
+  border-radius: var(--kw-radius);
+  padding: var(--kw-s-3) var(--kw-s-4);
+}
+.kw-box + .kw-box { margin-top: var(--kw-s-3); }
+.kw-box-title { font-family: var(--kw-font-title); font-size: var(--kw-fs-3); font-weight: 700; color: var(--kw-gold); margin: 0 0 var(--kw-s-2); }
+
+.kw-chip {
+  display: inline-flex; align-items: center; gap: var(--kw-s-1);
+  padding: 1px var(--kw-s-2);
+  border: 1px solid var(--kw-line); border-radius: 999px;
+  background: var(--kw-hover);
+  font-size: var(--kw-fs-2); color: var(--kw-cream); white-space: nowrap;
+}
+.kw-chip.short { border-color: var(--kw-bad); color: var(--kw-bad); }
+.kw-chip.good  { border-color: var(--kw-good); color: var(--kw-good); }
+
+.kw-bar { height: 8px; border-radius: 4px; background: var(--kw-hover); overflow: hidden; }
+.kw-bar > span { display: block; height: 100%; background: var(--kw-gold-deep); border-radius: inherit; }
+.kw-bar.good > span { background: var(--kw-good); }
+.kw-bar.bad  > span { background: var(--kw-bad); }
+
+.kw-list-row {
+  display: flex; align-items: center; gap: var(--kw-s-3);
+  min-height: var(--kw-touch); padding: var(--kw-s-2) 0;
+  border-bottom: 1px solid var(--kw-line);
+}
+.kw-list-row:last-child { border-bottom: 0; }
+.kw-list-row-icon { flex: none; width: 28px; text-align: center; font-size: var(--kw-fs-4); }
+.kw-list-row-main { flex: 1; min-width: 0; }
+.kw-list-row-sub { font-size: var(--kw-fs-2); color: var(--kw-muted); }
+
+.kw-empty {
+  padding: var(--kw-s-5) var(--kw-s-4);
+  text-align: center; color: var(--kw-muted); font-style: italic;
+}
+
+.kw-note {
+  padding: var(--kw-s-2) var(--kw-s-3);
+  border-left: 3px solid var(--kw-gold-dim); border-radius: 0 var(--kw-radius) var(--kw-radius) 0;
+  background: var(--kw-hover);
+  font-size: var(--kw-fs-2);
+}
+.kw-note.good { border-left-color: var(--kw-good); }
+.kw-note.warn { border-left-color: var(--kw-warn); }
+.kw-note.bad  { border-left-color: var(--kw-bad); }

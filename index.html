@@ -123,6 +123,7 @@
   <!-- Preload the hero art (WebP; the <picture> PNG fallback covers any gap) -->
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
+  <link rel="stylesheet" href="/css/tokens.css?v=1">
   <link rel="stylesheet" href="/css/main.css?v=os1">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=mobilefix1">
   <link rel="stylesheet" href="/css/card-admin.css?v=1778502600">
@@ -146,7 +147,8 @@
   <link rel="stylesheet" href="/css/travel.css?v=tp1">
   <link rel="stylesheet" href="/css/citizen-picker.css?v=kwp1">
   <link rel="stylesheet" href="/css/chat-hub.css?v=d3">
-  <link rel="stylesheet" href="/css/dialog.css?v=r5f">
+  <link rel="stylesheet" href="/css/dialog.css?v=tk1">
+  <link rel="stylesheet" href="/css/window.css?v=1">
   <link rel="stylesheet" href="/css/journeys.css?v=r5c">
   <link rel="stylesheet" href="/css/outposts.css?v=p0">
   <link rel="stylesheet" href="/css/first-steps.css?v=r5">
@@ -938,6 +940,7 @@
 
   <script defer src="/js/config.js?v=r2"></script>
   <script defer src="/js/dialog.js?v=r5"></script>
+  <script defer src="/js/window.js?v=1"></script>
   <script defer src="/js/journeys.js?v=os1"></script>
   <script defer src="/js/outposts.js?v=r6c"></script>
   <script defer src="/js/funnel-admin.js?v=p0"></script>
@@ -1978,6 +1981,11 @@
   <symbol id="kw-i-market" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8.5 v14 M8 8.5 h16 M8 8.5 v2.5 M24 8.5 v2.5"/><path d="M4.4 13.5 a3.6 3 0 0 0 7.2 0 M20.4 13.5 a3.6 3 0 0 0 7.2 0" stroke-width="1.5"/><path d="M11.5 22.5 h9"/></symbol>
   <symbol id="kw-i-messages" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="10" width="20" height="13" rx="2"/><path d="M6.5 11 l9.5 7 l9.5 -7"/></symbol>
   <symbol id="kw-i-chat" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="20" height="14" rx="4.5"/><path d="M11 22 l-2.5 4.5 L15 22"/><circle cx="11.5" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="20.5" cy="15" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <!-- Window chrome and Families (docs/LAYOUT_SPEC.md §4.4) -->
+  <symbol id="kw-i-close" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 9 L23 23 M23 9 L9 23"/></symbol>
+  <symbol id="kw-i-help" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="M12.6 12.8 a3.6 3.6 0 1 1 5.2 3.2 c-1.2 .6 -1.8 1.4 -1.8 2.7"/><circle cx="16" cy="22.6" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="kw-i-back" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8 L11 16 L19 24"/></symbol>
+  <symbol id="kw-i-families" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="10" r="3.4"/><circle cx="21" cy="10" r="3.4"/><circle cx="16" cy="18.5" r="2.6"/><path d="M5 25 c0 -5 2.6 -8 6 -8 c1.3 0 2.4 .4 3.2 1.1"/><path d="M27 25 c0 -5 -2.6 -8 -6 -8 c-1.3 0 -2.4 .4 -3.2 1.1"/><path d="M12 27 c0 -3 1.8 -4.8 4 -4.8 s4 1.8 4 4.8"/></symbol>
 </svg>
 </body>
 </html>

@@ -41,6 +41,7 @@
   function onKey(e) {
     if (e.key !== 'Escape' || e.defaultPrevented) return;
     if (global.KWDialog && global.KWDialog.isOpen()) return;   // it handles its own
+    if (global.KWWindow && global.KWWindow.isOpen()) return;  // windows handle their own (js/window.js)
     const t = e.target;
     if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.value) return;   // let a field clear first
     const top = topmost();

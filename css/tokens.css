@@ -1,0 +1,66 @@
+/* ════════════════════════════════════════════════════════════════
+   Design tokens (docs/LAYOUT_SPEC.md §4). Loaded first.
+   New and migrated CSS uses only these: no raw colours, no raw
+   z-index, no !important (verify/window_proofs.js checks it).
+   ════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Colour: the storybook palette (moved from hud-storybook.css) ── */
+  --kw-ink:       #1d150d;   /* darkest chrome (topbar) */
+  --kw-wood:      #241a10;   /* nav + sidebar */
+  --kw-wood-2:    #2c2013;   /* raised cells, secondary buttons */
+  --kw-border:    #3a2c1b;   /* quiet structural lines */
+  --kw-gold:      #e8c87a;   /* bright gold text */
+  --kw-gold-deep: #c9a45c;   /* gold accent lines, active underline */
+  --kw-gold-btn:  #cda451;   /* solid primary button fill */
+  --kw-gold-dim:  #6e5836;   /* muted gold borders */
+  --kw-cream:     #efe4cd;   /* primary text */
+  --kw-muted:     #a8946f;   /* secondary text */
+  --kw-good:      #9fc97a;   /* positive states (Stable, +rates) */
+  --kw-bluff:     #a57fd0;   /* bluff claims (Briar) — text / accents */
+  --kw-bluff-bg:  #3a2750;   /* bluff claim button fill */
+  --kw-bluff-dim: #6a4d85;   /* bluff borders */
+
+  /* ── Colour: roles added for windows (§4.1) ── */
+  --kw-bad:       #e0705f;   /* errors, raids, danger text */
+  --kw-bad-fill:  #a8352a;   /* danger button fill */
+  --kw-warn:      #e8b25a;   /* warnings */
+  --kw-panel:     #2a2016;   /* window background */
+  --kw-panel-2:   #34281b;   /* cards inside windows */
+  --kw-line:      rgba(232, 200, 140, .22);   /* hairlines */
+  --kw-line-2:    rgba(232, 200, 140, .4);    /* stronger edges, inputs */
+  --kw-hover:     rgba(255, 255, 255, .07);   /* hover and quiet fills */
+  --kw-scrim:     rgba(10, 6, 2, .55);        /* behind windows */
+  --kw-shadow:    0 18px 48px rgba(0, 0, 0, .55);
+  --kw-focus:     #ffd27a;   /* keyboard focus ring */
+  --kw-on-gold:   #2a1d0c;   /* text on a gold button */
+  --kw-on-bad:    #fff3ec;   /* text on a danger button */
+
+  /* ── Type (§4.2): two families, five sizes ── */
+  --kw-font-title: 'Playfair Display', Georgia, serif;
+  --kw-font-body:  'Crimson Pro', Georgia, serif;
+  --kw-fs-1: 12px;
+  --kw-fs-2: 13.5px;
+  --kw-fs-3: 15px;
+  --kw-fs-4: 18px;
+  --kw-fs-5: 22px;
+
+  /* ── Space (§4.2) ── */
+  --kw-s-1: 4px;
+  --kw-s-2: 8px;
+  --kw-s-3: 12px;
+  --kw-s-4: 16px;
+  --kw-s-5: 24px;
+  --kw-radius:   10px;
+  --kw-radius-l: 14px;
+  --kw-touch:    40px;   /* smallest touch target on phones */
+
+  /* ── Layers (§4.3). Old screens still use raw numbers up to 100030;
+        windows sit above all of them, confirms above windows. ── */
+  --z-view:    1;
+  --z-hud:     100;
+  --z-float:   1000;
+  --z-say:     99000;
+  --z-window:  100200;
+  --z-confirm: 100400;
+  --z-system:  200000;
+}

@@ -1,6 +1,6 @@
 /* KWDialog — in-game alert / confirm / prompt (js/dialog.js) */
 .kwd-backdrop {
-  position: fixed; inset: 0; z-index: 100000;
+  position: fixed; inset: 0; z-index: var(--z-confirm);   /* above windows (css/tokens.css) */
   display: flex; align-items: center; justify-content: center;
   background: rgba(10, 6, 2, .55);
   padding: 16px;
