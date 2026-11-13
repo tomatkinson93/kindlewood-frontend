@@ -433,7 +433,7 @@
         <div class="kwop-event-h"><span class="kwop-plot-ic" aria-hidden="true">${esc(e.icon)}</span><b>${esc(e.title)}</b>
           <span class="kwop-muted">decide within <span data-kwop-end="${esc(e.expires_at)}">${fmtLeft(e.expires_at)}</span></span></div>
         <p class="kwop-plot-d">${esc(e.text)}</p>
-        <div class="kwop-event-opts">${e.options.map(x => `<button type="button" class="kwop-btn" data-kwop="event" data-id="${o.id}" data-eid="${e.id}" data-choice="${esc(x.key)}">${esc(x.label)}</button>`).join('')}</div>
+        <div class="kwop-event-opts">${e.options.map(x => `<button type="button" class="kwop-btn" data-kwop="event" data-id="${o.id}" data-eid="${e.id}" data-choice="${esc(x.key)}">${esc(x.label)}${x.hint ? ` <span class="kwop-muted">· ${esc(x.hint)}</span>` : ''}${x.key === e.fallback ? ` <span class="kwop-muted">(default)</span>` : ''}</button>`).join('')}</div>
         <div class="kwop-reason" data-kwop-reason hidden></div>
       </div>`).join('');
     return (o.events || []).length ? `<div class="kwop-sec">${inner}</div>` : '';
