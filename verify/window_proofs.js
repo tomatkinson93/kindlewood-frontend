@@ -88,7 +88,7 @@ console.log('5. Tokens and the style check');
   check('5d. seven named layers, in order', Z.every(z => T.includes(z + ':')) && Z.map(z => Number(new RegExp(z + ':\\s*(\\d+)').exec(T)[1])).every((v, i, a) => i === 0 || v > a[i - 1]));
   check('5e. type scale 12 / 13.5 / 15 / 18 / 22 and space 4 / 8 / 12 / 16 / 24', /--kw-fs-1: 12px;[\s\S]*--kw-fs-2: 13.5px;[\s\S]*--kw-fs-3: 15px;[\s\S]*--kw-fs-4: 18px;[\s\S]*--kw-fs-5: 22px;/.test(T) && /--kw-s-1: 4px;[\s\S]*--kw-s-5: 24px;/.test(T));
   // New and migrated CSS: no raw colours, no raw z-index, no !important.
-  const NEW_CSS = ['css/window.css'];
+  const NEW_CSS = ['css/window.css', 'css/places.css'];
   const bad = [];
   for (const f of NEW_CSS) {
     read(f).replace(/\/\*[\s\S]*?\*\//g, '').split('\n').forEach((line, i) => {

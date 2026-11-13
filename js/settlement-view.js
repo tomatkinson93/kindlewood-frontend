@@ -543,7 +543,7 @@ function _ensureSvDOM() {
     // Back button: on desktop this view is dismissed by clicking the community
     // bar, which the mobile shell hides — leaving no way out. Hidden on desktop
     // by CSS so that layout is unchanged there.
-    + '<button class="sv-back-btn" id="sv-back-btn" onclick="closeSettlementView()">&#8592; Back</button>'
+    + '<button class="sv-back-btn" id="sv-back-btn" onclick="closeSettlementView()">&#8592; The Land</button>'
     + '<span class="sv-header-title" id="sv-title">Settlement</span>'
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<button class="sv-area-tab active" data-area="town" onclick="_svSwitchArea(\'town\')">&#127960; Town</button>'
@@ -570,8 +570,10 @@ function _ensureSvDOM() {
 function _svRecalcTop() {
   var root    = document.getElementById('settlement-view');
   var topbar  = document.querySelector('.topbar');
-  var commBar = document.querySelector('.community-bar');
-  if (root) root.style.top = ((topbar ? topbar.offsetHeight : 0) + (commBar ? commBar.offsetHeight : 0)) + 'px';
+  // The row under the top bar: the five places (js/places.js; on phones it
+  // has no height, its parts are fixed to the bottom), or the old bar.
+  var row     = document.querySelector('.kwp-row') || document.querySelector('.community-bar');
+  if (root) root.style.top = ((topbar ? topbar.offsetHeight : 0) + (row ? row.offsetHeight : 0)) + 'px';
 }
 
 async function openSettlementView() {
@@ -592,6 +594,7 @@ async function openSettlementView() {
 
   _svSwitchArea(_svActiveArea, true);
   _bindParallax();
+  if (window.KWPlaces) KWPlaces.seen('home');   // the scene is Home (js/places.js)
 
   var commBar = document.querySelector('.community-bar');
   if (commBar && !_svCommBarHandler) {
@@ -625,6 +628,7 @@ window.openSettlementBuild = openSettlementBuild;
 
 function closeSettlementView() {
   _svOpen = false;
+  if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
   _closeBuildPanel();
   _closeHousingModal();
   _unbindParallax();

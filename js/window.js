@@ -172,6 +172,7 @@
     restack();
     syncBody();
     if (typeof w.opts.onClose === 'function') { try { w.opts.onClose(w); } catch (e) { console.error(e); } }
+    announce('kww:close', w);
     // Focus goes back to whatever opened it, or to the window now on top.
     const back = w.opener && w.opener.isConnected ? w.opener : null;
     const nextTop = top();
@@ -233,8 +234,15 @@
     restack();
     syncBody();
     draw(w);
+    announce('kww:open', w);
     focusInto(w);
     return w;
+  }
+  // Tells the page a window opened or closed (js/places.js marks the place).
+  function announce(type, w) {
+    const doc = global.document;
+    if (!doc || !global.CustomEvent) return;   // no page (tests)
+    try { doc.dispatchEvent(new global.CustomEvent(type, { detail: { id: w.id } })); } catch (_) { /* old browser */ }
   }
 
   // ── Keys: Escape closes the top window; Tab stays inside; ←/→ move tabs ──
