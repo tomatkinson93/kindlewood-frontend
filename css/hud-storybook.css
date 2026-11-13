@@ -723,6 +723,12 @@
 
 /* Attention pills — citizen states needing the player's eye.
    Rendered only when count > 0; click through to Citizens tab. */
+/* Life stages and beds (Phase 1; tokens from css/tokens.css). */
+.cp-stage { color: var(--kw-gold); }
+.cp-stage-elder { color: var(--kw-muted); font-style: italic; }
+.sett-beds { margin-top: var(--kw-s-2); font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.sett-beds b { color: var(--kw-cream); }
+
 .sett-pills {
   display: flex;
   flex-wrap: wrap;

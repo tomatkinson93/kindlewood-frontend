@@ -1,6 +1,15 @@
 // ── Citizens system ──
 
 let citizensData = [];
+
+// Life stage from the server (lib/life.js): child 0–6, youth 7–11, adult,
+// elder 60+. Adults get no tag. short: for list rows.
+function _stageTag(c, short) {
+  const st = c && c.stage;
+  const label = { child: 'Child', youth: 'Youth', elder: 'Elder' }[st];
+  if (!label) return '';
+  return ` · <span class="cp-stage cp-stage-${st}" title="${st === 'youth' ? 'Learning a trade; grown up at 12' : st === 'elder' ? 'Still working, at part strength' : 'Grows into a youth at 7'}">${short ? label.toLowerCase() : label}</span>`;
+}
 let selectedCitizenId = null;
 
 const ROLE_ICONS = {
@@ -200,7 +209,7 @@ function renderCitizensList() {
       + '</div>'
       + '<div class="crf-info">'
       + '<div class="crf-name">' + c.name + partnerIcon + hungerBadge + '</div>'
-      + '<div class="crf-meta">' + roleIcon + ' ' + roleLabel + ' · ' + (c.life?.age ?? '?') + 'y</div>'
+      + '<div class="crf-meta">' + roleIcon + ' ' + roleLabel + ' · ' + (c.life?.age ?? '?') + 'y' + _stageTag(c, true) + '</div>'
       + '</div>'
       + '<div class="crf-bars">'
       + '<div class="crf-bar-row" title="Health ' + health + '%">'
@@ -457,7 +466,7 @@ function renderCitizenProfile(c) {
       </div>
       <div class="cp-header-info">
         <div class="cp-name">${c.name}</div>
-        <div class="cp-meta">Gen ${c.generation} · Age ${c.life?.age ?? '?'} · ${c.gender.charAt(0).toUpperCase()+c.gender.slice(1)}${c.life_stage === 'child' ? ' · <span style="color:#f0c080">Child</span>' : ''}</div>
+        <div class="cp-meta">Gen ${c.generation} · Age ${c.life?.age ?? '?'} · ${c.gender.charAt(0).toUpperCase()+c.gender.slice(1)}${_stageTag(c)}</div>
         ${c.life_stage !== 'child' && window.KWCareers ? KWCareers.badgeHtml(c) : ''}
         ${partnerHtml}
         ${parentsHtml}
@@ -961,7 +970,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
     const away = citizenAway(c);
     return '<tr class="ac-row' + (isChild(c) ? ' ac-row--child' : '') + (away ? ' ac-row--away' : '') + '" id="ac-row-' + c.id + '"' + (away ? ' title="' + away.label.replace(/"/g, '') + ' — not in the settlement"' : '') + ' onclick="openCitizenProfile(' + c.id + ')" style="cursor:pointer">'
       + '<td class="ac-name">' + c.name + (isChild(c) ? ' <span class="ac-child-tag">child</span>' : '') + '</td>'
-      + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y</td>'
+      + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y' + _stageTag(c, true) + '</td>'
       + '<td class="ac-meta">Gen ' + (c.generation??1) + '</td>'
       + roleCell
       + '<td class="ac-stat" title="' + (c.career ? c.career.title : '') + '">' + (c.career ? c.career.level + (c.career.fork_ready || c.career.points_free ? ' <span class="cr-tab-dot"></span>' : '') : '<span style="opacity:.3">—</span>') + '</td>'

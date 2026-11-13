@@ -1948,9 +1948,16 @@ function _selectWorldTileImpl(tile) {
 
   if (s.isOwn) {
     const citizens = typeof citizensData !== 'undefined' ? citizensData : [];
-    const adults   = citizens.filter(c => c.life_stage !== 'child' && c.life_stage !== 'elder');
-    const children = citizens.filter(c => c.life_stage === 'child');
-    const elders   = citizens.filter(c => c.life_stage === 'elder');
+    // Stages come from the server (lib/life.js: youth = child aged 7+, elder =
+    // adult aged 60+). The dead are in citizensData too, so leave them out.
+    const stageOf  = c => c.stage || (c.life_stage === 'deceased' ? 'deceased' : c.life_stage === 'child' ? 'child' : 'adult');
+    const living   = citizens.filter(c => stageOf(c) !== 'deceased');
+    const children = living.filter(c => stageOf(c) === 'child');
+    const youths   = living.filter(c => stageOf(c) === 'youth');
+    const elders   = living.filter(c => stageOf(c) === 'elder');
+    // Working age: adults and elders (elders still work, at part strength).
+    const adults   = living.filter(c => stageOf(c) === 'adult' || stageOf(c) === 'elder');
+    const beds     = gameData && gameData.settlement && typeof gameData.settlement.beds === 'number' ? gameData.settlement.beds : null;
     // Count diplomatic envoys from _diploRelations cache (populated by diplomacy.js)
     const diploEnvoys = (typeof _diploEnvoyIds !== 'undefined' ? _diploEnvoyIds : new Set());
     const onMission = adults.filter(c => (typeof citizenAway === 'function' ? citizenAway(c) : (c.expedition || c.active_quest || (c.trade && c.trade.on_road) || diploEnvoys.has(c.id)))).length;
@@ -2011,9 +2018,11 @@ function _selectWorldTileImpl(tile) {
       + '<div class="sett-section-label">Population</div>'
       + '<div class="sett-stat-row">'
       + '<div class="sett-stat"><div class="sett-stat-val">' + children.length + '</div><div class="sett-stat-key">Children</div></div>'
-      + '<div class="sett-stat"><div class="sett-stat-val">' + adults.length + '</div><div class="sett-stat-key">Adults</div></div>'
-      + '<div class="sett-stat"><div class="sett-stat-val">' + elders.length + '</div><div class="sett-stat-key">Elderly</div></div>'
+      + '<div class="sett-stat"><div class="sett-stat-val">' + youths.length + '</div><div class="sett-stat-key">Youths</div></div>'
+      + '<div class="sett-stat"><div class="sett-stat-val">' + (adults.length - elders.length) + '</div><div class="sett-stat-key">Adults</div></div>'
+      + '<div class="sett-stat"><div class="sett-stat-val">' + elders.length + '</div><div class="sett-stat-key">Elders</div></div>'
       + '</div>'
+      + (beds != null ? '<div class="sett-beds" title="Births need a free bed in town. Build Willow Huts for more.">🛏 Beds <b>' + living.length + '/' + beds + '</b></div>' : '')
       + pillsRow
 
       // Actions — with hierarchy
