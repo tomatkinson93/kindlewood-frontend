@@ -735,6 +735,15 @@
 .cp-heirlooms { margin: var(--kw-s-2) 0; font-size: var(--kw-fs-2); color: var(--kw-muted); }
 .cp-heirlooms b { color: var(--kw-good); }
 .kwl-list { display: grid; gap: var(--kw-s-1); }
+/* Dev Tools → Life (js/life-admin.js) */
+.kwld-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--kw-s-1) var(--kw-s-4); font-size: var(--kw-fs-2); margin-bottom: var(--kw-s-2); }
+.kwld-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kw-s-2); margin: var(--kw-s-2) 0; }
+.kwld-num { width: 64px; }
+.kwld-ok { color: var(--kw-good); }
+.kwld-changed { color: var(--kw-warn); font-size: var(--kw-fs-1); }
+.kwld-danger { border-color: var(--kw-bad); }
+.kwld-gname { font-family: var(--kw-font-title); color: var(--kw-gold); margin: var(--kw-s-2) 0 var(--kw-s-1); }
+.kwld-oldest { display: flex; flex-wrap: wrap; gap: var(--kw-s-1); }
 .kwl-row { display: grid; gap: 2px; text-align: left; padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); color: var(--kw-cream); font: inherit; cursor: pointer; }
 .kwl-row:hover { background: var(--kw-hover); }
 .kwl-row-sub { font-size: var(--kw-fs-2); color: var(--kw-muted); }

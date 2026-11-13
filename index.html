@@ -945,6 +945,7 @@
   <script defer src="/js/window.js?v=1"></script>
   <script defer src="/js/life.js?v=1"></script>
   <script defer src="/js/families.js?v=1"></script>
+  <script defer src="/js/life-admin.js?v=1"></script>
   <script defer src="/js/journeys.js?v=os1"></script>
   <script defer src="/js/outposts.js?v=r6c"></script>
   <script defer src="/js/funnel-admin.js?v=p0"></script>
@@ -1143,6 +1144,7 @@
         <button class="cheat-tab active" onclick="cheatSwitchTab('ct-resources',this)">💰 Resources</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-citizens',this)">👤 Citizens</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-family',this)">🍼 Family</button>
+        <button class="cheat-tab" onclick="cheatSwitchTab('ct-life',this);KWLifeDev.open()">👪 Life</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-world',this);loadDiplomacyDebugNpcs()">🌍 World</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-quests',this);loadQuestAdmin()">📜 Quests</button>
         <button class="cheat-tab" onclick="cheatSwitchTab('ct-items',this);loadItemAdmin()">🗡 Items</button>
@@ -1400,6 +1402,11 @@
           <button class="cheat-res-btn" onclick="cheatSimulateEvent('partnership')">💕 Partnership</button>
           <button class="cheat-res-btn" onclick="cheatSimulateEvent('child_born')">🍼 Child Born</button>
         </div>
+      </div>
+
+      <!-- ── TAB: Life (js/life-admin.js) ── -->
+      <div class="cheat-tab-panel" id="ct-life" style="display:none">
+        <div id="ct-life-body"></div>
       </div>
 
       <!-- ── TAB: World ── -->
