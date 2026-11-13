@@ -1,0 +1,188 @@
+/* ════════════════════════════════════════════════════════════════
+   The five places (js/places.js, docs/LAYOUT_SPEC.md §2).
+   Desktop: one row under the top bar — the places, then the tools
+   of the view on screen (Home or The Land).
+   Phones (body.kw-shell): the places are the bottom tab bar; the
+   tools a row of chips just above it.
+   Tokens only (verify/window_proofs.js style check).
+   ════════════════════════════════════════════════════════════════ */
+
+.kwp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--kw-s-3);
+  padding: var(--kw-s-1) var(--kw-s-4);
+  background: var(--kw-wood);
+  border-bottom: 1px solid var(--kw-border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: var(--z-hud);
+  font-family: var(--kw-font-body);
+}
+
+.kwp-bar { display: flex; gap: var(--kw-s-1); }
+
+.kwp-place {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kw-s-2);
+  min-height: 36px;
+  padding: var(--kw-s-1) var(--kw-s-3);
+  border: 1px solid transparent;
+  border-radius: var(--kw-radius);
+  background: none;
+  color: var(--kw-muted);
+  font: inherit;
+  font-size: var(--kw-fs-3);
+  cursor: pointer;
+}
+.kwp-place .kw-icon { width: 20px; height: 20px; }
+.kwp-place:hover { background: var(--kw-hover); color: var(--kw-cream); }
+.kwp-place.on {
+  color: var(--kw-gold);
+  border-color: var(--kw-gold-dim);
+  background: var(--kw-wood-2);
+}
+.kwp-place:focus-visible, .kwp-tool:focus-visible, .kwp-hub-item:focus-visible {
+  outline: 2px solid var(--kw-focus);
+  outline-offset: 2px;
+}
+
+.kwp-dot {
+  display: none;
+  position: absolute;
+  top: var(--kw-s-1);
+  right: var(--kw-s-1);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--kw-bad);
+}
+.has-dot > .kwp-dot { display: block; }
+
+.kwp-tools {
+  display: flex;
+  gap: var(--kw-s-1);
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.kwp-tool {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: var(--kw-s-1) var(--kw-s-3);
+  border: 1px solid var(--kw-line);
+  border-radius: var(--kw-radius);
+  background: var(--kw-wood-2);
+  color: var(--kw-cream);
+  font: inherit;
+  font-size: var(--kw-fs-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.kwp-tool:hover { border-color: var(--kw-gold-dim); color: var(--kw-gold); }
+
+/* The profile menu's dot (unread messages). */
+.profile-trigger.has-dot { position: relative; }
+.profile-trigger.has-dot::after, .profile-menu-item.has-dot::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: var(--kw-s-2);
+  border-radius: 50%;
+  background: var(--kw-bad);
+}
+
+/* ── Hub windows: The Road, The Clan ── */
+.kwp-hub-sub { margin: 0 0 var(--kw-s-3); color: var(--kw-muted); font-size: var(--kw-fs-2); }
+.kwp-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--kw-s-2); }
+.kwp-hub-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--kw-s-3);
+  min-height: 64px;
+  padding: var(--kw-s-3);
+  border: 1px solid var(--kw-line);
+  border-radius: var(--kw-radius);
+  background: var(--kw-panel-2);
+  color: var(--kw-cream);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kwp-hub-item:hover { border-color: var(--kw-gold-dim); }
+.kwp-hub-glyph { font-size: var(--kw-fs-5); }
+.kwp-hub-text { display: flex; flex-direction: column; gap: 2px; }
+.kwp-hub-text b { font-size: var(--kw-fs-3); color: var(--kw-gold); }
+.kwp-hub-text span { font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwp-note { margin: var(--kw-s-2) 0; padding-left: var(--kw-s-4); }
+.kwp-note li { margin-bottom: var(--kw-s-1); }
+
+/* ── Phones ── */
+body.kw-shell .kwp-row {
+  position: static;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+body.kw-shell .kwp-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-hud);
+  height: calc(var(--kw-tabbar-h) + var(--kw-safe-b));
+  padding-bottom: var(--kw-safe-b);
+  gap: 0;
+  background: var(--kw-ink);
+  border-top: 1px solid var(--kw-gold-dim);
+}
+body.kw-shell .kwp-place {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--kw-touch);
+  padding: var(--kw-s-1) 0;
+  border: 0;
+  border-radius: 0;
+  font-size: var(--kw-fs-1);
+}
+body.kw-shell .kwp-place.on { background: none; }
+body.kw-shell .kwp-place .kw-icon { width: 22px; height: 22px; }
+body.kw-shell .kwp-dot { right: 30%; }
+body.kw-shell .kwp-tools {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b));
+  z-index: var(--z-float);   /* above the Home scene (800) */
+  margin: 0;
+  padding: var(--kw-s-2) var(--kw-s-3);
+}
+body.kw-shell .kwp-tools:empty { display: none; }
+body.kw-shell .kwp-tool { min-height: var(--kw-touch); background: var(--kw-ink); }
+/* Over a full-screen window or overlay the bar and chips step aside. */
+body.kw-shell.kw-overlay .kwp-bar,
+body.kw-shell.kw-overlay .kwp-tools { display: none; }
+
+/* Home is a view on phones too: the scene stops above the places, and
+   above Home's chips, which sit on their own strip under it. (The game
+   screen is its own stacking context, so the chips can't rise over the
+   scene, which lives on the body.) */
+body.kw-shell #settlement-view { bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b)); }
+body.kw-shell.kwp-home #settlement-view { bottom: var(--kwp-above); }
+body.kw-shell.kwp-home .kwp-tools { background: var(--kw-ink); border-top: 1px solid var(--kw-border); }
+
+/* The old community bar stays in the page for its dots, never shown. */
+.community-bar[hidden] { display: none; }
+
+/* Things that float above the bar now float above the chips too. The old
+   Scout and Centre buttons are chips now (The Land's tools). */
+body.kw-shell { --kwp-chips-h: 56px; --kwp-above: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + var(--kwp-chips-h)); }
+body.kw-shell .kw-fabs { display: none; }
+body.kw-shell .kw-stick { bottom: calc(var(--kwp-above) + var(--kw-s-3)); }
+body.kw-shell #kw-moments { bottom: calc(var(--kwp-above) + var(--kw-s-2)); }

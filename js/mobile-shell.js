@@ -337,7 +337,10 @@
     /* Analog stick. */
     screen.appendChild(buildStick());
 
-    /* Bottom tab bar. */
+    /* Bottom tab bar: replaced by the five places (js/places.js), which
+       are the tab bar on phones. Kept here, unbuilt, until Phase 4 removes
+       the rest of this file's old navigation. */
+    if (window.KWPlaces) { wireIntegrations(); wireGameToggles(); watchOverlays(); watchStickCover(); applyStickVisibility(); return; }
     var bar = el('nav', 'kw-tabbar');
     bar.id = 'kw-tabbar';
     bar.setAttribute('aria-label', 'Main');
@@ -397,7 +400,8 @@
     if (document.body.classList.contains('kw-overlay')) return true;
     var screen = byId('screen-game');
     if (!screen || !screen.classList.contains('active')) return true;
-    var bar = document.querySelector('.kw-tabbar');
+    // The stick sits above the places' chips (js/places.js), or the old tab bar.
+    var bar = document.querySelector('.kwp-tools:not(:empty)') || document.querySelector('.kwp-bar') || document.querySelector('.kw-tabbar');
     var bottom = bar ? bar.getBoundingClientRect().top : window.innerHeight;
     var size = stickEl.offsetWidth || 104;
     var x = 14 + size / 2, y = bottom - 12 - size / 2;
@@ -565,7 +569,7 @@
     // index.html, so the body is watched for them appearing too.
     var ids = [
       'tavern-overlay', 'fishing-overlay', 'combat-modal',
-      'settlement-view', 'sq-backdrop', 'bcmp-backdrop',
+      'sq-backdrop', 'bcmp-backdrop',   // (the settlement scene is Home now: a view, not an overlay)
       'clan-panel', 'chat-hub', 'clan-profile', 'market-panel', 'tw-overlay', 'kwop-modal',
       // R5: dialogs that go full screen on phones
       'diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'away-report-modal', 'tier-upgrade-modal',

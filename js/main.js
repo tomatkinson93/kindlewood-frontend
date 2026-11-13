@@ -518,6 +518,7 @@ async function loadGame(force = false) {
       setLoadingProgress(100, 'Everything is ready.');
       await lsReadyToPlay();
       hideLoadingScreen();
+      if (window.KWPlaces) KWPlaces.start();   // the game opens on Home (js/places.js)
       startAway();
     } else {
       setTimeout(() => { setLoadingProgress(100, 'Welcome back!'); setTimeout(hideLoadingScreen, 400); }, 600);
