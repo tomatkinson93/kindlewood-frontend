@@ -121,7 +121,7 @@
       b.classList.toggle('on', on);
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    if (doc.body) doc.body.classList.toggle('kwp-home', _current === 'home');
+    placeTools();
     const tools = doc.getElementById('kw-place-tools');
     if (tools) {
       tools.innerHTML = toolsHtml(_current);
@@ -155,9 +155,20 @@
     const row = doc.createElement('div');
     row.className = 'kwp-row';
     row.appendChild(nav);
-    row.appendChild(tools);
     if (old) { old.hidden = true; old.parentNode.insertBefore(row, old); }
     else screen.insertBefore(row, screen.firstChild);
+    // The chips float at the top left of the view. They live on the game
+    // screen itself, not in the row: the row is its own layer, which would
+    // keep them under the Home scene.
+    screen.appendChild(tools);
+    doc.body.classList.add('kwp-on');
+    placeTools();
+    global.addEventListener('resize', placeTools);
+    // The top bar grows as it fills in (a second row on phones): follow it.
+    if (global.ResizeObserver) {
+      const ro = new global.ResizeObserver(placeTools);
+      [doc.querySelector('#screen-game .topbar'), row].forEach(n => { if (n) ro.observe(n); });
+    }
     nav.addEventListener('click', e => { const b = e.target.closest('[data-place]'); if (b) go(b.getAttribute('data-place')); });
     tools.addEventListener('click', e => {
       const b = e.target.closest('[data-tool]');
@@ -170,6 +181,18 @@
     // Dots: the old buttons change class or gain a badge.
     const bar = screen.querySelector('.community-bar');
     if (bar && global.MutationObserver) new MutationObserver(syncDots).observe(bar, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+  }
+
+  // The chips' line: just under the place row (desktop) or the top bar
+  // (phones, where the places are at the bottom).
+  function placeTools() {
+    const tools = doc.getElementById('kw-place-tools');
+    if (!tools || !doc.documentElement) return;
+    const row = doc.querySelector('.kwp-row'), top = doc.querySelector('#screen-game .topbar');
+    let y = 0;
+    if (isPhone()) y = top ? top.getBoundingClientRect().bottom + 2 : 96;   // its bottom 20px is a fade
+    else y = (row ? row.getBoundingClientRect().bottom : 100) + 16;
+    doc.documentElement.style.setProperty('--kwp-tools-top', Math.round(y) + 'px');
   }
 
   // ── Switching ───────────────────────────────────────────────────────────

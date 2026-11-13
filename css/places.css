@@ -1,17 +1,19 @@
 /* ════════════════════════════════════════════════════════════════
-   The five places (js/places.js, docs/LAYOUT_SPEC.md §2).
-   Desktop: one row under the top bar — the places, then the tools
-   of the view on screen (Home or The Land).
-   Phones (body.kw-shell): the places are the bottom tab bar; the
-   tools a row of chips just above it.
+   The five places (js/places.js, docs/LAYOUT_SPEC.md §2), after the
+   layout mockup (2026-11-13):
+   - desktop: the places are a centred row under the top bar, the one
+     on screen underlined;
+   - phones (body.kw-shell): the places are the bottom tab bar;
+   - both: the view's tools (Home or The Land) are chips at the top
+     left of the view. js/places.js sets --kwp-tools-top, the line
+     under the bars.
    Tokens only (verify/window_proofs.js style check).
    ════════════════════════════════════════════════════════════════ */
 
 .kwp-row {
   display: flex;
-  align-items: center;
-  gap: var(--kw-s-3);
-  padding: var(--kw-s-1) var(--kw-s-4);
+  justify-content: center;
+  padding: 0 var(--kw-s-4);
   background: var(--kw-wood);
   border-bottom: 1px solid var(--kw-border);
   flex-shrink: 0;
@@ -20,17 +22,17 @@
   font-family: var(--kw-font-body);
 }
 
-.kwp-bar { display: flex; gap: var(--kw-s-1); }
+.kwp-bar { display: flex; gap: var(--kw-s-4); }
 
 .kwp-place {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--kw-s-2);
-  min-height: 36px;
-  padding: var(--kw-s-1) var(--kw-s-3);
-  border: 1px solid transparent;
-  border-radius: var(--kw-radius);
+  min-height: 44px;
+  padding: var(--kw-s-2) var(--kw-s-4);
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: none;
   color: var(--kw-muted);
   font: inherit;
@@ -38,12 +40,8 @@
   cursor: pointer;
 }
 .kwp-place .kw-icon { width: 20px; height: 20px; }
-.kwp-place:hover { background: var(--kw-hover); color: var(--kw-cream); }
-.kwp-place.on {
-  color: var(--kw-gold);
-  border-color: var(--kw-gold-dim);
-  background: var(--kw-wood-2);
-}
+.kwp-place:hover { color: var(--kw-cream); }
+.kwp-place.on { color: var(--kw-gold); border-bottom-color: var(--kw-gold-deep); font-weight: 600; }
 .kwp-place:focus-visible, .kwp-tool:focus-visible, .kwp-hub-item:focus-visible {
   outline: 2px solid var(--kw-focus);
   outline-offset: 2px;
@@ -52,8 +50,8 @@
 .kwp-dot {
   display: none;
   position: absolute;
-  top: var(--kw-s-1);
-  right: var(--kw-s-1);
+  top: var(--kw-s-2);
+  right: var(--kw-s-2);
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -61,27 +59,45 @@
 }
 .has-dot > .kwp-dot { display: block; }
 
+/* ── The view's tools: chips at its top left ── */
 .kwp-tools {
+  position: fixed;
+  top: var(--kwp-tools-top, 112px);
+  left: var(--kw-s-4);
+  right: var(--kw-s-4);
+  z-index: var(--z-float);   /* above the Home scene (800) and the map */
   display: flex;
-  gap: var(--kw-s-1);
-  margin-left: auto;
+  gap: var(--kw-s-2);
   overflow-x: auto;
   scrollbar-width: none;
+  pointer-events: none;      /* the scene stays clickable between chips */
+  font-family: var(--kw-font-body);
 }
+.kwp-tools::-webkit-scrollbar { display: none; }
+.kwp-tools:empty { display: none; }
 .kwp-tool {
   flex-shrink: 0;
-  min-height: 32px;
-  padding: var(--kw-s-1) var(--kw-s-3);
-  border: 1px solid var(--kw-line);
-  border-radius: var(--kw-radius);
-  background: var(--kw-wood-2);
+  pointer-events: auto;
+  min-height: 36px;
+  padding: var(--kw-s-1) var(--kw-s-4);
+  border: 1px solid var(--kw-line-2);
+  border-radius: 999px;
+  background: var(--kw-ink);
   color: var(--kw-cream);
   font: inherit;
-  font-size: var(--kw-fs-2);
+  font-size: var(--kw-fs-3);
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: var(--kw-shadow);
 }
-.kwp-tool:hover { border-color: var(--kw-gold-dim); color: var(--kw-gold); }
+.kwp-tool:hover { border-color: var(--kw-gold-deep); color: var(--kw-gold); }
+
+/* The scene's own header (Town / Outskirts, Edit) sits under the chips;
+   its back button and title go: the places do that now. */
+body.kwp-on .sv-back-btn, body.kwp-on .sv-header-title { display: none; }
+body.kwp-on .sv-header { padding-top: 60px; align-items: flex-start; }
+/* The moments' cards (top left on desktop) sit under the chips. */
+body.kwp-on #kw-moments { top: calc(var(--kwp-tools-top, 112px) + 52px); }
 
 /* The profile menu's dot (unread messages). */
 .profile-trigger.has-dot { position: relative; }
@@ -121,6 +137,9 @@
 .kwp-note { margin: var(--kw-s-2) 0; padding-left: var(--kw-s-4); }
 .kwp-note li { margin-bottom: var(--kw-s-1); }
 
+/* The old community bar stays in the page for its dots, never shown. */
+.community-bar[hidden] { display: none; }
+
 /* ── Phones ── */
 body.kw-shell .kwp-row {
   position: static;
@@ -147,42 +166,26 @@ body.kw-shell .kwp-place {
   gap: 2px;
   min-height: var(--kw-touch);
   padding: var(--kw-s-1) 0;
-  border: 0;
-  border-radius: 0;
+  border-bottom: 0;
+  border-top: 2px solid transparent;
   font-size: var(--kw-fs-1);
 }
-body.kw-shell .kwp-place.on { background: none; }
+body.kw-shell .kwp-place.on { border-top-color: var(--kw-gold-deep); }
 body.kw-shell .kwp-place .kw-icon { width: 22px; height: 22px; }
 body.kw-shell .kwp-dot { right: 30%; }
-body.kw-shell .kwp-tools {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b));
-  z-index: var(--z-float);   /* above the Home scene (800) */
-  margin: 0;
-  padding: var(--kw-s-2) var(--kw-s-3);
-}
-body.kw-shell .kwp-tools:empty { display: none; }
-body.kw-shell .kwp-tool { min-height: var(--kw-touch); background: var(--kw-ink); }
+body.kw-shell .kwp-tools { left: var(--kw-s-3); right: 0; padding-right: var(--kw-s-3); }
+body.kw-shell .kwp-tool { min-height: var(--kw-touch); }
+body.kw-shell.kwp-on .sv-header { padding-top: 64px; }
 /* Over a full-screen window or overlay the bar and chips step aside. */
 body.kw-shell.kw-overlay .kwp-bar,
 body.kw-shell.kw-overlay .kwp-tools { display: none; }
-
-/* Home is a view on phones too: the scene stops above the places, and
-   above Home's chips, which sit on their own strip under it. (The game
-   screen is its own stacking context, so the chips can't rise over the
-   scene, which lives on the body.) */
+/* Home is a view on phones too: the scene stops above the places. */
 body.kw-shell #settlement-view { bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b)); }
-body.kw-shell.kwp-home #settlement-view { bottom: var(--kwp-above); }
-body.kw-shell.kwp-home .kwp-tools { background: var(--kw-ink); border-top: 1px solid var(--kw-border); }
-
-/* The old community bar stays in the page for its dots, never shown. */
-.community-bar[hidden] { display: none; }
-
-/* Things that float above the bar now float above the chips too. The old
-   Scout and Centre buttons are chips now (The Land's tools). */
-body.kw-shell { --kwp-chips-h: 56px; --kwp-above: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + var(--kwp-chips-h)); }
+/* The old floating Scout and Centre buttons are The Land's chips now. */
 body.kw-shell .kw-fabs { display: none; }
-body.kw-shell .kw-stick { bottom: calc(var(--kwp-above) + var(--kw-s-3)); }
-body.kw-shell #kw-moments { bottom: calc(var(--kwp-above) + var(--kw-s-2)); }
+
+/* Phones: the top bar is its own layer (40) and Home's scene sits above it
+   (800), so its drop-downs (the bell's list, the profile menu) opened under
+   the scene. While one is open, the top bar rises above it. */
+body.kw-shell #screen-game .topbar:has(.events-panel.open),
+body.kw-shell #screen-game .topbar:has(#profile-dropdown-wrap.open) { z-index: var(--z-float); }

@@ -88,11 +88,16 @@ console.log('6. The old bar, the phone and Home');
 {
   check('6a. the old community bar stays in the page, hidden (features still light their dots there)', /class="community-bar"/.test(H) && /old\.hidden = true/.test(P));
   check('6b. places.js and places.css are loaded (the CSS after mobile-shell.css)', /js\/places\.js/.test(H) && H.indexOf('css/places.css') > H.indexOf('css/mobile-shell.css'));
-  check('6c. phones: the places are the bottom bar; the tools are chips above it', /body\.kw-shell \.kwp-bar \{[^}]*position: fixed;[^}]*bottom: 0;/.test(CSS) && /body\.kw-shell \.kwp-tools \{[^}]*bottom: calc\(var\(--kw-tabbar-h\)/.test(CSS));
+  check('6c. phones: the places are the bottom bar', /body\.kw-shell \.kwp-bar \{[^}]*position: fixed;[^}]*bottom: 0;/.test(CSS));
+  check('6c2. the view\'s tools are chips at its top left (desktop and phones), on the game screen itself, not in the place row (its layer would keep them under the scene)',
+    /\.kwp-tools \{[^}]*position: fixed;[^}]*top: var\(--kwp-tools-top/.test(CSS) && /screen\.appendChild\(tools\)/.test(P) && !/row\.appendChild\(tools\)/.test(P) && /--kwp-tools-top/.test(P));
+  check('6c3. desktop: the places are a centred row; the one on screen is underlined', /\.kwp-row \{[^}]*justify-content: center/.test(CSS) && /\.kwp-place\.on \{[^}]*border-bottom-color/.test(CSS));
   check('6d. the phone shell no longer builds its own tab bar', /if \(window\.KWPlaces\) \{ wireIntegrations\(\);/.test(MS));
   check('6e. Home is a view: the scene isn\'t an overlay, and stops above the places on phones', !/'settlement-view', 'sq-backdrop'/.test(MS) && /body\.kw-shell #settlement-view \{ bottom:/.test(CSS));
   check('6f. the scene tells the places when it opens or closes; its back button says where it goes', /KWPlaces\.seen\('home'\)/.test(SV) && /KWPlaces\.seen\('land'\)/.test(SV) && /&#8592; The Land/.test(SV));
-  check('6g. the joystick and moment cards float above the chips', /body\.kw-shell \.kw-stick \{ bottom: calc\(var\(--kwp-above\)/.test(CSS) && /body\.kw-shell #kw-moments \{ bottom: calc\(var\(--kwp-above\)/.test(CSS));
+  check('6g. the scene\'s back button and title go (the places do that); its Town / Outskirts sit under the chips; the moment cards too', /body\.kwp-on \.sv-back-btn, body\.kwp-on \.sv-header-title \{ display: none; \}/.test(CSS) && /body\.kwp-on #kw-moments \{ top: calc\(var\(--kwp-tools-top/.test(CSS));
+  check('6h. the bell on phones: its list and the profile menu open above the Home scene', /\.topbar:has\(\.events-panel\.open\)/.test(CSS) && /\.topbar:has\(#profile-dropdown-wrap\.open\) \{ z-index: var\(--z-float\)/.test(CSS));
+  check('6i. a panel fading out is checked again when the fade ends, so the places come back after the bell closes', /addEventListener\('transitionend'/.test(MS) && /syncSoon/.test(MS));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
