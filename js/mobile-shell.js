@@ -595,7 +595,20 @@
       wasOpen = open;
     };
 
-    var attrMo = new MutationObserver(sync);
+    // A panel that fades out still reads as visible at the instant its class
+    // flips, so check again once the fade ends (or shortly after, in case
+    // there is no transition event): otherwise the page stays marked as
+    // covered and the places' bar never comes back (the bell, 2026-11-13).
+    var later = null;
+    var syncSoon = function () {
+      sync();
+      if (later) clearTimeout(later);
+      later = setTimeout(function () { later = null; sync(); }, 450);
+    };
+    document.addEventListener('transitionend', function (e) {
+      if (e.target && e.target.id && ids.indexOf(e.target.id) >= 0) sync();
+    }, true);
+    var attrMo = new MutationObserver(syncSoon);
     var attach = function () {
       ids.forEach(function (id) {
         var n = byId(id);
