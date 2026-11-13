@@ -9,22 +9,7 @@
 /* Fonts — harmless duplicate if main.css already imports these */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap');
 
-:root {
-  --kw-ink:       #1d150d;   /* darkest chrome (topbar) */
-  --kw-wood:      #241a10;   /* nav + sidebar */
-  --kw-wood-2:    #2c2013;   /* raised cells, secondary buttons */
-  --kw-border:    #3a2c1b;   /* quiet structural lines */
-  --kw-gold:      #e8c87a;   /* bright gold text */
-  --kw-gold-deep: #c9a45c;   /* gold accent lines, active underline */
-  --kw-gold-btn:  #cda451;   /* solid primary button fill */
-  --kw-gold-dim:  #6e5836;   /* muted gold borders */
-  --kw-cream:     #efe4cd;   /* primary text */
-  --kw-muted:     #a8946f;   /* secondary text */
-  --kw-good:      #9fc97a;   /* positive states (Stable, +rates) */
-  --kw-bluff:     #a57fd0;   /* bluff claims (Briar) — text / accents */
-  --kw-bluff-bg:  #3a2750;   /* bluff claim button fill */
-  --kw-bluff-dim: #6a4d85;   /* bluff borders */
-}
+/* The palette (--kw-ink … --kw-bluff-dim) lives in css/tokens.css, loaded first. */
 
 /* ── Topbar ─────────────────────────────────────────────── */
 .topbar {

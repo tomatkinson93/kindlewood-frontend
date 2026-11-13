@@ -582,6 +582,8 @@
         var cs = window.getComputedStyle(n);
         return cs.display !== 'none' && cs.visibility !== 'hidden';
       });
+      // KWWindow windows (js/window.js) need no id here: any open one counts.
+      if (!open && document.querySelector('.kww-backdrop')) open = true;
       document.body.classList.toggle('kw-overlay', open);
       // Opening one should dismiss whatever sheet launched it, so the game
       // isn't sharing the screen with the More list.
