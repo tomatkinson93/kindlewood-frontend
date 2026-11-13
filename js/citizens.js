@@ -24,12 +24,12 @@ const ROLE_ICONS = {
 const TRAIT_ICONS = {
   strong:'💪', quick:'⚡', hardy:'🛡', genius:'🧠', charming:'✨',
   frail:'🩹', clumsy:'🌀', slow_learner:'🐢', night_worker:'🌙',
-  greedy:'🍖', loyal:'❤️', wanderer:'🗺', brave:'🦁', shaken:'😨',
+  greedy:'🍖', loyal:'❤️', wanderer:'🗺', brave:'🦁', shaken:'😨', shield:'🛡️',
 };
 const TRAIT_LABELS = {
   strong:'Strong', quick:'Quick', hardy:'Hardy', genius:'Genius', charming:'Charming',
   frail:'Frail', clumsy:'Clumsy', slow_learner:'Slow Learner', night_worker:'Night Worker',
-  greedy:'Greedy', loyal:'Loyal', wanderer:'Wanderer', brave:'Brave', shaken:'Shaken',
+  greedy:'Greedy', loyal:'Loyal', wanderer:'Wanderer', brave:'Brave', shaken:'Shaken', shield:"Town's Shield",
 };
 const STAT_LABELS = {
   strength:'Strength', agility:'Agility', endurance:'Endurance',
