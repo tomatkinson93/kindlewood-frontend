@@ -55,5 +55,27 @@ console.log('3. Apprenticeship and elders (step 3)');
   check('3i. youths see it in place of the child-labour note; elders get a note', /c\.stage === 'youth' \? _apprenticeHtml\(c\)/.test(C) && /cp-elder-note">🦉 An elder/.test(C));
 }
 
+console.log('4. Memorials and inheritances (step 4)');
+{
+  const L = read('js/life.js'), E = read('js/events.js'), H = read('index.html');
+  const w = { console }; w.window = w; vm.createContext(w);
+  vm.runInContext(L, w);
+  const open = w.KWLife._bodyHtml({ id: 1, name: 'Hazel <Ashby>', memorial: 'Hazel <Ashby> passed away peacefully at 78. They were head of the Ashby family.',
+    inheritance: { status: 'open', heir_id: 3, default_heir_id: 3, settle_at: new Date(Date.now() + 5 * 3600e3).toISOString(), trade: 'miner', xp: 4000,
+      items: ["Hazel's Iron Pick"], candidates: [{ id: 3, name: 'Rowan', relation: 'child', adult: true }, { id: 4, name: 'Tobias', relation: 'partner', adult: true }, { id: 5, name: 'Pip', relation: 'family', adult: false }] } });
+  check('4a. the memorial line, escaped', /kwl-memorial">Hazel &lt;Ashby&gt; passed away peacefully at 78/.test(open));
+  check('4b. the heirlooms are listed with what they do', /Hazel&#39;s Iron Pick/.test(open) && /\+5%, more with each generation/.test(open));
+  check('4c. an heir picker: the default chosen, relations named, children marked', /<option value="3" selected>Rowan \(their child\)/.test(open) && /<option value="4">Tobias \(their partner\)/.test(open) && /Pip \(family, a child\)/.test(open));
+  check('4d. "Pass them on now", and what happens if you do nothing (never punish being away)', /data-action="pass">Pass them on now/.test(open) && /If you do nothing, Rowan inherits in about 5 hours/.test(open));
+  check('4e. the knowledge rule is explained when there is XP in a trade', /also learns a quarter of what they knew/.test(open));
+  const done = w.KWLife._bodyHtml({ id: 1, name: 'Hazel', memorial: 'm', inheritance: { status: 'settled', heir_name: 'Rowan', items: [] } });
+  check('4f. once settled it says who took them up', /Rowan took up their things/.test(done) && !/data-kwl="heir"/.test(done));
+  check('4g. it is a KWWindow (size S) posting to the heir route', /KWWindow\.open\(\{/.test(L) && /size: 'S'/.test(L) && /\/api\/citizens\/\$\{id\}\/heir/.test(L));
+  check('4h. memorial events open their notice', /type === 'memorial'/.test(E) && /KWLife\.onEvent\(memorial\)/.test(E) && /\/js\/life\.js\?v=/.test(H));
+  check('4i. the dead are kept out of citizensData (no picker offers them)', /citizensData = all\.filter\(c => c\.life_stage !== 'deceased'\)/.test(C) && /citizensRemembered = all\.filter\(c => c\.life_stage === 'deceased'\)/.test(C));
+  check('4j. a Remembered filter lists them, each opening the memorial', /cpanelFilter\('remembered',this\)" aria-label="Remembered"/.test(H) && /KWLife\.openMemorial\(\$\{c\.id\}\)/.test(C) && /their things wait for an heir/.test(C));
+  check('4k. the profile shows heirlooms and their bonus', /function _heirloomsHtml/.test(C) && /\$\{_heirloomsHtml\(c\)\}/.test(C));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

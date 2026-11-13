@@ -1,6 +1,9 @@
 // ── Citizens system ──
 
 let citizensData = [];
+// The dead (memorials and inheritances, js/life.js). Kept out of
+// citizensData so no list or picker offers them as if alive.
+let citizensRemembered = [];
 
 // Life stage from the server (lib/life.js): child 0–6, youth 7–11, adult,
 // elder 60+. Adults get no tag. short: for list rows.
@@ -63,7 +66,9 @@ async function loadCitizens() {
     const res = await apiFetch('/api/citizens');
     if (!res.ok) return;
     const data = await res.json();
-    citizensData = data.citizens || [];
+    const all = data.citizens || [];
+    citizensData = all.filter(c => c.life_stage !== 'deceased');
+    citizensRemembered = all.filter(c => c.life_stage === 'deceased');
     renderCitizensList();
   } catch(e) { console.error(e); }
 }
@@ -109,6 +114,8 @@ function renderCitizensList() {
     panel.innerHTML = '<div class="citizens-empty">No citizens yet.</div>';
     return;
   }
+
+  if (cpanelFilter_val === 'remembered') { panel.innerHTML = _rememberedHtml(); return; }
 
   // Apply filters
   let list = [...citizensData];
@@ -525,6 +532,7 @@ function renderCitizenProfile(c) {
     <div class="cp-tab-panel" id="cp-tab-overview">
       ${c.breeding_status ? renderFamilyStatus(c.breeding_status) : ''}
       ${c.life_stage === 'child' ? renderChildStatus(c) : ''}
+      ${_heirloomsHtml(c)}
       ${c.stage === 'elder' ? '<div class="cp-elder-note">🦉 An elder: still works, at 60% of their strength, and cheers the household. More easily hurt on the road.</div>' : ''}
       ${c.life_stage === 'child' && c.family_hint ? `<div class="cr-hint">${c.family_hint.icon} ${c.family_hint.text}</div>` : ''}
       ${c.life_stage === 'child' ? _childStatsHtml(statBarBlurred) : _adultStatsHtml(c, statBar, skillBar)}
@@ -819,6 +827,26 @@ function _apprenticeHtml(c) {
       ${a.class_key ? `<label class="cp-apprentice-field">Mentor
         <select class="cp-role-select" onchange="setApprenticeship(${c.id}, '${esc(a.class_key)}', this.value)" aria-label="Mentor"${mentors.length ? '' : ' disabled'}>${mentorOpts}</select></label>` : ''}
     </div>`;
+}
+
+// Those who have died, newest first, each opening their memorial.
+function _rememberedHtml() {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  if (!citizensRemembered.length) return '<div class="citizens-empty">No one has died yet.</div>';
+  const rows = [...citizensRemembered].sort((a, b) => new Date(b.died_at || 0) - new Date(a.died_at || 0)).map(c => {
+    const open = c.inheritance && c.inheritance.status === 'open';
+    return `<button type="button" class="kwl-row" onclick="KWLife.openMemorial(${c.id})">
+      <span class="kwl-row-name">🕯 ${esc(c.name)}</span>
+      <span class="kwl-row-sub">${c.age != null ? 'aged ' + c.age : ''}${open ? ' · <b>their things wait for an heir</b>' : ''}</span></button>`;
+  }).join('');
+  return `<div class="kwl-list">${rows}</div>`;
+}
+
+// Heirlooms a living citizen carries (profile).
+function _heirloomsHtml(c) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  if (!c.heirlooms || !c.heirlooms.length) return '';
+  return `<div class="cp-heirlooms">🗝 ${c.heirlooms.map(h => `<span title="Handed down ${h.generations} time${h.generations === 1 ? '' : 's'}, from ${esc(h.from)}">${esc(h.name)}${h.bonus ? ` <b>+${h.bonus}%</b>` : ''}</span>`).join(', ')}</div>`;
 }
 
 async function setApprenticeship(id, classKey, mentorId) {

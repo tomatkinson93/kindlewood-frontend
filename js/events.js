@@ -57,6 +57,9 @@ function renderEventsFeed() {
       toastable.slice(0, 3).forEach((e, i) => {
         setTimeout(() => showToastNotification(e.message, e.type), i * 300);
       });
+      // A memorial (the head of a family, a master of a trade) opens its notice.
+      const memorial = newOnes.find(e => e.type === 'memorial');
+      if (memorial && window.KWLife) setTimeout(() => window.KWLife.onEvent(memorial), 600);
     }
     _lastSeenEventId = newest.id;
   }
