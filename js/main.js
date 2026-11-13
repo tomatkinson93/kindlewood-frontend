@@ -1233,7 +1233,7 @@ function _settlementTierCard(tier, settlementName, isOwn) {
     + '<div class="tier-card-banner">'
     + '<div class="tier-card-tier-num" style="color:' + meta.textColor + '">' + meta.num + '</div>'
     + '<div class="tier-card-tier-name" style="color:' + meta.textColor + '">' + meta.label + '</div>'
-    + (settlementName ? '<div class="tier-card-sett-name">' + settlementName + '</div>' : '')
+    + (settlementName ? '<div class="tier-card-sett-name">' + escHtml(settlementName) + '</div>' : '')
     + '</div>'
     + '</div>'
     + '</div>';
@@ -1450,10 +1450,10 @@ function _outpostSectionHtml(tile) {
   if (tile.outpost) {
     // A clanmate's outpost: help carry its goods home (js/outposts.js).
     if (tile.outpost.clanmate && window.KWOutposts) return KWOutposts.helpHtml(tile);
-    return `<div class="op-section"><div class="op-note">⛺ ${tile.outpost.owner}'s outpost stands here.</div></div>`;
+    return `<div class="op-section"><div class="op-note">⛺ ${escHtml(tile.outpost.owner)}'s outpost stands here.</div></div>`;
   }
   if (tile.claim_owner) {
-    return `<div class="op-section"><div class="op-note">This tile is claimed by ${tile.claim_owner}.</div></div>`;
+    return `<div class="op-section"><div class="op-note">This tile is claimed by ${escHtml(tile.claim_owner)}.</div></div>`;
   }
 
   // Buildable? Needs status + a placed settlement.
@@ -2042,12 +2042,12 @@ function _selectWorldTileImpl(tile) {
     body.innerHTML = _settlementTierCard(s.tier, s.name, false)
       + '<div class="sett-panel">'
       + '<div class="sett-stat-row" style="margin-top:4px">'
-      + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + (s.username||'—') + '</div><div class="sett-stat-key">Ruler</div></div>'
+      + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + escHtml(s.username||'—') + '</div><div class="sett-stat-key">Ruler</div></div>'
       + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + (s.tier||'village') + '</div><div class="sett-stat-key">Tier</div></div>'
       + '</div>'
       + (s.festival ? '<div class="sett-festival-note">🎉 Holding a festival — fireworks over the town.</div>' : '')
       + '<div class="sett-actions" style="margin-top:10px">'
-      + '<button class="sett-action-btn vp-trigger" data-username="' + (s.username||'') + '" data-species="' + (s.species||'') + '" data-name="' + (s.name||'') + '" data-tier="' + (s.tier||'village') + '" data-q="' + tile.q + '" data-r="' + tile.r + '" onclick="openProfileForUser(this.dataset.username,this.dataset.species,this.dataset.name,this.dataset.tier,this.dataset.q,this.dataset.r)">👤 View Profile</button>'
+      + '<button class="sett-action-btn vp-trigger" data-username="' + escHtml(s.username||'') + '" data-species="' + escHtml(s.species||'') + '" data-name="' + escHtml(s.name||'') + '" data-tier="' + escHtml(s.tier||'village') + '" data-q="' + tile.q + '" data-r="' + tile.r + '" onclick="openProfileForUser(this.dataset.username,this.dataset.species,this.dataset.name,this.dataset.tier,this.dataset.q,this.dataset.r)">👤 View Profile</button>'
       // Market: towns that have discovered each other (or clanmates) can trade.
       + (s.can_trade && s.settlement_id && typeof openMarket === 'function'
         ? '<button class="sett-action-btn" data-sid="' + s.settlement_id + '" data-name="' + escHtml(s.name||'') + '" onclick="openMarket({seller:this.dataset.sid,sellerName:this.dataset.name})">⚖️ Trade</button>'
@@ -2565,7 +2565,9 @@ function showToastNotification(message, type) {
   const toast = document.createElement('div');
   toast.className = 'toast-item toast-item--in';
   toast.innerHTML = '<span class="toast-icon">' + icon + '</span>'
-    + '<span class="toast-msg">' + message + '</span>';
+    + '<span class="toast-msg"></span>';
+  // Plain text: messages can carry player names (SECURITY_REVIEW S1).
+  toast.querySelector('.toast-msg').textContent = message;
   stack.appendChild(toast);
 
   // Force reflow for animation

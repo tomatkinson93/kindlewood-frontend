@@ -198,7 +198,7 @@ async function confirmArrival() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: nameInput }),
       });
-      if (!r.ok) { KWDialog.alert({ title: 'Could not rename', message: 'Rename failed.' }); reset(); return; }
+      if (!r.ok) { const d = await r.json().catch(() => ({})); KWDialog.alert({ title: 'Could not rename', message: d.error || 'Rename failed.' }); reset(); return; }
     }
 
     const res = await apiFetch('/api/map/arrive', {
