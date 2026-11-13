@@ -42,6 +42,9 @@
   const has = t => !fn('_hasBuilding') || global._hasBuilding(t);
   const TOOLS = {
     home: [
+      // Phones have no room for the town card beside the scene: a chip opens it.
+      { key: 'town',     label: 'Town',     glyph: '🏡', run: () => global.KWContext && global.KWContext.openTownWindow(), phone: true },
+      { key: 'build',    label: 'Build',    glyph: '🏗', run: () => { call('switchTab', 'buildings'); if (isPhone() && global.KWShell) global.KWShell.openPanel(); else if (global.KWContext) global.KWContext.open(); } },
       { key: 'stores',   label: 'Stores',   glyph: '🎒', run: () => call('openInventoryModal') },
       { key: 'upgrade',  label: 'Upgrade',  glyph: '⬆️', run: () => call('openTierUpgradeModal') },
       // The tavern and the fishing post open over the map, so they leave the scene.
@@ -112,7 +115,7 @@
       + `${icon(p.icon)}<span class="kwp-label">${esc(p.label)}</span><span class="kwp-dot" aria-hidden="true"></span></button>`).join('');
   }
   function toolsHtml(key) {
-    return (TOOLS[key] || []).filter(t => !t.unlock || t.unlock())
+    return (TOOLS[key] || []).filter(t => (!t.unlock || t.unlock()) && (!t.phone || isPhone()))
       .map(t => `<button type="button" class="kwp-tool" data-tool="${t.key}"><span aria-hidden="true">${t.glyph}</span> ${esc(t.label)}</button>`).join('');
   }
   function mark() {
@@ -122,6 +125,8 @@
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     placeTools();
+    if (doc.body) { doc.body.classList.toggle('kwp-home', _current === 'home'); doc.body.classList.toggle('kwp-land', _current === 'land'); }
+    if (global.KWContext) global.KWContext.refreshTown();
     const tools = doc.getElementById('kw-place-tools');
     if (tools) {
       tools.innerHTML = toolsHtml(_current);
@@ -198,12 +203,16 @@
   // ── Switching ───────────────────────────────────────────────────────────
   const svOpen = () => { const v = doc.getElementById('settlement-view'); return !!(v && v.style.display !== 'none' && v.classList.contains('sv-visible')); };
   function toView(key) {
+    // navGoMap re-selects the home tile; that is the game's doing, not a
+    // choice of the player's, so it mustn't open the panel (js/context.js).
+    const quiet = fn => (global.KWContext ? global.KWContext.mute(fn) : fn());
+    if (global.KWContext) global.KWContext.close();
     if (key === 'home') {
-      call('navGoMap');                 // closes the tavern, fishing and the community modal
+      quiet(() => call('navGoMap'));    // closes the tavern, fishing and the community modal
       if (!svOpen()) call('openSettlementView');
     } else {
       if (svOpen()) call('closeSettlementView');
-      call('navGoMap');
+      quiet(() => call('navGoMap'));
     }
     _current = key;
   }
@@ -231,6 +240,7 @@
     const W = global.KWWindow;
     // Leaving a window place: close it first.
     ['place-road', 'place-clan'].forEach(id => { if (W && W.isOpen(id) && id !== 'place-' + key) W.close(id); });
+    if (global.KWContext) global.KWContext._wrap();
     if (key === 'home' || key === 'land') toView(key);
     else if (key === 'families') { if (global.KWFamilies) global.KWFamilies.open(); }
     else if (W) openHub(key);
@@ -254,6 +264,9 @@
     build();
     if (_started) return;
     _started = true;
+    // Other scripts wrap switchTab and selectWorldTile at boot too: the
+    // context panel wraps them last, once the game is in (js/context.js).
+    if (global.KWContext) global.KWContext._wrap();
     go(fromAddress() || 'home', { fromHash: false });
     note();
   }
@@ -322,5 +335,5 @@
     if (_started) setHash(key, true);
   }
 
-  global.KWPlaces = { go, start, seen, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
+  global.KWPlaces = { go, start, seen, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -32,7 +32,8 @@ console.log('1. The card');
   check('1h. Hide asks in-game, then tells the server', /KWDialog\.confirm\(\{ title: 'Hide the first steps\?'/.test(J) && /\/api\/game\/first-steps\/dismiss/.test(J));
   check('1i. a toast once every step is done', /First steps complete/.test(J) && /DONE_KEY/.test(J));
   const M = read('js/main.js');
-  check('1j. at the top of your own settlement panel, refreshed when it opens', /_settlementTierCard\(s\.tier, s\.name, true\)\n\s*\+ '<div id="fs-slot">'/.test(M) && /KWFirstSteps\.load\(\)/.test(M));
+  // With the five places (Phase 4) the list sits on Home's town card (js/context.js); without them, atop the settlement panel.
+  check('1j. on Home\'s town card, or at the top of your own settlement panel; refreshed when it opens', /_settlementTierCard\(s\.tier, s\.name, true\)\n[\s\S]{0,140}<div id="fs-slot">/.test(M) && /KWFirstSteps\.load\(\)/.test(M) && /id="fs-slot"/.test(fs.readFileSync(path.join(ROOT, 'js/context.js'), 'utf8')));
   check('1k. loaded on the page', /\/js\/first-steps\.js\?v=/.test(read('index.html')) && /\/css\/first-steps\.css\?v=/.test(read('index.html')));
 }
 
