@@ -1,6 +1,15 @@
 // ── Citizens system ──
 
 let citizensData = [];
+
+// Life stage from the server (lib/life.js): child 0–6, youth 7–11, adult,
+// elder 60+. Adults get no tag. short: for list rows.
+function _stageTag(c, short) {
+  const st = c && c.stage;
+  const label = { child: 'Child', youth: 'Youth', elder: 'Elder' }[st];
+  if (!label) return '';
+  return ` · <span class="cp-stage cp-stage-${st}" title="${st === 'youth' ? 'Learning a trade; grown up at 12' : st === 'elder' ? 'Still working, at part strength' : 'Grows into a youth at 7'}">${short ? label.toLowerCase() : label}</span>`;
+}
 let selectedCitizenId = null;
 
 const ROLE_ICONS = {
@@ -200,7 +209,7 @@ function renderCitizensList() {
       + '</div>'
       + '<div class="crf-info">'
       + '<div class="crf-name">' + c.name + partnerIcon + hungerBadge + '</div>'
-      + '<div class="crf-meta">' + roleIcon + ' ' + roleLabel + ' · ' + (c.life?.age ?? '?') + 'y</div>'
+      + '<div class="crf-meta">' + roleIcon + ' ' + roleLabel + ' · ' + (c.life?.age ?? '?') + 'y' + _stageTag(c, true) + '</div>'
       + '</div>'
       + '<div class="crf-bars">'
       + '<div class="crf-bar-row" title="Health ' + health + '%">'
@@ -457,7 +466,7 @@ function renderCitizenProfile(c) {
       </div>
       <div class="cp-header-info">
         <div class="cp-name">${c.name}</div>
-        <div class="cp-meta">Gen ${c.generation} · Age ${c.life?.age ?? '?'} · ${c.gender.charAt(0).toUpperCase()+c.gender.slice(1)}${c.life_stage === 'child' ? ' · <span style="color:#f0c080">Child</span>' : ''}</div>
+        <div class="cp-meta">Gen ${c.generation} · Age ${c.life?.age ?? '?'} · ${c.gender.charAt(0).toUpperCase()+c.gender.slice(1)}${_stageTag(c)}</div>
         ${c.life_stage !== 'child' && window.KWCareers ? KWCareers.badgeHtml(c) : ''}
         ${partnerHtml}
         ${parentsHtml}
@@ -482,7 +491,7 @@ function renderCitizenProfile(c) {
 
     <div class="cp-role-section">
       <div class="cp-section-label">Role</div>
-      ${c.life_stage === 'child' ? `
+      ${c.stage === 'youth' ? _apprenticeHtml(c) : c.life_stage === 'child' ? `
         <div class="cp-child-labour-note">
           <span class="cp-child-labour-icon">🚫</span>
           <span>Child labour is frowned upon in <strong>${gameData?.settlement?.name || 'your settlement'}</strong>. Let them play for now.</span>
@@ -516,6 +525,7 @@ function renderCitizenProfile(c) {
     <div class="cp-tab-panel" id="cp-tab-overview">
       ${c.breeding_status ? renderFamilyStatus(c.breeding_status) : ''}
       ${c.life_stage === 'child' ? renderChildStatus(c) : ''}
+      ${c.stage === 'elder' ? '<div class="cp-elder-note">🦉 An elder: still works, at 60% of their strength, and cheers the household. More easily hurt on the road.</div>' : ''}
       ${c.life_stage === 'child' && c.family_hint ? `<div class="cr-hint">${c.family_hint.icon} ${c.family_hint.text}</div>` : ''}
       ${c.life_stage === 'child' ? _childStatsHtml(statBarBlurred) : _adultStatsHtml(c, statBar, skillBar)}
     </div>
@@ -779,6 +789,57 @@ function cpSwitchTab(btn, panelId) {
   if (panel) panel.style.display = '';
 }
 
+// ── Apprenticeship (youths 7–11, docs/PHASE_1_LIFE_CYCLE.md §4.2) ──────────
+// The trade a youth learns (chosen, or a parent's by default), who teaches
+// them, and how fast they learn. At 12 they come of age in that trade.
+function _apprenticeHtml(c) {
+  const a = c.apprentice || {};
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const defs = window.KWCareers && KWCareers.defs && KWCareers.defs();
+  const classes = defs ? Object.values(defs.classes).filter(k => k.assignable) : [];
+  const label = k => (window.KWCareers ? `${KWCareers.roleIcon(k)} ${KWCareers.roleLabel(k)}` : k);
+  const tradeOpts = (a.class_key ? '' : '<option value="" selected disabled>Choose a trade…</option>')
+    + classes.map(k => `<option value="${esc(k.key)}"${k.key === a.class_key ? ' selected' : ''}>${esc(k.icon)} ${esc(k.label)}</option>`).join('');
+  // Possible mentors: living adults working that trade.
+  const mentors = (typeof citizensData !== 'undefined' ? citizensData : [])
+    .filter(m => m.role === a.class_key && (m.stage === 'adult' || m.stage === 'elder'));
+  const mentorOpts = `<option value="">${mentors.length ? 'The best free teacher' : 'Nobody works this trade yet'}</option>`
+    + mentors.map(m => `<option value="${m.id}"${m.id === a.mentor_id && a.chosen ? ' selected' : ''}>${esc(m.name)}${m.class_levels && m.class_levels[a.class_key] ? ' · Lv ' + m.class_levels[a.class_key] : ''}</option>`).join('');
+  const source = !a.class_key ? 'No trade yet: neither parent works one.'
+    : a.chosen ? 'Chosen by you.' : "Following a parent's trade (you can change it).";
+  const teacher = a.mentor_name ? `Taught by <strong>${esc(a.mentor_name)}</strong>: learning at the full rate.`
+    : a.class_key ? 'No mentor free: learning at half the rate. Another adult in this trade could teach them.' : '';
+  return `<div class="cp-apprentice">
+      <div class="cp-apprentice-head">🎓 Apprentice${a.class_key ? ` ${esc(label(a.class_key))} · Lv ${a.level || 1}` : ''}</div>
+      ${a.class_key ? `<div class="kw-bar"><span style="width:${Math.max(0, Math.min(100, a.pct || 0))}%"></span></div>` : ''}
+      <div class="cp-apprentice-note">${source} ${teacher} They help a little with the work (a quarter of an adult's output) and take up the trade for good at 12.</div>
+      ${a.hint ? `<div class="cr-hint">🔎 ${esc(a.hint)}</div>` : ''}
+      <label class="cp-apprentice-field">Trade
+        <select class="cp-role-select" onchange="setApprenticeship(${c.id}, this.value, null)" aria-label="Trade to learn">${tradeOpts}</select></label>
+      ${a.class_key ? `<label class="cp-apprentice-field">Mentor
+        <select class="cp-role-select" onchange="setApprenticeship(${c.id}, '${esc(a.class_key)}', this.value)" aria-label="Mentor"${mentors.length ? '' : ' disabled'}>${mentorOpts}</select></label>` : ''}
+    </div>`;
+}
+
+async function setApprenticeship(id, classKey, mentorId) {
+  try {
+    const res = await apiFetch(`/api/citizens/${id}/apprentice`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ class: classKey, mentor_id: mentorId || null }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { if (typeof showBuildToast === 'function') showBuildToast(d.error || 'Could not set the apprenticeship.', 'error'); return; }
+    const c = citizensData.find(x => x.id === id);
+    if (c) c.apprentice = Object.assign({}, c.apprentice, d.apprentice);
+    if (d.note && typeof showBuildToast === 'function') showBuildToast(d.note, 'info');
+    if (typeof loadCitizens === 'function') await loadCitizens();
+    const fresh = citizensData.find(x => x.id === id);
+    if (fresh) renderCitizenProfile(fresh);
+  } catch (e) {
+    if (typeof showBuildToast === 'function') showBuildToast('Could not set the apprenticeship.', 'error');
+  }
+}
+
 async function updateCitizenRoleFromProfile(id, role) {
   await updateCitizenRole(id, role);
   // Re-render the modal with updated data
@@ -961,7 +1022,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
     const away = citizenAway(c);
     return '<tr class="ac-row' + (isChild(c) ? ' ac-row--child' : '') + (away ? ' ac-row--away' : '') + '" id="ac-row-' + c.id + '"' + (away ? ' title="' + away.label.replace(/"/g, '') + ' — not in the settlement"' : '') + ' onclick="openCitizenProfile(' + c.id + ')" style="cursor:pointer">'
       + '<td class="ac-name">' + c.name + (isChild(c) ? ' <span class="ac-child-tag">child</span>' : '') + '</td>'
-      + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y</td>'
+      + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y' + _stageTag(c, true) + '</td>'
       + '<td class="ac-meta">Gen ' + (c.generation??1) + '</td>'
       + roleCell
       + '<td class="ac-stat" title="' + (c.career ? c.career.title : '') + '">' + (c.career ? c.career.level + (c.career.fork_ready || c.career.points_free ? ' <span class="cr-tab-dot"></span>' : '') : '<span style="opacity:.3">—</span>') + '</td>'

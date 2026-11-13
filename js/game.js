@@ -50,6 +50,7 @@ function startResourceTick(resources, rates) {
           if (gameData?.settlement) gameData.settlement.famine = data.settlement.famine || null;
           if (typeof renderFamineBanner === 'function') renderFamineBanner(data.settlement.famine);
           if (gameData?.settlement) gameData.settlement.town = data.settlement.town || null;
+          if (gameData?.settlement) { gameData.settlement.population = data.settlement.population; gameData.settlement.beds = data.settlement.beds; }
           if (gameData?.settlement) { gameData.settlement.defence = data.settlement.defence || null; gameData.settlement.raid_peace_until = data.settlement.raid_peace_until || null; }
           if (window.KWTown) KWTown.onSettlement(data.settlement);
           if (window.KWRaids) KWRaids.onSettlement(data.settlement);   // a Withered raid on its way
