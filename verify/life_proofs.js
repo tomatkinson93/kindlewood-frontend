@@ -30,5 +30,30 @@ console.log('2. The settlement panel (js/main.js)');
   check('2e. the 5-minute sync keeps population and beds fresh', /gameData\.settlement\.beds = data\.settlement\.beds/.test(G));
 }
 
+console.log('3. Apprenticeship and elders (step 3)');
+{
+  const src = /\/\/ ── Apprenticeship \(youths[\s\S]*?\nfunction _apprenticeHtml[\s\S]*?\n\}\n/.exec(C);
+  check('3a. _apprenticeHtml exists', !!src);
+  const w = {
+    KWCareers: { defs: () => ({ classes: { miner: { key: 'miner', label: 'Miner', icon: '⛏', assignable: true }, farmer: { key: 'farmer', label: 'Farmer', icon: '🌾', assignable: true }, merchant: { key: 'merchant', label: 'Merchant', icon: '⚖', assignable: false } } }),
+      roleIcon: () => '⛏', roleLabel: () => 'Miner' },
+    citizensData: [{ id: 2, name: 'Moss <b>', role: 'miner', stage: 'adult', class_levels: { miner: 6 } }, { id: 3, name: 'Old Fern', role: 'miner', stage: 'elder' }, { id: 4, name: 'Kid', role: 'miner', stage: 'youth' }],
+  };
+  w.window = w; vm.createContext(w);
+  vm.runInContext(src ? src[0] + '\nthis._apprenticeHtml = _apprenticeHtml;' : '', w);
+  const h = w._apprenticeHtml({ id: 9, apprentice: { class_key: 'miner', chosen: false, mentor_id: 2, mentor_name: 'Moss <b>', rate: 1, level: 2, pct: 40, hint: 'Seems restless at the miner\'s work.' } });
+  check('3b. shows the trade, level and progress', /Apprentice ⛏ Miner · Lv 2/.test(h) && /kw-bar"><span style="width:40%/.test(h));
+  check('3c. says it follows a parent\'s trade, and who teaches them (escaped)', /Following a parent's trade/.test(h) && /Taught by <strong>Moss &lt;b&gt;<\/strong>/.test(h));
+  check('3d. a trade picker with assignable trades only; the mentor picker lists adults and elders of that trade', /value="miner" selected/.test(h) && /value="farmer"/.test(h) && !/value="merchant"/.test(h)
+    && /<option value="2">Moss &lt;b&gt; · Lv 6/.test(h) && /<option value="3">Old Fern/.test(h) && !/<option value="4">/.test(h));
+  check('3e. the hint shows', /🔎 Seems restless/.test(h));
+  check('3f. both pickers post to the apprentice route', /setApprenticeship\(9, this\.value, null\)/.test(h) && /\/api\/citizens\/\$\{id\}\/apprentice/.test(C));
+  const none = w._apprenticeHtml({ id: 9, apprentice: { class_key: null, rate: 0 } });
+  check('3g. no trade yet: asks for one, no mentor picker', /Choose a trade…/.test(none) && !/aria-label="Mentor"/.test(none));
+  const half = w._apprenticeHtml({ id: 9, apprentice: { class_key: 'miner', chosen: true, mentor_id: null, rate: 0.5 } });
+  check('3h. without a mentor it says they learn at half the rate', /learning at half the rate/.test(half) && /Chosen by you/.test(half));
+  check('3i. youths see it in place of the child-labour note; elders get a note', /c\.stage === 'youth' \? _apprenticeHtml\(c\)/.test(C) && /cp-elder-note">🦉 An elder/.test(C));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
