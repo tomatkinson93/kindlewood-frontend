@@ -27,6 +27,11 @@
       <p>Each job is a career with its own levels, from 1 to 20. Citizens gain experience by working, and each level makes them better at it.</p>
       <p>At <b>level 10</b> they choose a specialisation — a fork in their skill tree. Some talents only show themselves once a citizen has worked a while.</p>
       <p>Open a citizen and look at their Career tab to see their tree and what's next.</p>` },
+    { id: 'families', icon: '👪', title: 'Families and the turning years', body: `
+      <p>A year passes every <b>28 hours</b>. Children (0–6) play; <b>youths</b> (7–11) learn a trade, faster with a mentor of that trade, and help a little with the work. At <b>12</b> they come of age in their trade. <b>Elders</b> (60+) still work, at part strength, and cheer their household.</p>
+      <p>Couples have children while there is a <b>free bed in town</b>: build Willow Huts (each holds 4). Partners must not be close kin, both must be 14–55, and a couple has at most four children, two years apart.</p>
+      <p>From 70 each birthday brings a chance of a peaceful death. Their gear becomes <b>heirlooms</b>, which work a little better in the family, and an heir takes up their things: choose one, or the eldest grown child inherits after a day. The oldest adult heads each family.</p>
+      <p>When beds are free, a <b>settler</b> arrives every week, sooner if your town is short of working hands, and starts a new family. The <b>Families</b> window (👪 in the Citizens list) shows each line, its tree and its chronicle.</p>` },
     { id: 'tiers', icon: '🏘', title: 'Buildings and settlement tiers', body: `
       <p>Your settlement grows from <b>Camp</b> to <b>Village</b>, <b>Town</b> and <b>City</b>. Each step needs resources, citizens and buildings, and opens new buildings, higher building levels, more housing and more outposts.</p>
       <p>Higher building levels also need metals — bronze, steel or silver — so the Smelter matters later on.</p>`,

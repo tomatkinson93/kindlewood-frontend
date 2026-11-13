@@ -31,6 +31,7 @@
     ['summary', '🌙', 'Summary'],
     ['resources', '🪵', 'Resources'],
     ['quests', '📜', 'Quests'],
+    ['families', '👪', 'Families'],   // births, comings of age, deaths, settlers (Phase 1)
     ['citizens', '🏡', 'Citizens'],
     ['trade', '⚒️', 'Progress'],
     ['hardship', '🩹', 'Hardship'],
@@ -39,6 +40,7 @@
   const EMPTY = {
     resources: 'Nothing was produced or eaten since you were last here.',
     quests: 'No quests finished since you were last here.',
+    families: 'No births, comings of age, deaths or newcomers since you were last here.',
     citizens: 'Nothing happened among your citizens since you were last here.',
     trade: 'Your workshops, the Library and the Market were quiet while you were away.',
     hardship: 'No injuries, deaths or hunger since you were last here.',
@@ -146,7 +148,7 @@
 
   // Events split by tab ('other' → world), newest first.
   function _groups(r) {
-    const g = { quests: [], citizens: [], trade: [], hardship: [], world: [] };
+    const g = { quests: [], families: [], citizens: [], trade: [], hardship: [], world: [] };
     for (const e of r.events || []) (g[e.category] || g.world).push(e);
     for (const k in g) g[k].reverse();
     return g;
@@ -159,6 +161,7 @@
     return {
       resources: _resActive(r).length,
       quests: g.quests.length,
+      families: g.families.length,
       citizens: g.citizens.length,
       trade: g.trade.length,
       hardship: g.hardship.length,
@@ -197,6 +200,7 @@
       + '<div class="qm-section">🪵 Resources</div>' + _tilesHtml(r)
       + '<div class="qm-section">📰 What happened</div>'
       + line('quests', '📜', 'Quests', c.quests, 'update')
+      + line('families', '👪', 'Families', c.families, 'event')
       + line('citizens', '🏡', 'Citizens', c.citizens, 'event')
       + line('trade', '⚒️', 'Trade, crafting & research', c.trade, 'event')
       + line('hardship', '🩹', 'Hardship', c.hardship, 'event')
@@ -258,7 +262,7 @@
     if (_tab === 'resources') return _resourcesHtml(r);
     if (_tab === 'trade') return _tradeHtml(r);
     if (_tab === 'world') return _worldHtml(r);
-    if (_tab === 'quests' || _tab === 'citizens' || _tab === 'hardship') {
+    if (_tab === 'quests' || _tab === 'families' || _tab === 'citizens' || _tab === 'hardship') {
       const list = _groups(r)[_tab];
       return (_tab === 'quests' && r.waiting && r.waiting.length ? _waitingHtml(r) : '') + (list.length ? _listHtml(_tab, list, r) : _empty(_tab));
     }
