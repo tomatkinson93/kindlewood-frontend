@@ -143,6 +143,8 @@ async function renameSettlement(name) {
     if (data.ok) {
       gameData.settlement.name = data.name;
       document.getElementById('panel-title').textContent = data.name;
+    } else if (typeof KWDialog !== 'undefined') {
+      KWDialog.alert({ title: 'Could not rename', message: data.error || 'Rename failed.' });
     }
   } catch (e) {}
 }

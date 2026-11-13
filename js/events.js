@@ -73,7 +73,7 @@ function renderEventsFeed() {
       <div class="ef-item ef-${ev.type}">
         <span class="ef-icon">${icon}</span>
         <div class="ef-content">
-          <div class="ef-message">${ev.message}</div>
+          <div class="ef-message">${escHtml(ev.message)}</div>
           <div class="ef-time">${time}</div>
         </div>
         <button class="ef-dismiss" onclick="dismissEvent(${ev.id})" title="Dismiss" aria-label="Dismiss">✕</button>
