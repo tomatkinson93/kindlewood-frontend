@@ -108,5 +108,28 @@ console.log('5. The Families screen (step 6)');
   check('5l. the away report has a Families tab and summary line', /\['families', '👪', 'Families'\]/.test(A) && /line\('families', '👪', 'Families'/.test(A) && /families: \[\]/.test(A));
 }
 
+console.log('6. Dev Tools → Life (step 7)');
+{
+  const LA = read('js/life-admin.js'), H = read('index.html');
+  const w = { console }; w.window = w; vm.createContext(w);
+  vm.runInContext(LA, w);
+  const D = w.KWLifeDev;
+  const st = D._statusHtml({ beds: { beds: 20, living: 18, free: 2 }, stages: { child: 3, youth: 2, adult: 11, elder: 2 }, working: 11, year_hours: 28,
+    settler: { at: new Date(Date.now() + 50 * 3600e3).toISOString(), reason: 'the weekly settler' }, inheritances: [{ name: 'Hazel <A>', heir: 'Rowan', settle_at: new Date(Date.now() + 5 * 3600e3).toISOString() }],
+    oldest: [{ id: 1, name: 'Old Fern', age: 74, chance: 0.18 }],
+    couples: [{ a: { id: 2, name: 'Ada', age: 30 }, b: { id: 3, name: 'Bo', age: 31 }, children: 1, fertile: false, blockers: ['Their last child is still very young'] },
+              { a: { id: 4, name: 'Cy', age: 20 }, b: { id: 5, name: 'Di', age: 21 }, children: 0, fertile: true, blockers: [] }] });
+  check('6a. status: beds, stages, working adults, the next settler and why', /18\/20 \(2 free\)/.test(st) && /3 children · 2 youths · 11 adults · 2 elders/.test(st) && /in 2 days — the weekly settler/.test(st));
+  check('6b. open inheritances (escaped) and the oldest with their odds', /Hazel &lt;A&gt; → Rowan/.test(st) && /Old Fern 74 · 18%/.test(st));
+  check('6c. couples: who can have a child and what blocks the rest', /can have a child/.test(st) && /Their last child is still very young/.test(st));
+  const ac = D._actionsHtml([{ id: 9, name: 'Wren', age: 9, stage: 'youth' }]);
+  check('6d. actions: age the town, set a stage, a death of old age, a settler, settle inheritances', ['data-kwld="age"', 'data-kwld="stage"', 'data-kwld="death"', 'data-kwld="settler"', 'data-kwld="settle"'].every(x => ac.includes(x))
+    && /<option value="9">Wren \(9, youth\)/.test(ac) && /value="elder"/.test(ac));
+  const nu = D._numbersHtml([{ key: 'ADULT_FROM', label: 'Grown up at', desc: 'Age…', group: 'Ages', default: 12, min: 6, max: 25, step: 1, value: 10, changed: true }]);
+  check('6e. the numbers: grouped, with bounds, the default, "changed", Save and Reset', /kwld-gname">Ages/.test(nu) && /min="6" max="25"/.test(nu) && /Default 12; 6–25/.test(nu) && /kwld-changed/.test(nu) && /data-kwld-save="ADULT_FROM"/.test(nu) && /data-kwld="reset"/.test(nu));
+  check('6f. a Life tab in Dev Tools; the script is on the page; one click listener, no inline handlers inside', /cheatSwitchTab\('ct-life',this\);KWLifeDev\.open\(\)/.test(H) && /id="ct-life-body"/.test(H) && /\/js\/life-admin\.js\?v=/.test(H) && /addEventListener\('click', onClick\)/.test(LA) && !/onclick=/.test(LA));
+  check('6g. it talks to /api/life/admin', /'\/api\/life\/admin' \+ path/.test(LA) && ['/status', '/numbers', '/age', '/stage', '/death', '/settler', '/inheritances/settle', '/numbers/reset'].every(x => LA.includes(`'${x}'`)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
