@@ -318,6 +318,7 @@
         close();
         if (go.dataset.action === 'quests' && typeof root.openQuestsModal === 'function') root.openQuestsModal();
         if (go.dataset.action === 'battles' && typeof root.openBattlesModal === 'function') root.openBattlesModal();
+        if (go.dataset.action === 'moments' && root.KWMoments) root.KWMoments.openFirst();   // Phase 2
       }
     });
     root.document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && el.style.display !== 'none') close(); });
