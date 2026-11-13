@@ -732,6 +732,13 @@
 .cp-apprentice-note, .cp-elder-note { font-size: var(--kw-fs-2); color: var(--kw-muted); line-height: 1.45; }
 .cp-elder-note { margin: var(--kw-s-2) 0; }
 .cp-apprentice-field { display: grid; gap: var(--kw-s-1); font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.cp-heirlooms { margin: var(--kw-s-2) 0; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.cp-heirlooms b { color: var(--kw-good); }
+.kwl-list { display: grid; gap: var(--kw-s-1); }
+.kwl-row { display: grid; gap: 2px; text-align: left; padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); color: var(--kw-cream); font: inherit; cursor: pointer; }
+.kwl-row:hover { background: var(--kw-hover); }
+.kwl-row-sub { font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwl-row-sub b { color: var(--kw-warn); font-weight: 600; }
 .sett-beds b { color: var(--kw-cream); }
 
 .sett-pills {

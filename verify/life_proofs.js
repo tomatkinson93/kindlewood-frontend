@@ -55,5 +55,58 @@ console.log('3. Apprenticeship and elders (step 3)');
   check('3i. youths see it in place of the child-labour note; elders get a note', /c\.stage === 'youth' \? _apprenticeHtml\(c\)/.test(C) && /cp-elder-note">🦉 An elder/.test(C));
 }
 
+console.log('4. Memorials and inheritances (step 4)');
+{
+  const L = read('js/life.js'), E = read('js/events.js'), H = read('index.html');
+  const w = { console }; w.window = w; vm.createContext(w);
+  vm.runInContext(L, w);
+  const open = w.KWLife._bodyHtml({ id: 1, name: 'Hazel <Ashby>', memorial: 'Hazel <Ashby> passed away peacefully at 78. They were head of the Ashby family.',
+    inheritance: { status: 'open', heir_id: 3, default_heir_id: 3, settle_at: new Date(Date.now() + 5 * 3600e3).toISOString(), trade: 'miner', xp: 4000,
+      items: ["Hazel's Iron Pick"], candidates: [{ id: 3, name: 'Rowan', relation: 'child', adult: true }, { id: 4, name: 'Tobias', relation: 'partner', adult: true }, { id: 5, name: 'Pip', relation: 'family', adult: false }] } });
+  check('4a. the memorial line, escaped', /kwl-memorial">Hazel &lt;Ashby&gt; passed away peacefully at 78/.test(open));
+  check('4b. the heirlooms are listed with what they do', /Hazel&#39;s Iron Pick/.test(open) && /\+5%, more with each generation/.test(open));
+  check('4c. an heir picker: the default chosen, relations named, children marked', /<option value="3" selected>Rowan \(their child\)/.test(open) && /<option value="4">Tobias \(their partner\)/.test(open) && /Pip \(family, a child\)/.test(open));
+  check('4d. "Pass them on now", and what happens if you do nothing (never punish being away)', /data-action="pass">Pass them on now/.test(open) && /If you do nothing, Rowan inherits in about 5 hours/.test(open));
+  check('4e. the knowledge rule is explained when there is XP in a trade', /also learns a quarter of what they knew/.test(open));
+  const done = w.KWLife._bodyHtml({ id: 1, name: 'Hazel', memorial: 'm', inheritance: { status: 'settled', heir_name: 'Rowan', items: [] } });
+  check('4f. once settled it says who took them up', /Rowan took up their things/.test(done) && !/data-kwl="heir"/.test(done));
+  check('4g. it is a KWWindow (size S) posting to the heir route', /KWWindow\.open\(\{/.test(L) && /size: 'S'/.test(L) && /\/api\/citizens\/\$\{id\}\/heir/.test(L));
+  check('4h. memorial events open their notice', /type === 'memorial'/.test(E) && /KWLife\.onEvent\(memorial\)/.test(E) && /\/js\/life\.js\?v=/.test(H));
+  check('4i. the dead are kept out of citizensData (no picker offers them)', /citizensData = all\.filter\(c => c\.life_stage !== 'deceased'\)/.test(C) && /citizensRemembered = all\.filter\(c => c\.life_stage === 'deceased'\)/.test(C));
+  check('4j. a Remembered filter lists them, each opening the memorial', /cpanelFilter\('remembered',this\)" aria-label="Remembered"/.test(H) && /KWLife\.openMemorial\(\$\{c\.id\}\)/.test(C) && /their things wait for an heir/.test(C));
+  check('4k. the profile shows heirlooms and their bonus', /function _heirloomsHtml/.test(C) && /\$\{_heirloomsHtml\(c\)\}/.test(C));
+}
+
+console.log('5. The Families screen (step 6)');
+{
+  const F = read('js/families.js'), A = read('js/away-report.js'), HL = read('js/help.js'), H = read('index.html');
+  const w = { console }; w.window = w; vm.createContext(w);
+  vm.runInContext(F, w);
+  const K = w.KWFamilies;
+  const lines = K._linesHtml([
+    { id: 7, name: 'Ash<by>', head: { id: 2, name: 'Tobias', age: 74 }, living: [{ id: 2, name: 'Tobias Ashby', stage: 'elder' }, { id: 3, name: 'Wren Ashby', stage: 'youth' }],
+      stages: { adult: 0, elder: 1, youth: 1, child: 0 }, remembered: 2, generations: 3, heirlooms: [{ name: "Hazel's Iron Pick" }] },
+    { id: 8, name: 'Bramble', head: null, living: [], stages: {}, remembered: 1, generations: 1, heirlooms: [] } ]);
+  check('5a. a card per family: name (escaped), head, stages, remembered, heirlooms, generations', /The Ash&lt;by&gt; family/.test(lines) && /Head: <b>Tobias<\/b>, 74/.test(lines)
+    && /1 elder · 1 youth/.test(lines) && /🕯 2 remembered/.test(lines) && /Hazel&#39;s Iron Pick/.test(lines) && /3 generations/.test(lines));
+  check('5b. a line that has ended says so and is greyed', /kwf-gone/.test(lines) && /The line has ended/.test(lines));
+  check('5c. cards open the family (data-action, no inline onclick)', /data-action="family" data-id="7"/.test(lines) && !/onclick=/.test(F));
+  const tree = K._treeHtml({ family: { id: 7, name: 'Ashby', head_id: 2 }, partners: [{ id: 9, name: 'Moss Fern', stage: 'adult', age: 40, generation: 2, parent_ids: [], partner_id: 3, outsider: true, born_at: '2026-01-01' }],
+    members: [{ id: 1, name: 'Hazel Ashby', stage: 'deceased', age: 76, generation: 1, parent_ids: [], partner_id: 2, born_at: '2025-01-01' },
+              { id: 2, name: 'Tobias Ashby', stage: 'elder', age: 74, generation: 1, parent_ids: [], partner_id: 1, born_at: '2025-01-02' },
+              { id: 3, name: 'Rowan Ashby', stage: 'adult', age: 40, generation: 2, parent_ids: [1, 2], partner_id: 9, born_at: '2025-06-01' }] });
+  check('5d. the tree: a row per generation; partners side by side; the head marked', /Generation 1/.test(tree) && /Generation 2/.test(tree)
+    && tree.indexOf('Hazel Ashby') < tree.indexOf('Tobias Ashby') && /Tobias Ashby <span class="kw-chip good">Head/.test(tree));
+  check('5e. the dead are greyed and open their memorial; married-in partners shown', /kwf-deceased"? data-action="memorial" data-id="1"|kwf-deceased" data-action="memorial" data-id="1"/.test(tree) && /died at 76/.test(tree) && /married in/.test(tree));
+  check('5f. parents named on each child', /child of Hazel &amp; Tobias/.test(tree));
+  const ch = K._chronicleHtml([{ id: 5, kind: 'birth', text: 'Wren <was> born.', at: '2026-11-13T10:00:00Z' }], 4);
+  check('5g. the chronicle: an icon per kind, escaped text, "Older entries" when there are more', /🍼/.test(ch) && /Wren &lt;was&gt; born\./.test(ch) && /data-action="more"/.test(ch));
+  check('5h. empty states say what will be kept', /Births, comings of age, partnerships and passings will be kept here/.test(K._chronicleHtml([], null)) && /No families yet/.test(K._linesHtml([])));
+  check('5i. a large KWWindow with three tabs and a help topic', /size: 'L'/.test(F) && /key: 'lines'/.test(F) && /key: 'chronicle'/.test(F) && /key: 'remembered'/.test(F) && /help: 'families'/.test(F) && /id: 'families'/.test(HL));
+  check('5j. it reads the families API', /\/api\/families'/.test(F) && /\/api\/families\/\$\{id\}`/.test(F) && /\/chronicle/.test(F));
+  check('5k. opened from the citizens panel; the script is on the page', /onclick="KWFamilies\.open\(\)" aria-label="Families"/.test(H) && /\/js\/families\.js\?v=/.test(H));
+  check('5l. the away report has a Families tab and summary line', /\['families', '👪', 'Families'\]/.test(A) && /line\('families', '👪', 'Families'/.test(A) && /families: \[\]/.test(A));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

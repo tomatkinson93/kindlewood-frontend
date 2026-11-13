@@ -180,3 +180,34 @@
 .kw-note.good { border-left-color: var(--kw-good); }
 .kw-note.warn { border-left-color: var(--kw-warn); }
 .kw-note.bad  { border-left-color: var(--kw-bad); }
+
+/* Families (js/families.js) */
+.kwf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--kw-s-3); }
+.kwf-card { display: grid; gap: var(--kw-s-1); text-align: left; font: inherit; color: var(--kw-cream); cursor: pointer; }
+.kwf-card + .kwf-card { margin-top: 0; }
+.kwf-card:hover { border-color: var(--kw-gold-dim); }
+.kwf-card:focus-visible, .kwf-person:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwf-gone { opacity: .65; }
+.kwf-stages, .kwf-heir { font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwf-names { display: flex; flex-wrap: wrap; gap: var(--kw-s-1); }
+.kwf-back { margin-bottom: var(--kw-s-2); }
+.kwf-h { margin: 0 0 var(--kw-s-3); font-family: var(--kw-font-title); font-size: var(--kw-fs-5); color: var(--kw-gold); }
+.kwf-sub { font-family: var(--kw-font-title); color: var(--kw-gold); margin-bottom: var(--kw-s-2); }
+.kwf-split { display: grid; grid-template-columns: 3fr 2fr; gap: var(--kw-s-4); align-items: start; }
+.kwf-tree { display: grid; gap: var(--kw-s-3); }
+.kwf-gen-label { font-size: var(--kw-fs-1); text-transform: uppercase; letter-spacing: .08em; color: var(--kw-muted); margin-bottom: var(--kw-s-1); }
+.kwf-gen-row { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); }
+.kwf-person { min-width: 150px; padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); }
+.kwf-head { border-color: var(--kw-gold-deep); }
+.kwf-outsider { border-style: dashed; }
+.kwf-deceased { opacity: .6; cursor: pointer; }
+.kwf-pname { font-weight: 600; }
+.kwf-more { text-align: center; margin-top: var(--kw-s-2); }
+.kwf-rem { width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--kw-line); color: var(--kw-cream); font: inherit; cursor: pointer; }
+@media (max-width: 759px) { .kwf-split { grid-template-columns: 1fr; } }
+
+/* Memorials (js/life.js) */
+.kwl-memorial { margin: 0 0 var(--kw-s-4); font-size: var(--kw-fs-4); line-height: 1.5; font-style: italic; color: var(--kw-cream); }
+.kwl-field { display: grid; gap: var(--kw-s-1); margin: var(--kw-s-2) 0; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwl-field select { font: inherit; min-height: var(--kw-touch); padding: var(--kw-s-1) var(--kw-s-2); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: var(--kw-wood); color: var(--kw-cream); }
+.kwl-actions { display: flex; justify-content: flex-end; margin: var(--kw-s-2) 0; }
