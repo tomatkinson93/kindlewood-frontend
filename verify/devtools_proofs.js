@@ -19,7 +19,8 @@ console.log('1. Out of the page');
   check('1a. no ⚗ panel markup in index.html (about 480 lines lighter)', !/id="cheat-modal"/.test(H) && !/class="cheat-tab"/.test(H) && H.split('\n').length < 1600, H.split('\n').length + ' lines');
   check('1b. nor its admin-only scripts and stylesheet', ADMIN.every(f => !H.includes('/js/' + f)) && !H.includes('card-admin.css'));
   check('1c. index.html loads only the small loader, and keeps the ⚗ button (hidden until admin)', /js\/dev-tools\.js/.test(H) && /class="btn-cheat"[^>]*style="display:none"/.test(H));
-  check('1d. no static dev.html on the website; an old copy on the host is denied', !fs.existsSync(path.join(ROOT, 'dev.html')) && /<Files "dev\.html">[\s\S]*Require all denied/.test(HT));
+  // The host (Porkbun static hosting, NGINX) ignores .htaccess: the file is off the site because it isn't in the repo.
+check('1d. no static dev.html in the site\'s files (the host serves the repo as it is)', !fs.existsSync(path.join(ROOT, 'dev.html')) && !/dev\.html\?v=/.test(J));
 }
 
 console.log('2. The markup (from kindlewood-server)');
