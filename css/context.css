@@ -1,0 +1,144 @@
+/* ════════════════════════════════════════════════════════════════
+   The context panel and the town card (js/context.js,
+   docs/LAYOUT_SPEC.md §2.4, the layout mockup).
+   Desktop only for the panel: phones keep their bottom sheet.
+   Tokens only (verify/window_proofs.js style check).
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── The panel: the old sidebar, floating at the right of the view,
+      shown only when something was chosen ── */
+body.kwp-on:not(.kw-shell) #sidebar {
+  display: none;
+  position: fixed;
+  top: var(--kwp-tools-top, 112px);
+  right: var(--kw-s-4);
+  bottom: var(--kw-s-4);
+  min-width: 380px;          /* the old sheet pins width: 300px !important */
+  max-width: 380px;
+  z-index: var(--z-float);
+  flex-direction: column;
+  border: 1px solid var(--kw-gold-dim);
+  border-left: 1px solid var(--kw-gold-dim);
+  border-radius: var(--kw-radius-l);
+  background: var(--kw-panel);
+  box-shadow: var(--kw-shadow);
+  overflow: hidden;
+}
+body.kwp-on.kwc-open:not(.kw-shell) #sidebar { display: flex; }
+body.kwp-on #sidebar .sidebar-tabs { display: none; }
+/* The old map action bar (Scout, Build, Citizens, Centre): chips now. */
+body.kwp-on .action-bar { display: none; }
+
+.kwc-close {
+  position: absolute;
+  top: var(--kw-s-3);
+  right: var(--kw-s-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--kw-touch);
+  height: var(--kw-touch);
+  border: 1px solid var(--kw-line-2);
+  border-radius: var(--kw-radius);
+  background: var(--kw-panel-2);
+  color: var(--kw-cream);
+  cursor: pointer;
+}
+.kwc-close .kw-icon { width: 18px; height: 18px; }
+.kwc-close:hover { border-color: var(--kw-gold-deep); color: var(--kw-gold); }
+.kwc-close:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+body.kw-shell .kwc-close { display: none; }   /* phones: the sheet's grab bar closes it */
+body.kwp-on:not(.kw-shell) #sidebar .sidebar-header { padding-right: 64px; }
+
+/* The tier card's header strip (main.js _settlementTierCard). */
+.kwc-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--kw-s-3);
+  min-height: 56px;
+  padding: var(--kw-s-2) 56px var(--kw-s-2) var(--kw-s-1);
+  border-bottom: 1px solid var(--kw-line);
+  font-family: var(--kw-font-body);
+}
+.kwc-strip-ic { font-size: var(--kw-fs-5); }
+.kwc-strip-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.kwc-strip-t b { font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); font-weight: 600; }
+.kwc-strip-t span { font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwc-strip-btn {
+  min-height: 32px;
+  padding: var(--kw-s-1) var(--kw-s-3);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: var(--kw-radius);
+  background: var(--kw-wood-2);
+  color: var(--kw-gold);
+  font: inherit;
+  font-size: var(--kw-fs-2);
+  cursor: pointer;
+}
+
+/* ── The town card: Home, top right ── */
+.kwc-town {
+  display: none;
+  position: fixed;
+  top: var(--kwp-tools-top, 112px);
+  right: var(--kw-s-4);
+  z-index: var(--z-float);   /* above the scene (800) */
+  width: 320px;
+  max-height: calc(100vh - var(--kwp-tools-top, 112px) - var(--kw-s-5));
+  overflow-y: auto;
+  padding: var(--kw-s-4);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: var(--kw-radius-l);
+  background: var(--kw-panel);
+  box-shadow: var(--kw-shadow);
+  color: var(--kw-cream);
+  font-family: var(--kw-font-body);
+}
+body.kwp-home:not(.kwc-open):not(.kw-shell) #kw-town-card:not(:empty) { display: block; }
+/* The same contents in the phone's Town window. */
+.kww .kwc-town { display: block; position: static; width: auto; max-height: none; padding: 0; border: 0; box-shadow: none; background: none; }
+
+.kwc-town-name { font-family: var(--kw-font-title); font-size: var(--kw-fs-5); color: var(--kw-gold); }
+.kwc-town-sub { margin-top: 2px; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwc-ages {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--kw-s-1);
+  margin: var(--kw-s-3) 0 var(--kw-s-2);
+  padding-bottom: var(--kw-s-3);
+  border-bottom: 1px solid var(--kw-line);
+  text-align: center;
+}
+.kwc-ages b { display: block; font-size: var(--kw-fs-4); color: var(--kw-cream); }
+.kwc-ages span { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwc-mood { display: flex; gap: var(--kw-s-3); font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwc-bad { color: var(--kw-bad); }
+.kwc-fs:not(:empty) { margin-top: var(--kw-s-3); }
+.kwc-h {
+  margin: var(--kw-s-3) 0 var(--kw-s-1);
+  padding-top: var(--kw-s-2);
+  border-top: 1px solid var(--kw-line);
+  font-size: var(--kw-fs-1);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--kw-muted);
+}
+.kwc-row { display: flex; justify-content: space-between; gap: var(--kw-s-2); font-size: var(--kw-fs-3); line-height: 1.5; }
+.kwc-row span:last-child { color: var(--kw-gold); white-space: nowrap; }
+.kwc-line { margin: 0 0 var(--kw-s-2); font-size: var(--kw-fs-3); line-height: 1.4; }
+.kwc-when { font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; }
+.kwc-more {
+  margin-top: var(--kw-s-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--kw-gold-deep);
+  font: inherit;
+  font-size: var(--kw-fs-2);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.kwc-more:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+
+/* Phones: the bottom sheet opens above the Home scene (800) too. */
+body.kw-shell #screen-game .sidebar.kw-open { z-index: var(--z-float); }

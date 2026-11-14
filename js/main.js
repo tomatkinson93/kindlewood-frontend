@@ -1218,6 +1218,13 @@ function _tierImgErr(img)  { img.style.display = 'none';  if (img.nextElementSib
 
 // ── Settlement tier card with banner overlay ─────────────────────────────
 function _settlementTierCard(tier, settlementName, isOwn) {
+  // The five places (js/places.js): the panel is a context panel, and the
+  // tier card shrinks to a header strip (docs/LAYOUT_SPEC.md §2.4).
+  if (window.KWPlaces) {
+    return '<div class="kwc-strip"><span class="kwc-strip-ic" aria-hidden="true">' + (TIER_EMOJI[tier] || '🏕') + '</span>'
+      + '<span class="kwc-strip-t"><b>' + escHtml(settlementName || '') + '</b><span>' + escHtml((tier || 'camp').charAt(0).toUpperCase() + (tier || 'camp').slice(1)) + '</span></span>'
+      + (isOwn ? '<button type="button" class="kwc-strip-btn" onclick="openTierUpgradeModal()">Upgrade</button>' : '') + '</div>';
+  }
   const tierMeta = {
     camp:    { label: 'Camp',    num: 'Tier 0', bannerColor: '#2a3a1a', bannerBorder: '#4a6a2a', textColor: '#c8e090' },
     village: { label: 'Village', num: 'Tier 1', bannerColor: '#1a3a1a', bannerBorder: '#3a6a2a', textColor: '#8ecf7e' },
@@ -1999,7 +2006,8 @@ function _selectWorldTileImpl(tile) {
       + '</div>';
 
     body.innerHTML = _settlementTierCard(s.tier, s.name, true)
-      + '<div id="fs-slot">' + (window.KWFirstSteps ? KWFirstSteps.cardHtml() : '') + '</div>'
+      // First steps live on Home's town card once the places are in (js/context.js).
+      + (window.KWPlaces ? '' : '<div id="fs-slot">' + (window.KWFirstSteps ? KWFirstSteps.cardHtml() : '') + '</div>')
       + '<div class="sett-panel">'
 
       // Name + tags
@@ -2026,8 +2034,9 @@ function _selectWorldTileImpl(tile) {
       + (beds != null ? '<div class="sett-beds" title="Births need a free bed in town. Build Willow Huts for more.">🛏 Beds <b>' + living.length + '/' + beds + '</b></div>' : '')
       + pillsRow
 
-      // Actions — with hierarchy
-      + '<div class="sett-divider"></div>'
+      // Actions — with hierarchy. With the five places each of these has a
+      // place of its own (Home's chips, Families, The Land), so the grid goes.
+      + (window.KWPlaces ? '</div>' : '<div class="sett-divider"></div>'
       + '<div class="sett-actions-grid">'
       + '<button class="sett-action" onclick="openSettlementView()">🏗 Manage Settlement</button>'
       + '<button class="sett-action" onclick="openAllCitizens()">👥 Manage Citizens</button>'
@@ -2041,7 +2050,7 @@ function _selectWorldTileImpl(tile) {
       + _gatedAction('craft:any', '🔨 Crafting', 'openCraftingAny()')
       + '<button class="sett-action" onclick="KWJourneys.open()">🧭 Journeys</button>'
       + '</div>'
-      + '</div>';
+      + '</div>');
 
     if (window.KWFirstSteps) KWFirstSteps.load();
     title.textContent = '';
