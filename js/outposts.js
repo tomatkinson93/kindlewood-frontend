@@ -2,20 +2,20 @@
 //  Outposts tab + outpost stores (server: routes/outposts.js, lib/outpost_store.js)
 //
 //  Each outpost keeps what it produces in its own store (300 of each
-//  resource per level; production stops when one is full). Porters carry it
-//  home: a one-off run ("Send a porter") or a standing hauler who goes back
-//  and forth while there's anything to fetch.
+//  resource per level; production stops when one is full). A carter brings
+//  most of it home by itself; "Send a porter" fetches the rest now. (Standing
+//  haulers and haul settings went with the outpost trim, docs/OUTPOST_TRIM.md.)
 //
 //  KWOutposts.show()           the sidebar's ⛺ Outposts tab: every outpost,
 //                              its store, crew, porters on the road
 //  KWOutposts.storeHtml(o)     the store bars (also in the outpost's tile panel)
-//  KWOutposts.haulHtml(o)      porters on the road, Send a porter, the hauler
+//  KWOutposts.haulHtml(o)      porters on the road, Send a porter
 //  KWOutposts.onEvent(ev)      'outpost_haul_home' / 'outpost_walk' from the live stream
 //  KWOutposts.manage(id)       the outpost's own window (#kwop-modal): Overview,
 //                              Buildings (plots = level + 1), People, Defence.
 //                              Worker, garrison, upgrade and dismantle buttons
 //                              are main.js's own (_wireOutpostSection).
-//  Buttons carry data-kwop="haul|hauler|home|map" and are handled here,
+//  Buttons carry data-kwop="haul|home|map" and are handled here,
 //  wherever they're drawn.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
@@ -99,7 +99,7 @@
   // ── Porters ────────────────────────────────────────────────────────────
   function haulRowHtml(h, now) {
     const out = h.status === 'outbound';
-    const what = out ? `On the way ${h.standing ? '(hauler)' : ''}` : `Coming home with ${loadChips(h.load) || 'nothing'}`;
+    const what = out ? 'On the way' : `Coming home with ${loadChips(h.load) || 'nothing'}`;
     const end = out ? h.arrives_at : h.returns_at;
     return `<div class="kwop-haul"><span aria-hidden="true">🧺</span> <b>${esc(h.name)}</b> <span class="kwop-muted">${what}</span>
       <span class="kwop-time" data-kwop-end="${esc(end)}">${fmtLeft(end, now)}</span></div>`;
@@ -107,7 +107,6 @@
   function haulHtml(o, now) {
     if (!o) return '';
     const hauls = (o.hauls || []).filter(h => (h.kind || 'haul') === 'haul');
-    const haulers = o.haulers || [];
     const anything = Object.values((o.store && o.store.items) || {}).some(v => v > 0);
     const free = freeCitizens().sort((a, b) => isPorter(b) - isPorter(a) || String(a.name).localeCompare(String(b.name)));
     const opts = free.map(c => `<option value="${c.id}">${esc(c.name)}${isPorter(c) ? ' (Porter)' : ''}</option>`).join('');
@@ -116,16 +115,9 @@
       ? `<div class="kwop-pick"><select class="kwop-select" data-kwop-pick="${o.id}" aria-label="Who carries the goods"><option value="">— Choose a porter —</option>${opts}</select>
           <button type="button" class="kwop-btn" data-kwop="haul" data-id="${o.id}"${anything ? '' : ' disabled title="Nothing stored yet"'}>🧺 Send a porter</button></div>`
       : `<div class="kwop-muted">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`;
-    const slots = o.hauler_slots || 1;
-    const hauler = haulers.length
-      ? haulers.map(h => `<div class="kwop-crew-row"><span>🧺 <b>${esc(h.name)}</b> hauls for this outpost</span><button type="button" class="kwop-btn kwop-btn-sm" data-kwop="home" data-id="${o.id}" data-cid="${h.id}">Home</button></div>`).join('')
-      : '';
-    const pickHauler = haulers.length < slots && free.length
-      ? `<div class="kwop-pick"><select class="kwop-select" data-kwop-hauler-pick="${o.id}" aria-label="Who hauls for this outpost"><option value="">— Choose a hauler —</option>${opts}</select>
-          <button type="button" class="kwop-btn" data-kwop="hauler" data-id="${o.id}">Make hauler</button></div>
-         <div class="kwop-muted">A hauler goes back and forth on their own while anything is stored.</div>` : '';
     return `<div class="kwop-porters"><div class="kwop-head">🧺 Porters</div>
-        ${hauls.map(h => haulRowHtml(h, now)).join('')}${hauler}${send}${trip}${pickHauler}
+        <div class="kwop-muted">A carter brings most of it home by itself. A porter fetches what's waiting, now.</div>
+        ${hauls.map(h => haulRowHtml(h, now)).join('')}${send}${trip}
         <div class="kwop-reason" data-kwop-reason hidden></div></div>`;
   }
 
@@ -182,6 +174,7 @@
     const p = panel();
     if (!p) return;
     ['panel-map-view', 'panel-citizens-view'].forEach(id => { const el = byId(id); if (el) el.style.display = 'none'; });
+    if (global.KWJourneys && global.KWJourneys.hideView) global.KWJourneys.hideView();
     p.style.display = 'flex';
     render();
     load();
@@ -239,7 +232,6 @@
     if (act === 'build' || act === 'pulldown') return buildAction(btn, act, id, btn.dataset.key);
     if (act === 'event') return post(btn, `/api/game/outposts/${id}/events/${btn.dataset.eid}`, { choice: btn.dataset.choice }, d => `${d.outcome}`);
     if (act === 'road') return post(btn, `/api/game/outposts/${id}/road`, {}, d => `🛣️ The road crew set out for the ${d.outpost.name}.`);
-    if (act === 'settings') return saveSettings(btn, id);
     if (act === 'help') {
       const cid = Number((btn.closest('.op-section') || document).querySelector(`[data-kwop-help-pick="${id}"]`)?.value);
       if (!cid) return reason(btn, 'Choose who carries the goods.');
@@ -259,17 +251,14 @@
       return;
     }
     if (st.busy) return;
-    const pickSel = act === 'haul' ? `[data-kwop-pick="${id}"]` : act === 'hauler' ? `[data-kwop-hauler-pick="${id}"]` : null;
+    const pickSel = act === 'haul' ? `[data-kwop-pick="${id}"]` : null;
     const cid = pickSel ? Number((btn.closest('.kwop-porters') || document).querySelector(pickSel)?.value) : Number(btn.dataset.cid);
-    if (!cid) return reason(btn, act === 'hauler' ? 'Choose who hauls for it.' : 'Choose who carries the goods.');
+    if (!cid) return reason(btn, 'Choose who carries the goods.');
     st.busy = true; btn.disabled = true;
     try {
       if (act === 'haul') {
         const d = await call(`/api/game/outposts/${id}/haul`, { citizen_id: cid });
         if (typeof global.showToastNotification === 'function') global.showToastNotification(`🧺 ${d.haul.name} sets off for the ${d.outpost.name} — back in about ${fmtDur((new Date(d.haul.returns_at) - Date.now()) / 1000)}.`, 'outpost');
-      } else if (act === 'hauler') {
-        const d = await call(`/api/game/outposts/${id}/assign`, { citizen_id: cid, post: 'hauler' });
-        if (typeof global.showToastNotification === 'function') global.showToastNotification(`🧺 A hauler now works the ${d.outpost.name}.`, 'outpost');
       } else if (act === 'home') {
         await call(`/api/game/outposts/${id}/unassign`, { citizen_id: cid });
         if (typeof global.showToastNotification === 'function') global.showToastNotification('🏠 They head home after this trip.', 'outpost');
@@ -343,7 +332,7 @@
         return `<div class="kwop-haul"><span aria-hidden="true">${h.kind === 'post' ? '🚶' : '🏠'}</span> <b>${esc(h.name)}</b> <span class="kwop-muted">${h.kind === 'post' ? 'walking out to start work' : 'walking home'}</span>
           <span class="kwop-time" data-kwop-end="${esc(end)}">${fmtLeft(end, now)}</span></div>`;
       }).join('');
-      return `<div class="kwop-cols"><div>${opSection(wk ? wk(o) : '')}${walks ? opSection('<div class="kwop-head">🚶 On the road</div>' + walks) : ''}</div><div>${opSection(haulHtml(o, now))}${opSection(settingsHtml(o))}</div></div>`;
+      return `<div class="kwop-cols"><div>${opSection(wk ? wk(o) : '')}${walks ? opSection('<div class="kwop-head">🚶 On the road</div>' + walks) : ''}</div><div>${opSection(haulHtml(o, now))}</div></div>`;
     }
     if (M.tab === 'defence') return opSection((rd ? rd(o) : '') + (df ? df(o) : ''));
     return `${eventsHtml(o)}<div class="kwop-cols">
@@ -427,7 +416,7 @@
     finally { st.busy = false; }
   }
 
-  // ── Events, the road, haul settings, a clanmate's help ─────────────────
+  // ── Events, the road, a clanmate's help ────────────────────────────────
   function eventsHtml(o) {
     const inner = (o.events || []).map(e => `<div class="kwop-event">
         <div class="kwop-event-h"><span class="kwop-plot-ic" aria-hidden="true">${esc(e.icon)}</span><b>${esc(e.title)}</b>
@@ -450,21 +439,6 @@
     return `<div class="op-section kwop-sec"><div class="kwop-head">🛣️ Road to town</div><div class="kwop-plot-d">${cur}</div>${going}${next}
         <div class="kwop-reason" data-kwop-reason hidden></div></div>`;
   }
-  function settingsHtml(o) {
-    const set = o.settings || {};
-    const f = set.haul_filter;
-    const keys = [...new Set([...Object.keys(o.rates || {}), ...Object.keys((o.store && o.store.items) || {})])];
-    const boxes = keys.map(k => { const [i, l] = resLook(k); return `<label class="kwop-check"><input type="checkbox" data-kwop-filter="${esc(k)}"${!f || f.includes(k) ? ' checked' : ''}> ${esc(i)} ${esc(l)}</label>`; }).join('');
-    const th = Number(set.haul_threshold) || 0;
-    const opts = [[0, 'whenever there is anything'], [25, 'a quarter full'], [50, 'half full'], [75, 'three-quarters full'], [90, 'nearly full']]
-      .map(([v, l]) => `<option value="${v}"${v === th ? ' selected' : ''}>${l}</option>`).join('');
-    return `<div class="kwop-head">⚙️ Haul settings</div>
-      <div class="kwop-muted">Porters bring home:</div><div class="kwop-checks">${boxes || '<span class="kwop-muted">Nothing produced here yet.</span>'}</div>
-      <label class="kwop-muted" for="kwop-th-${o.id}">The hauler sets out when the store is</label>
-      <div class="kwop-pick"><select class="kwop-select" id="kwop-th-${o.id}" data-kwop-threshold>${opts}</select>
-        <button type="button" class="kwop-btn" data-kwop="settings" data-id="${o.id}">Save</button></div>
-      <div class="kwop-reason" data-kwop-reason hidden></div>`;
-  }
   // A clanmate's outpost (tile panel): send one of your porters to help.
   function helpHtml(tile) {
     if (!tile || !tile.outpost || tile.outpost.mine || !tile.outpost.clanmate) return '';
@@ -475,21 +449,6 @@
       ${free.length ? `<div class="kwop-pick"><select class="kwop-select" data-kwop-help-pick="${tile.outpost.id}" aria-label="Who goes"><option value="">— Choose a porter —</option>${opts}</select>
         <button type="button" class="kwop-btn" data-kwop="help" data-id="${tile.outpost.id}">🤝 Help carry</button></div>` : '<div class="op-worker-hint">Everyone is busy right now.</div>'}
       <div class="kwop-reason" data-kwop-reason hidden></div></div>`;
-  }
-  async function saveSettings(btn, id) {
-    const box = btn.closest('.op-section') || document;
-    const all = [...box.querySelectorAll('[data-kwop-filter]')];
-    const on = all.filter(x => x.checked).map(x => x.dataset.kwopFilter);
-    if (all.length && !on.length) return reason(btn, 'Tick at least one thing for porters to carry.');
-    const th = Number((box.querySelector('[data-kwop-threshold]') || {}).value || 0);
-    try {
-      const res = await global.apiFetch(`/api/game/outposts/${id}/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ haul_filter: on.length === all.length ? null : on, haul_threshold: th }) });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok || d.error) throw new Error(d.error || 'Could not save.');
-      if (typeof global.showToastNotification === 'function') global.showToastNotification('⚙️ Haul settings saved.', 'outpost');
-      await refreshAll();
-    } catch (err) { reason(btn, err.message); }
   }
   // POST and refresh; `say(data)` → a toast.
   async function post(btn, path, body, say) {
@@ -553,6 +512,6 @@
   }
 
   global.KWOutposts = { show, hide, load, render, storeHtml, carterHtml, haulHtml, tabHtml, cardHtml, onEvent, freeCitizens, _set(d) { st.data = d; }, fmtLeft,
-    manage, closeModal, refreshModal, modalHtml, buildingsHtml, eventsHtml, roadHtml, settingsHtml, helpHtml, _modal: M,
+    manage, closeModal, refreshModal, modalHtml, buildingsHtml, eventsHtml, roadHtml, helpHtml, _modal: M,
     devAction, devEvent };
 })(typeof window !== 'undefined' ? window : this);

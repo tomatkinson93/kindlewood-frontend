@@ -913,11 +913,12 @@
 
   <!-- ══ INVENTORY MODAL ══ -->
   <div id="inventory-modal" class="inv-backdrop" style="display:none" onclick="if(event.target===this)closeInventoryModal()">
-    <div class="inv-modal-card" role="dialog" aria-modal="true" aria-label="Inventory">
+    <div class="inv-modal-card" role="dialog" aria-modal="true" aria-label="Stores">
       <div class="inv-header">
-        <div class="inv-title">🎒 Inventory</div>
+        <div class="inv-title">🎒 Stores</div>
         <div class="inv-tabs" id="inv-tabs">
           <button class="inv-tab active" data-cat="all" onclick="invSetTab('all',this)">All</button>
+          <button class="inv-tab" data-cat="ores" onclick="invSetTab('ores',this)">⛏ Ores &amp; alloys</button>
           <button class="inv-tab" data-cat="equipment" onclick="invSetTab('equipment',this)">⚔️ Equipment</button>
           <button class="inv-tab" data-cat="material" onclick="invSetTab('material',this)">🪵 Materials</button>
           <button class="inv-tab" data-cat="food" onclick="invSetTab('food',this)">🌿 Food</button>

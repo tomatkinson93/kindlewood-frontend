@@ -913,6 +913,7 @@ async function updateCitizenRole(id, role) {
 
 function showCitizensPanel() {
   if (window.KWOutposts) KWOutposts.hide();
+  if (window.KWJourneys && KWJourneys.hideView) KWJourneys.hideView();
   document.getElementById('panel-map-view').style.display = 'none';
   document.getElementById('panel-citizens-view').style.display = 'flex';
   loadCitizens();
@@ -920,6 +921,7 @@ function showCitizensPanel() {
 
 function showMapPanel() {
   if (window.KWOutposts) KWOutposts.hide();
+  if (window.KWJourneys && KWJourneys.hideView) KWJourneys.hideView();
   document.getElementById('panel-citizens-view').style.display = 'none';
   document.getElementById('panel-map-view').style.display = 'flex';
 }

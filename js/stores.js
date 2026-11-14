@@ -58,7 +58,13 @@
     if (extras.length) el.querySelector('.res-val').textContent = window.KWPlaces ? `+${extras.length} in Stores` : 'Stores · ' + extras.length;
     const pop = document.getElementById('stores-pop');
     if (pop && pop.classList.contains('open')) pop.innerHTML = popHtml();
+    if (oresShowing() && typeof renderInventory === 'function') renderInventory();
   }
+
+  // The ores, rare materials and alloys: the Stores screen's tab (js/inventory.js).
+  function oresHtml() { return popHtml().replace(/^<div class="sp-head">[\s\S]*?<\/div>\s*/, ''); }
+  // On the Stores screen's ores tab right now?
+  const oresShowing = () => { const m = document.getElementById('inventory-modal'); return !!(m && m.style.display !== 'none' && typeof _inventoryTab !== 'undefined' && _inventoryTab === 'ores'); };
 
   function popHtml() {
     const kn = known(), have = amounts();
@@ -83,6 +89,12 @@
   }
 
   function toggle() {
+    // One Stores screen with the five places: the chip opens its ores tab.
+    if (window.KWPlaces && typeof openInventoryModal === 'function') {
+      if (oresShowing()) { closeInventoryModal(); return; }
+      openInventoryModal('ores');
+      return;
+    }
     let pop = document.getElementById('stores-pop');
     if (pop && pop.classList.contains('open')) return close();
     if (!pop) {
@@ -102,7 +114,10 @@
     pop.style.top = (a.bottom + 6) + 'px';
     pop.classList.add('open');
   }
-  function close() { const p = document.getElementById('stores-pop'); if (p) p.classList.remove('open'); }
+  function close() {
+    const p = document.getElementById('stores-pop'); if (p) p.classList.remove('open');
+    if (oresShowing() && typeof closeInventoryModal === 'function') closeInventoryModal();   // a row opens the resource's breakdown
+  }
   document.addEventListener('click', close);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
@@ -164,5 +179,5 @@
     render();
   }
 
-  window.KWStores = { render, toggle, close, showDiscoveries, onSettlement, onOreSample, popHtml };
+  window.KWStores = { render, toggle, close, showDiscoveries, onSettlement, onOreSample, popHtml, oresHtml };
 })();
