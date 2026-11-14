@@ -1,11 +1,13 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  KWDevTools — Dev Tools load for admins only (docs/LAYOUT_SPEC.md §6).
 //
-//  The ⚗ panel's markup lives in dev.html, with its admin-only scripts and
-//  styles. None of it is in the page every player downloads: once the
-//  server says this player is an admin (KWClock.me().isAdmin), the fragment
-//  is added to the page and the scripts loaded in their old order. Opening
-//  Dev Tools before that finishes waits for it.
+//  The ⚗ panel's markup is served by the API to signed-in admins only
+//  (GET /api/dev-tools; kindlewood-server admin/dev-tools.html): it was a
+//  static dev.html that anyone could open. Its admin-only scripts and styles
+//  are not in the page every player downloads either: once the server says
+//  this player is an admin (KWClock.me().isAdmin), the markup is added to the
+//  page and the scripts loaded in their old order. Opening Dev Tools before
+//  that finishes waits for it.
 //
 //  Dev Tools stays its own overlay (layer 5000), below windows, on purpose:
 //  what it triggers (a moment's dialogue box, a window, a toast, its card
@@ -17,7 +19,6 @@
 (function (global) {
   'use strict';
   const doc = global.document;
-  const V = '1';
   const STYLES = ['/css/card-admin.css?v=1778502600'];
   const SCRIPTS = ['/js/life-admin.js?v=1', '/js/funnel-admin.js?v=p0', '/js/item_admin.js?v=r5d',
     '/js/happenings-admin.js?v=r5d', '/js/enemy_admin.js?v=r5d', '/js/card-admin.js?v=r5d'];
@@ -39,7 +40,7 @@
     if (!isAdmin()) return Promise.resolve(false);
     _p = (async () => {
       if (!doc.getElementById('cheat-modal')) {
-        const r = await global.fetch('/dev.html?v=' + V, { credentials: 'same-origin' });
+        const r = await global.apiFetch('/api/dev-tools');   // signed in, admins only
         if (!r.ok) throw new Error('Dev Tools did not load (' + r.status + ').');
         const holder = doc.createElement('div');
         holder.id = 'kw-dev-tools';

@@ -10,11 +10,12 @@
 //      loading screen's Start playing button.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
-// Dev Tools' markup lives in dev.html since Phase 4 step 5 (loaded for admins
-// only, js/dev-tools.js): reading the page includes it.
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8') : '');
+// Dev Tools' markup lives in kindlewood-server since Phase 4 step 5 (served to
+// admins only, GET /api/dev-tools): reading the page includes it when the server
+// repo is beside this one; without it, checks about Dev Tools are skipped (verify/_devmarkup.js).
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + require('./_devmarkup').devMarkup() : '');
 let pass = 0, fail = 0;
-const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
+const check = require('./_devmarkup').devAware((name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; });
 
 const w = { console, Date, Math, JSON, Number, String, Object, Array, Set, Map, setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
   document: { getElementById: () => null, querySelectorAll: () => [], addEventListener() {} } };
@@ -45,14 +46,15 @@ vm.runInContext('citizensData = [{ id: 1, name: "Bo", life_stage: "adult", role:
 h = O.haulHtml(op());
 check('2a. free adults only, a Porter first', /<option value="1">Bo \(Porter\)<\/option><option value="2">Al<\/option><\/select>/.test(h) && !/Cy|Di|Ed/.test(h));
 check('2b. Send a porter, the trip time and load', /data-kwop="haul" data-id="7">🧺 Send a porter/.test(h) && /About 10m each way · carries 20 weight a trip/.test(h));
-check('2c. a hauler can be chosen', /data-kwop="hauler" data-id="7">Make hauler/.test(h) && /goes back and forth on their own/.test(h));
+// The outpost trim (docs/OUTPOST_TRIM.md): no standing haulers or haul settings; the carter does that.
+check('2c. no hauler to choose: the carter brings most of it home, a porter fetches the rest', !/Make hauler|data-kwop="hauler"/.test(h) && /A carter brings most of it home by itself/.test(h));
 h = O.haulHtml(op({ store: { items: {}, cap: 300, full: [] } }));
 check('2d. an empty store: Send is disabled and says why', /data-kwop="haul" data-id="7" disabled title="Nothing stored yet"/.test(h));
 h = O.haulHtml(op({ haulers: [{ id: 2, name: 'Al' }], hauls: [
   { id: 1, citizen_id: 1, name: 'Bo', status: 'outbound', arrives_at: soon(5), returns_at: soon(10), standing: false },
   { id: 2, citizen_id: 2, name: 'Al', status: 'returning', load: { stone: 15 }, arrives_at: soon(-5), returns_at: soon(3), standing: true }] }));
-check('2e. on the road: who, which way, the countdown, what they carry', /<b>Bo<\/b> <span class="kwop-muted">On the way /.test(h) && /data-kwop-end=/.test(h) && /Coming home with <span class="kwop-chip" title="Stone">🪨 15/.test(h));
-check('2f. the hauler, with Home; no second hauler', /<b>Al<\/b> hauls for this outpost/.test(h) && /data-kwop="home" data-id="7" data-cid="2"/.test(h) && !/Make hauler/.test(h));
+check('2e. on the road: who, which way, the countdown, what they carry', /<b>Bo<\/b> <span class="kwop-muted">On the way<\/span>|<b>Bo<\/b> <span class="kwop-muted">On the way /.test(h) && /data-kwop-end=/.test(h) && /Coming home with <span class="kwop-chip" title="Stone">🪨 15/.test(h));
+check('2f. no hauler row, even with old data (a run on the road shows as a porter\'s)', !/hauls for this outpost/.test(h) && !/Make hauler/.test(h) && !/\(hauler\)/.test(h));
 check('2g. countdowns read m/s', /^4m 5\ds$|^5m 00s$/.test(O.fmtLeft(soon(5))));
 
 console.log('3. The tab');
@@ -79,7 +81,7 @@ check('5a. an Outposts tab between Citizens and Build, with its panel', /id="tab
 check('5b. outposts.js and its css load, versioned', /src="\/js\/outposts\.js\?v=\w+"/.test(html) && /href="\/css\/outposts\.css\?v=\w+"/.test(html));
 check('5c. switchTab opens it; other panels hide it', /tab === 'outposts'\) \{\s*\n\s*if \(window\.KWOutposts\) KWOutposts\.show\(\)/.test(main) && (read('js/citizens.js').match(/KWOutposts\.hide\(\)/g) || []).length === 2);
 check('5d. the tile panel shows the store and porters', /KWOutposts\.storeHtml\(mine\) \+ KWOutposts\.haulHtml\(mine\)/.test(main));
-check('5e. Journeys lists porters and haulers; the live stream tells the tab', /post: 'hauler'/.test(read('js/journeys.js')) && /outpost_haul_home\(ev\) \{ if \(global\.KWOutposts\)/.test(read('js/realtime.js')));
+check('5e. Journeys lists porters (haulers are gone); the live stream tells the tab', !/o\.haulers/.test(read('js/journeys.js')) && /post: 'porter'/.test(read('js/journeys.js')) && /outpost_haul_home\(ev\) \{ if \(global\.KWOutposts\)/.test(read('js/realtime.js')));
 check('5f. phones: Outposts in the More sheet', /label: 'Outposts', glyph: '⛺', fn: function \(\) \{ window\.switchTab\('outposts'\); \}/.test(read('js/mobile-shell.js')));
 check('5g. Help explains stores and porters', /own store/.test(read('js/help.js')) && /Send a porter/.test(read('js/help.js')));
 check('5h. loading screen: a big Start playing button, waited for on first load', /<button type="button" class="ls-play" id="ls-play" hidden>▶ Start playing<\/button>/.test(html) && /await lsReadyToPlay\(\);\s*\n\s*hideLoadingScreen\(\);/.test(main) && /\.ls-play \{/.test(read('css/main.css')));
@@ -116,8 +118,7 @@ check('8a. an event: what happened, time to decide, a button per choice', /Wolve
 check('8b. no events: nothing drawn', O.eventsHtml(op()) === '');
 h = O.roadHtml(oe, Date.now());
 check('8c. the road: what it is now, and paving it next with cost and time', /Track — trips 25% faster/.test(h) && /<b>Paved Road<\/b>/.test(h) && /data-kwop="road" data-id="7">Pave it/.test(h));
-h = O.settingsHtml(oe);
-check('8d. haul settings: a box per good (ticked as saved) and the hauler threshold', /data-kwop-filter="stone" checked/.test(h) && /data-kwop-filter="copper">/.test(h) && /<option value="50" selected>half full/.test(h) && /data-kwop="settings" data-id="7"/.test(h));
+check('8d. haul settings are gone (a porter takes a fair share of everything)', typeof O.settingsHtml === 'undefined' && !/data-kwop="settings"|data-kwop-filter/.test(read('js/outposts.js')));
 check('8e. a clanmate\'s outpost: Help carry; nobody else\'s', /data-kwop="help" data-id="5">🤝 Help carry/.test(O.helpHtml({ outpost: { id: 5, owner: 'Bo', clanmate: true } })) && O.helpHtml({ outpost: { id: 5, owner: 'Bo' } }) === '');
 check('8f. the card flags an event and the road', /kwop-evbadge" data-kwop="manage"/.test(O.cardHtml(oe, Date.now())) && /🟫 Track<\/span>|Track<\/span> to town|🟫 Track to town/.test(O.cardHtml(oe, Date.now())));
 const rl = read('js/kwmap-roads.js');

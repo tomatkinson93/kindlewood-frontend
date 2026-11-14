@@ -3,11 +3,12 @@
 //   node verify/a11y_proofs.js
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
-// Dev Tools' markup lives in dev.html since Phase 4 step 5 (loaded for admins
-// only, js/dev-tools.js): reading the page includes it.
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8') : '');
+// Dev Tools' markup lives in kindlewood-server since Phase 4 step 5 (served to
+// admins only, GET /api/dev-tools): reading the page includes it when the server
+// repo is beside this one; without it, checks about Dev Tools are skipped (verify/_devmarkup.js).
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + require('./_devmarkup').devMarkup() : '');
 let pass = 0, fail = 0;
-const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
+const check = require('./_devmarkup').devAware((name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; });
 
 // A <button> whose only content is a symbol (no letters, no template text).
 function unlabelled(file) {
@@ -37,7 +38,7 @@ console.log('2. Windows are dialogs');
 {
   const H = read('index.html');
   const ids = ['diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'inventory-modal', 'housing-modal', 'citizen-profile-modal', 'all-citizens-modal',
-    'cheat-modal', 'online-modal', 'community-modal', 'tier-upgrade-modal', 'tier-celebration-modal', 'profile-modal', 'view-profile-modal', 'map-preview-modal', 'settings-backdrop'];
+    /* Dev Tools' markup is in kindlewood-server */ ...(require('./_devmarkup').HAVE ? ['cheat-modal'] : []), 'online-modal', 'community-modal', 'tier-upgrade-modal', 'tier-celebration-modal', 'profile-modal', 'view-profile-modal', 'map-preview-modal', 'settings-backdrop'];
   const miss = ids.filter(id => { const i = H.indexOf(`id="${id}"`); if (i < 0) return true; const after = H.slice(i, i + 700); return !/role="dialog" aria-modal="true" aria-(label|labelledby)="[^"]+"/.test(after); });
   check('2a. each modal in the page is a named, modal dialog', miss.length === 0, miss.join(', '));
   const lb = [...H.matchAll(/aria-labelledby="([^"]+)"/g)].map(m => m[1]).filter(id => !H.includes(`id="${id}"`) && !/ar-title|jn-title|rs-title|kwd-title/.test(id));

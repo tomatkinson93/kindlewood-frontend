@@ -8,7 +8,9 @@
 //    At outposts   workers and garrisons posted out (GET /api/outposts)
 //    Requests      what villages that trade with you want (KWRequests)
 //
-//  Opened from the settlement panel (🧭 Journeys) and the phone More sheet.
+//  With the five places (Phase 4 step 6) it folds into The Land: it opens in
+//  the context panel beside the map (the bottom sheet on phones), so "Show on
+//  map" moves the map without closing the list. Without them, a window.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -52,9 +54,9 @@
     const rows = [];
     for (const o of list || []) {
       const crew = [...(o.workers || []).map(c => ({ ...c, post: 'worker' })), ...(o.garrison || []).map(c => ({ ...c, post: 'garrison' })),
-        ...(o.haulers || []).map(c => ({ ...c, post: 'hauler' }))];
+      ];
       const runs = new Map((o.hauls || []).map(h => [h.citizen_id, h]));
-      // One-off porters on the road (haulers' runs show on their own row).
+      // Porters on the road.
       for (const h of o.hauls || []) if (!h.standing) crew.push({ id: h.citizen_id, name: h.name, post: 'porter' });
       for (const c of crew) {
         const h = runs.get(c.id);
@@ -85,6 +87,29 @@
       <h3 class="jn-h">📣 Village requests <span class="jn-count">${(requests || []).length}</span></h3>${reqs || '<div class="jn-empty">No village wants anything right now.</div>'}`;
   }
 
+  // ── In The Land's panel (js/context.js), with the five places ──
+  const inPanel = () => !!global.KWPlaces;
+  const phone = () => !!(global.document.body && global.document.body.classList.contains('kw-shell'));
+  function view() {
+    const doc = global.document;
+    let v = doc.getElementById('panel-journeys-view');
+    if (v) return v;
+    const sb = doc.getElementById('sidebar');
+    if (!sb) return null;
+    v = doc.createElement('div');
+    v.id = 'panel-journeys-view';
+    v.className = 'jn-view';
+    v.style.cssText = 'display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;';
+    v.innerHTML = `<div class="sidebar-header"><div class="sidebar-title">🧭 Journeys <button type="button" class="kw-help-q" aria-label="How this works" title="How this works" onclick="KWHelp.open('travel')">?</button></div>
+      <div class="sidebar-sub">Who is away, and what villages want</div></div><div class="sidebar-body jn-body" id="jn-body"><div class="jn-empty">Loading…</div></div>`;
+    v.addEventListener('click', onClick);
+    sb.appendChild(v);
+    return v;
+  }
+  // Another view taking the panel hides this one (citizens.js, outposts.js call it).
+  function hideView() { const v = global.document.getElementById('panel-journeys-view'); if (v) v.style.display = 'none'; }
+  const viewShowing = () => { const v = global.document.getElementById('panel-journeys-view'); return !!(v && v.style.display !== 'none'); };
+
   function el() {
     let o = global.document.getElementById('jn-overlay');
     if (o) return o;
@@ -109,6 +134,7 @@
   }
 
   function tick() {
+    if (!isOpen()) { if (_timer) { clearInterval(_timer); _timer = null; } return; }
     const T = global.KWTravel;
     const t = T ? T.now() : Date.now();
     let ended = false;
@@ -121,8 +147,15 @@
   }
 
   async function open() {
-    const o = el();
-    o.classList.add('open');
+    if (inPanel()) {
+      if (global.KWPlaces.current() !== 'land') global.KWPlaces.go('land');
+      const v = view();
+      if (!v) return;
+      ['panel-map-view', 'panel-citizens-view'].forEach(id => { const e = global.document.getElementById(id); if (e) e.style.display = 'none'; });
+      if (global.KWOutposts) global.KWOutposts.hide();
+      v.style.display = 'flex';
+      if (phone()) { if (global.KWShell) global.KWShell.openPanel(); } else if (global.KWContext) global.KWContext.open();
+    } else el().classList.add('open');
     render();
     const T = global.KWTravel, R = global.KWRequests;
     await Promise.all([
@@ -133,14 +166,22 @@
     render();
     if (_timer) clearInterval(_timer);
     _timer = setInterval(tick, 1000);
-    const c = o.querySelector('.jn-close'); if (c) c.focus();
+    const c = inPanel() ? null : global.document.querySelector('#jn-overlay .jn-close'); if (c) c.focus();
   }
   function close() {
     const o = global.document.getElementById('jn-overlay');
     if (o) o.classList.remove('open');
+    if (inPanel() && viewShowing()) {
+      if (phone()) { if (global.KWShell) global.KWShell.close(); } else if (global.KWContext) global.KWContext.close();
+    }
     if (_timer) { clearInterval(_timer); _timer = null; }
   }
-  function isOpen() { const o = global.document.getElementById('jn-overlay'); return !!(o && o.classList.contains('open')); }
+  function isOpen() {
+    const o = global.document.getElementById('jn-overlay');
+    if (o && o.classList.contains('open')) return true;
+    const sb = global.document.getElementById('sidebar');
+    return inPanel() && viewShowing() && (global.KWContext && global.KWContext.isOpen() || !!(sb && sb.classList.contains('kw-open')));
+  }
 
   // Where someone is right now on their route.
   function whereNow(j, t) {
@@ -152,8 +193,14 @@
     return { q: a.q + step.dq, r: a.r + step.dr };
   }
   function showTile(q, r) {
-    close();
-    if (typeof global.navGoMap === 'function') global.navGoMap();
+    if (inPanel()) {
+      // Beside the map on desktop the list stays open; a phone's sheet steps aside.
+      if (global.KWPlaces.current() !== 'land') global.KWPlaces.go('land');
+      if (phone() && global.KWShell) global.KWShell.close();
+    } else {
+      close();
+      if (typeof global.navGoMap === 'function') global.navGoMap();
+    }
     if (typeof camera !== 'undefined') { camera.q = q; camera.r = r; }   // eslint-disable-line no-undef
     if (global.KWMap && global.KWMap.controller) global.KWMap.controller.requestRender();
   }
@@ -192,5 +239,5 @@
   }
 
   global.openJourneys = open;
-  global.KWJourneys = { open, close, isOpen, recall, _rowHtml: rowHtml, _bodyHtml: bodyHtml, _whereNow: whereNow, _fmtLeft: fmtLeft };
+  global.KWJourneys = { open, close, isOpen, recall, hideView, _rowHtml: rowHtml, _bodyHtml: bodyHtml, _whereNow: whereNow, _fmtLeft: fmtLeft };
 })(typeof window !== 'undefined' ? window : globalThis);

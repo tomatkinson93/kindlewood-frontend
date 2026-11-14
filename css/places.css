@@ -118,8 +118,17 @@ body.kw-shell .kwp-orn { display: none; }
    its back button and title go: the places do that now. */
 body.kwp-on .sv-back-btn, body.kwp-on .sv-header-title { display: none; }
 body.kwp-on .sv-header { padding-top: 60px; align-items: flex-start; }
-/* The moments' cards (top left on desktop) sit under the chips. */
-body.kwp-on #kw-moments { top: calc(var(--kwp-tools-top, 112px) + 52px); }
+/* The moments' cards (top left on desktop) sit under the chips; on Home,
+   under the scene's Town / Outskirts row too. (Phones keep them low.) */
+body.kwp-on:not(.kw-shell) #kw-moments { top: calc(var(--kwp-tools-top, 112px) + 52px); }
+body.kwp-on.kwp-home:not(.kw-shell) #kw-moments { top: calc(var(--kwp-tools-top, 112px) + 100px); }
+
+/* Outside the game (signed out, the sign-in screen) none of the game's
+   floating parts show: the Home scene lives on the page itself. */
+body:not(:has(#screen-game.active)) #settlement-view,
+body:not(:has(#screen-game.active)) #kw-moments,
+body:not(:has(#screen-game.active)) #kw-town-card,
+body:not(:has(#screen-game.active)) .kwp-tools { display: none; }
 
 /* The profile menu's dot (unread messages). */
 .profile-trigger.has-dot { position: relative; }

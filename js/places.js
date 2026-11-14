@@ -279,6 +279,24 @@
     note();
   }
 
+  // Signing out: put everything away, so the sign-in screen is clean and the
+  // next sign-in starts afresh on Home (main.js logout).
+  function reset() {
+    // Asleep first: closing the scene reports "The Land", which would set
+    // #land in the address and send the next sign-in there.
+    _started = false;
+    if (svOpen()) call('closeSettlementView');
+    if (global.KWContext) global.KWContext.close();
+    if (global.KWWindow && global.KWWindow.closeAll) global.KWWindow.closeAll();
+    if (global.KWShell && global.KWShell.close) global.KWShell.close();
+    const m = doc.getElementById('kw-moments');
+    if (m) m.innerHTML = '';
+    if (doc.body) doc.body.classList.remove('kwp-home', 'kwp-land');
+    _current = 'land';
+    // The next sign-in opens on Home, not wherever this one left off.
+    try { if (global.location && global.location.hash && global.history) global.history.replaceState(null, '', global.location.pathname + global.location.search); } catch (e) { /* file:// */ }
+  }
+
   // A one-time note: where things moved (§8).
   const NOTE_KEY = 'kw-places-note';
   function note() {
@@ -343,5 +361,5 @@
     if (_started) setHash(key, true);
   }
 
-  global.KWPlaces = { go, start, seen, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
+  global.KWPlaces = { go, start, seen, reset, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

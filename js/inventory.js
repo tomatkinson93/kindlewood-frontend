@@ -29,10 +29,17 @@ const INV_CATEGORY_LABELS = {
   food: 'Food', quest_item: 'Quest Item', trophy: 'Trophy', schematic: 'Schematic', fish: 'Fish'
 };
 
-async function openInventoryModal() {
+// One Stores screen (Phase 4 step 6): gear and items, and the ores, rare
+// materials and alloys (js/stores.js). `tab` opens on one of its tabs.
+async function openInventoryModal(tab) {
   const modal = document.getElementById('inventory-modal');
   if (!modal) return;
   modal.style.display = 'flex';
+  if (typeof tab === 'string') {
+    _inventoryTab = tab;
+    document.querySelectorAll('.inv-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === tab));
+  }
+  if (_inventoryTab === 'ores') { renderInventory(); return; }
   await loadInventory();
 }
 
@@ -41,10 +48,12 @@ function closeInventoryModal() {
   if (modal) modal.style.display = 'none';
 }
 
+let _invLoadedAt = 0;   // opened straight onto the ores tab, the items aren't loaded yet
 function invSetTab(cat, btn) {
   _inventoryTab = cat;
   document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  if (cat !== 'ores' && !_invLoadedAt) { loadInventory(); return; }
   renderInventory();
 }
 
@@ -55,6 +64,7 @@ async function loadInventory() {
     const res = await apiFetch('/api/inventory');
     const data = await res.json();
     _inventoryData = data.items || [];
+    _invLoadedAt = Date.now();
     renderInventory();
   } catch(e) {
     if (body) body.innerHTML = '<div class="inv-empty">Could not load inventory.</div>';
@@ -64,6 +74,10 @@ async function loadInventory() {
 function renderInventory() {
   const body = document.getElementById('inv-body');
   if (!body) return;
+  if (_inventoryTab === 'ores') {
+    body.innerHTML = window.KWStores && KWStores.oresHtml ? '<div class="inv-ores">' + KWStores.oresHtml() + '</div>' : '<div class="inv-empty">Nothing discovered yet.</div>';
+    return;
+  }
 
   let items = _inventoryData;
   if (_inventoryTab !== 'all') items = items.filter(i => i.category === _inventoryTab);
