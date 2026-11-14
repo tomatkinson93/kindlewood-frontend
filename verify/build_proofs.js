@@ -18,7 +18,9 @@ check('1b. chunks keep page order and lose nothing', (() => { const c = B.chunk(
 console.log('2. What comes out');
 const OUT = fs.mkdtempSync(path.join(require('os').tmpdir(), 'kw-build-'));
 const r = B.build({ allowPlain: true, outDir: OUT });
-const js = Object.keys(r.manifest.js), css = Object.keys(r.manifest.css);
+// The page's own files; Dev Tools' admin-only files are copied beside them (manifest.dev_tools).
+const devFiles = new Set([...(r.manifest.dev_tools ? r.manifest.dev_tools.scripts.concat(r.manifest.dev_tools.styles) : [])]);
+const js = Object.keys(r.manifest.js).filter(f => !devFiles.has(f)), css = Object.keys(r.manifest.css).filter(f => !devFiles.has(f));
 check('2a. a handful of files: three script bundles, the config, one stylesheet', js.length === 4 && css.length === 1, js.concat(css).join(', '));
 check('2b. names carry a content hash', js.concat(css).every(f => /-[0-9a-f]{10}\.(js|css)$/.test(f)));
 const order = js.filter(f => /app-/.test(f)).flatMap(f => r.manifest.js[f]);
@@ -67,7 +69,9 @@ console.log('5. New-player funnel (Dev Tools)');
   const h = w.KWFunnel.html({ days: 30, players: 10, steps: [{ key: 'registered', label: 'Made an account', players: 10, pct: 100, median_minutes: 0 }, { key: 'first_building', label: 'Built something', players: 4, pct: 40, median_minutes: 12 }] });
   check('5a. a row per step: players, share, typical time, and the loss from the step above (flagged when large)', /Built something/.test(h) && /<b>40%<\/b>/.test(h) && /12 min/.test(h) && /fn-bad">−60%/.test(h));
   check('5b. times read naturally', w.KWFunnel.took(0) === 'under a minute' && w.KWFunnel.took(300) === '5 h' && w.KWFunnel.took(4320) === '3 days' && w.KWFunnel.took(null) === '—');
-  check('5c. in Dev Tools, loaded with the page', /KWFunnel\.load\(\)/.test(src) && /id="dev-funnel"/.test(src) && /src="\/js\/funnel-admin\.js\?v=\w+"/.test(src));
+  // Dev Tools is dev.html, loaded for admins only with its scripts (js/dev-tools.js, Phase 4 step 5).
+  const dev = fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8'), dt = fs.readFileSync(path.join(ROOT, 'js/dev-tools.js'), 'utf8');
+  check('5c. in Dev Tools, its script loaded with it (admins only)', /KWFunnel\.load\(\)/.test(dev) && /id="dev-funnel"/.test(dev) && /'\/js\/funnel-admin\.js\?v=\w+'/.test(dt) && !/funnel-admin\.js/.test(src));
 }
 
 fs.rmSync(OUT, { recursive: true, force: true });

@@ -9,7 +9,9 @@
 //   5. Wiring: panel buttons, breakdown rows, the board, Help, Dev Tools.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+// Dev Tools' markup lives in dev.html since Phase 4 step 5 (loaded for admins
+// only, js/dev-tools.js): reading the page includes it.
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8') : '');
 let pass = 0, fail = 0;
 const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
 

@@ -9,7 +9,9 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const H = require('./_harness');
 const ROOT = path.join(__dirname, '..');
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+// Dev Tools' markup lives in dev.html since Phase 4 step 5 (loaded for admins
+// only, js/dev-tools.js): reading the page includes it.
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8') : '');
 const HOUR = 3600e3, DAY = 24 * HOUR;
 let pass = 0, fail = 0;
 const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
@@ -134,7 +136,7 @@ const RULES = [
     const html = read('index.html');
     check('5. Dev Tools has the 🏮 Happenings tab + panel; scripts versioned',
           /cheatSwitchTab\('ct-happenings',this\);loadHappeningsAdmin\(\)/.test(html) && /id="ct-happenings"/.test(html) &&
-          /\/js\/happenings\.js\?v=/.test(html) && /\/js\/happenings-admin\.js\?v=/.test(html));
+          /\/js\/happenings\.js\?v=/.test(html) && /\/js\/happenings-admin\.js\?v=/.test(read('js/dev-tools.js')));   // the admin script loads with Dev Tools (Phase 4 step 5)
     const src = read('js/happenings.js') + read('js/happenings-admin.js');
     check('5b. no Math.random in the Happenings files', !/Math\.random/.test(src));
     check('5c. start toasts read KWClock.wallNow (never the warped clock)', /function _checkToasts\(\) \{\s*const now = _wall\(\);/.test(read('js/happenings.js')));

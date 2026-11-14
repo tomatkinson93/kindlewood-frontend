@@ -4,7 +4,9 @@
 //   node verify/life_proofs.js
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+// Dev Tools' markup lives in dev.html since Phase 4 step 5 (loaded for admins
+// only, js/dev-tools.js): reading the page includes it.
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8') : '');
 let pass = 0, fail = 0;
 const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
 const C = read('js/citizens.js'), M = read('js/main.js'), G = read('js/game.js');
@@ -127,7 +129,7 @@ console.log('6. Dev Tools → Life (step 7)');
     && /<option value="9">Wren \(9, youth\)/.test(ac) && /value="elder"/.test(ac));
   const nu = D._numbersHtml([{ key: 'ADULT_FROM', label: 'Grown up at', desc: 'Age…', group: 'Ages', default: 12, min: 6, max: 25, step: 1, value: 10, changed: true }]);
   check('6e. the numbers: grouped, with bounds, the default, "changed", Save and Reset', /kwld-gname">Ages/.test(nu) && /min="6" max="25"/.test(nu) && /Default 12; 6–25/.test(nu) && /kwld-changed/.test(nu) && /data-kwld-save="ADULT_FROM"/.test(nu) && /data-kwld="reset"/.test(nu));
-  check('6f. a Life tab in Dev Tools; the script is on the page; one click listener, no inline handlers inside', /cheatSwitchTab\('ct-life',this\);KWLifeDev\.open\(\)/.test(H) && /id="ct-life-body"/.test(H) && /\/js\/life-admin\.js\?v=/.test(H) && /addEventListener\('click', onClick\)/.test(LA) && !/onclick=/.test(LA));
+  check('6f. a Life tab in Dev Tools; the script is on the page; one click listener, no inline handlers inside', /cheatSwitchTab\('ct-life',this\);KWLifeDev\.open\(\)/.test(H) && /id="ct-life-body"/.test(H) && /\/js\/life-admin\.js\?v=/.test(read('js/dev-tools.js')) && /addEventListener\('click', onClick\)/.test(LA) && !/onclick=/.test(LA));
   check('6g. it talks to /api/life/admin', /'\/api\/life\/admin' \+ path/.test(LA) && ['/status', '/numbers', '/age', '/stage', '/death', '/settler', '/inheritances/settle', '/numbers/reset'].every(x => LA.includes(`'${x}'`)));
 }
 
