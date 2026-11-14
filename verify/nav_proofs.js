@@ -43,7 +43,7 @@ console.log('2. What each place holds');
   check('2a. The Road: Quests, Battles, Decks, Market', K.HUBS.road.items.map(i => i.label).join() === 'Quests,Battles,Decks,Market');
   check('2b. The Clan: the clan hall and Chat', K.HUBS.clan.items.map(i => i.key).join() === 'hall,chat');
   check('2c. Home: Town (phones), Build, Stores, Upgrade, Tavern, Fishing, then what the town has unlocked', K.TOOLS.home.slice(0, 6).map(t => t.key).join() === 'town,build,stores,upgrade,tavern,fishing');
-  check('2d. The Land: Scout, Outposts, Journeys, Centre', K.TOOLS.land.map(t => t.key).join() === 'scout,outposts,journeys,centre');
+  check('2d. The Land: Scout, Outposts, Journeys (Centre on town is in the map\'s own stack, js/hud.js)', K.TOOLS.land.map(t => t.key).join() === 'scout,outposts,journeys');
   w._hasBuilding = t => t === 'library';
   const home = K._toolsHtml('home');
   check('2e. locked things are absent, not greyed (Research with a Library; no Crafting or Wonders yet)', /data-tool="research"/.test(home) && !/data-tool="crafting"/.test(home) && !/data-tool="wonders"/.test(home));

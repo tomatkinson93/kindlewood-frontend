@@ -13,7 +13,7 @@
 .kwp-row {
   display: flex;
   justify-content: center;
-  padding: 0 var(--kw-s-4);
+  padding: 0 var(--kw-s-5);
   background: var(--kw-wood);
   border-bottom: 1px solid var(--kw-border);
   flex-shrink: 0;
@@ -23,6 +23,28 @@
 }
 
 .kwp-bar { display: flex; gap: var(--kw-s-4); }
+
+/* Gold filigree either side of the places (js/places.js draws it): a line
+   fading out towards the edges, then a dot, a curl and a diamond by the
+   buttons. The right side is the left one mirrored. */
+.kwp-row { align-items: center; }
+.kwp-orn {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  max-width: 520px;
+  color: var(--kw-gold-deep);
+  opacity: .85;
+}
+.kwp-orn-r { flex-direction: row-reverse; }
+.kwp-orn-line { flex: 1; height: 1px; background: linear-gradient(to right, transparent, var(--kw-gold-deep)); }
+.kwp-orn-r .kwp-orn-line { background: linear-gradient(to left, transparent, var(--kw-gold-deep)); }
+.kwp-orn-f { flex: none; width: 64px; height: 16px; }
+.kwp-orn-r .kwp-orn-f { transform: scaleX(-1); }
+.kwp-orn-l .kwp-orn-f { margin-right: var(--kw-s-3); }
+.kwp-orn-r .kwp-orn-f { margin-left: var(--kw-s-3); }
+body.kw-shell .kwp-orn { display: none; }
 
 .kwp-place {
   position: relative;

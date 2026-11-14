@@ -1,0 +1,64 @@
+/* ════════════════════════════════════════════════════════════════
+   The top bar and the map's controls (js/hud.js, LAYOUT_SPEC.md
+   §2.6, §2.7, the layout mockup). Tokens only (style check).
+   ════════════════════════════════════════════════════════════════ */
+
+/* The version string lives in Settings › General now. */
+body.kwh-on .topbar-version { display: none; }
+
+/* "+N in Stores": a chip beside the five resources. */
+body.kwh-on #res-stores {
+  padding: var(--kw-s-1) var(--kw-s-3);
+  border: 1px solid var(--kw-gold-dim);
+  border-radius: 999px;
+}
+body.kwh-on #res-stores .res-val { font-family: var(--kw-font-body); font-size: var(--kw-fs-2); }
+body.kwh-on #res-stores .rs-pick, body.kwh-on #res-stores .rs-caret { display: none; }
+
+/* Phones: the resources scroll sideways; wealth stays pinned at the end. */
+body.kw-shell.kwh-on #res-wealth {
+  order: 99;
+  position: sticky;
+  right: 0;
+  background: var(--kw-ink);
+  box-shadow: calc(-1 * var(--kw-s-3)) 0 var(--kw-s-3) var(--kw-ink);
+}
+body.kw-shell.kwh-on #res-stores { order: 98; }
+
+/* ── The map's own controls: one stack, lower left (lower right on phones) ── */
+.kwh-stack {
+  position: absolute;
+  left: var(--kw-s-4);
+  bottom: var(--kw-s-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--kw-s-2);
+  font-family: var(--kw-font-body);
+}
+.kwh-stack .kwh-btn {
+  position: static;
+  width: auto;
+  min-height: var(--kw-touch);
+  padding: 0 var(--kw-s-4);
+  border-radius: var(--kw-radius);
+  color: var(--kw-cream);
+  font: inherit;
+  font-size: var(--kw-fs-3);
+  white-space: nowrap;
+}
+.kwh-stack .kwh-btn:hover { color: var(--kw-gold); }
+.kwh-stack .kwh-zoom { position: static; flex-direction: row; }
+.kwh-stack .kwh-btn:focus-visible, .kwh-stack .kwh-zoom .map-ctrl-btn:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+body.kw-shell .kwh-stack {
+  position: fixed;
+  left: auto;
+  right: var(--kw-s-3);
+  bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + var(--kw-s-3));
+  align-items: flex-end;
+}
+/* Over Home's scene or a full-screen overlay the map's stack steps aside. */
+body.kwp-home .kwh-stack, body.kw-shell.kw-overlay .kwh-stack { display: none; }
+
+/* Phones with the pan stick on: the moment cards (lower left) sit above it. */
+body.kw-shell.kw-stick-on #kw-moments { bottom: calc(var(--kw-tabbar-h) + var(--kw-safe-b) + 136px); }
