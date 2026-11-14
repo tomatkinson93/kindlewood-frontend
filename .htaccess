@@ -1,4 +1,10 @@
-# Kindlewood frontend — browser caching and compression for the cPanel host.
+# Kindlewood frontend — browser caching and compression, for an Apache host.
+#
+# NOTE (2026-11-15): the site is on Porkbun static hosting, which runs NGINX
+# and ignores .htaccess entirely. None of these rules apply there: caching
+# relies on the ?v= in each script and stylesheet link, and dev.html is kept
+# off the site by not existing (its markup comes from the API, admins only).
+# The file stays for a move to an Apache host.
 #
 # Why: the uploaded site is built by scripts/build.js (npm run build): a few
 # bundles whose names carry a hash of their contents, so browsers can keep
@@ -37,8 +43,8 @@
 </IfModule>
 
 # Dev Tools' markup used to be a static dev.html here, which anyone could
-# open. It is served by the API to admins only now (GET /api/dev-tools); an
-# old copy left on the host is never served.
+# open. It is served by the API to admins only now (GET /api/dev-tools). On an
+# Apache host this also refuses an old copy; on Porkbun it does nothing.
 <Files "dev.html">
   <IfModule mod_authz_core.c>
     Require all denied
