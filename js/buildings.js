@@ -333,6 +333,8 @@ function _kwIsAdmin() {
 function _syncCheatButton() {
   const admin = _kwIsAdmin();
   document.querySelectorAll('.btn-cheat').forEach(b => { b.style.display = admin ? '' : 'none'; });
+  // Admins only: fetch Dev Tools now, so ⚗ opens at once (js/dev-tools.js).
+  if (admin && window.KWDevTools) KWDevTools.load().catch(() => {});
   if (!admin) document.getElementById('cheat-modal')?.classList.remove('open');
 }
 kwWhenReady(() => {
@@ -340,14 +342,21 @@ kwWhenReady(() => {
   if (window.KWClock) window.KWClock.onChange(e => { if (e && e.reason === 'sync') _syncCheatButton(); });
 });
 
-function openCheatMenu() {
+async function openCheatMenu() {
   if (!_kwIsAdmin()) return;
-  document.getElementById('cheat-modal').classList.add('open');
+  // Dev Tools' markup and scripts load for admins only (js/dev-tools.js).
+  if (window.KWDevTools) {
+    try { await KWDevTools.load(); }
+    catch (e) { showBuildToast('Dev Tools did not load. Try again.', 'error'); return; }
+  }
+  const modal = document.getElementById('cheat-modal');
+  if (!modal) return;
+  modal.classList.add('open');
   _populateCheatCitizenDropdowns();
   if (window.KWFamineDev) KWFamineDev.status();
 }
 function closeCheatMenu() {
-  document.getElementById('cheat-modal').classList.remove('open');
+  document.getElementById('cheat-modal')?.classList.remove('open');
 }
 
 function _populateCheatCitizenDropdowns() {
