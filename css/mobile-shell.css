@@ -104,23 +104,8 @@ body.kw-shell #screen-game .topbar-right {
 body.kw-shell #screen-game .profile-username-label,
 body.kw-shell #screen-game .profile-caret { display: none; }
 
-/* Right-anchored dropdowns: pin to the viewport and clamp to the screen so a
-   scrolled trigger can never clip them. */
-body.kw-shell #screen-game .events-panel {
-  position: fixed; top: 84px; right: 8px;
-  width: min(320px, calc(100vw - 16px));
-  max-height: calc(100dvh - 160px); overflow-y: auto;
-}
-/* The Chronicle opens as a full sheet on phones: readable, and its buttons big enough. */
-body.kw-shell #screen-game .events-panel.open {
-  /* The top bar is its containing block (it has a backdrop filter), so size
-     by the viewport rather than with bottom: 0. */
-  top: 0; right: 0; left: 0; bottom: auto; width: auto;
-  height: 100dvh; max-height: 100dvh;
-  border-radius: 0; z-index: 9000; padding-top: env(safe-area-inset-top);
-}
-body.kw-shell #screen-game .events-panel .events-panel-close,
-body.kw-shell #screen-game .events-panel .ep-clear-all { min-height: 40px; min-width: 40px; }
+/* Right-anchored dropdown (the profile menu): pin to the viewport and clamp
+   to the screen so a scrolled trigger can never clip it. */
 body.kw-shell #screen-game .profile-menu {
   position: fixed; top: 84px; right: 8px;
   max-width: calc(100vw - 16px);

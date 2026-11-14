@@ -22,7 +22,6 @@
 .jn-btn:hover, .jn-btn:focus-visible { background: rgba(255, 255, 255, .12); }
 .jn-btn[data-jn-recall] { border-color: rgba(220, 120, 80, .5); }
 .jn-empty, .jn-muted { font-size: 13px; color: #b9a882; padding: 4px 2px 8px; }
-.ep-away { margin-right: 6px; }
 
 /* Phones (portrait, or a landscape phone in the shell): full screen. */
 @media (max-width: 600px) {

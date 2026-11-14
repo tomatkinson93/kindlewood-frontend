@@ -54,7 +54,7 @@ console.log('2. What each place holds');
 console.log('3. The profile menu takes the social and meta things');
 {
   const menu = H.slice(H.indexOf('id="profile-menu"'), H.indexOf('logout-item'));
-  check('3a. Messages, Rankings, Online, World events and Feedback', ['pm-messages', 'pm-rankings', 'pm-online', 'pm-events', 'pm-feedback'].every(id => menu.includes(`id="${id}"`)));
+  check('3a. Messages, Rankings, Online and Feedback (world events are in the clock\'s pop-up)', ['pm-messages', 'pm-rankings', 'pm-online', 'pm-feedback'].every(id => menu.includes(`id="${id}"`)) && !menu.includes('pm-events'));
   check('3b. "Your Kingdom" is gone (Home is a place)', !/Your Kingdom/.test(menu));
 }
 
@@ -96,7 +96,7 @@ console.log('6. The old bar, the phone and Home');
   check('6e. Home is a view: the scene isn\'t an overlay, and stops above the places on phones', !/'settlement-view', 'sq-backdrop'/.test(MS) && /body\.kw-shell #settlement-view \{ bottom:/.test(CSS));
   check('6f. the scene tells the places when it opens or closes; its back button says where it goes', /KWPlaces\.seen\('home'\)/.test(SV) && /KWPlaces\.seen\('land'\)/.test(SV) && /&#8592; The Land/.test(SV));
   check('6g. the scene\'s back button and title go (the places do that); its Town / Outskirts sit under the chips; the moment cards too', /body\.kwp-on \.sv-back-btn, body\.kwp-on \.sv-header-title \{ display: none; \}/.test(CSS) && /body\.kwp-on #kw-moments \{ top: calc\(var\(--kwp-tools-top/.test(CSS));
-  check('6h. the bell on phones: its list and the profile menu open above the Home scene', /\.topbar:has\(\.events-panel\.open\)/.test(CSS) && /\.topbar:has\(#profile-dropdown-wrap\.open\) \{ z-index: var\(--z-float\)/.test(CSS));
+  check('6h. phones: the profile menu opens above the Home scene (the bell is a window now)', /\.topbar:has\(#profile-dropdown-wrap\.open\) \{ z-index: var\(--z-float\)/.test(CSS));
   check('6i. a panel fading out is checked again when the fade ends, so the places come back after the bell closes', /addEventListener\('transitionend'/.test(MS) && /syncSoon/.test(MS));
 }
 

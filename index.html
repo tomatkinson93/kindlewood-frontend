@@ -155,6 +155,7 @@
   <link rel="stylesheet" href="/css/modal-sizes.css?v=ms1">
   <link rel="stylesheet" href="/css/places.css?v=2"><!-- the five places; after mobile-shell.css -->
   <link rel="stylesheet" href="/css/context.css?v=1"><!-- the context panel and the town card -->
+  <link rel="stylesheet" href="/css/news.css?v=1"><!-- the News window (the bell) -->
   <script>
     // Capture the settlement species from any API response that includes it, so
     // combat can render the correct character sprites (e.g. hares). Passive
@@ -622,22 +623,10 @@
         <button type="button" id="call-chip" class="raid-chip call-chip" hidden onclick="KWRaids.openCalls()" aria-label="Call to arms — a clanmate needs defenders"></button>
         <div id="season-badge" class="season-badge-wrap"></div>
         <div id="expedition-badge" class="expedition-badge" style="display:none"></div>
-        <!-- Events bell -->
+        <!-- The bell: one place for news (js/news.js) -->
         <div class="events-bell-wrap">
-          <button class="btn-events-bell" onclick="openEventsPanel()" title="Settlement Events" aria-label="Settlement Events">🔔</button>
+          <button class="btn-events-bell" onclick="openEventsPanel()" title="News" aria-label="News">🔔</button>
           <span class="events-badge" id="events-badge" style="display:none">0</span>
-          <div class="events-panel" id="events-panel">
-            <div class="events-panel-header">
-              <div class="events-panel-title">📜 Settlement Chronicle</div>
-              <button class="ep-clear-all ep-away" onclick="closeEventsPanel(); KWAwayReport.reopen()" title="Reopen the last summary of what happened while you were away">📜 While you were away</button>
-              <button class="ep-clear-all" onclick="clearAllEvents()">Clear all</button>
-              <button class="events-panel-close" onclick="closeEventsPanel()" aria-label="Close">✕</button>
-            </div>
-            <div id="kwm-bell-slot"></div><!-- moments waiting (js/moments.js) -->
-            <div class="events-feed" id="events-feed">
-              <div class="ef-empty">No events yet.</div>
-            </div>
-          </div>
         </div>
         <button class="btn-cheat" onclick="openCheatMenu()" title="Dev Tools" style="display:none" aria-label="Dev Tools">⚗</button>
         <!-- Profile dropdown -->
@@ -654,7 +643,6 @@
             <button class="profile-menu-item" id="pm-messages" onclick="showCommunityTab('messages'); closeProfileMenu()">✉️ Messages</button>
             <button class="profile-menu-item" id="pm-rankings" onclick="openLeaderboard(); closeProfileMenu()">🏆 Rankings</button>
             <button class="profile-menu-item" id="pm-online" onclick="showOnlineList(); closeProfileMenu()">🟢 Online <span id="pm-online-count" class="online-count"></span></button>
-            <button class="profile-menu-item" id="pm-events" onclick="openTimedEvents(); closeProfileMenu()">✨ World events</button>
             <button class="profile-menu-item" id="pm-feedback" onclick="openFeedback(); closeProfileMenu()">🐞 Feedback</button>
             <div class="profile-menu-divider"></div>
             <button class="profile-menu-item" onclick="openSettingsPopover(); closeProfileMenu()">⚙️ Settings</button>
@@ -672,7 +660,6 @@
       <button class="comm-btn" onclick="openInventoryModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-inventory"/></svg><span>Inventory</span></button>
       <button class="comm-btn" id="nav-battles" onclick="openBattlesModal()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-battles"/></svg><span>Battles</span></button>
       <button class="comm-btn" id="nav-decks" onclick="openDeckBuilder()">🃏 <span>Decks</span></button>
-      <button class="comm-btn" id="nav-events" onclick="openTimedEvents()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-events"/></svg><span>Events</span></button>
       <button class="comm-btn" onclick="openLeaderboard()"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-rankings"/></svg><span>Rankings</span></button>
       <button class="comm-btn" id="nav-market" onclick="showCommunityTab('market')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-market"/></svg><span>Market</span></button>
       <button class="comm-btn" id="nav-messages" onclick="showCommunityTab('messages')"><svg class="kw-icon" aria-hidden="true"><use href="#kw-i-messages"/></svg><span>Messages</span></button>
@@ -956,6 +943,7 @@
   <script defer src="/js/families.js?v=1"></script>
   <script defer src="/js/places.js?v=2"></script>
   <script defer src="/js/context.js?v=1"></script>
+  <script defer src="/js/news.js?v=1"></script>
   <script defer src="/js/life-admin.js?v=1"></script>
   <script defer src="/js/say.js?v=1"></script>
   <script defer src="/js/moments.js?v=1"></script>
@@ -2010,6 +1998,7 @@
   <symbol id="kw-i-land" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6 L4.5 16 h3 L4 22 h12 l-3.5 -6 h3 z"/><path d="M10 22 v4"/><path d="M21.5 9 L17 17.5 h2.5 L16.5 23 h10 l-3 -5.5 h2.5 z"/><path d="M21.5 23 v3"/><path d="M3 26.5 h26" stroke-width="1.5"/></symbol>
   <symbol id="kw-i-road" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 27 C13 20 9 16 12.5 11 C15 7.5 19 7 20 5"/><path d="M21 27 C21 21 17.5 17 20.5 12.5 C22.5 9.5 25 8.5 26 7"/><path d="M16 23 v1.5 M17 17 v1.5 M19 11.5 v1.5" stroke-width="1.5"/></symbol>
   <symbol id="kw-i-clan" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5 L25.5 8.5 V15 C25.5 21 21.5 25 16 27.5 C10.5 25 6.5 21 6.5 15 V8.5 Z"/><path d="M16 11 v10 M11.5 15.5 h9" stroke-width="1.6"/></symbol>
+  <symbol id="kw-i-bell" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21.5 V15 a7 7 0 0 1 14 0 v6.5 l2 2.5 H7 z"/><path d="M13.5 26.5 a2.6 2.6 0 0 0 5 0"/><path d="M16 6 v2"/></symbol>
   <symbol id="kw-i-close" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 9 L23 23 M23 9 L9 23"/></symbol>
   <symbol id="kw-i-help" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="11"/><path d="M12.6 12.8 a3.6 3.6 0 1 1 5.2 3.2 c-1.2 .6 -1.8 1.4 -1.8 2.7"/><circle cx="16" cy="22.6" r="1.2" fill="currentColor" stroke="none"/></symbol>
   <symbol id="kw-i-back" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8 L11 16 L19 24"/></symbol>
