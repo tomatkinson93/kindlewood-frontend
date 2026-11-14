@@ -54,7 +54,8 @@
     if (!el) return;
     const extras = discoveredExtras();
     el.hidden = !extras.length;
-    if (extras.length) el.querySelector('.res-val').textContent = 'Stores · ' + extras.length;
+    // The mockup's chip: "+7 in Stores" (the five basic resources are on the bar).
+    if (extras.length) el.querySelector('.res-val').textContent = window.KWPlaces ? `+${extras.length} in Stores` : 'Stores · ' + extras.length;
     const pop = document.getElementById('stores-pop');
     if (pop && pop.classList.contains('open')) pop.innerHTML = popHtml();
   }

@@ -59,7 +59,7 @@
       { key: 'scout',    label: 'Scout',    glyph: '🧭', run: () => call('actionScout') },
       { key: 'outposts', label: 'Outposts', glyph: '⛺', run: () => { call('switchTab', 'outposts'); if (global.KWShell && isPhone()) global.KWShell.openPanel(); } },
       { key: 'journeys', label: 'Journeys', glyph: '🗺', run: () => global.KWJourneys && global.KWJourneys.open(), unlock: () => !!global.KWJourneys },
-      { key: 'centre',   label: 'Centre',   glyph: '🏘', run: () => call('centreCamera') },
+      // Centre on town is in the map's own stack now (js/hud.js).
     ],
   };
   // The Road and The Clan: each entry opens the screen it always has. `dot`
@@ -159,7 +159,15 @@
     const old = screen.querySelector('.community-bar');
     const row = doc.createElement('div');
     row.className = 'kwp-row';
+    // Gold filigree either side of the places (desktop): a line fading out to
+    // the edges, a dot, a curl and a diamond by the buttons. currentColor.
+    const orn = side => `<span class="kwp-orn kwp-orn-${side}" aria-hidden="true"><span class="kwp-orn-line"></span>`
+      + '<svg class="kwp-orn-f" viewBox="0 0 64 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
+      + '<path d="M0 8 H28"/><circle cx="32" cy="8" r="1.4" fill="currentColor" stroke="none"/>'
+      + '<path d="M37 8 c3 -5.5 9.5 -5.5 11 -0.5 c-1.5 4.5 -7 4.5 -8 1"/><path d="M53 8 l4.5 -4.5 l4.5 4.5 l-4.5 4.5 z" fill="currentColor" stroke="none"/></svg></span>';
+    row.insertAdjacentHTML('beforeend', orn('l'));
     row.appendChild(nav);
+    row.insertAdjacentHTML('beforeend', orn('r'));
     if (old) { old.hidden = true; old.parentNode.insertBefore(row, old); }
     else screen.insertBefore(row, screen.firstChild);
     // The chips float at the top left of the view. They live on the game

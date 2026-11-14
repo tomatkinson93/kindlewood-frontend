@@ -373,15 +373,18 @@
 
   function stickEnabled() {
     try {
+      // Off unless chosen in Settings (docs/LAYOUT_SPEC.md §2.7): dragging pans.
       var v = localStorage.getItem(STICK_KEY);
-      return v === null ? true : v === '1';
-    } catch (_) { return true; }
+      return v === '1';
+    } catch (_) { return false; }
   }
   function setStickEnabled(on) {
     try { localStorage.setItem(STICK_KEY, on ? '1' : '0'); } catch (_) {}
     applyStickVisibility();
   }
   function applyStickVisibility() {
+    // Lets other things make room for it (the moment cards, css/hud.css).
+    document.body.classList.toggle('kw-stick-on', stickEnabled());
     if (!stickEl) return;
     var show = stickEnabled() && !stickCovered();
     // Only touch the DOM on a change: the cover watcher observes it.
@@ -400,8 +403,9 @@
     if (document.body.classList.contains('kw-overlay')) return true;
     var screen = byId('screen-game');
     if (!screen || !screen.classList.contains('active')) return true;
-    // The stick sits above the places' chips (js/places.js), or the old tab bar.
-    var bar = document.querySelector('.kwp-tools:not(:empty)') || document.querySelector('.kwp-bar') || document.querySelector('.kw-tabbar');
+    // The stick sits above the places' bar (js/places.js), or the old tab bar.
+    // (The places' chips are at the top of the view since the mockup.)
+    var bar = document.querySelector('.kwp-bar') || document.querySelector('.kw-tabbar');
     var bottom = bar ? bar.getBoundingClientRect().top : window.innerHeight;
     var size = stickEl.offsetWidth || 104;
     var x = 14 + size / 2, y = bottom - 12 - size / 2;
