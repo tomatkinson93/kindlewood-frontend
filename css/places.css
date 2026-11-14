@@ -185,7 +185,6 @@ body.kw-shell #settlement-view { bottom: calc(var(--kw-tabbar-h) + var(--kw-safe
 body.kw-shell .kw-fabs { display: none; }
 
 /* Phones: the top bar is its own layer (40) and Home's scene sits above it
-   (800), so its drop-downs (the bell's list, the profile menu) opened under
-   the scene. While one is open, the top bar rises above it. */
-body.kw-shell #screen-game .topbar:has(.events-panel.open),
+   (800), so its drop-down (the profile menu) opened under the scene. While
+   it is open, the top bar rises above it. (The bell opens a window now.) */
 body.kw-shell #screen-game .topbar:has(#profile-dropdown-wrap.open) { z-index: var(--z-float); }

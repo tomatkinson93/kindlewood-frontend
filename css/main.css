@@ -5912,109 +5912,7 @@ body.login-mode .hero-text-welcome {
   line-height: 1;
 }
 
-/* ── Events panel (slide-down from topbar) ── */
-.events-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 320px;
-  background: linear-gradient(160deg, #1a150c, #120e08);
-  border: 1px solid rgba(192,160,80,0.3);
-  border-radius: 8px;
-  z-index: 9600;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.7);
-  max-height: 420px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  /* Hidden by default */
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-8px);
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-}
-.events-panel.open {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
-.events-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(192,160,80,0.15);
-  flex-shrink: 0;
-}
-.events-panel-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #d4b870;
-  letter-spacing: 0.04em;
-}
-.events-panel-close {
-  background: none;
-  border: none;
-  color: #706040;
-  cursor: pointer;
-  font-size: 0.75rem;
-  padding: 2px 5px;
-  border-radius: 4px;
-  transition: color 0.15s;
-}
-.events-panel-close:hover { color: #d4b870; }
-
-/* ── Events feed ── */
-.events-feed {
-  overflow-y: auto;
-  flex: 1;
-  padding: 6px 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(192,160,80,0.2) transparent;
-}
-.ef-empty {
-  font-size: 0.75rem;
-  color: rgba(192,160,80,0.3);
-  font-style: italic;
-  padding: 20px 14px;
-  text-align: center;
-  line-height: 1.6;
-}
-.ef-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  transition: background 0.12s;
-}
-.ef-item:hover { background: rgba(255,255,255,0.02); }
-.ef-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; line-height: 1.2; }
-.ef-content { flex: 1; min-width: 0; }
-.ef-message { font-size: 0.76rem; color: #c0a870; line-height: 1.4; }
-.ef-time    { font-size: 0.66rem; color: rgba(192,160,80,0.35); margin-top: 2px; }
-.ef-dismiss {
-  background: none;
-  border: none;
-  color: rgba(192,160,80,0.2);
-  cursor: pointer;
-  font-size: 0.6rem;
-  padding: 2px;
-  flex-shrink: 0;
-  line-height: 1;
-  transition: color 0.15s;
-  align-self: center;
-}
-.ef-dismiss:hover { color: rgba(192,160,80,0.6); }
-
-/* Event type colouring */
-.ef-child_born   .ef-message { color: #e0c060; }
-.ef-partnership  .ef-message { color: #e090d0; }
-.ef-bond_formed  .ef-message { color: #90c8e0; }
-.ef-close_bond   .ef-message { color: #90d090; }
+/* (The events panel went: the bell opens a News window, js/news.js, css/news.css.) */
 
 /* ── Citizen profile — relationship section ── */
 .cp-rel-section { margin-top: 16px; }
@@ -8301,22 +8199,6 @@ body.login-mode .hero-text-welcome {
 }
 .toast-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
 .toast-msg { flex: 1; }
-
-/* ══════════════════════════════════════════════
-   EVENTS PANEL — CLEAR ALL
-   ══════════════════════════════════════════════ */
-.ep-clear-all {
-  background: none;
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 5px;
-  color: rgba(192,221,151,.4);
-  font-size: 10px;
-  padding: 2px 8px;
-  cursor: pointer;
-  margin-left: auto;
-  transition: all 0.15s;
-}
-.ep-clear-all:hover { color: rgba(192,221,151,.8); border-color: rgba(192,221,151,.3); }
 
 /* ══════════════════════════════════════════════
    SOLO QUEST CAROUSEL — ASSIGN PANEL

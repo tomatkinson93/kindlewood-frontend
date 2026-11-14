@@ -57,6 +57,7 @@
     mount().innerHTML = stackHtml(st.list);
     const bell = global.document.getElementById('kwm-bell-slot');
     if (bell) bell.innerHTML = bellHtml(st.list);
+    if (global.KWNews) global.KWNews.refresh();   // the bell's count and its window
   }
   async function load() {
     if (typeof global.apiFetch !== 'function') return;

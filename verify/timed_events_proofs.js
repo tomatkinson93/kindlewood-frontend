@@ -92,7 +92,8 @@ const DEFS = [
 }
 {
   const html = read('index.html');
-  check('5. Events button opens the Events panel', /id="nav-events" onclick="openTimedEvents\(\)"/.test(html));
+  // The Events button went (LAYOUT_SPEC §2.5): world events are in the clock's pop-up, with the calendar a click away.
+  check('5. the clock\'s pop-up opens the Events panel (the Events button is gone)', !/id="nav-events"/.test(html) && /KWEventsPanel\.open\(\)/.test(fs.readFileSync(path.join(__dirname, '..', 'js/hud-clock.js'), 'utf8')));
   check('5b. the Chronicle bell keeps openEventsPanel (no name clash)', /btn-events-bell" onclick="openEventsPanel\(\)"/.test(html) && !/root\.openEventsPanel/.test(read('js/timed-events.js')));
   check('5c. timed-events.js script tag, versioned, after happenings.js', /happenings\.js\?v=[^"]+"><\/script>\s*<script defer src="\/js\/timed-events\.js\?v=[^"]+"/.test(html));
   check('5d. no Math.random in timed-events.js', !/Math\.random/.test(read('js/timed-events.js')));

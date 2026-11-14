@@ -56,7 +56,8 @@ console.log('4. Away report and Crafting');
 {
   const A = read('js/away-report.js'), H = read('index.html'), M = read('js/main.js');
   check('4a. the last report is kept and can be reopened', /localStorage\.setItem\(LAST_KEY, JSON\.stringify\(report\)\)/.test(A) && /function reopen\(\)/.test(A) && /KWAwayReport = \{ start, show, last, reopen,/.test(A));
-  check('4b. "While you were away" in the events panel', /KWAwayReport\.reopen\(\)"[^>]*>📜 While you were away/.test(H));
+  // The bell opens the News window now (js/news.js, LAYOUT_SPEC §2.5).
+  check('4b. "While you were away" in the bell\'s News window', /data-action="away">While you were away/.test(read('js/news.js')) && /KWAwayReport\.reopen\(\)/.test(read('js/news.js')));
   check('4c. 🔨 Crafting in the settlement panel, locked until a crafting station', /_gatedAction\('craft:any', '🔨 Crafting', 'openCraftingAny\(\)'\)/.test(M) && /if \(type === 'craft:any'\) return CRAFT_STATIONS\.some/.test(M) && /const CRAFT_STATIONS = \['smithy', 'workshop', 'jeweller', 'smelter'\]/.test(M));
   check('4d. a recalled scout comes home quietly ("home again", not "new lands")', /back\.every\(e => e\.recalled_at\)/.test(read('js/expeditions.js')));
 }

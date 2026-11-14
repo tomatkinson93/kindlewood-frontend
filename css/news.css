@@ -1,0 +1,33 @@
+/* ════════════════════════════════════════════════════════════════
+   The News window (js/news.js, docs/LAYOUT_SPEC.md §2.5): what is
+   waiting for you to decide, then the town's news, with tabs.
+   Tokens only (verify/window_proofs.js style check).
+   ════════════════════════════════════════════════════════════════ */
+.kwn-waiting { margin-bottom: var(--kw-s-4); }
+.kwn-feed { display: flex; flex-direction: column; }
+.kwn-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--kw-s-3);
+  padding: var(--kw-s-3) var(--kw-s-1);
+  border-bottom: 1px solid var(--kw-line);
+}
+.kwn-row.kwn-new { border-left: 2px solid var(--kw-gold-deep); padding-left: var(--kw-s-2); }
+.kwn-ic { font-size: var(--kw-fs-4); line-height: 1.2; }
+.kwn-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; font-size: var(--kw-fs-3); line-height: 1.4; color: var(--kw-cream); }
+.kwn-when { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwn-x {
+  flex-shrink: 0;
+  width: var(--kw-touch);
+  height: var(--kw-touch);
+  border: 0;
+  border-radius: var(--kw-radius);
+  background: none;
+  color: var(--kw-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.kwn-x:hover { background: var(--kw-hover); color: var(--kw-cream); }
+.kwn-x:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwn-empty { padding: var(--kw-s-5) var(--kw-s-2); color: var(--kw-muted); text-align: center; }
+.kwn-foot { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); margin-top: var(--kw-s-4); }

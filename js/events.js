@@ -26,7 +26,7 @@ let _eventsInterval = null;
 
 async function loadEvents() {
   try {
-    const res = await apiFetch('/api/events?limit=15');
+    const res = await apiFetch('/api/events?limit=40');   // enough for the News tabs (js/news.js)
     if (!res.ok) return;
     const data = await res.json();
     _eventsData = data.events || [];
@@ -37,9 +37,7 @@ async function loadEvents() {
 let _lastSeenEventId = null;
 
 function renderEventsFeed() {
-  const feed = document.getElementById('events-feed');
-  if (!feed) return;
-  // Toast new events
+  // Toast new events (always: the News window needn't be open)
   if (_eventsData.length > 0) {
     const newest = _eventsData[0];
     if (_lastSeenEventId !== null && newest.id !== _lastSeenEventId) {
@@ -64,6 +62,11 @@ function renderEventsFeed() {
     _lastSeenEventId = newest.id;
   }
 
+  // One place for news (js/news.js): the bell's window draws the list and
+  // keeps the count. The old drop-down panel is gone.
+  if (window.KWNews) { KWNews.refresh(); return; }
+  const feed = document.getElementById('events-feed');
+  if (!feed) return;
   if (!_eventsData.length) {
     feed.innerHTML = '<div class="ef-empty">No events yet. Your settlement is just getting started.</div>';
     return;
@@ -105,6 +108,7 @@ async function dismissEvent(id) {
 // ── Events panel open/close ───────────────────
 
 function openEventsPanel() {
+  if (window.KWNews) { KWNews.toggle(); return; }   // the bell's window (js/news.js)
   const panel = document.getElementById('events-panel');
   if (!panel) return;
   // Toggle — clicking bell again closes it
@@ -133,6 +137,7 @@ function _eventsPanelClickOutside(e) {
 }
 
 function closeEventsPanel() {
+  if (window.KWNews) KWNews.close();
   const panel = document.getElementById('events-panel');
   if (panel) panel.classList.remove('open');
   document.removeEventListener('mousedown', _eventsPanelClickOutside);

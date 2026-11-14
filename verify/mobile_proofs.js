@@ -23,7 +23,8 @@ console.log('2. Full-screen dialogs');
   const C = read('css/mobile-shell.css');
   const cards = ['#diplomacy-modal .nb-modal-card', '#noticeboard-modal .nb-modal-card', '#quests-modal .qm-card', '#away-report-modal .ar-card', '#tier-upgrade-modal .tier-upgrade-modal-card'];
   check('2a. diplomacy, notice board, quests, away report and tier upgrade fill the phone', cards.every(c => C.includes('body.kw-shell ' + c)) && /width: 100% !important; max-width: none !important;\s*height: 100% !important/.test(C));
-  check('2b. the Chronicle is a full sheet; Stores a sheet across the top', /body\.kw-shell #screen-game \.events-panel\.open \{[^}]*top: 0; right: 0; left: 0; bottom: auto; width: auto;\s*height: 100dvh/.test(C) && /body\.kw-shell \.stores-pop\.open \{ left: 0 !important; right: 0 !important; top: 0 !important/.test(C));
+  // The bell's list is a KWWindow now (js/news.js): a full-screen sheet on phones like every window.
+  check('2b. the news is a full sheet (a window); Stores a sheet across the top', /id: ID, title: 'News'/.test(fs.readFileSync(path.join(ROOT, 'js/news.js'), 'utf8')) && /body\.kw-shell \.stores-pop\.open \{ left: 0 !important; right: 0 !important; top: 0 !important/.test(C));
   check('2c. big close buttons', /body\.kw-shell \.qm-close, body\.kw-shell \.nb-modal-close, body\.kw-shell \.tier-upgrade-modal-close \{ min-width: 44px; min-height: 44px; \}/.test(C));
   const S = read('js/mobile-shell.js');
   const ids = ['diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'away-report-modal', 'tier-upgrade-modal', 'jn-overlay', 'rs-overlay', 'cr-overlay', 'cf-overlay', 'raid-sheet', 'call-sheet', 'community-modal'];
