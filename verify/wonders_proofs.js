@@ -9,11 +9,12 @@
 //   5. Wiring: panel buttons, breakdown rows, the board, Help, Dev Tools.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
-// Dev Tools' markup lives in dev.html since Phase 4 step 5 (loaded for admins
-// only, js/dev-tools.js): reading the page includes it.
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8') : '');
+// Dev Tools' markup lives in kindlewood-server since Phase 4 step 5 (served to
+// admins only, GET /api/dev-tools): reading the page includes it when the server
+// repo is beside this one; without it, checks about Dev Tools are skipped (verify/_devmarkup.js).
+const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8') + (f === 'index.html' ? '\n' + require('./_devmarkup').devMarkup() : '');
 let pass = 0, fail = 0;
-const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
+const check = require('./_devmarkup').devAware((name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; });
 
 const els = {};
 const mk = id => ({ id, innerHTML: '', className: '', classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, contains(c) { return this._s.has(c); } }, setAttribute() {}, addEventListener() {} });

@@ -35,3 +35,16 @@
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json image/svg+xml
 </IfModule>
+
+# Dev Tools' markup used to be a static dev.html here, which anyone could
+# open. It is served by the API to admins only now (GET /api/dev-tools); an
+# old copy left on the host is never served.
+<Files "dev.html">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</Files>

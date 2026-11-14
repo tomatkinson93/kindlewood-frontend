@@ -186,6 +186,9 @@ function showScreen(id) {
   }
 
   target.classList.add('active');
+  // Signed out and in again: the places start as soon as the game shows
+  // (the very first load waits for Start playing instead). js/places.js
+  if (id === 'game' && _gameShownOnce && window.KWPlaces && !KWPlaces._started()) KWPlaces.start();
 
   // Mobile: lock document scroll only while the game screen is active so map
   // touch-pan can't fight page scroll / pull-to-refresh (mobile.css keys the
@@ -357,6 +360,7 @@ async function logout() {
 
   clearStoredToken();
   stopResourceTick();
+  if (window.KWPlaces) KWPlaces.reset();   // the Home scene, windows and cards (js/places.js)
   gameData = null;
   worldMapData = null;
   _loadGameLock = false;

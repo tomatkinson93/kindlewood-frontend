@@ -126,16 +126,15 @@ function build(opts = {}) {
 
   fs.writeFileSync(path.join(DIST, 'index.html'), html);
 
-  // ── Dev Tools: dev.html and its admin-only scripts and styles, loaded by
-  //    js/dev-tools.js for admins (Phase 4 step 5). Not in the bundles: they
-  //    keep their own paths, which dev-tools.js lists. ──
+  // ── Dev Tools: its admin-only scripts and styles, loaded by js/dev-tools.js
+  //    for admins (Phase 4 step 5). Not in the bundles: they keep their own
+  //    paths, which dev-tools.js lists. (Its markup comes from the API.) ──
   const dt = read('js/dev-tools.js');
   const listed = name => { const m = new RegExp(`const ${name} = \\[([^\\]]*)\\]`).exec(dt); return m ? [...m[1].matchAll(/'\/([^'?]+)(?:\?[^']*)?'/g)].map(x => x[1]) : []; };
   const admin = { scripts: listed('SCRIPTS'), styles: listed('STYLES') };
   for (const f of admin.scripts) { fs.writeFileSync(path.join(DIST, f), minJs(read(f))); manifest.js[f] = [f]; }
   for (const f of admin.styles) { fs.writeFileSync(path.join(DIST, f), minCss(read(f))); manifest.css[f] = [f]; }
-  if (fs.existsSync(path.join(ROOT, 'dev.html'))) fs.copyFileSync(path.join(ROOT, 'dev.html'), path.join(DIST, 'dev.html'));
-  manifest.dev_tools = { html: 'dev.html', ...admin };
+  manifest.dev_tools = { markup: 'GET /api/dev-tools (admins only)', ...admin };
 
   for (const f of ['.htaccess', 'favicon.ico', 'License.txt']) if (fs.existsSync(path.join(ROOT, f))) fs.copyFileSync(path.join(ROOT, f), path.join(DIST, f));
   if (opts.withAssets) fs.cpSync(path.join(ROOT, 'assets'), path.join(DIST, 'assets'), { recursive: true });

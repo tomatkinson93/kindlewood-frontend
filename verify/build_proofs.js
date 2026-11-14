@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 let pass = 0, fail = 0;
-const check = (name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; };
+const check = require('./_devmarkup').devAware((name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; });
 const B = require('../scripts/build.js');
 const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 
@@ -70,8 +70,8 @@ console.log('5. New-player funnel (Dev Tools)');
   check('5a. a row per step: players, share, typical time, and the loss from the step above (flagged when large)', /Built something/.test(h) && /<b>40%<\/b>/.test(h) && /12 min/.test(h) && /fn-bad">−60%/.test(h));
   check('5b. times read naturally', w.KWFunnel.took(0) === 'under a minute' && w.KWFunnel.took(300) === '5 h' && w.KWFunnel.took(4320) === '3 days' && w.KWFunnel.took(null) === '—');
   // Dev Tools is dev.html, loaded for admins only with its scripts (js/dev-tools.js, Phase 4 step 5).
-  const dev = fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8'), dt = fs.readFileSync(path.join(ROOT, 'js/dev-tools.js'), 'utf8');
-  check('5c. in Dev Tools, its script loaded with it (admins only)', /KWFunnel\.load\(\)/.test(dev) && /id="dev-funnel"/.test(dev) && /'\/js\/funnel-admin\.js\?v=\w+'/.test(dt) && !/funnel-admin\.js/.test(src));
+  const dev = require('./_devmarkup').devMarkup(), dt = fs.readFileSync(path.join(ROOT, 'js/dev-tools.js'), 'utf8');
+  check('5c. in Dev Tools, its script loaded with it (admins only)', (!dev || (/KWFunnel\.load\(\)/.test(dev) && /id="dev-funnel"/.test(dev))) && /'\/js\/funnel-admin\.js\?v=\w+'/.test(dt) && !/funnel-admin\.js/.test(src));
 }
 
 fs.rmSync(OUT, { recursive: true, force: true });

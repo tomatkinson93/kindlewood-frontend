@@ -95,7 +95,11 @@ console.log('6. The old bar, the phone and Home');
   check('6d. the phone shell no longer builds its own tab bar', /if \(window\.KWPlaces\) \{ wireIntegrations\(\);/.test(MS));
   check('6e. Home is a view: the scene isn\'t an overlay, and stops above the places on phones', !/'settlement-view', 'sq-backdrop'/.test(MS) && /body\.kw-shell #settlement-view \{ bottom:/.test(CSS));
   check('6f. the scene tells the places when it opens or closes; its back button says where it goes', /KWPlaces\.seen\('home'\)/.test(SV) && /KWPlaces\.seen\('land'\)/.test(SV) && /&#8592; The Land/.test(SV));
-  check('6g. the scene\'s back button and title go (the places do that); its Town / Outskirts sit under the chips; the moment cards too', /body\.kwp-on \.sv-back-btn, body\.kwp-on \.sv-header-title \{ display: none; \}/.test(CSS) && /body\.kwp-on #kw-moments \{ top: calc\(var\(--kwp-tools-top/.test(CSS));
+  check('6g. the scene\'s back button and title go (the places do that); its Town / Outskirts sit under the chips; the moment cards too', /body\.kwp-on \.sv-back-btn, body\.kwp-on \.sv-header-title \{ display: none; \}/.test(CSS) && /body\.kwp-on:not\(\.kw-shell\) #kw-moments \{ top: calc\(var\(--kwp-tools-top/.test(CSS));
+  check('6g2. on Home the moment cards sit below the scene\'s Town / Outskirts row (they overlapped it)', /body\.kwp-on\.kwp-home:not\(\.kw-shell\) #kw-moments \{ top: calc\(var\(--kwp-tools-top, 112px\) \+ 100px\)/.test(CSS));
+  check('6g3. signing out puts the scene, windows and cards away; nothing of the game floats over the sign-in screen', /KWPlaces\.reset\(\)/.test(read('js/main.js')) && /function reset\(\)/.test(P) && /body:not\(:has\(#screen-game\.active\)\) #settlement-view/.test(CSS));
+  check('6g4. signing out puts the places to sleep before closing the scene and clears the address, so the next sign-in opens on Home; it starts as soon as the game shows',
+    P.indexOf('_started = false;\n    if (svOpen()) call(\'closeSettlementView\')') > 0 && /history\.replaceState\(null, '', global\.location\.pathname/.test(P) && /if \(id === 'game' && _gameShownOnce && window\.KWPlaces && !KWPlaces\._started\(\)\) KWPlaces\.start\(\)/.test(read('js/main.js')));
   check('6h. phones: the profile menu opens above the Home scene (the bell is a window now)', /\.topbar:has\(#profile-dropdown-wrap\.open\) \{ z-index: var\(--z-float\)/.test(CSS));
   check('6i. a panel fading out is checked again when the fade ends, so the places come back after the bell closes', /addEventListener\('transitionend'/.test(MS) && /syncSoon/.test(MS));
 }
