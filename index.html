@@ -153,6 +153,7 @@
   <link rel="stylesheet" href="/css/first-steps.css?v=r5">
   <link rel="stylesheet" href="/css/modal-sizes.css?v=ms1">
   <link rel="stylesheet" href="/css/places.css?v=2"><!-- the five places; after mobile-shell.css -->
+  <link rel="stylesheet" href="/css/home-scene.css?v=1"><!-- the Home scene: buildings are the buttons -->
   <link rel="stylesheet" href="/css/context.css?v=1"><!-- the context panel and the town card -->
   <link rel="stylesheet" href="/css/news.css?v=1"><!-- the News window (the bell) -->
   <link rel="stylesheet" href="/css/hud.css?v=1"><!-- the top bar and the map's controls -->
@@ -638,6 +639,9 @@
           </button>
           <div class="profile-menu" id="profile-menu" role="menu">
             <button class="profile-menu-item" onclick="openProfile(); closeProfileMenu()">👤 Profile</button>
+            <div class="profile-menu-divider"></div>
+            <!-- The town's screens as a plain list, and Show names (js/home-scene.js) -->
+            <div id="pm-town"></div>
             <div class="profile-menu-divider"></div>
             <!-- Social and meta, moved from the old community bar (js/places.js) -->
             <button class="profile-menu-item" id="pm-messages" onclick="showCommunityTab('messages'); closeProfileMenu()">✉️ Messages</button>
@@ -1492,6 +1496,8 @@
   </div>
 
     <script defer src="/js/settlement-view.js?v=r5g"></script>
+    <script defer src="/js/home-scene.js?v=1"></script>
+    <script defer src="/js/villagers.js?v=1"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

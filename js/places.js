@@ -45,15 +45,8 @@
       // Phones have no room for the town card beside the scene: a chip opens it.
       { key: 'town',     label: 'Town',     glyph: '🏡', run: () => global.KWContext && global.KWContext.openTownWindow(), phone: true },
       { key: 'build',    label: 'Build',    glyph: '🏗', run: () => { call('switchTab', 'buildings'); if (isPhone() && global.KWShell) global.KWShell.openPanel(); else if (global.KWContext) global.KWContext.open(); } },
-      { key: 'stores',   label: 'Stores',   glyph: '🎒', run: () => call('openInventoryModal') },
-      { key: 'upgrade',  label: 'Upgrade',  glyph: '⬆️', run: () => call('openTierUpgradeModal') },
-      // The tavern and the fishing post open over the map, so they leave the scene.
-      { key: 'tavern',   label: 'Tavern',   glyph: '🍺', run: () => call('visitTavern'), leave: true },
-      { key: 'fishing',  label: 'Fishing',  glyph: '🎣', run: () => call('visitFishingPost'), leave: true },
-      { key: 'research', label: 'Research', glyph: '📚', run: () => call('openLibrary'), unlock: () => has('library') },
-      { key: 'crafting', label: 'Crafting', glyph: '🔨', run: () => call('openCraftingAny'), unlock: () => has('craft:any') },
-      { key: 'festival', label: 'Festival', glyph: '🎉', run: () => global.KWTown && global.KWTown.open('festival'), unlock: () => !!global.KWTown },
-      { key: 'wonders',  label: 'Wonders',  glyph: '🏛', run: () => global.KWTown && global.KWTown.open('wonders'), unlock: () => !!global.KWTown && has('tier:city') },
+      // The rest are the buildings themselves now (docs/HOME_SCENE.md §2,
+      // js/home-scene.js), and a plain list in the profile menu.
     ],
     land: [
       { key: 'scout',    label: 'Scout',    glyph: '🧭', run: () => call('actionScout') },

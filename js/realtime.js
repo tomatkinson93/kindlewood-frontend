@@ -50,6 +50,7 @@
     // collectible cards appear; the quests poller's toast/dedupe set will
     // fire its "they returned!" toast on the refreshed data.
     quest_resolved(ev) {
+      if (global.KWHome) global.KWHome.note('quest_resolved', ev);   // a bubble on the tavern (js/home-scene.js)
       if (global.KWTravel) global.KWTravel.soon();
       if (typeof refreshActiveQuests === 'function') {
         // refreshActiveQuests is async. The wrapping try/catch only catches
@@ -157,7 +158,7 @@
     trait_hint(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
     trait_revealed(ev) { if (global.KWCareers) global.KWCareers.onEvent(ev); },
     // Crafting (js/crafting.js): finished pieces, queue changes.
-    craft_done(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
+    craft_done(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); if (global.KWHome) global.KWHome.note('craft_done', ev); },
     craft_queue_updated(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     recipe_discovered(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
     recipe_learned(ev) { if (global.KWCrafting) global.KWCrafting.onEvent(ev); },
@@ -165,7 +166,7 @@
     // An expedition's ore sample (js/stores.js): a toast, a card if it's new.
     ore_sample(ev) { if (global.KWStores) global.KWStores.onOreSample(ev); },
     // The Library (js/research.js): a project finished.
-    research_done(ev) { if (global.KWLibrary) global.KWLibrary.onEvent(ev); },
+    research_done(ev) { if (global.KWLibrary) global.KWLibrary.onEvent(ev); if (global.KWHome) global.KWHome.note('research_done', ev); },
     // Cards and battle loot (js/cards.js): toasts.
     battle_spoils(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
     // Withered raids (js/raids.js): the warning and the outcome.
