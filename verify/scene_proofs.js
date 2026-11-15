@@ -80,7 +80,7 @@ console.log('2. Choosing a sheet');
 console.log('3. The style test loop');
 {
   for (const [W, Hh, label] of [[1512, 880, 'desktop'], [421, 760, 'phone'], [920, 420, 'landscape phone']]) {
-    const path = V._loopPath(W * 0.5, Hh * 0.84, W, Hh);
+    const path = V._loopPath(W * 0.5, Hh * 0.87, W, Hh);
     const end = V._along(path, path.reduce((a, l) => a + l.len, 0) - 0.001);
     const closes = Math.abs(end.x - path[0].x) < 0.1 && Math.abs(end.y - path[0].y) < 0.1;
     let inside = true;

@@ -65,7 +65,7 @@
   // to fit the layer (the loop is about 0.58 × as tall as it is long).
   // → [{ x, y, dir, len }]: each leg's start point, its direction and length.
   function loopPath(cx, cy, layerW, layerH) {
-    const H = Math.max(60, Math.min(260, layerW * 0.2, (layerH || Infinity) * 0.33)), D = Math.round(H * 0.3), V = Math.round(H * 0.16);
+    const H = Math.max(60, Math.min(260, layerW * 0.2, (layerH || Infinity) * 0.24)), D = Math.round(H * 0.3), V = Math.round(H * 0.16);
     const r = Math.SQRT1_2;
     const legs = [['e', H, 1, 0], ['se', D, r, r], ['s', V, 0, 1], ['sw', D, -r, r], ['w', H, -1, 0], ['nw', D, -r, -r], ['n', V, 0, -1], ['ne', D, r, -r]];
     let x = 0, y = 0, minX = 0, maxX = 0, minY = 0, maxY = 0;
@@ -244,7 +244,7 @@
 
   function geometry() {
     const w = T.layer.clientWidth, h = T.layer.clientHeight;
-    return { w, h, path: loopPath(w * 0.5, h * 0.84, w, h) };
+    return { w, h, path: loopPath(w * 0.5, h * 0.87, w, h) };
   }
 
   function draw() {

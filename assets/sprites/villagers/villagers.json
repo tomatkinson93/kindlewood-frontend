@@ -1,0 +1,52 @@
+{
+  "order": [
+    "s",
+    "sw",
+    "w",
+    "nw",
+    "n",
+    "ne",
+    "e",
+    "se"
+  ],
+  "species": {
+    "mouse": {
+      "frame": {
+        "w": 96,
+        "h": 96
+      },
+      "foot": {
+        "x": 49,
+        "y": 77
+      },
+      "anims": {
+        "idle": {
+          "frames": 4,
+          "ms": 200,
+          "mirrored": [],
+          "borrowed": [
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne",
+            "e",
+            "se"
+          ],
+          "file": "mouse_idle.png"
+        },
+        "walk": {
+          "frames": 6,
+          "ms": 200,
+          "mirrored": [
+            "sw",
+            "w",
+            "nw"
+          ],
+          "borrowed": [],
+          "file": "mouse_walk.png"
+        }
+      }
+    }
+  }
+}
