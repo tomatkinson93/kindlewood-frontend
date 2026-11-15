@@ -1,0 +1,31 @@
+# The frontend's proofs, on every push and pull request (a test check only).
+#
+# The site deploys separately: Porkbun static hosting serves this repo's files
+# as they are (no build, no upload from here). This used to be a build-and-FTP
+# workflow that never ran past its proofs; see docs/HANDOVER.md.
+#
+# It checks out the frontend alone. Proofs that compare with kindlewood-server
+# (research_proofs, the Dev Tools markup checks) skip and say so here; the full
+# suite (kindlewood-server scripts/test_all.sh, both repos side by side) runs them.
+name: Proofs
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proofs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run proofs
