@@ -2629,6 +2629,7 @@ function toggleProfileMenu() {
   if (isOpen) {
     closeProfileMenu();
   } else {
+    if (window.KWHome) KWHome.fillProfile();   // the town's screens, Show names
     wrap.classList.add('open');
     setTimeout(() => document.addEventListener('click', _profileMenuClickOutside), 50);
   }

@@ -59,13 +59,15 @@ const SV_SLOTS = [
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
+// Colours and glyph for the placeholder hut; the image (when there is one)
+// comes from assets/images/buildings/manifest.json (js/home-scene.js).
 const SV_VISUALS = {
-  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.',    image:'/assets/images/buildings/tavern.png'  },
-  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.',    image:'/assets/images/buildings/market.png'  },
-  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.',   image:'/assets/images/buildings/granary.png' },
+  tavern:        { emoji:'\u{1F37A}', bodyColor:'#7a4225', roofColor:'#5c3018', flavor:'Warmth and ale for all who wander.' },
+  market:        { emoji:'⚖️',        bodyColor:'#b8860b', roofColor:'#8b6010', flavor:'Where fortunes are made and spent.' },
+  granary:       { emoji:'\u{1F33E}', bodyColor:'#8b7536', roofColor:'#6b5a2a', flavor:'Surplus grain against lean seasons.' },
   starter_house: { emoji:'\u{1F3E1}', bodyColor:'#8b6048', roofColor:'#c87941', flavor:'Humble shelter, warm within.' },
-  neighbourhood: { emoji:'🏘️',        bodyColor:'#7a5c40', roofColor:'#5a3820', flavor:'Manage homes, residents, and family life.', image:'/assets/images/buildings/neighbourhood.png' },
-  farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.',          image:'/assets/images/buildings/farm.png'    },
+  neighbourhood: { emoji:'🏘️',        bodyColor:'#7a5c40', roofColor:'#5a3820', flavor:'Manage homes, residents, and family life.' },
+  farm:          { emoji:'\u{1F331}', bodyColor:'#5a8040', roofColor:'#3d6030', flavor:'Neat rows of cultivated earth.' },
   lumber_camp:   { emoji:'\u{1FA93}', bodyColor:'#6b4020', roofColor:'#4a2c10', flavor:'Axes ring through the morning pines.' },
   fishing_post:  { emoji:'\u{1F3A3}', bodyColor:'#3a6080', roofColor:'#284860', flavor:'A patient dock above the quiet water.' },
   forager_hut:   { emoji:'\u{1F344}', bodyColor:'#607850', roofColor:'#485a38', flavor:'Into the woodland, lantern in hand.' },
@@ -78,7 +80,7 @@ const SV_VISUALS = {
   library:       { emoji:'📚',        bodyColor:'#4f4a6a', roofColor:'#2f2b48', flavor:'Candles, ink and the scratch of quills.' },
   walls:         { emoji:'🧱',        bodyColor:'#6b6256', roofColor:'#4a433a', flavor:'Stakes, then stone, then more stone.' },
   watchtower:    { emoji:'🗼',        bodyColor:'#5e5040', roofColor:'#3c3226', flavor:'A lantern burns at the top all night.' },
-  scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye.",          image:'/assets/images/buildings/scoutpost.png' },
+  scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye." },
 };
 
 // The Watchtower's watch: who is posted, the cheer and the defence they give
@@ -159,6 +161,22 @@ function _applySlotPositions() {
     if (!el) return;
     el.style.left = (p[sl.id] ? p[sl.id].x : sl.x) + '%';
     el.style.top  = (p[sl.id] ? p[sl.id].y : sl.y) + '%';
+  });
+  if (!_svDragSlot) _svTabOrder();
+}
+
+// Tab order follows the buildings left to right (§2.5): the slots are put
+// in that order inside each area's layer (a villager's place among them
+// doesn't matter: depth comes from z-index).
+function _svTabOrder() {
+  ['sv-layer-fg-town', 'sv-layer-fg-outskirts'].forEach(function(id) {
+    var layer = document.getElementById(id);
+    if (!layer) return;
+    var slots = Array.prototype.slice.call(layer.querySelectorAll(':scope > .sv-slot'));
+    var x = function(el) { return parseFloat(el.style.left) || 0; };
+    var sorted = slots.slice().sort(function(a, b) { return x(a) - x(b); });
+    if (sorted.every(function(el, i) { return el === slots[i]; })) return;
+    sorted.forEach(function(el) { layer.appendChild(el); });
   });
 }
 
@@ -531,13 +549,21 @@ function _ensureSvDOM() {
   function slotHTML(sl) {
     return '<div class="sv-slot" id="sv-slot-' + sl.id + '" style="left:' + sl.x + '%;top:' + sl.y + '%" data-slot="' + sl.id + '"></div>';
   }
+  // Props: the village green, the wonder site and the signposts (§2.2).
+  var PROPS = window.KWHome ? KWHome.PROPS : [];
+  function propHTML(p) {
+    return '<div class="sv-slot sv-prop-slot" id="sv-prop-' + p.id + '" style="left:' + p.x + '%;top:' + p.y + '%" data-prop="' + p.id + '"></div>';
+  }
+  townSlots = townSlots.concat(PROPS.filter(function(p) { return p.area === 'town'; }).map(function(p) { return { prop: p }; }));
+  outSlots  = outSlots.concat(PROPS.filter(function(p) { return p.area === 'outskirts'; }).map(function(p) { return { prop: p }; }));
+  var anyHTML = function(sl) { return sl.prop ? propHTML(sl.prop) : slotHTML(sl); };
 
   root.innerHTML =
     '<div class="sv-scene" id="sv-scene">'
     + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town" style="z-index:70">'
-    + townSlots.map(slotHTML).join('') + '</div>'
+    + townSlots.map(anyHTML).join('') + '</div>'
     + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts" style="z-index:70">'
-    + outSlots.map(slotHTML).join('') + '</div>'
+    + outSlots.map(anyHTML).join('') + '</div>'
     + '</div>'
     + '<div class="sv-header">'
     // Back button: on desktop this view is dismissed by clicking the community
@@ -545,10 +571,8 @@ function _ensureSvDOM() {
     // by CSS so that layout is unchanged there.
     + '<button class="sv-back-btn" id="sv-back-btn" onclick="closeSettlementView()">&#8592; The Land</button>'
     + '<span class="sv-header-title" id="sv-title">Settlement</span>'
+    // Town ↔ Outskirts: signposts in the scene (js/home-scene.js PROPS).
     + '<div style="display:flex;align-items:center;gap:8px">'
-    + '<button class="sv-area-tab active" data-area="town" onclick="_svSwitchArea(\'town\')">&#127960; Town</button>'
-    + '<button class="sv-area-tab" data-area="outskirts" onclick="_svSwitchArea(\'outskirts\')">&#127807; Outskirts</button>'
-    + '<span style="width:1px;height:18px;background:rgba(180,140,80,0.22);display:inline-block;margin:0 2px"></span>'
     + '<button class="sv-edit-btn" id="sv-edit-btn" onclick="_svToggleEditMode()">&#9998; Edit</button>'
     + '<button class="sv-edit-reset-btn" id="sv-edit-reset-btn" style="display:none" onclick="_svResetLayout()">&#8635; Reset</button>'
     + '</div></div>'
@@ -559,7 +583,7 @@ function _ensureSvDOM() {
   _applySlotPositions();
 
   document.getElementById('sv-scene').addEventListener('click', function(e) {
-    if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel') && !e.target.closest('.sv-housing-modal')) {
+    if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel') && !e.target.closest('.sv-housing-modal') && !e.target.closest('.kwv-test-panel')) {
       _closeBuildPanel();
       _closeHousingModal();
     }
@@ -593,6 +617,7 @@ async function openSettlementView() {
   }
 
   _svSwitchArea(_svActiveArea, true);
+  if (window.KWHome) KWHome.homeShown();   // nameplates: Show names, the 4-second peek on touch
   _bindParallax();
   if (window.KWPlaces) KWPlaces.seen('home');   // the scene is Home (js/places.js)
 
@@ -662,6 +687,9 @@ function _svSwitchArea(area, force) {
     if (ol) ol.classList.remove('sv-area-hidden');
     if (tl) tl.classList.add('sv-area-hidden');
   }
+  // The hidden area's buttons are out of the Tab order too.
+  if (tl) tl.inert = area !== 'town';
+  if (ol) ol.inert = area === 'town';
   document.querySelectorAll('.sv-area-tab').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.area === area);
   });
@@ -674,10 +702,12 @@ window._svSwitchArea = _svSwitchArea;
 async function _svLoad() {
   _svRecalcTop(); // re-anchor in case topbar/commbar height changed
   try {
+    var mf  = window.KWHome ? KWHome.loadManifest() : null;   // art sizes and doors (§2.6)
     var res = await apiFetch('/api/buildings');
     if (!res.ok) return;
     var data = await res.json();
     _svBuildings = data.buildings || [];
+    if (mf) await mf;
   } catch(e) { _svBuildings = []; }
   _renderScene();
 }
@@ -701,12 +731,14 @@ function _renderScene() {
       var housingB   = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
       var houseCount = housingB ? housingB.currentLevel : 0;
       el.appendChild(_buildNeighbourhoodEl(slot, houseCount));
-      if (!_svEditMode) el.onclick = function() { _openHousingModal(); };
+      if (!_svEditMode) el.onclick = function() { _svOpenBuilding('neighbourhood'); };
     } else {
       var occupant = _occupantFor(slot);
       if (occupant) {
         el.appendChild(_buildOccupiedEl(slot, occupant));
-        if (!_svEditMode) (function(s, o) { el.onclick = function() { _openBuildPanel(s, o); }; })(slot, occupant);
+        // A click opens the building's screen (js/home-scene.js ROUTES), or
+        // its panel when it has none.
+        if (!_svEditMode) (function(s, o) { el.onclick = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); }; })(slot, occupant);
       } else {
         var areaBuildings = _svSlotBuildingIds();
         var taken = Object.values(_svGetAssignments());
@@ -731,7 +763,42 @@ function _renderScene() {
       el.appendChild(rh);
     }
   }
+  _renderProps();
   _applySlotPositions();
+}
+
+// Opens what a building opens (js/home-scene.js), closing the panels first.
+function _svOpenBuilding(id, panel) {
+  _closeBuildPanel();
+  _closeHousingModal();
+  if (window.KWHome) return KWHome.open(id, panel);
+  if (panel) panel();
+}
+
+// The props (§2.2): shown or hidden by what the town has.
+function _renderProps() {
+  if (!window.KWHome) return;
+  var shown = KWHome.props().map(function(p) { return p.id; });
+  KWHome.PROPS.forEach(function(p) {
+    var el = document.getElementById('sv-prop-' + p.id);
+    if (!el) return;
+    el.innerHTML = '';
+    el.onclick = null;
+    el.hidden = shown.indexOf(p.id) < 0 || _svEditMode;
+    if (el.hidden) return;
+    var size = p.kind === 'signpost' ? 60 : _SV_SIZE_DEFAULT;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sv-building kwh-btn kwh-prop kwh-prop-' + p.kind;
+    btn.setAttribute('data-kwh', p.id);
+    btn.setAttribute('aria-label', KWHome.label(p.label, p.opens));
+    btn.innerHTML = '<span class="kwh-bubble-host">' + KWHome.bubbleHtml(p.id) + '</span>'
+      + KWHome.propSvg(p.kind, size, p.flip)
+      + (p.kind === 'signpost' ? '<span class="kwh-sign-text" aria-hidden="true">' + _svEsc(p.label) + '</span>' : '')
+      + KWHome.plateHtml(p.label, p.opens);
+    el.appendChild(btn);
+    el.onclick = function() { KWHome.openProp(p.id); };
+  });
 }
 
 function _occupantFor(slot) {
@@ -752,69 +819,50 @@ function _occupantFor(slot) {
 
 function _buildEmptyEl(slot, available, locked) {
   var size = _svGetSlotSize(slot.id);
-  var div = document.createElement('div');
-  div.className = 'sv-slot-empty' + (locked ? ' locked' : '');
-  if (!available && !locked) div.style.cursor = 'default';
+  var div = document.createElement('button');
+  div.type = 'button';
+  div.className = 'sv-slot-empty kwh-btn' + (locked ? ' locked' : '');
+  div.setAttribute('aria-label', locked ? slot.label + ': locked' : slot.label + ': build here');
+  if (!available) { div.style.cursor = 'default'; div.setAttribute('aria-disabled', 'true'); }
   var plusSz = Math.round(size * 0.33);
-  div.innerHTML = '<div class="sv-slot-ring" style="width:' + size + 'px;height:' + size + 'px">'
+  div.innerHTML = '<span class="sv-slot-ring" style="width:' + size + 'px;height:' + size + 'px">'
     + '<span class="sv-slot-plus" style="font-size:' + plusSz + 'px">' + (locked ? '🔒' : '+') + '</span>'
-    + '</div>'
-    + '<div class="sv-slot-hint">' + (locked ? '🔒 Locked' : 'Build here') + '</div>';
+    + '</span>'
+    + '<span class="sv-slot-hint">' + (locked ? '🔒 Locked' : 'Build here') + '</span>';
   return div;
+}
+
+// A built building is a button (§2.5): its art (js/home-scene.js: the
+// manifest's image or the placeholder hut), a bubble when something is
+// waiting there, and a nameplate shown on hover, focus or "Show names".
+function _svBuildingButton(key, name, vis, size, extra) {
+  var H = window.KWHome;
+  var r = H ? H.route(key) : { opens: 'Open' };
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sv-building kwh-btn';
+  btn.setAttribute('data-kwh', key);
+  btn.setAttribute('aria-label', H ? H.label(name, r.opens) + (extra ? ' (' + extra + ')' : '') : name);
+  var a = H ? H.artHtml(key, vis, size) : { html: '<span class="sv-building-emoji">' + vis.emoji + '</span>' };
+  if (a.native) btn.classList.add('kwh-native-art');
+  btn.innerHTML = '<span class="kwh-bubble-host">' + (H ? H.bubbleHtml(key) : '') + '</span>'
+    + a.html
+    + (H ? H.plateHtml(name, r.opens, extra) : '<span class="sv-building-name">' + _svEsc(name) + '</span>');
+  return btn;
 }
 
 function _buildOccupiedEl(slot, building) {
-  var size = _svGetSlotSize(slot.id);
-  var vis  = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
-  var div  = document.createElement('div');
-  div.className = 'sv-building';
-  var lvTag = building.currentLevel > 1 ? '<div class="sv-building-lv">Lv ' + building.currentLevel + '</div>' : '';
-  if (vis.image) {
-    var imgW = Math.round(size * 1.53);
-    div.innerHTML = '<img src="' + vis.image + '" class="sv-building-img" style="width:' + imgW + 'px" alt="">'
-      + '<div class="sv-building-name sv-building-name-img">' + building.label + '</div>'
-      + lvTag;
-  } else {
-    var bw = Math.round(size * 0.72), bh = Math.round(size * 0.61), rw = Math.round(size * 0.80);
-    var rh = Math.round(bh * 0.44);
-    div.innerHTML = '<div class="sv-building-struct" style="width:' + bw + 'px;height:' + bh + 'px;background:' + vis.bodyColor + '">'
-      + '<div class="sv-building-roof" style="border-width:0 ' + (rw/2) + 'px ' + rh + 'px ' + (rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
-      + '<span class="sv-building-emoji">' + vis.emoji + '</span>'
-      + '</div>'
-      + '<div class="sv-building-shadow"></div>'
-      + '<div class="sv-building-name">' + building.label + '</div>'
-      + lvTag;
-  }
-  return div;
+  var vis = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
+  return _svBuildingButton(building.id, building.label, vis, _svGetSlotSize(slot.id),
+    building.currentLevel > 1 ? 'Lv ' + building.currentLevel : '');
 }
 
 function _buildNeighbourhoodEl(slot, houseCount) {
-  var size = _svGetSlotSize(slot.id);
-  var vis  = SV_VISUALS.neighbourhood || { emoji:'🏘️', bodyColor:'#7a5c40', roofColor:'#5a3820' };
-  var div  = document.createElement('div');
-  div.className = 'sv-building sv-neighbourhood-building';
-  var subLabel = houseCount > 0
-    ? houseCount + ' home' + (houseCount !== 1 ? 's' : '')
-    : 'No homes yet';
-
-  if (vis.image) {
-    var imgW = Math.round(size * 1.53);
-    div.innerHTML = '<img src="' + vis.image + '" class="sv-building-img" style="width:' + imgW + 'px" alt=""'
-      + ' onerror="this.style.display=\'none\'">'
-      + '<div class="sv-building-name sv-building-name-img">Neighbourhood</div>'
-      + '<div class="sv-building-lv">' + subLabel + '</div>';
-  } else {
-    var bw = Math.round(size * 0.80), bh = Math.round(size * 0.65), rw = Math.round(size * 0.90);
-    var rh = Math.round(bh * 0.44);
-    div.innerHTML = '<div class="sv-building-struct sv-neighbourhood-struct" style="width:' + bw + 'px;height:' + bh + 'px;background:' + vis.bodyColor + '">'
-      + '<div class="sv-building-roof" style="border-width:0 ' + (rw/2) + 'px ' + rh + 'px ' + (rw/2) + 'px;border-bottom-color:' + vis.roofColor + '"></div>'
-      + '<span class="sv-building-emoji" style="font-size:24px">🏘️</span>'
-      + '</div>'
-      + '<div class="sv-building-shadow"></div>'
-      + '<div class="sv-building-name">Neighbourhood</div>'
-      + '<div class="sv-building-lv">' + subLabel + '</div>';
-  }
-  return div;
+  var vis = SV_VISUALS.neighbourhood || { emoji:'🏘️', bodyColor:'#7a5c40', roofColor:'#5a3820' };
+  var sub = houseCount > 0 ? houseCount + ' home' + (houseCount !== 1 ? 's' : '') : 'No homes yet';
+  var btn = _svBuildingButton('neighbourhood', 'Neighbourhood', vis, _svGetSlotSize(slot.id), sub);
+  btn.classList.add('sv-neighbourhood-building');
+  return btn;
 }
 
 // ── Housing modal ─────────────────────────────────────────────────────────────

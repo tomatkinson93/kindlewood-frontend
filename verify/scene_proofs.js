@@ -1,7 +1,8 @@
 'use strict';
 // The living Home scene (docs/HOME_SCENE.md §5). Step 2, the style test:
 // the sprite packer (scripts/pack_sprites.js) and the villager helpers
-// (js/villagers.js). Later steps add the cast, errands, chat and selection.
+// (js/villagers.js). Step 3, buildings are the buttons (js/home-scene.js).
+// Later steps add the cast, errands, chat and selection.
 //   node verify/scene_proofs.js
 const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
 const ROOT = path.join(__dirname, '..');
@@ -140,6 +141,124 @@ console.log('5. The packer');
   try { P.packSpecies({ walk_e: walkE, walk_w: gif(10, 10, [new Array(100).fill(0)]) }); } catch (e) { threw = e.message; }
   check('5k. frames of different sizes are refused with a clear message', /differ in size/.test(threw), threw);
   check('5l. no dependencies: only Node built-ins', !/require\('(?!fs|path|zlib)/.test(read('scripts/pack_sprites.js')));
+}
+
+// ── Step 3: buildings are the buttons (js/home-scene.js) ─────────────────
+const calls = [];
+const rec = name => (...a) => { calls.push([name, ...a]); };
+const store3 = {};
+const h = { console, Math, Date, JSON, Promise, setTimeout, clearTimeout,
+  document: { getElementById: () => null, querySelectorAll: () => [] },
+  localStorage: { getItem: k => (k in store3 ? store3[k] : null), setItem: (k, v) => { store3[k] = String(v); }, removeItem: k => { delete store3[k]; } } };
+for (const f of ['openInventoryModal', 'visitTavern', 'openMarket', 'openLibrary', 'openCrafting', 'openTierUpgradeModal', '_openHousingModal',
+  'visitFishingPost', 'closeSettlementView', '_svSwitchArea', 'openCraftingAny', 'closeProfileMenu']) h[f] = rec(f);
+h.KWTown = { open: rec('KWTown.open') };
+h.window = h; vm.createContext(h);
+vm.runInContext(read('js/home-scene.js'), h);
+const KH = h.KWHome;
+const SVJ = read('js/settlement-view.js');
+const visualKeys = [...SVJ.slice(SVJ.indexOf('const SV_VISUALS = {'), SVJ.indexOf('};', SVJ.indexOf('const SV_VISUALS = {'))).matchAll(/^\s{2}([a-z_]+):/gm)].map(m => m[1]);
+
+console.log('6. What a building opens (§2.2)');
+{
+  const expect = { granary: 'openInventoryModal', tavern: 'visitTavern', market: 'openMarket', library: 'openLibrary', workshop: 'openCrafting',
+    smithy: 'openCrafting', jeweller: 'openCrafting', guild_hall: 'openTierUpgradeModal', neighbourhood: '_openHousingModal', fishing_post: 'visitFishingPost' };
+  const wrong = Object.entries(expect).filter(([k, fnName]) => { calls.length = 0; KH.open(k, () => calls.push(['panel'])); return !calls.some(c => c[0] === fnName); });
+  check('6a. each building in the table opens its screen', !wrong.length, wrong.map(w => w[0]).join(' '));
+  calls.length = 0; KH.open('smithy');
+  check('6b. a crafting building opens Crafting on that station', calls.some(c => c[0] === 'openCrafting' && c[1] === 'smithy'));
+  const leavers = Object.keys(KH.ROUTES).filter(k => KH.ROUTES[k].leave).sort().join();
+  calls.length = 0; KH.open('tavern');
+  check('6c. the tavern, market and fishing post open over the map: the scene closes first', leavers === 'fishing_post,market,tavern'
+    && calls[0][0] === 'closeSettlementView' && calls[1][0] === 'visitTavern');
+  let panelled = 0; calls.length = 0;
+  KH.open('farm', () => panelled++); KH.open('mine', () => panelled++); KH.open('watchtower', () => panelled++);
+  check('6d. every other building opens its own panel (workers, output, upgrade)', panelled === 3 && !calls.length);
+  const dead = visualKeys.filter(k => k !== 'starter_house' && !(KH.route(k).panel || typeof KH.route(k).run === 'function'));
+  check('6e. every key in SV_VISUALS opens something', visualKeys.length >= 18 && !dead.length, `${visualKeys.length} keys`);
+  check('6f. every route says what it opens, for the nameplate and the label', visualKeys.every(k => KH.route(k).opens && KH.route(k).opens.length < 30));
+  check('6g. the label reads as a sentence: "Granary, open the Stores"', KH.label('Granary', KH.route('granary').opens) === 'Granary, open the Stores');
+}
+
+console.log('7. Props: the green, the wonder site, the signposts');
+{
+  const ids = st => KH.props(st).map(p => p.id).sort().join();
+  check('7a. a Camp: both signposts and the village green', ids({ tier: 'camp', festivals: true }) === 'green,signpost-out,signpost-town');
+  check('7b. the wonder site from City tier', ids({ tier: 'city', festivals: true }).includes('wonder-site') && !ids({ tier: 'town', festivals: true }).includes('wonder-site'));
+  calls.length = 0; KH.openProp('signpost-out'); KH.openProp('signpost-town'); KH.openProp('green'); KH.openProp('wonder-site');
+  check('7c. signposts switch area; the green opens Festivals; the site opens Wonders',
+    JSON.stringify(calls) === JSON.stringify([['_svSwitchArea', 'outskirts'], ['_svSwitchArea', 'town'], ['KWTown.open', 'festival'], ['KWTown.open', 'wonders']]));
+  check('7d. the town\'s signpost stays clear of the desktop town card (left of 76 %); the other inside the left edge',
+    KH.PROPS.find(p => p.id === 'signpost-out').x <= 72 && KH.PROPS.find(p => p.id === 'signpost-town').x >= 5);
+  check('7e. the header\'s Town / Outskirts tabs are gone (the signposts replace them)', !/sv-area-tab/.test(SVJ.slice(SVJ.indexOf('root.innerHTML ='), SVJ.indexOf("+ '<div class=\"sv-build-panel\""))));
+}
+
+console.log('8. Art: the manifest and the placeholder (§2.6)');
+{
+  const m = { tavern: { file: 'tavern.png', w: 300, h: 240, door: [140, 230] }, mill: { file: 'mill.png', w: 200, h: 160, native: true } };
+  const t = KH.art('tavern', m), mill = KH.art('mill', m);
+  check('8a. an entry gives the image, its size and its door', t.url === '/assets/images/buildings/tavern.png' && t.door.x === 140 && t.door.y === 230 && !t.native);
+  check('8b. no door given: the bottom centre', mill.door.x === 100 && mill.door.y === 160);
+  check('8c. no entry: no image (the placeholder) and no door', KH.art('smithy', m) === null && KH.door('smithy', m) === null);
+  const ph = KH.artHtml('smithy', { emoji: '⚒️', bodyColor: '#5a4a40', roofColor: '#3a2c24' }, 72, m);
+  check('8d. the placeholder is a hut in the building\'s colours with its glyph on a hanging sign', /<svg class="kwh-hut"/.test(ph.html) && /#5a4a40/.test(ph.html) && /#3a2c24/.test(ph.html) && /class="kwh-sign"[^>]*>⚒️</.test(ph.html));
+  check('8e. native art is drawn at its own size (1×), older art at the slot\'s size', /width:200px/.test(KH.artHtml('mill', {}, 72, m).html) && /width:110px/.test(KH.artHtml('tavern', {}, 72, m).html));
+  const man = JSON.parse(read('assets/images/buildings/manifest.json'));
+  const bad = Object.entries(man).filter(([, e]) => {
+    const f = path.join(ROOT, 'assets/images/buildings', e.file);
+    if (!fs.existsSync(f)) return true;
+    const b = fs.readFileSync(f);
+    return b.readUInt32BE(16) !== e.w || b.readUInt32BE(20) !== e.h || !Array.isArray(e.door) || e.door[0] > e.w || e.door[1] > e.h;
+  });
+  check('8f. assets/images/buildings/manifest.json: every file exists, sizes match, doors inside the image', Object.keys(man).length >= 6 && !bad.length, bad.map(b => b[0]).join(' '));
+  check('8g. SV_VISUALS no longer names images (one source: the manifest)', !/image:'\/assets\/images\/buildings/.test(SVJ));
+}
+
+console.log('9. Bubbles (§2.4)');
+{
+  const none = () => false;
+  check('9a. nothing waiting: no bubble', KH.bubble('library', {}, none) === null && KH.bubble('granary', { famine: { state: 'ok' } }, none) === null);
+  KH.note('research_done', {});
+  check('9b. research done: a bubble on the Library', KH.bubble('library', {}, none).text === 'Research done');
+  KH.note('craft_done', { station: 'smithy', item: { name: 'Iron Sickle' } });
+  KH.note('craft_done', { station: 'jeweller', ruined: true, item: { name: 'Ring' } });
+  check('9c. a craft finished: "<item> ready" on its station (a ruined one says nothing)', KH.bubble('smithy', {}, none).text === 'Iron Sickle ready' && KH.bubble('jeweller', {}, none) === null);
+  KH.note('craft_done', { resource: 'bronze', qty: 2 });
+  check('9d. smelting finished: on the Smelter', KH.bubble('smelter', {}, none).text === 'Smelting ready');
+  calls.length = 0; KH.open('library');
+  check('9e. opening the building clears its bubble', KH.bubble('library', {}, none) === null);
+  check('9f. the granary warns of famine (urgent) and of food running low', KH.bubble('granary', { famine: { state: 'famine' } }, none).text === 'Famine!'
+    && KH.bubble('granary', { famine: { state: 'low' } }, none).text === 'Food running low');
+  check('9g. the Neighbourhood counts who has no bed', KH.bubble('neighbourhood', { beds: 4, living: 10 }, none).text === 'No bed for 6' && KH.bubble('neighbourhood', { beds: 12, living: 10 }, none) === null);
+  check('9h. the market carries the place bar\'s market dot', KH.bubble('market', {}, id => id === 'nav-market').text === 'Market news');
+  check('9i. the green: a festival on, or ready to hold', KH.bubble('green', { town: { festival: { active: true } } }, none).text === 'Festival on!'
+    && KH.bubble('green', { town: { festival: { can_start: true } } }, none).text === 'Festival ready');
+  KH.note('quest_resolved', {});
+  check('9j. a quest back: on the tavern', KH.bubble('tavern', {}, none).text === 'Back from a quest');
+  KH.note('craft_done', { station: 'smithy', item: { name: 'A Very Long Name For A Blade' } });
+  check('9k. bubble text stays short', KH.bubble('smithy', {}, none).text.length <= 24);
+  check('9l. one bubble per building: the most urgent wins', KH.bubble('granary', { famine: { state: 'famine' } }, none).rank === 0);
+  const RT = read('js/realtime.js');
+  check('9m. realtime passes research_done, craft_done and quest_resolved on', /KWHome\.note\('research_done'/.test(RT) && /KWHome\.note\('craft_done'/.test(RT) && /KWHome\.note\('quest_resolved'/.test(RT));
+}
+
+console.log('10. Names, buttons and the profile menu (§2.4, §2.5)');
+{
+  const DAY = 86400000, now = Date.now();
+  const get = o => k => (k in o ? o[k] : null);
+  check('10a. Show names is on for the first 3 days, then off', KH.namesOn(now, get({})) && KH.namesOn(now, get({ kw_home_first_seen: String(now - 2 * DAY) }))
+    && !KH.namesOn(now, get({ kw_home_first_seen: String(now - 4 * DAY) })));
+  check('10b. the player\'s own choice wins', !KH.namesOn(now, get({ kw_show_names: 'off' })) && KH.namesOn(now, get({ kw_show_names: 'on', kw_home_first_seen: '1' })));
+  h._hasBuilding = t => t === 'library';
+  const list = KH.townList().map(t => t.key).join();
+  check('10c. the profile menu lists the same screens; locked ones are absent', list === 'stores,upgrade,tavern,fishing,research,festival');
+  const C = read('css/home-scene.css'), H = read('index.html');
+  check('10d. nameplates show on hover, focus, Show names and the 4-second peek; hidden otherwise',
+    /\.kwh-plate \{[^}]*opacity: 0/.test(C) && /:hover \.kwh-plate/.test(C) && /:focus-visible \.kwh-plate/.test(C) && /kwh-names \.kwh-plate/.test(C) && /kwh-peek \.kwh-plate/.test(C) && /4000/.test(read('js/home-scene.js')));
+  check('10e. buildings, props and empty plots are real buttons with labels', /createElement\('button'\)/.test(SVJ) && /setAttribute\('aria-label', H \? H\.label\(/.test(SVJ) && /div\.setAttribute\('aria-label'/.test(SVJ));
+  check('10f. Tab goes left to right; the hidden area is inert', /function _svTabOrder/.test(SVJ) && /\.inert = area/.test(SVJ));
+  check('10g. a building click goes through KWHome.open', /_svOpenBuilding\(o\.id/.test(SVJ) && /KWHome\.open\(id, panel\)/.test(SVJ));
+  check('10h. loaded: home-scene.js, its stylesheet, and the menu\'s #pm-town', /\/js\/home-scene\.js\?v=/.test(H) && /\/css\/home-scene\.css\?v=/.test(H) && /id="pm-town"/.test(H) && /KWHome\.fillProfile\(\)/.test(read('js/main.js')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

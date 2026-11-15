@@ -1,0 +1,97 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   The Home scene: buildings are the buttons (docs/HOME_SCENE.md §2,
+   js/home-scene.js). Prefixed with #settlement-view: the scene injects its
+   own older styles after this file loads.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* A building, prop or empty plot is a plain button: no chrome of its own. */
+#settlement-view .kwh-btn {
+  appearance: none; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  border-radius: 10px;
+}
+#settlement-view .kwh-btn:focus { outline: none; }
+#settlement-view .kwh-btn:focus-visible { outline: 2px solid #ffd27a; outline-offset: 4px; }
+
+/* Hover or focus lifts it a little and adds a warm glow (§2.4). */
+#settlement-view .sv-building.kwh-btn:hover,
+#settlement-view .sv-building.kwh-btn:focus-visible {
+  transform: translateY(-4px);
+  filter: drop-shadow(0 0 10px rgba(255, 196, 90, 0.75)) brightness(1.06);
+}
+#settlement-view .sv-scene.sv-editing .sv-building.kwh-btn:hover { transform: none; }
+
+/* Native art (drawn on the villagers' pixel grid) is never smoothed. */
+#settlement-view .kwh-native { image-rendering: pixelated; mix-blend-mode: normal; }
+
+/* The placeholder: a hut with the building's glyph on a hanging sign. */
+#settlement-view .kwh-ph { position: relative; display: block; line-height: 0; }
+#settlement-view .kwh-hut { display: block; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); }
+#settlement-view .kwh-sign {
+  position: absolute; right: 3%; top: 63%; width: 15%; height: 15%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1;
+}
+
+/* Signposts carry their words on the plank. */
+#settlement-view .kwh-prop-signpost { position: relative; }
+#settlement-view .kwh-sign-text {
+  position: absolute; left: 50%; top: 24%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 700; color: #3a2414; white-space: nowrap;
+  background: #e2bf86; border: 1px solid #5a3d22; border-radius: 3px; padding: 1px 5px;
+}
+#settlement-view .kwh-prop-art { display: block; }
+
+/* The nameplate: hidden until hover, focus, Show names, or the 4-second
+   peek when Home opens on a touch screen. */
+#settlement-view .kwh-plate {
+  position: absolute; left: 50%; top: 100%; transform: translate(-50%, 4px);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px 9px 4px; border-radius: 6px; white-space: nowrap;
+  background: rgba(24, 16, 9, 0.84); border: 1px solid rgba(220, 180, 100, 0.35);
+  color: #ffe9a8; font-size: 12px; line-height: 1.25; letter-spacing: 0.02em;
+  opacity: 0; pointer-events: none; transition: opacity 0.18s ease;
+  z-index: 3;
+}
+#settlement-view .kwh-plate b { font-weight: 700; }
+#settlement-view .kwh-plate-lv { font-size: 10px; color: rgba(230, 200, 130, 0.85); }
+#settlement-view .kwh-plate-opens { font-size: 10.5px; color: rgba(240, 225, 190, 0.78); }
+#settlement-view .kwh-btn:hover .kwh-plate,
+#settlement-view .kwh-btn:focus-visible .kwh-plate,
+#settlement-view.kwh-names .kwh-plate,
+#settlement-view.kwh-peek .kwh-plate { opacity: 1; }
+/* With names always showing, the "what it opens" line waits for hover. */
+#settlement-view.kwh-names .kwh-btn:not(:hover):not(:focus-visible) .kwh-plate-opens { display: none; }
+
+/* The bubble: one short line over the building (§2.4). */
+#settlement-view .kwh-bubble-host { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); z-index: 4; pointer-events: none; }
+#settlement-view .kwh-bubble {
+  display: block; position: relative; white-space: nowrap;
+  padding: 3px 9px; border-radius: 10px;
+  background: #fff6df; color: #3a2414; border: 1px solid #b98a4a;
+  font-size: 11.5px; font-weight: 700; line-height: 1.2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  animation: kwh-bob 2.4s ease-in-out infinite;
+}
+#settlement-view .kwh-bubble::after {
+  content: ''; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: #b98a4a;
+}
+#settlement-view .kwh-bubble-urgent { background: #ffe3d6; border-color: #c4553a; color: #5a1a0c; }
+#settlement-view .kwh-bubble-urgent::after { border-top-color: #c4553a; }
+@keyframes kwh-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  #settlement-view .kwh-bubble { animation: none; }
+  #settlement-view .sv-building.kwh-btn:hover, #settlement-view .sv-building.kwh-btn:focus-visible { transform: none; }
+}
+
+/* Props are hidden while editing the layout. */
+#settlement-view .sv-prop-slot[hidden] { display: none; }
+
+/* The profile menu's list of the town's screens. */
+#pm-town:empty { display: none; }
+#pm-town .profile-menu-label {
+  padding: 6px 14px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(220, 190, 130, 0.6);
+}

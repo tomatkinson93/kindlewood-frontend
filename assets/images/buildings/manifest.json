@@ -1,0 +1,62 @@
+{
+  "tavern": {
+    "file": "tavern.png",
+    "w": 332,
+    "h": 258,
+    "door": [
+      166,
+      258
+    ],
+    "native": false
+  },
+  "market": {
+    "file": "market.png",
+    "w": 201,
+    "h": 151,
+    "door": [
+      100,
+      151
+    ],
+    "native": false
+  },
+  "granary": {
+    "file": "granary.png",
+    "w": 240,
+    "h": 214,
+    "door": [
+      120,
+      214
+    ],
+    "native": false
+  },
+  "neighbourhood": {
+    "file": "neighbourhood.png",
+    "w": 350,
+    "h": 219,
+    "door": [
+      175,
+      219
+    ],
+    "native": false
+  },
+  "farm": {
+    "file": "farm.png",
+    "w": 72,
+    "h": 72,
+    "door": [
+      36,
+      72
+    ],
+    "native": false
+  },
+  "scout_post": {
+    "file": "scoutpost.png",
+    "w": 72,
+    "h": 72,
+    "door": [
+      36,
+      72
+    ],
+    "native": false
+  }
+}
