@@ -628,6 +628,7 @@ window.openSettlementBuild = openSettlementBuild;
 
 function closeSettlementView() {
   _svOpen = false;
+  if (window.KWVillagers) KWVillagers.sceneHidden();
   if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
   _closeBuildPanel();
   _closeHousingModal();
@@ -664,6 +665,8 @@ function _svSwitchArea(area, force) {
   document.querySelectorAll('.sv-area-tab').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.area === area);
   });
+  // Villagers walk in whichever area is showing (js/villagers.js).
+  if (_svOpen && window.KWVillagers) KWVillagers.sceneShown(area === 'town' ? tl : ol);
 }
 window._svSwitchArea = _svSwitchArea;
 
@@ -1264,6 +1267,7 @@ function _svToggleEditMode() {
     _svDetachDragHandlers();
     _bindParallax();
   }
+  if (window.KWVillagers) KWVillagers.setPaused(_svEditMode);   // villagers hide while editing
   _renderScene();
 }
 window._svToggleEditMode = _svToggleEditMode;
