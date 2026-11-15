@@ -57,9 +57,11 @@ console.log('3. A bundle runs its files as separate scripts');
 }
 
 console.log('4. Deploying');
-const wf = fs.existsSync(path.join(ROOT, '.github/workflows/deploy.yml')) ? fs.readFileSync(path.join(ROOT, '.github/workflows/deploy.yml'), 'utf8') : '';
-check('4a. on main: proofs, then build, then upload dist/ (never deleting what else is on the host)', /branches: \[main\]/.test(wf) && wf.indexOf('npm run proofs') < wf.indexOf('npm run build') && wf.indexOf('npm run build') < wf.indexOf('local-dir: ./dist/') && !/dangerous-clean-slate: true/.test(wf));
-check('4b. the FTP login comes from repository secrets', /secrets\.FTP_SERVER/.test(wf) && /secrets\.FTP_USERNAME/.test(wf) && /secrets\.FTP_PASSWORD/.test(wf));
+// The site is on Porkbun static hosting, which serves the repo's files as they
+// are; the GitHub workflow is a test check only (no build or upload).
+const wf = fs.existsSync(path.join(ROOT, '.github/workflows/proofs.yml')) ? fs.readFileSync(path.join(ROOT, '.github/workflows/proofs.yml'), 'utf8') : '';
+check('4a. GitHub runs the proofs on every push and pull request', /on:\s*\n\s*push:/.test(wf) && /pull_request:/.test(wf) && /npm run proofs/.test(wf));
+check('4b. a test check only: no build, no upload, no deploy secrets', !/npm run build|FTP|secrets\./.test(wf.split('\n').filter(l => !/^\s*#/.test(l)).join('\n')) && !fs.existsSync(path.join(ROOT, '.github/workflows/deploy.yml')));
 check('4c. browsers keep hashed files for a year; the page itself is never cached', /max-age=31536000, immutable/.test(fs.readFileSync(path.join(ROOT, '.htaccess'), 'utf8')) && /no-cache/.test(fs.readFileSync(path.join(ROOT, '.htaccess'), 'utf8')));
 
 console.log('5. New-player funnel (Dev Tools)');
