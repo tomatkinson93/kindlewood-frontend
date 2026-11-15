@@ -12,7 +12,7 @@
   'use strict';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const STAGE = { child: ['🍼', 'Child'], youth: ['🌱', 'Youth'], adult: ['', 'Adult'], elder: ['🦉', 'Elder'], deceased: ['🕯', 'Remembered'] };
-  const KIND = { birth: '🍼', came_of_age: '🎓', partnership: '💕', death: '🕯', inheritance: '📜', settler: '🧳', quest: '📜', raid: '🛡', discovery: '💎', craft: '⚒' };
+  const KIND = { birth: '🍼', came_of_age: '🎓', partnership: '💕', death: '🕯', inheritance: '📜', settler: '🧳', quest: '📜', raid: '🛡', discovery: '💎', craft: '⚒', town: '🏡' };
 
   const st = { lines: null, family: null, chronicle: { all: null }, more: {}, busy: false, error: null };
 
