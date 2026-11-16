@@ -149,9 +149,9 @@
 /* The backdrop: the horizon at 25 % of the height. The strips reach far to the
    left so their slower pan never shows an edge. */
 #settlement-view .sv-bd { position: absolute; pointer-events: none; background-image: var(--bd-img); background-size: var(--bd-w) var(--bd-h); will-change: transform; }
-#settlement-view .sv-bd-ground { left: 0; right: 0; top: 25%; bottom: 0; background-repeat: repeat; z-index: 3; }
-#settlement-view .sv-bd-trees { left: -1600px; right: 0; height: var(--bd-h); top: calc(25% + 12px - var(--bd-h)); background-repeat: repeat-x; z-index: 4; }
-#settlement-view .sv-bd-mountains { left: -1600px; right: 0; height: var(--bd-h); top: calc(25% + 12px - 120px + 34px - var(--bd-h)); background-repeat: repeat-x; z-index: 2; }
+#settlement-view .sv-bd-ground { left: 0; right: -1000px; top: 25%; bottom: 0; background-repeat: repeat; z-index: 3; }   /* past the world's end: the pan can go beyond it by the town card's width */
+#settlement-view .sv-bd-trees { left: -1600px; right: -1000px; height: var(--bd-h); top: calc(25% + 12px - var(--bd-h)); background-repeat: repeat-x; z-index: 4; }
+#settlement-view .sv-bd-mountains { left: -1600px; right: -1000px; height: var(--bd-h); top: calc(25% + 12px - 120px + 34px - var(--bd-h)); background-repeat: repeat-x; z-index: 2; }
 /* Haze: mix pale sky into the strips so they sit back (trees 18 %, mountains 25 %). */
 #settlement-view .sv-bd-trees::after, #settlement-view .sv-bd-mountains::after {
   content: ''; position: absolute; inset: 0; background: var(--kw-haze, #e4f2f6);

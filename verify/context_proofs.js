@@ -32,7 +32,7 @@ console.log('1. The town card');
   check('1f. today\'s chronicle from /api/families/all/chronicle, at most three lines, cached a minute', /\/api\/families\/all\/chronicle/.test(J) && /slice\(0, 3\)/.test(J) && /< 60000/.test(J));
   check('1g. a link to the families and the whole chronicle', /data-kwc="families"/.test(h));
   check('1h. desktop: top right of Home, above the scene, hidden when a panel is open; phones: a Town chip opens it as a window',
-    /body\.kwp-home:not\(\.kwc-open\):not\(\.kw-shell\) #kw-town-card:not\(:empty\) \{ display: block; \}/.test(CSS) && /\.kwc-town \{[^}]*z-index: var\(--z-float\)/.test(CSS) && /key: 'town',[^\n]*phone: true/.test(P) && /openTownWindow/.test(J));
+    /body\.kwp-home:not\(\.kwc-open\):not\(\.kw-shell\) #kw-town-card:not\(:empty\) \{ display: flex;/.test(CSS) && /\.kwc-town \{[^}]*z-index: var\(--z-float\)/.test(CSS) && /key: 'town',[^\n]*phone: true/.test(P) && /openTownWindow/.test(J));
 }
 
 console.log('2. The panel opens only on the player\'s own action');

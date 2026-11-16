@@ -76,7 +76,8 @@ body.kwp-on:not(.kw-shell) #sidebar .sidebar-header { padding-right: 64px; }
   cursor: pointer;
 }
 
-/* ── The town card: Home, top right ── */
+/* ── The town card: Home, top right. A compact strip that expands on click,
+      and the First steps chip under it (js/context.js). ── */
 .kwc-town {
   display: none;
   position: fixed;
@@ -86,15 +87,44 @@ body.kwp-on:not(.kw-shell) #sidebar .sidebar-header { padding-right: 64px; }
   width: 320px;
   max-height: calc(100vh - var(--kwp-tools-top, 112px) - var(--kw-s-5));
   overflow-y: auto;
-  padding: var(--kw-s-4);
+  color: var(--kw-cream);
+  font-family: var(--kw-font-body);
+  pointer-events: none;      /* the gaps between the strip and the chip let the scene through */
+}
+body.kwp-home:not(.kwc-open):not(.kw-shell) #kw-town-card:not(:empty) { display: flex; flex-direction: column; align-items: flex-end; gap: var(--kw-s-2); }
+.kwc-card, .kwc-fs-chip > * {
+  pointer-events: auto;
   border: 1px solid var(--kw-gold-dim);
   border-radius: var(--kw-radius-l);
   background: var(--kw-panel);
   box-shadow: var(--kw-shadow);
-  color: var(--kw-cream);
-  font-family: var(--kw-font-body);
 }
-body.kwp-home:not(.kwc-open):not(.kw-shell) #kw-town-card:not(:empty) { display: block; }
+.kwc-card { max-width: 100%; display: flex; }
+.kwc-card-open { flex-direction: column; }
+.kwc-card-open { width: 100%; }
+.kwc-strip-town {
+  display: flex;
+  align-items: baseline;
+  gap: var(--kw-s-2);
+  width: 100%;
+  max-width: 320px;
+  min-height: var(--kw-touch);
+  padding: var(--kw-s-2) var(--kw-s-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kwc-strip-town .kwc-town-name { font-size: var(--kw-fs-4); white-space: nowrap; }
+.kwc-strip-facts { flex: 1; font-size: var(--kw-fs-2); color: var(--kw-muted); white-space: nowrap; }
+.kwc-chev { color: var(--kw-gold); }
+.kwc-strip-town:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: -2px; border-radius: var(--kw-radius-l); }
+.kwc-card-more { padding: 0 var(--kw-s-4) var(--kw-s-4); }
+.kwc-fs-chip { width: 100%; display: flex; justify-content: flex-end; }
+.kwc-fs-chip > .fs-card { width: 100%; padding: var(--kw-s-2) var(--kw-s-3); }
+.kwc-fs-chip > .fs-card:not([open]) { width: auto; }
 /* The same contents in the phone's Town window. */
 .kww .kwc-town { display: block; position: static; width: auto; max-height: none; padding: 0; border: 0; box-shadow: none; background: none; }
 

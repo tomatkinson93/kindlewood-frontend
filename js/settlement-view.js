@@ -1236,7 +1236,12 @@ var _svPanBound = false;
 var _svEdge = { dir: 0, since: 0, raf: 0, last: 0 };
 
 function _svViewW() { var sc = document.getElementById('sv-scene'); return sc ? sc.clientWidth : 0; }
-function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svViewW()); }
+// The part of the view the town card covers on desktop (js/context.js): the
+// pan treats it as off screen, so the rightmost building can clear the card.
+function _svRightInset() { return window.KWContext && KWContext.rightInset ? KWContext.rightInset() : 0; }
+function _svSeenW() { return Math.max(0, _svViewW() - _svRightInset()); }
+function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svSeenW()); }
+window._svPanRefit = function() { _svPanTo(_svPanX[_svActiveArea] || 0); };
 // Short screens (a phone on its side) draw the town smaller, in whole steps
 // (¾ or ½) so pixel art stays even (HOME_SCENE.md step 8). Pure.
 function _svScaleFor(sceneH) { return sceneH >= 600 ? 1 : sceneH >= 420 ? 0.75 : 0.5; }
@@ -1259,7 +1264,7 @@ function _svPanTo(x) {
   var world = document.getElementById('sv-world');
   if (!world) return;
   var max = _svPanMax();
-  var px = Math.round(_svClampPan(x, _svViewW(), SV_WORLD_W * _svScale));
+  var px = Math.round(_svClampPan(x, _svSeenW(), SV_WORLD_W * _svScale));
   _svPanX[_svActiveArea] = px;
   world.style.transform = 'translate3d(' + (-px) + 'px,0,0)' + (_svScale !== 1 ? ' scale(' + _svScale + ')' : '');
   // Far strips lag behind: shift them back by part of the pan (in world pixels).
@@ -1277,7 +1282,7 @@ function _svPanArea(area, where) {
   var x = _svPanX[area];
   if (where === 'start') x = 0;
   else if (where === 'end') x = SV_WORLD_W * _svScale;
-  else if (x == null) x = (SV_WORLD_W * _svScale - _svViewW()) / 2;
+  else if (x == null) x = (SV_WORLD_W * _svScale - _svSeenW()) / 2;
   _svPanTo(x);
 }
 

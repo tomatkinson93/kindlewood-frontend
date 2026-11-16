@@ -94,7 +94,25 @@
   const ago = at => { const m = Math.round((Date.now() - new Date(at).getTime()) / 60000); return m < 60 ? `${Math.max(1, m)}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
   const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
 
-  function townHtml() {
+  // Desktop: the card is a compact strip (name, tier, beds, happiness) that
+  // expands on click to everything below; the choice is kept on this device.
+  // First steps is its own chip under it, not inside the card.
+  const CARD_KEY = 'kw-town-card';
+  const cardOpen = () => { try { return global.localStorage.getItem(CARD_KEY) === 'open'; } catch (e) { return false; } };
+  function setCardOpen(on) { try { global.localStorage.setItem(CARD_KEY, on ? 'open' : 'strip'); } catch (e) { /* private mode */ } refreshTown(); }
+  function stripHtml(open) {
+    const gd = g('gameData') || {}, s = gd.settlement || {};
+    const cits = (g('citizensData') || []).filter(c => (c.stage || c.life_stage) !== 'deceased');
+    const beds = typeof s.beds === 'number' ? s.beds : null;
+    const working = cits.filter(c => ['adult', 'elder'].includes(c.stage || (c.life_stage === 'child' ? 'child' : 'adult')));
+    const happy = working.length ? Math.round(working.reduce((t, c) => t + (c.life?.happiness ?? c.happiness ?? 70), 0) / working.length) : null;
+    return `<button type="button" class="kwc-strip-town" data-kwc="card" aria-expanded="${open}" aria-controls="kwc-card-more">`
+      + `<span class="kwc-town-name">${esc(s.name || 'Your town')}</span>`
+      + `<span class="kwc-strip-facts">${esc(cap(s.tier || 'camp'))}${beds != null ? ` · Beds ${cits.length}/${beds}` : ''}${happy != null ? ` · 😊 ${happy}%` : ''}</span>`
+      + `<span class="kwc-chev" aria-hidden="true">${open ? '▴' : '▾'}</span></button>`;
+  }
+  // `opts.card`: the desktop card (no first steps, no name line: the strip has it).
+  function townHtml(opts = {}) {
     const gd = g('gameData') || {}, s = gd.settlement || {};
     const cits = (g('citizensData') || []).filter(c => (c.stage || c.life_stage) !== 'deceased');
     const stage = c => c.stage || (c.life_stage === 'child' ? 'child' : 'adult');
@@ -113,13 +131,13 @@
     if (questers) under.push([`${questers} on ${questers === 1 ? 'a quest' : 'quests'}`, '']);
     const raid = s.raid;   // js/raids.js keeps the raid on its way here
     if (raid && raid.arrives_at && !raid.resolved_at) under.unshift([`Raiders strike ${raid.target_name || 'the town'}`, left(new Date(raid.arrives_at) - Date.now())]);
-    const fs = global.KWFirstSteps ? global.KWFirstSteps.cardHtml() : '';
-    return `<div class="kwc-town-name">${esc(s.name || 'Your town')}</div>`
+    const fs = !opts.card && global.KWFirstSteps ? global.KWFirstSteps.cardHtml() : '';
+    return (opts.card ? '' : `<div class="kwc-town-name">${esc(s.name || 'Your town')}</div>`)
       + `<div class="kwc-town-sub">${esc(cap(s.tier || 'camp'))} · ${esc(cap(gd.species || s.species || ''))}${beds != null ? ` · Beds ${cits.length} of ${beds}` : ''}</div>`
       + `<div class="kwc-ages">${[['Children', n('child')], ['Youths', n('youth')], ['Adults', n('adult')], ['Elders', n('elder')]]
           .map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>`
       + `<div class="kwc-mood">${happy != null ? `<span>😊 ${happy}% happy</span>` : ''}${food != null ? `<span class="${food < 0 ? 'kwc-bad' : ''}">🍖 food ${food >= 0 ? '+' : ''}${Math.round(food * 10) / 10}/hr</span>` : ''}</div>`
-      + (fs ? `<div id="fs-slot" class="kwc-fs">${fs}</div>` : '<div id="fs-slot"></div>')
+      + (opts.card ? '' : fs ? `<div id="fs-slot" class="kwc-fs">${fs}</div>` : '<div id="fs-slot"></div>')
       + (under.length ? `<div class="kwc-h">Under way</div>` + under.slice(0, 4).map(([t, v]) => `<div class="kwc-row"><span>${esc(t)}</span><span>${esc(v)}</span></div>`).join('') : '')
       + (chronicle && chronicle.length ? `<div class="kwc-h">Today</div>` + chronicle.map(e => `<p class="kwc-line">${esc(e.text)} <span class="kwc-when">${ago(e.at)}</span></p>`).join('') : '')
       + `<button type="button" class="kwc-more" data-kwc="families">The families and the whole chronicle</button>`;
@@ -129,8 +147,14 @@
     if (!card) return;
     const home = global.KWPlaces && global.KWPlaces.current && global.KWPlaces.current() === 'home';
     if (!home || isPhone() || isOpen()) return;
-    card.innerHTML = townHtml();
-    loadChronicle();
+    const open = cardOpen();
+    const fs = global.KWFirstSteps ? global.KWFirstSteps.cardHtml() : '';
+    card.innerHTML = `<div class="kwc-card${open ? ' kwc-card-open' : ''}">${stripHtml(open)}`
+      + (open ? `<div class="kwc-card-more" id="kwc-card-more">${townHtml({ card: true })}</div>` : '') + '</div>'
+      + `<div id="fs-slot" class="kwc-fs-chip">${fs}</div>`;
+    if (open) loadChronicle();
+    // The scene can pan the rightmost building clear of the card (js/settlement-view.js).
+    if (typeof global._svPanTo === 'function' && global._svIsOpen && global._svIsOpen() && global._svPanRefit) global._svPanRefit();
   }
   function openTownWindow() {
     if (!global.KWWindow) return;
@@ -153,6 +177,8 @@
     card.setAttribute('aria-label', 'Your town');
     screen.appendChild(card);
     doc.addEventListener('click', e => {
+      const t = e.target.closest && e.target.closest('[data-kwc="card"]');
+      if (t) { setCardOpen(!cardOpen()); const n = doc.querySelector('[data-kwc="card"]'); if (n) n.focus(); return; }
       const b = e.target.closest && e.target.closest('[data-kwc="families"]');
       if (!b) return;
       if (global.KWWindow && global.KWWindow.isOpen('town')) global.KWWindow.close('town');
@@ -176,5 +202,14 @@
   }
   if (doc) { if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', boot); else boot(); }
 
-  global.KWContext = { open, close, isOpen, mute, townHtml, refreshTown, openTownWindow, _allowOpen: allowOpen, _wrap: wrap };
+  // How much of the scene's right side the card covers (desktop Home), for
+  // the scene's pan limit. 0 when it isn't showing.
+  function rightInset() {
+    const card = doc.getElementById('kw-town-card');
+    if (!card || isPhone() || isOpen() || global.getComputedStyle(card).display === 'none') return 0;   // (a fixed element has no offsetParent)
+    const r = card.getBoundingClientRect();
+    return r.width ? Math.max(0, global.innerWidth - r.left) : 0;
+  }
+
+  global.KWContext = { open, close, isOpen, mute, townHtml, refreshTown, openTownWindow, rightInset, setCardOpen, _allowOpen: allowOpen, _wrap: wrap, _stripHtml: stripHtml };
 })(typeof window !== 'undefined' ? window : globalThis);
