@@ -154,7 +154,7 @@
 
   // ── Behaviour rules (§3.5), pure ────────────────────────────────────────
   // Time of day from the game clock: dawn, day, dusk (evening) or night.
-  const CHAT_RANGE = 200, CHAT_GAP = 40, CHAT_COOLDOWN = 120000, CHAT_MS = [4000, 7000];
+  const CHAT_RANGE = 200, CHAT_GAP = 56, CHAT_COOLDOWN = 120000, CHAT_MS = [4000, 7000];
   const INDOORS_MS = [20000, 60000];
   const NIGHT_OUT = 3;   // at night most are indoors; two or three stay out
   const SAY = ['…', '…', '…', '🐟', '❤', '🌰', '♪'];
