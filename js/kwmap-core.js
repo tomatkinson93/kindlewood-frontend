@@ -680,6 +680,8 @@ window.KWMap = (() => {
         if (!document.getElementById('screen-game')?.classList.contains('active')) return;
         if (['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
         if (!mapKeys.includes(e.key)) return;
+        // Home is showing over the map: its scene pans with the arrows instead.
+        if (typeof window._svIsOpen === 'function' && window._svIsOpen()) return;
         e.preventDefault();
         _keysHeld[e.key] = true;
         if (!_panInterval) {

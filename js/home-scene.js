@@ -60,17 +60,17 @@
   }
 
   // ── Props (§2.2): not buildings, but places in the scene ───────────────
-  // x, y are the slots' percent coordinates. `show(state)` decides. The
-  // town's signpost stands at 70 %, not the far edge: on desktop the town
-  // card covers the scene's right quarter.
+  // x, y are percent of the world (y is the foot), as for slots. `show(state)`
+  // decides. The signposts stand at the two ends of the walk between areas:
+  // Town's right end leads to the Outskirts' left end, and back.
   const PROPS = [
-    { id: 'signpost-out',  kind: 'signpost', area: 'town',      x: 70, y: 86, label: 'To the Outskirts →', opens: 'Walk to the Outskirts',
-      run: () => call('_svSwitchArea', 'outskirts') },
-    { id: 'signpost-town', kind: 'signpost', area: 'outskirts', x: 6,  y: 88, label: '← To town', opens: 'Walk back to town', flip: true,
-      run: () => call('_svSwitchArea', 'town') },
-    { id: 'green',         kind: 'green',    area: 'town',      x: 36, y: 72, label: 'Village green', opens: 'Hold a festival',
+    { id: 'signpost-out',  kind: 'signpost', area: 'town',      x: 97, y: 93, label: 'To the Outskirts →', opens: 'Walk to the Outskirts',
+      run: () => call('_svSwitchArea', 'outskirts', false, 'start') },
+    { id: 'signpost-town', kind: 'signpost', area: 'outskirts', x: 3,  y: 93, label: '← To town', opens: 'Walk back to town', flip: true,
+      run: () => call('_svSwitchArea', 'town', false, 'end') },
+    { id: 'green',         kind: 'green',    area: 'town',      x: 6,  y: 94, label: 'Village green', opens: 'Hold a festival',
       run: () => global.KWTown && global.KWTown.open('festival'), show: s => !!s.festivals },
-    { id: 'wonder-site',   kind: 'wonder',   area: 'outskirts', x: 40, y: 66, label: 'Wonder site', opens: 'Build a Wonder',
+    { id: 'wonder-site',   kind: 'wonder',   area: 'outskirts', x: 95, y: 94, label: 'Wonder site', opens: 'Build a Wonder',
       run: () => global.KWTown && global.KWTown.open('wonders'), show: s => s.tier === 'city' && !!s.festivals },
   ];
   const cits = () => (typeof citizensData !== 'undefined' ? citizensData : global.citizensData);   // eslint-disable-line no-undef
@@ -92,12 +92,16 @@
     return id;
   }
 
-  // ── The manifest (§2.6) ────────────────────────────────────────────────
-  // { "<key>": { "file": "tavern.png", "w": 332, "h": 258, "door": [166, 250], "native": false } }
-  // No entry: the placeholder, door at the bottom centre. "native": true is
-  // art drawn on the villagers' grid, shown at 1×; older art keeps the
-  // scene's slot sizing until it is redrawn.
-  const MANIFEST_URL = '/assets/images/buildings/manifest.json';
+  // ── The manifest (docs/ART_GUIDE.md §3) ───────────────────────────────
+  // assets/images/scene_v2/buildings/manifest.v2.json:
+  // { "<key>": { "file": "tavern.webp", "lit": "tavern_lit.webp", "w": 331, "h": 320,
+  //              "door": [162, 316], "native": true, "smooth": true, "scale": 2 } }
+  // w, h and door are on-screen pixels; the files are `scale` times that. A key
+  // with no entry is drawn as the placeholder hut, door at its doorstep. (The
+  // painted scene's assets/images/buildings/manifest.json is no longer read:
+  // that art doesn't belong in the new look.)
+  const ART_BASE = '/assets/images/scene_v2/buildings/';
+  const MANIFEST_URL = ART_BASE + 'manifest.v2.json';
   let manifest = {}, _mLoading = null;
   function loadManifest() {
     if (_mLoading) return _mLoading;
@@ -106,12 +110,27 @@
       .then(j => { manifest = j && typeof j === 'object' ? j : {}; return manifest; });
     return _mLoading;
   }
+  // The Neighbourhood's door in Town is a cluster of the house drawings until
+  // its own art exists: three homes, a little smaller, overlapping.
+  const CLUSTER = [{ key: 'house_timber', x: 0, y: 6 }, { key: 'house_stone', x: 118, y: 0 }, { key: 'house_thatch', x: 62, y: 40 }];
+  const CLUSTER_SCALE = 0.62;
+  function cluster(m) {
+    const parts = CLUSTER.map(c => ({ ...c, e: m[c.key] })).filter(c => c.e && c.e.file);
+    if (parts.length < CLUSTER.length) return null;
+    const w = Math.round(Math.max(...parts.map(c => c.x + c.e.w * CLUSTER_SCALE)));
+    const h = Math.round(Math.max(...parts.map(c => c.y + c.e.h * CLUSTER_SCALE)));
+    const front = parts[parts.length - 1];
+    return { w, h, native: true, smooth: true, cluster: parts.map(c => ({ x: c.x, y: c.y, w: Math.round(c.e.w * CLUSTER_SCALE), h: Math.round(c.e.h * CLUSTER_SCALE),
+      url: ART_BASE + c.e.file, lit: c.e.lit ? ART_BASE + c.e.lit : null })),
+      door: { x: front.x + front.e.door[0] * CLUSTER_SCALE, y: front.y + front.e.door[1] * CLUSTER_SCALE } };
+  }
   function art(key, m = manifest) {
+    if (key === 'neighbourhood' && !(m && m.neighbourhood)) return cluster(m || {});
     const e = m && m[key];
     if (!e || !e.file) return null;
     const w = Number(e.w) || 0, h = Number(e.h) || 0;
     const door = Array.isArray(e.door) && e.door.length === 2 ? { x: Number(e.door[0]), y: Number(e.door[1]) } : { x: w / 2, y: h };
-    return { url: '/assets/images/buildings/' + e.file, w, h, door, native: !!e.native };
+    return { url: ART_BASE + e.file, lit: e.lit ? ART_BASE + e.lit : null, w, h, door, native: e.native !== false, smooth: e.smooth !== false };
   }
   // The door in the image's own pixels; the bottom centre when unknown.
   const door = (key, m = manifest) => { const a = art(key, m); return a ? a.door : null; };
@@ -136,7 +155,7 @@
   }
   function propSvg(kind, size, flip) {
     if (kind === 'signpost') {
-      const W = Math.round(size * 0.9), H = Math.round(size * 1.0);
+      const W = Math.round(size * 0.9), H = Math.round(size * 1.0);   // signpost
       return `<svg class="kwh-prop-art" width="${W}" height="${H}" viewBox="0 0 90 100" aria-hidden="true" shape-rendering="crispEdges"${flip ? ' style="transform:scaleX(-1)"' : ''}>`
         + `<rect x="40" y="20" width="8" height="78" fill="#6b4a2e"/>`
         + `<polygon points="10,26 72,26 84,36 72,46 10,46" fill="#c79a5c" stroke="#5a3d22" stroke-width="2"/>`
@@ -161,15 +180,25 @@
       + `<polygon points="70,0 82,10 70,20" fill="#d6463c"/><rect x="68" y="0" width="3" height="22" fill="#5a3d22"/></svg>`;
   }
 
-  // The art for a building: its image from the manifest, else the hut.
-  // → { html, native } (the glyph sits on the sign; .kwh-sign).
+  // The art for a building: its images from the manifest (the daytime one,
+  // and the lit one on top, shown in the evening and at night), else the
+  // placeholder hut. Either sits in a .kwh-art box with its shadow drawn by
+  // code under it. → { html, native }.
+  const PH_SIZE = 170;   // the hut beside the new buildings (about a house's size)
+  function imgs(url, lit, style) {
+    return `<img src="${esc(url)}" class="kwh-img kwh-day" alt="" draggable="false"${style || ''}>`
+      + (lit ? `<img src="${esc(lit)}" class="kwh-img kwh-lit" alt="" draggable="false" loading="lazy"${style || ''}>` : '');
+  }
   function artHtml(key, vis, size, m = manifest) {
     const a = art(key, m);
-    if (a) {
-      const w = a.native ? a.w : Math.round(size * 1.53);
-      return { native: a.native, html: `<img src="${esc(a.url)}" class="sv-building-img kwh-img${a.native ? ' kwh-native' : ''}" style="width:${w}px" alt="" draggable="false">` };
+    if (a && a.cluster) {
+      return { native: true, html: `<span class="kwh-art kwh-cluster" style="width:${a.w}px;height:${a.h}px">`
+        + a.cluster.map(c => `<span class="kwh-part" style="left:${c.x}px;top:${c.y}px;width:${c.w}px;height:${c.h}px">${imgs(c.url, c.lit)}</span>`).join('')
+        + '</span>' };
     }
-    return { native: false, html: `<span class="kwh-ph">${hutSvg(vis || {}, size)}<span class="kwh-sign" aria-hidden="true">${esc((vis && vis.emoji) || '🏠')}</span></span>` };
+    if (a) return { native: true, html: `<span class="kwh-art${a.lit ? ' kwh-has-lit' : ''}" style="width:${a.w}px;height:${a.h}px">${imgs(a.url, a.lit)}</span>` };
+    const ph = Math.max(size || 0, PH_SIZE);
+    return { native: false, html: `<span class="kwh-art kwh-ph">${hutSvg(vis || {}, ph)}<span class="kwh-sign" aria-hidden="true">${esc((vis && vis.emoji) || '🏠')}</span></span>` };
   }
 
   // ── Bubbles (§2.4): one short line when something is waiting ──────────
@@ -306,12 +335,27 @@
     }
   }
 
+  // ── Night (docs/ART_GUIDE.md §4.6) ─────────────────────────────────────
+  // Colour-matrix filters the stylesheet points at: a blue-violet multiply for
+  // night (×0.42, ×0.48, ×0.78 on red, green, blue), a much lighter one for
+  // lit images, and halfway versions for the evening.
+  const TINTS = { 'kwn-night': [0.42, 0.48, 0.78], 'kwn-lit': [0.72, 0.72, 0.92], 'kwn-dusk': [0.78, 0.66, 0.78], 'kwn-dusk-lit': [0.9, 0.84, 0.9] };
+  function nightFilters() {
+    if (!doc || !doc.body || doc.getElementById('kwn-filters')) return;
+    const m = ([r, g, b]) => `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`;
+    const svg = '<svg id="kwn-filters" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>'
+      + Object.entries(TINTS).map(([id, t]) => `<filter id="${id}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${m(t)}"/></filter>`).join('')
+      + '</defs></svg>';
+    doc.body.insertAdjacentHTML('beforeend', svg);
+  }
+  if (doc && doc.readyState !== 'loading') nightFilters(); else if (doc) doc.addEventListener('DOMContentLoaded', nightFilters);
+
   global.KWHome = {
     ROUTES, PROPS, route, open, props, openProp, sceneState,
     loadManifest, art, door, get manifest() { return manifest; },
-    artHtml, propSvg, hutSvg, plateHtml, label,
+    artHtml, propSvg, hutSvg, plateHtml, label, ART_BASE, PH_SIZE,
     note, bubble, bubbleHtml, clearBubble, redraw,
-    namesOn, setNames, applyNames, homeShown, townList, fillProfile,
+    namesOn, setNames, applyNames, homeShown, townList, fillProfile, nightFilters, NIGHT_TINTS: TINTS,
     _setManifest: m => { manifest = m || {}; },
   };
 })(typeof window !== 'undefined' ? window : globalThis);
