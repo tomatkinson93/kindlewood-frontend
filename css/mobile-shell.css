@@ -168,6 +168,11 @@ body.kw-shell .kw-sheet {
 }
 body.kw-shell #screen-game .sidebar.kw-open,
 body.kw-shell .kw-sheet.kw-open { transform: translateY(0); }
+/* On Home the sheet starts collapsed to its handle (js/mobile-shell.js). */
+/* Collapsed by height, not by sliding down: it stays above the tab bar, so
+   its hidden part never covers the tabs. */
+body.kw-shell #screen-game .sidebar.kw-open.kw-collapsed { max-height: 30px; overflow: hidden; }
+body.kw-shell #screen-game .sidebar.kw-collapsed .kw-grab { padding: 12px 0 14px; }
 
 /* Grab bar at the top of each sheet — tap to dismiss. */
 body.kw-shell .kw-grab {
