@@ -155,7 +155,7 @@
 
   // ── Behaviour rules (§3.5), pure ────────────────────────────────────────
   // Time of day from the game clock: dawn, day, dusk (evening) or night.
-  const CHAT_RANGE = 200, CHAT_GAP = 56, CHAT_COOLDOWN = 120000, CHAT_MS = [4000, 7000];
+  const CHAT_RANGE = 200, CHAT_GAP = 40, CHAT_COOLDOWN = 120000, CHAT_MS = [4000, 7000];
   const INDOORS_MS = [20000, 60000];
   const NIGHT_OUT = 3;   // at night most are indoors; two or three stay out
   const SAY = ['…', '…', '…', '🐟', '❤', '🌰', '♪'];
@@ -208,8 +208,45 @@
   }
   const pairKey = (a, b) => Math.min(a, b) + '_' + Math.max(a, b);
 
-  // Where a child walking with a parent aims: a little behind them.
-  function followPoint(parent, behind = 28) {
+  // ── Keeping apart: nobody stops on top of anyone else ──────────────────
+  const APART = 30;
+  // The nearest point to `p` at least `min` px from every point in `others`
+  // (other villagers' positions and targets), searched on rings round p;
+  // `ok(q)` says whether a point is allowed (on the ground). Pure.
+  function spreadPoint(p, others, { min = APART, ok = () => true, rings = 6, step = 16 } = {}) {
+    const clear = q => others.every(o => Math.hypot(o.x - q.x, o.y - q.y) >= min);
+    if (clear(p) && ok(p)) return p;
+    for (let r = 1; r <= rings; r++) {
+      const n = 8 * r, rad = min + (r - 1) * step;
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2;
+        const q = { x: p.x + Math.cos(a) * rad, y: p.y + Math.sin(a) * rad * 0.6 };   // flatter rings: the meadow is seen from above at a slant
+        if (ok(q) && clear(q)) return q;
+      }
+    }
+    return p;
+  }
+  // Where someone waits at a door: the doorstep first, then fanning out in an
+  // arc in front of it, never within 30 px of anyone. Pure.
+  const DOOR_FAN = [[0, 6], [-30, 12], [30, 12], [-54, 24], [54, 24], [-22, 36], [22, 36], [-70, 40], [70, 40], [0, 52]];
+  function doorSpot(door, others, min = APART) {
+    for (const [dx, dy] of DOOR_FAN) {
+      const q = { x: door.x + dx, y: door.y + dy };
+      if (others.every(o => Math.hypot(o.x - q.x, o.y - q.y) >= min)) return q;
+    }
+    return spreadPoint({ x: door.x, y: door.y + 24 }, others, { min });
+  }
+  // Two chatting: side by side `gap` apart on one line, facing each other,
+  // round a meeting point clear of everyone else. Pure.
+  function chatSpots(a, b, others = [], gap = CHAT_GAP) {
+    const mid = spreadPoint({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, others, { min: APART + gap / 2 });
+    const side = a.x <= b.x ? -1 : 1;
+    return [{ x: mid.x + side * gap / 2, y: mid.y }, { x: mid.x - side * gap / 2, y: mid.y }];
+  }
+
+  // Where a child walking with a parent aims: a little behind them (beyond
+  // the 30 px everyone keeps).
+  function followPoint(parent, behind = 34) {
     const dx = parent.tx - parent.x, dy = parent.ty - parent.y, d = Math.hypot(dx, dy);
     if (d < 1) return { x: parent.x - behind * 0.7, y: parent.y + 6 };
     return { x: parent.x - dx / d * behind, y: parent.y - dy / d * behind + 4 };
@@ -313,8 +350,21 @@
     const ctx = { phase: S.phase, work: doorOf(ROLE_BUILDING[v.c.role]), tavern: doorOf('tavern'), home, doors: S.doors,
       spots: (SPOTS[S.area] || []).map(px), ground: () => px(groundPoint(S.area, S.rand)), owl: owls.has(v.id) };
     const g = chooseErrand(ctx, S.rand);
-    walkTo(v, g.kind === 'door' ? { x: g.x + (S.rand() - 0.5) * 10, y: g.y + 2 } : g, g.kind === 'door' ? g.key : null);
+    // Never stop on top of anyone: a door fans out, anywhere else spreads.
+    const others = othersOf(v);
+    walkTo(v, g.kind === 'door' ? doorSpot(g, others) : spreadPoint(g, others, { ok: onMeadow }), g.kind === 'door' ? g.key : null);
   }
+  // Everyone else's position, and their target while they walk.
+  function othersOf(...not) {
+    const out = [];
+    for (const o of S.vs.values()) {
+      if (not.includes(o) || o.state === 'gone' || o.state === 'indoors') continue;
+      out.push({ x: o.x, y: o.y });
+      if (Math.hypot(o.tx - o.x, o.ty - o.y) > 1) out.push({ x: o.tx, y: o.ty });
+    }
+    return out;
+  }
+  const onMeadow = q => inPolygon(q.x / W() * 100, q.y / H() * 100, GROUND[S.area] || GROUND.town);
   function walkTo(v, p, doorKey) { v.tx = p.x; v.ty = p.y; v.goal = doorKey ? { door: doorKey } : null; v.state = 'walk'; }
   function idle(v, now, ms) {
     v.state = 'idle'; v.goal = null;
@@ -367,11 +417,10 @@
   // Chat (§3.5): two free grown-ups close by walk to each other, stop a step
   // apart, face each other and take turns with a speech bubble for 4–7 s.
   function startChat(a, b, now) {
-    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    const side = a.x <= b.x ? -1 : 1;
+    const [pa, pb] = chatSpots(a, b, othersOf(a, b));
     a.partner = b.id; b.partner = a.id;
-    walkTo(a, { x: mx + side * CHAT_GAP / 2, y: my }, null); a.state = 'tochat'; a.until = now + 8000;
-    walkTo(b, { x: mx - side * CHAT_GAP / 2, y: my }, null); b.state = 'tochat'; b.until = now + 8000;   // give up if they never meet
+    walkTo(a, pa, null); a.state = 'tochat'; a.until = now + 8000;
+    walkTo(b, pb, null); b.state = 'tochat'; b.until = now + 8000;   // give up if they never meet
     S.cool[pairKey(a.id, b.id)] = now;
   }
   function chatting(a, b, now) {
@@ -761,7 +810,8 @@
     const sr = sc ? sc.getBoundingClientRect() : lr;
     const cx = (sr.left + sr.width / 2 - lr.left) / sx;
     const taken = [...S.vs.values()].filter(o => o !== v && o.moment && o.mSpot).map(o => o.mSpot);
-    return clearSpot(cx, { w: W(), h: H(), blocks: S.blocks || [], taken, lane: 0.74, front: 0.965 });
+    const spot = clearSpot(cx, { w: W(), h: H(), blocks: S.blocks || [], taken, lane: 0.74, front: 0.965 });
+    return spreadPoint(spot, othersOf(v));   // and not on top of anyone
   }
   // The nearest x to `cx` where a villager (48 × 64 px) on the lane is not
   // behind a building that stands in front of it (its foot lower down), and
@@ -956,6 +1006,7 @@
     GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT,
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
+    _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP,
     _seed: n => { S.rand = seeded(n); },
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.

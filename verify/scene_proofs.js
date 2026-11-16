@@ -395,7 +395,7 @@ console.log('13. Behaviour (§3.5)');
   check('13i. a selected villager, a child or a busy one never starts a chat; far apart, no chat', !pairs.flat().some(id => [3, 4, 5, 6].includes(id)));
   check('13j. a pair does not chat again for 2 minutes', C._chatPairs(vs, 1e6, { '1_2': 1e6 - 60000 }).length === 0 && C._chatPairs(vs, 1e6, { '1_2': 1e6 - 121000 }).length === 1 && C.CHAT_COOLDOWN === 120000);
   const f = C._followPoint({ x: 500, y: 500, tx: 700, ty: 500 });
-  check('13k. a child walks a little behind a parent', f.x < 500 && Math.abs(f.x - 500) <= 30 && C._followPoint({ x: 500, y: 500, tx: 500, ty: 500 }).x < 500);
+  check('13k. a child walks a little behind a parent (just beyond the 30 px everyone keeps)', f.x < 500 && Math.abs(f.x - 500) >= 30 && Math.abs(f.x - 500) <= 40 && C._followPoint({ x: 500, y: 500, tx: 500, ty: 500 }).x < 500);
   const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
   check('13l. indoors: fade at the door, stay 20–60 s (night: till morning), the building bounces', C.INDOORS_MS[0] === 20000 && C.INDOORS_MS[1] === 60000 && /kwh-bounce/.test(E) && /@keyframes kwh-bounce/.test(CSS) && /S\.phase === 'night' && !S\.owls\.has\(v\.id\)/.test(E));
   check('13m. a chat lasts 4–7 s with a bubble passed back and forth (dots or a tiny picture)', /CHAT_MS = \[4000, 7000\]/.test(E) && /SAY = \['…'/.test(E) && /\.kwv-say \{/.test(CSS));
@@ -539,6 +539,45 @@ console.log('18. Moment markers (§3.7)');
   check('18g. clicking them opens the moment in the dialogue box instead of the radial menu', /if \(v\.moment && global\.KWMoments && global\.KWMoments\.open\) \{[\s\S]{0,120}global\.KWMoments\.open\(v\.moment\.id\);\s*return;/.test(E));
   check('18h. the marker follows the moment: answered, it goes and they walk on; checked every second', /S\.markT = 0; markMoments\(\);/.test(E) && /if \(el\) el\.remove\(\);/.test(E));
   check('18i. their label says so, for screen readers', /' has something to ask: '/.test(E));
+}
+
+console.log('19. Villagers never stack (seeded)');
+{
+  const e5 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e5.window = e5; vm.createContext(e5); vm.runInContext(read('js/villager-engine.js'), e5);
+  const C5 = e5.KWCast, E = read('js/villager-engine.js');
+  const minD = (p, pts) => Math.min(...pts.map(o => Math.hypot(o.x - p.x, o.y - p.y)));
+  // (a) Stopping points: many villagers choosing spots near the same place, one after another.
+  let okA = true;
+  for (let seed = 1; seed <= 40; seed++) {
+    const rnd = C5._seeded(seed), taken = [];
+    for (let i = 0; i < 12; i++) {
+      const want = { x: 500 + (rnd() - 0.5) * 60, y: 400 + (rnd() - 0.5) * 40 };   // all aiming at one small patch
+      const p = C5._spreadPoint(want, taken);
+      if (taken.length && minD(p, taken) < 30) okA = false;
+      taken.push(p);
+    }
+  }
+  check('19a. a villager never chooses a stopping point within 30 px of another\'s position or target (40 seeds × 12 villagers on one patch)', okA && C5.APART === 30);
+  const near = C5._spreadPoint({ x: 500, y: 400 }, [{ x: 505, y: 400 }]);
+  check('19a2. the free point is nearby, not across the town', Math.hypot(near.x - 500, near.y - 400) <= 60);
+  check('19a3. only allowed ground is chosen', C5._spreadPoint({ x: 0, y: 0 }, [{ x: 0, y: 0 }], { ok: q => q.y >= 0 }).y >= 0);
+  // (b) Chatting: side by side 40 px apart, one line, facing; clear of others; a third never joins.
+  const [pa, pb] = C5._chatSpots({ x: 300, y: 500 }, { x: 420, y: 520 }, [{ x: 360, y: 510 }]);
+  check('19b. two chatting stand side by side about 40 px apart on one line, not overlapping', Math.abs(Math.hypot(pa.x - pb.x, pa.y - pb.y) - 40) < 0.01 && pa.y === pb.y && pa.x < pb.x && C5.CHAT_GAP === 40);
+  check('19b2. their meeting point keeps clear of anyone else there', minD(pa, [{ x: 360, y: 510 }]) >= 30 && minD(pb, [{ x: 360, y: 510 }]) >= 30);
+  const pairs = C5._chatPairs([{ id: 1, x: 0, y: 0, free: false }, { id: 2, x: 30, y: 0, free: false }, { id: 3, x: 15, y: 10, free: true }], 1e6, {});
+  check('19b3. a third never joins a pair (those chatting are not free)', pairs.length === 0);
+  // (c) Doors: those waiting fan out.
+  let okC = true;
+  for (let seed = 1; seed <= 20; seed++) {
+    const rnd = C5._seeded(seed), door = { x: 800 + rnd() * 100, y: 450 }, waiting = [];
+    for (let i = 0; i < 8; i++) { const p = C5._doorSpot(door, waiting); if (waiting.length && minD(p, waiting) < 30) okC = false; waiting.push(p); }
+  }
+  check('19c. around a door, waiting villagers fan out instead of queueing on one pixel (20 seeds × 8 at one door)', okC);
+  check('19c2. the first one stands on the doorstep', JSON.stringify(C5._doorSpot({ x: 100, y: 100 }, [])) === '{"x":100,"y":106}');
+  check('19d. the engine uses them: errands spread or fan out; chats use the side-by-side spots; a child follows beyond 30 px',
+    /doorSpot\(g, others\) : spreadPoint\(g, others, \{ ok: onMeadow \}\)/.test(E) && /chatSpots\(a, b, othersOf\(a, b\)\)/.test(E) && /function followPoint\(parent, behind = 34\)/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
