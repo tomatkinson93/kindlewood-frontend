@@ -466,16 +466,40 @@ console.log('15. Selecting a villager: the radial menu (§3.6)');
     && [mid, left, right].every(p => { const lw = ['Inspect', 'Family', 'Change work', 'House'].map(t => t.length * 6 + 12);
       return p.every((q, i) => p.every((o, j) => j <= i || Math.abs(q.x - o.x) >= (lw[i] + lw[j]) / 2 || Math.abs(q.y - o.y) >= 20)); }));
   check('15h. each villager is a real button with a label; a small hit box takes clicks', /makeFigure\(true\)/.test(E) && /setAttribute\('aria-label', nameLine\(c\)/.test(E) && /\.kwv-cit \.kwv-hit \{ position: absolute; pointer-events: auto/.test(CSS) && /\.kwv-cit \{[^}]*pointer-events: none/.test(CSS));
-  check('15i. selected: stands facing the camera, bright outline, a ring and their name; nobody chats with them', /if \(v\.selected\) return;/.test(E) && /\.kwv-selected \.kwv-sprite/.test(CSS) && /\.kwv-ring \{/.test(CSS) && /\.kwv-name \{/.test(CSS) && /selected: !!v\.selected \|\| !!v\.held/.test(E));
-  check('15j. click elsewhere, Esc, or a button deselects; a window from the menu holds them until it closes', /addEventListener\('pointerdown'[\s\S]{0,200}deselect\(true\)/.test(E) && /e\.key !== 'Escape' \|\| !M\.v/.test(E) && /v\.held = true;[\s\S]{0,80}deselect\(true\)/.test(E) && /if \(!windowUp\(\)\) \{ v\.held = false;/.test(E));
+  check('15i. selected: stands facing the camera, bright outline, a ring and their name; nobody chats with them', /if \(v\.selected \|\| v\.pressed\) return;/.test(E) && /\.kwv-selected \.kwv-sprite/.test(CSS) && /\.kwv-ring \{/.test(CSS) && /\.kwv-name \{/.test(CSS) && /selected: !!v\.selected \|\| !!v\.held/.test(E));
+  check('15j. click elsewhere, Esc, or a button deselects; a window from the menu holds them until it closes', /addEventListener\('pointerdown'[\s\S]{0,400}if \(M\.v && v !== M\.v\) deselect\(true\)/.test(E) && /e\.key !== 'Escape' \|\| !M\.v/.test(E) && /v\.held = true;[\s\S]{0,200}deselect\(true\)/.test(E) && /const gone = v\.heldBy \? !stillOpen\(v\.heldBy\) : now - v\.heldFrom > 3000;/.test(E));
   check('15k. the buttons: profile, family line, the job picker (or trade) in the profile, their home', /call\('openCitizenProfile', id\)/.test(E) && /KWFamilies\.open\(c\.family_id \? \{ family: c\.family_id \}/.test(E) && /focusInProfile\('\.cp-role-section \.cp-role-select'\)/.test(E) && /data-house="' \+ c\.house_id/.test(E) && /data-house="' \+ house\.id/.test(S3));
   check('15l. keyboard: Enter opens it with the first button focused; arrows move between buttons; Tab reaches villagers after the buildings',
-    /select\(v, e\.detail === 0\)/.test(E) && /'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'/.test(E) && /:scope > \.kwv-villager, :scope > \.kwv-radial/.test(S3));
+    /if \(e\.detail !== 0\) return; if \(v\.selected\) deselect\(true\); else select\(v, true\)/.test(E) && /'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'/.test(E) && /:scope > \.kwv-villager, :scope > \.kwv-radial/.test(S3));
+  check('15q. a press-and-release selects, even if they walk a little meanwhile (they stop while pressed); more than 10 px is a pan',
+    /v\.pressed = true/.test(E) && /> 10 \|\| performanceNow\(\) - P\.t > 1000\) return;/.test(E) && /sv-panning'\)\) return;/.test(E) && /P\.swallow = true/.test(E));
+  check('15r. a villager just behind a building\'s transparent edge is still the one picked', /function villagerAt\(x, y\)/.test(E) && /doc\.elementsFromPoint\(x, y\)/.test(E));
+  check('15s. the hit box covers the whole figure (48 × 70), roomier on touch (58 × 82)', /const w = touch \? 58 : 48, h = touch \? 82 : 70;/.test(E));
   check('15p. the menu\'s buttons take clicks (the layers they sit in do not)', /\.kwv-rb \{\s*pointer-events: auto;/.test(CSS));
   check('15m. it fans out in 150 ms; not under reduced motion; 48 px on touch', /transition: transform 150ms/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwv-rb \{ transition: none; \}/.test(CSS) && /pointer: coarse\) \{\s*#settlement-view \.kwv-rb \{ width: 48px; height: 48px/.test(CSS));
   check('15n. a pop as the menu opens, another as it closes (the effects volume applies)', C3.SOUND.on === 'ui/pop_on.mp3' && C3.SOUND.off === 'ui/pop_off.mp3' && /global\.playSfx\(SOUND\[k\]\)/.test(E)
     && ['pop_on.mp3', 'pop_off.mp3'].every(f => fs.existsSync(path.join(ROOT, 'assets/audio/ui', f)) && fs.statSync(path.join(ROOT, 'assets/audio/ui', f)).size < 40000));
   check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{ closeMenu\(\);/.test(E));
+}
+
+console.log('16. Phones and comfort (step 8), names, faces');
+{
+  const S4 = read('js/settlement-view.js'), PL = read('js/places.js'), HJ = read('js/home-scene.js'), CSS = read('css/home-scene.css'), FJ = read('js/families.js');
+  const grab = (src, name) => { const i = src.indexOf('function ' + name + '('); let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}' && !--d) return src.slice(i, k + 1); } return ''; };
+  const bx = {}; vm.createContext(bx); vm.runInContext(grab(S4, '_svScaleFor'), bx);
+  check('16a. short screens draw the town smaller in whole steps: 1× from 600 px tall, ¾ from 420, else ½', bx._svScaleFor(810) === 1 && bx._svScaleFor(690) === 1 && bx._svScaleFor(500) === 0.75 && bx._svScaleFor(287) === 0.5);
+  check('16b. the scaled world still pans to its edges and keeps the far strips in step', /SV_WORLD_W \* _svScale - _svViewW\(\)/.test(S4) && /scale\(' \+ _svScale \+ '\)/.test(S4) && /px \/ _svScale \* k/.test(S4) && /transform-origin: 0 0/.test(CSS));
+  check('16c. Build mode: "Move to…" buttons move a building without dragging (keyboard, switch, fiddly touch); focus follows it',
+    /function _svMoveHtml\(slot\)/.test(S4) && /_svMoveHtml\(slot\)/.test(S4.slice(S4.indexOf('function _openBuildPanel'))) && /b\.focus\(/.test(grab(S4, '_svMoveTo')) && /min-height: 44px/.test(CSS));
+  check('16d. on touch, the build panel\'s buttons are at least 44 px; reduced motion switches the lit windows instead of fading', /pointer: coarse\) \{\s*#settlement-view \.sv-bp-build-btn/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwh-lit \{ transition: none; \}/.test(CSS));
+  check('16e. a Names chip on Home toggles every nameplate (pressed while on); N does too; the profile menu\'s Show names is the same setting',
+    /key: 'names'[\s\S]{0,200}on: \(\) => !!\(global\.KWHome && global\.KWHome\.namesOn\(\)\)/.test(PL) && /KWPlaces\.refreshTools\(\)/.test(grab(HJ, 'setNames')) && /e\.key !== 'n' && e\.key !== 'N'/.test(HJ));
+  const fv = { console, document: { addEventListener() {}, hidden: false }, addEventListener() {}, location: { search: '' }, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, Math, setTimeout() {} };
+  fv.window = fv; vm.createContext(fv); vm.runInContext(read('js/villagers.js'), fv);
+  check('16f. a face is a square round the head, from the foot point (the mouse: 44 px at 26, 14)', JSON.stringify(fv.KWVillagers._faceBox({ foot: { x: 49, y: 77 } })) === '{"x":26,"y":14,"w":44}');
+  check('16g. no sheet data yet: no face (and no error)', fv.KWVillagers.faceHtml('Mice') === '');
+  check('16h. the family tree shows each villager\'s face (smaller for a child, grey for the dead), facing the camera from their idle sheet',
+    /KWVillagers\.faceHtml\(m\.species \|\| townSpecies\(\), m\.stage === 'child' \? 33 : 44/.test(FJ) && /kwf-face-gone/.test(FJ) && /\.kwf-face-gone \{ filter: grayscale\(1\)/.test(CSS) && /\.kwv-face \{[^}]*image-rendering: pixelated/.test(CSS));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

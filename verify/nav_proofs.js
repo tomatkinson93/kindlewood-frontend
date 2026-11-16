@@ -42,7 +42,7 @@ console.log('2. What each place holds');
 {
   check('2a. The Road: Quests, Battles, Decks, Market', K.HUBS.road.items.map(i => i.label).join() === 'Quests,Battles,Decks,Market');
   check('2b. The Clan: the clan hall and Chat', K.HUBS.clan.items.map(i => i.key).join() === 'hall,chat');
-  check('2c. Home: only Town (phones) and Build; the buildings open the rest (HOME_SCENE.md §2.1)', K.TOOLS.home.map(t => t.key).join() === 'town,build');
+  check('2c. Home: only Town (phones), Build and the Names toggle; the buildings open the rest (HOME_SCENE.md §2.1)', K.TOOLS.home.map(t => t.key).join() === 'town,build,names');
   check('2d. The Land: Scout, Outposts, Journeys (Centre on town is in the map\'s own stack, js/hud.js)', K.TOOLS.land.map(t => t.key).join() === 'scout,outposts,journeys');
   w._hasBuilding = t => t === 'library';
   const home = K._toolsHtml('home');

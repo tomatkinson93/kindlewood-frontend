@@ -48,6 +48,10 @@
       // move and open their manage panel. It reads "Done" while on.
       { key: 'build',    label: 'Build',    glyph: '🏗', onLabel: 'Done', onGlyph: '✓', on: () => fn('_svIsBuildMode') && global._svIsBuildMode(),
         run: () => { if (!svOpen()) call('openSettlementView'); call('_svToggleBuildMode'); } },
+      // Nameplates on every building, on or off (the same setting as the
+      // profile menu's Show names; N on the keyboard). Pressed while on.
+      { key: 'names',    label: 'Names',    glyph: '🏷', on: () => !!(global.KWHome && global.KWHome.namesOn()),
+        run: () => { if (global.KWHome) global.KWHome.setNames(!global.KWHome.namesOn()); } },
       // The rest are the buildings themselves now (docs/HOME_SCENE.md §2,
       // js/home-scene.js), and a plain list in the profile menu.
     ],

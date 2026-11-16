@@ -553,6 +553,7 @@ async function openSettlementView() {
     titleEl.textContent = gameData.settlement.name;
   }
 
+  _svFit();
   _svSwitchArea(_svActiveArea, true);
   if (window.KWHome) KWHome.homeShown();   // nameplates: Show names, the 4-second peek on touch
   if (window.KWPlaces) KWPlaces.seen('home');   // the scene is Home (js/places.js)
@@ -1090,6 +1091,7 @@ function _openBuildPanel(slot, occupant) {
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
+      + _svMoveHtml(slot)
       + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
   } else {
     var areaIds = _svSlotBuildingIds();
@@ -1125,6 +1127,31 @@ function _openBuildPanel(slot, occupant) {
   panel.innerHTML = html;
   panel.classList.add('open');
 }
+
+// Build mode: "Move to…" buttons for each other plot in the area, so a
+// building can be moved without dragging (keyboard, switch access, or a
+// fiddly touch screen). Onto a building, the two swap.
+function _svMoveHtml(slot) {
+  if (!_svBuildMode || !slot || slot.type) return '';
+  var btns = SV_SLOTS.filter(function(s) { return s.area === slot.area && s.id !== slot.id && !s.type; }).map(function(s) {
+    var o = _occupantFor(s);
+    return '<button type="button" class="sv-bp-move-btn" onclick="_svMoveTo(\'' + slot.id + '\',\'' + s.id + '\')">' + _svEsc(s.label)
+      + '<span>' + (o ? '↔ swap with the ' + _svEsc(o.label) : 'empty') + '</span></button>';
+  }).join('');
+  return btns ? '<div class="sv-bp-move" role="group" aria-label="Move to another plot"><div class="sv-bp-move-h">Move to…</div>' + btns + '</div>' : '';
+}
+function _svMoveTo(fromId, toId) {
+  var occ = function(id) { var sl = SV_SLOTS.find(function(s) { return s.id === id; }); var b = sl && _occupantFor(sl); return b ? b.id : null; };
+  var moving = occ(fromId);
+  var next = _svMoveAssignment(_svGetAssignments(), fromId, toId, occ);
+  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(next));
+  _closeBuildPanel();
+  _renderScene();
+  // Keep the keyboard where the building went.
+  var b = moving && document.querySelector('#sv-slot-' + toId + ' [data-kwh="' + moving + '"]');
+  if (b) { try { b.focus({ preventScroll: false }); } catch (_) {} }
+}
+window._svMoveTo = _svMoveTo;
 
 function _closeBuildPanel() {
   var p = document.getElementById('sv-build-panel');
@@ -1209,7 +1236,22 @@ var _svPanBound = false;
 var _svEdge = { dir: 0, since: 0, raf: 0, last: 0 };
 
 function _svViewW() { var sc = document.getElementById('sv-scene'); return sc ? sc.clientWidth : 0; }
-function _svPanMax() { return Math.max(0, SV_WORLD_W - _svViewW()); }
+function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svViewW()); }
+// Short screens (a phone on its side) draw the town smaller, in whole steps
+// (¾ or ½) so pixel art stays even (HOME_SCENE.md step 8). Pure.
+function _svScaleFor(sceneH) { return sceneH >= 600 ? 1 : sceneH >= 420 ? 0.75 : 0.5; }
+var _svScale = 1;
+// Fits the world to the scene's height: the scale, and a world height that
+// fills the scene once scaled.
+function _svFit() {
+  var sc = document.getElementById('sv-scene'), world = document.getElementById('sv-world');
+  if (!sc || !world) return;
+  var h = sc.clientHeight || 0;
+  _svScale = _svScaleFor(h);
+  world.style.height = _svScale === 1 ? '' : Math.round(h / _svScale) + 'px';
+  world.style.bottom = _svScale === 1 ? '' : 'auto';
+  world.classList.toggle('sv-scaled', _svScale !== 1);
+}
 // Clamps a pan to the world. Pure.
 function _svClampPan(x, viewW, worldW) { return Math.max(0, Math.min(Math.max(0, worldW - viewW), x)); }
 
@@ -1217,13 +1259,13 @@ function _svPanTo(x) {
   var world = document.getElementById('sv-world');
   if (!world) return;
   var max = _svPanMax();
-  var px = Math.round(_svClampPan(x, _svViewW(), SV_WORLD_W));
+  var px = Math.round(_svClampPan(x, _svViewW(), SV_WORLD_W * _svScale));
   _svPanX[_svActiveArea] = px;
-  world.style.transform = 'translate3d(' + (-px) + 'px,0,0)';
-  // Far strips lag behind: shift them back by part of the pan.
+  world.style.transform = 'translate3d(' + (-px) + 'px,0,0)' + (_svScale !== 1 ? ' scale(' + _svScale + ')' : '');
+  // Far strips lag behind: shift them back by part of the pan (in world pixels).
   world.querySelectorAll('.sv-bd[data-pan]').forEach(function(el) {
     var k = 1 - (+el.dataset.pan || 1);
-    el.style.transform = k ? 'translate3d(' + Math.round(px * k) + 'px,0,0)' : '';
+    el.style.transform = k ? 'translate3d(' + Math.round(px / _svScale * k) + 'px,0,0)' : '';
   });
   var sc = document.getElementById('sv-scene');
   if (sc) { sc.classList.toggle('sv-at-start', px <= 0); sc.classList.toggle('sv-at-end', px >= max); }
@@ -1234,8 +1276,8 @@ function _svPanBy(dx) { _svPanTo((_svPanX[_svActiveArea] || 0) + dx); }
 function _svPanArea(area, where) {
   var x = _svPanX[area];
   if (where === 'start') x = 0;
-  else if (where === 'end') x = SV_WORLD_W;
-  else if (x == null) x = (SV_WORLD_W - _svViewW()) / 2;
+  else if (where === 'end') x = SV_WORLD_W * _svScale;
+  else if (x == null) x = (SV_WORLD_W * _svScale - _svViewW()) / 2;
   _svPanTo(x);
 }
 
@@ -1287,7 +1329,7 @@ function _svBindPan() {
     _svPanBy(e.key === 'ArrowLeft' ? -240 : 240);
   });
   sc.addEventListener('mouseleave', function() { _svEdge.dir = 0; });
-  window.addEventListener('resize', function() { if (_svOpen) _svPanTo(_svPanX[_svActiveArea] || 0); });
+  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); } });
 }
 
 // Resting the mouse at the scene's left or right edge pans that way, after a

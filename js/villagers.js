@@ -157,6 +157,24 @@
     return _loading;
   }
 
+  // ── Faces (the Families window) ─────────────────────────────────────────
+  // A villager's face, cut from the first frame of their idle sheet facing
+  // the camera: a square round the head, placed from the sheet's foot point
+  // (44 px for the mouse's 96 px frame, x 26, y 14), drawn at 1× so it stays
+  // crisp. `size` other than 44 scales it. Empty until the sheet data loads.
+  const FACE = { w: 44, dx: -23, dy: -63 };   // from the foot point
+  function faceBox(s) { return { x: s.foot.x + FACE.dx, y: s.foot.y + FACE.dy, w: FACE.w }; }
+  function faceHtml(species, size = FACE.w, cls = '') {
+    const s = _meta && spriteFor(_meta, species || 'Mice', 'idle', 's');
+    if (!s) return '';
+    const f = faceBox(s), k = size / f.w;
+    const bw = s.frames * s.w * k, bh = 8 * s.h * k;
+    return `<span class="kwv-face${cls ? ' ' + cls : ''}" aria-hidden="true" style="width:${size}px;height:${size}px;`
+      + `background-image:url('${s.url}');background-size:${bw}px ${bh}px;background-position:${-f.x * k}px ${-(s.row * s.h + f.y) * k}px"></span>`;
+  }
+  // The sheet data loads at start-up, so faces are ready when Families opens.
+  if (typeof fetch === 'function' && typeof document !== 'undefined') setTimeout(() => { load(); }, 0);
+
   // ── Drawing ─────────────────────────────────────────────────────────────
   function injectStyles() {
     if (document.getElementById('kwv-styles')) return;
@@ -327,6 +345,7 @@
     get meta() { return _meta; },
     // For the engine: drawing and sheets.
     spriteFor, paint, makeFigure, injectStyles, dirFromVector, SPEED, reducedMotion,
+    faceHtml, _faceBox: faceBox,
     _dirFromVector: dirFromVector, _spriteFor: spriteFor, _loopPath: loopPath, _along: along, _flagFrom: flagFrom,
     _speciesKey: speciesKey, DIRS,
   };
