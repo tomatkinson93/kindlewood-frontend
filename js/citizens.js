@@ -402,15 +402,16 @@ function renderCitizenProfile(c) {
 
   // Housing status
   let housingHtml = '';
-  const houses = (typeof _housingData !== 'undefined') ? _housingData.houses : [];
+  // Their home, by its name in the Neighbourhood (js/neighbourhood.js); the
+  // button walks there and opens the house.
+  const hoods = (window.KWHood && KWHood.data) ? KWHood.data.neighbourhoods : [];
   if (c.house_id) {
-    const house = houses.find(h => h.id === c.house_id);
-    housingHtml = `<div class="cp-housing housed">🏡 Lives in <strong>${house?.name || 'a Willow Hut'}</strong></div>`;
+    let house = null;
+    for (const n of hoods) house = house || n.houses.find(h => h.id === c.house_id);
+    const hn = String(house?.display || 'a home in the Neighbourhood').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    housingHtml = `<div class="cp-housing housed">🏡 Lives in <button class="cp-housing-btn" onclick="closeCitizenProfile(); KWHood.open({ house: ${Number(c.house_id)} })">${hn}</button></div>`;
   } else {
-    const hasHousing = gameData?.buildings?.some(b => b.type === 'starter_house' && b.level > 0);
-    housingHtml = hasHousing
-      ? `<div class="cp-housing unhoused">🚶 Unhoused — <button class="cp-housing-btn" onclick="closeCitizenProfile(); openHousingModal()">Manage Housing</button></div>`
-      : `<div class="cp-housing unhoused">🚶 Unhoused — <button class="cp-housing-btn" onclick="closeCitizenProfile(); switchTab('buildings')">Build a Willow Hut</button></div>`;
+    housingHtml = `<div class="cp-housing unhoused">🚶 No bed — <button class="cp-housing-btn" onclick="closeCitizenProfile(); KWHood.open()">Find them a home</button></div>`;
   }
 
   // Traits

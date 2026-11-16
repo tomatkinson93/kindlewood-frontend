@@ -421,8 +421,10 @@ body.kw-shell #settlement-view .sv-header {
 }
 /* Panels are pinned to the viewport so horizontal panning can't carry them
    off-screen. */
-body.kw-shell #settlement-view .sv-build-panel,
-body.kw-shell #settlement-view .sv-housing-modal { position: fixed; }
+body.kw-shell #settlement-view .sv-build-panel { position: fixed; }
+/* In Build mode the moment cards step aside: they sat on the build panel and
+   took its taps. They are back when building is done. */
+body.kw-shell.sv-building #kw-moments { display: none; }
 
 body.kw-shell .sv-back-btn {
   display: inline-flex; align-items: center; justify-content: center;

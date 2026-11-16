@@ -42,7 +42,7 @@
     jeweller:      craft('jeweller'),
     smelter:       craft('smelter'),
     guild_hall:    { opens: 'Upgrade the town',     run: () => call('openTierUpgradeModal') },
-    neighbourhood: { opens: 'See the homes',        run: () => call('_openHousingModal') },
+    neighbourhood: { opens: 'Walk to the homes',    run: () => (global.KWHood ? global.KWHood.open() : null) },
     fishing_post:  { opens: 'Go fishing',           run: () => call('visitFishingPost'), leave: true },
   };
   const PANEL = { opens: 'Workers and upgrades', panel: true };
@@ -68,6 +68,9 @@
       run: () => call('_svSwitchArea', 'outskirts', false, 'start') },
     { id: 'signpost-town', kind: 'signpost', area: 'outskirts', x: 3,  y: 93, label: '← To town', opens: 'Walk back to town', flip: true,
       run: () => call('_svSwitchArea', 'town', false, 'end') },
+    // The Neighbourhood's way back; it lands by the Neighbourhood's door (68 % along Town).
+    { id: 'signpost-hood', kind: 'signpost', area: 'neighbourhood', x: 4, y: 93, label: '← To town', opens: 'Walk back to town', flip: true,
+      run: () => call('_svSwitchArea', 'town', false, 0.68 * 2600) },
     { id: 'green',         kind: 'green',    area: 'town',      x: 6,  y: 94, label: 'Village green', opens: 'Hold a festival',
       run: () => global.KWTown && global.KWTown.open('festival'), show: s => !!s.festivals },
     { id: 'wonder-site',   kind: 'wonder',   area: 'outskirts', x: 95, y: 94, label: 'Wonder site', opens: 'Build a Wonder',

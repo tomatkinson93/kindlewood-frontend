@@ -43,6 +43,8 @@
   const TOOLS = {
     home: [
       // Phones have no room for the town card beside the scene: a chip opens it.
+      // In the Neighbourhood: the way back (its signpost may be a long walk off screen).
+      { key: 'totown',   label: 'To town',  glyph: '←', unlock: () => inHood(), run: () => { const b = doc.querySelector('#sv-prop-signpost-hood .kwh-btn'); if (b) b.click(); else call('_svSwitchArea', 'town'); } },
       { key: 'town',     label: 'Town',     glyph: '🏡', run: () => global.KWContext && global.KWContext.openTownWindow(), phone: true },
       // Build mode in the scene (docs/HOME_SCENE.md §2.3): plots show, buildings
       // move and open their manage panel. It reads "Done" while on.
@@ -54,7 +56,7 @@
         run: () => { if (global.KWHome) global.KWHome.setNames(!global.KWHome.namesOn()); } },
       // Every building see-through and click-through at once, or back
       // (js/building-menu.js); until the player leaves Home. Pressed while on.
-      { key: 'seethrough', label: 'See through', glyph: '👁', on: () => !!(global.KWBuildingMenu && global.KWBuildingMenu.allMin()),
+      { key: 'seethrough', label: 'See through', glyph: '👁', unlock: () => !inHood(), on: () => !!(global.KWBuildingMenu && global.KWBuildingMenu.allMin()),
         run: () => { if (global.KWBuildingMenu) global.KWBuildingMenu.toggleAll(); } },
       // The rest are the buildings themselves now (docs/HOME_SCENE.md §2,
       // js/home-scene.js), and a plain list in the profile menu.
@@ -217,6 +219,7 @@
   }
 
   // ── Switching ───────────────────────────────────────────────────────────
+  const inHood = () => fn('_svActiveAreaName') && global._svActiveAreaName() === 'neighbourhood';
   const svOpen = () => { const v = doc.getElementById('settlement-view'); return !!(v && v.style.display !== 'none' && v.classList.contains('sv-visible')); };
   function toView(key) {
     // navGoMap re-selects the home tile; that is the game's doing, not a
