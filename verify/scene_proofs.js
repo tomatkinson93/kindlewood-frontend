@@ -3,7 +3,7 @@
 // the sprite packer (scripts/pack_sprites.js) and the villager helpers
 // (js/villagers.js). Step 3, buildings are the buttons (js/home-scene.js).
 // Step 4, Build mode (js/settlement-view.js). Step 5, the villager engine
-// (js/villager-engine.js).
+// (js/villager-engine.js). Step 6, behaviour (the same file).
 // Later steps add the cast, errands, chat and selection.
 //   node verify/scene_proofs.js
 const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
@@ -356,6 +356,43 @@ console.log('12. The cast and walking (§3.2–3.4)');
   check('12x. a picture only: the engine never calls the server', !/apiFetch|fetch\(/.test(E));
   check('12y. loaded after js/villagers.js; the scene\'s hooks reach it', H.indexOf('/js/villager-engine.js?v=') > H.indexOf('/js/villagers.js?v=') && /cast\(\)\.sceneShown\(T\.layer\)/.test(VJ) && /cast\(\)\.setPaused\(T\.paused\)/.test(VJ));
   check('12z. the loop measures its own cost per frame (the phone pass targets under 2 ms)', /S\.ms = S\.ms \* 0\.95/.test(E) && /get frameMs\(\)/.test(E));
+}
+
+console.log('13. Behaviour (§3.5)');
+{
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e);
+  vm.runInContext(read('js/villager-engine.js'), e);
+  const C = e.KWCast;
+  const work = { key: 'farm', x: 100, y: 500 }, tavern = { key: 'tavern', x: 300, y: 520 }, home = { key: 'neighbourhood', x: 600, y: 510 };
+  const ctx = (phase, o = {}) => Object.assign({ phase, work, tavern, home, doors: [work, tavern, home], spots: [{ x: 50, y: 600 }], ground: () => ({ x: 400, y: 600 }), owl: false }, o);
+  const tally = (c, n = 2000, seed = 3) => { const r = C._seeded(seed), t = {}; for (let i = 0; i < n; i++) { const g = C._chooseErrand(c, r); const k = g.kind === 'door' ? g.key : g.kind; t[k] = (t[k] || 0) + 1; } return t; };
+  const day = tally(ctx('day')), dawn = tally(ctx('dawn')), dusk = tally(ctx('dusk')), night = tally(ctx('night')), owl = tally(ctx('night', { owl: true }));
+  const share = (t, k) => (t[k] || 0) / 2000;
+  check('13a. morning sends workers to their buildings; by day now and then', share(dawn, 'farm') > 0.35 && share(day, 'farm') > 0.08 && share(day, 'farm') < share(dawn, 'farm'));
+  check('13b. by day most errands are outdoors (doors are sparing: indoors lasts 20–60 s)', (share(day, 'spot') + share(day, 'ground')) > 0.75);
+  check('13c. in the evening the tavern and home', share(dusk, 'tavern') > 0.25 && share(dusk, 'neighbourhood') > 0.1 && !dusk.farm);
+  check('13d. at night everyone goes home …', share(night, 'neighbourhood') === 1);
+  check('13e. … except the two or three still out, who stay out', !owl.neighbourhood && !owl.farm && !owl.tavern);
+  check('13f. no home door: any door, then open ground', C._chooseErrand(ctx('night', { home: null }), C._seeded(1)).kind === 'door' && C._chooseErrand(ctx('night', { home: null, doors: [] }), C._seeded(1)).kind !== 'door');
+  const owls = C._nightOwls([12, 4, 9, 30, 7]);
+  check('13g. night owls: three at most, always the same ones (never flickers)', owls.size === 3 && [...owls].join() === '4,7,9' && [...C._nightOwls([9, 7, 4, 12, 30])].join() === '4,7,9' && C.NIGHT_OUT === 3);
+  const vs = [{ id: 1, x: 0, y: 0, free: true }, { id: 2, x: 150, y: 0, free: true }, { id: 3, x: 900, y: 0, free: true }, { id: 4, x: 20, y: 10, free: true, selected: true },
+    { id: 5, x: 30, y: 0, free: true, child: true }, { id: 6, x: 10, y: 5, free: false }];
+  const pairs = C._chatPairs(vs, 1e6, {});
+  check('13h. chat: two free grown-ups within about 200 px pair up', pairs.length === 1 && pairs[0].join() === '1,2');
+  check('13i. a selected villager, a child or a busy one never starts a chat; far apart, no chat', !pairs.flat().some(id => [3, 4, 5, 6].includes(id)));
+  check('13j. a pair does not chat again for 2 minutes', C._chatPairs(vs, 1e6, { '1_2': 1e6 - 60000 }).length === 0 && C._chatPairs(vs, 1e6, { '1_2': 1e6 - 121000 }).length === 1 && C.CHAT_COOLDOWN === 120000);
+  const f = C._followPoint({ x: 500, y: 500, tx: 700, ty: 500 });
+  check('13k. a child walks a little behind a parent', f.x < 500 && Math.abs(f.x - 500) <= 30 && C._followPoint({ x: 500, y: 500, tx: 500, ty: 500 }).x < 500);
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  check('13l. indoors: fade at the door, stay 20–60 s (night: till morning), the building bounces', C.INDOORS_MS[0] === 20000 && C.INDOORS_MS[1] === 60000 && /kwh-bounce/.test(E) && /@keyframes kwh-bounce/.test(CSS) && /S\.phase === 'night' && !S\.owls\.has\(v\.id\)/.test(E));
+  check('13m. a chat lasts 4–7 s with a bubble passed back and forth (dots or a tiny picture)', /CHAT_MS = \[4000, 7000\]/.test(E) && /SAY = \['…'/.test(E) && /\.kwv-say \{/.test(CSS));
+  check('13n. children go indoors with their parent and come out after', /k\.child && k\.state !== 'indoors' && live\(k\) && parentsOf\(k\.c\)\.includes\(v\.id\)/.test(E) && /parentOf\(v\)\.state === 'indoors'/.test(E));
+  check('13o. evening and night: the tavern glows; no chats at night; the cast stops changing at night',
+    /kwv-night/.test(E) && /\.kwv-night \[data-kwh="tavern"\]/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night'\) rotate\(\)/.test(E));
+  check('13p. the time of day is the game clock (Dev Tools time included)', /global\.KWClock \? global\.KWClock\.phase\(\)\.phase/.test(E));
+  check('13q. a chat gives up if the two never meet', /a\.until = now \+ 8000/.test(E) && /now >= v\.until\) endChat\(v, now\)/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
