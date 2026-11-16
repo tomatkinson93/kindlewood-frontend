@@ -156,6 +156,7 @@ const h = { console, Math, Date, JSON, Promise, setTimeout, clearTimeout,
 for (const f of ['openInventoryModal', 'visitTavern', 'openMarket', 'openLibrary', 'openCrafting', 'openTierUpgradeModal', '_openHousingModal',
   'visitFishingPost', 'closeSettlementView', '_svSwitchArea', 'openCraftingAny', 'closeProfileMenu']) h[f] = rec(f);
 h.KWTown = { open: rec('KWTown.open') };
+h.KWHood = { open: rec('KWHood.open') };
 h.window = h; vm.createContext(h);
 vm.runInContext(read('js/home-scene.js'), h);
 const KH = h.KWHome;
@@ -165,7 +166,7 @@ const visualKeys = [...SVJ.slice(SVJ.indexOf('const SV_VISUALS = {'), SVJ.indexO
 console.log('6. What a building opens (§2.2)');
 {
   const expect = { granary: 'openInventoryModal', tavern: 'visitTavern', market: 'openMarket', library: 'openLibrary', workshop: 'openCrafting',
-    smithy: 'openCrafting', jeweller: 'openCrafting', guild_hall: 'openTierUpgradeModal', neighbourhood: '_openHousingModal', fishing_post: 'visitFishingPost' };
+    smithy: 'openCrafting', jeweller: 'openCrafting', guild_hall: 'openTierUpgradeModal', neighbourhood: 'KWHood.open', fishing_post: 'visitFishingPost' };
   const wrong = Object.entries(expect).filter(([k, fnName]) => { calls.length = 0; KH.open(k, () => calls.push(['panel'])); return !calls.some(c => c[0] === fnName); });
   check('6a. each building in the table opens its screen', !wrong.length, wrong.map(w => w[0]).join(' '));
   calls.length = 0; KH.open('smithy');
@@ -186,7 +187,7 @@ console.log('6. What a building opens (§2.2)');
 console.log('7. Props: the green, the wonder site, the signposts');
 {
   const ids = st => KH.props(st).map(p => p.id).sort().join();
-  check('7a. a Camp: both signposts and the village green', ids({ tier: 'camp', festivals: true }) === 'green,signpost-out,signpost-town');
+  check('7a. a Camp: both signposts and the village green', ids({ tier: 'camp', festivals: true }) === 'green,signpost-hood,signpost-out,signpost-town');
   check('7b. the wonder site from City tier', ids({ tier: 'city', festivals: true }).includes('wonder-site') && !ids({ tier: 'town', festivals: true }).includes('wonder-site'));
   calls.length = 0; KH.openProp('signpost-out'); KH.openProp('signpost-town'); KH.openProp('green'); KH.openProp('wonder-site');
   check('7c. signposts switch area (to the near end); the green opens Festivals; the site opens Wonders',
@@ -270,7 +271,7 @@ console.log('10. Names, buttons and the profile menu (§2.4, §2.5)');
   check('10d. nameplates show on hover, focus, Show names and the 4-second peek; hidden otherwise',
     /\.kwh-plate \{[^}]*opacity: 0/.test(C) && /:hover \.kwh-plate/.test(C) && /:focus-visible \.kwh-plate/.test(C) && /kwh-names \.kwh-plate/.test(C) && /kwh-peek \.kwh-plate/.test(C) && /4000/.test(read('js/home-scene.js')));
   check('10e. buildings, props and empty plots are real buttons with labels', /createElement\('button'\)/.test(SVJ) && /setAttribute\('aria-label', H \? H\.label\(/.test(SVJ) && /div\.setAttribute\('aria-label'/.test(SVJ));
-  check('10f. Tab goes left to right; the hidden area is inert', /function _svTabOrder/.test(SVJ) && /\.inert = area/.test(SVJ));
+  check('10f. Tab goes left to right; the hidden area is inert', /function _svTabOrder/.test(SVJ) && /l\.inert = a !== area;/.test(SVJ));
   check('10g. a building click goes through KWHome.open', /_svOpenBuilding\(o\.id/.test(SVJ) && /KWHome\.open\(id, panel\)/.test(SVJ));
   check('10h. loaded: home-scene.js, its stylesheet, and the menu\'s #pm-town', /\/js\/home-scene\.js\?v=/.test(H) && /\/css\/home-scene\.css\?v=/.test(H) && /id="pm-town"/.test(H) && /KWHome\.fillProfile\(\)/.test(read('js/main.js')));
 }
@@ -425,7 +426,7 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
   check('14g. the map leaves the arrow keys alone while Home shows', /window\._svIsOpen\(\)\) return;/.test(MAP));
   check('14h2. the scene pans as a native horizontal scroller: momentum from the browser, vertical swipes left to the page, no overscroll "back", the track sized to the pan limit',
     /\.sv-scene \{ cursor: grab; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; overscroll-behavior-x: contain;/.test(CSS) && /class="sv-track" id="sv-track"/.test(S2)
-    && /tr\.style\.width = Math\.round\(SV_WORLD_W \* _svScale \+ _svRightInset\(\)\)/.test(S2) && /sc\.addEventListener\('scroll', _svOnScroll, \{ passive: true \}\)/.test(S2));
+    && /tr\.style\.width = Math\.round\(_svWorldW\(\) \* _svScale \+ _svRightInset\(\)\)/.test(S2) && /sc\.addEventListener\('scroll', _svOnScroll, \{ passive: true \}\)/.test(S2));
   check('14h3. the mouse drags from anywhere (a building or a villager too): 1:1, pointer captured; under 8 px a click, over it a pan that opens nothing; touch is left to the browser; keys and the edge still pan',
     /var _SV_PAN_PX = 8;/.test(S2) && /if \(e\.pointerType !== 'mouse' \|\| e\.button !== 0\) return;/.test(S2) && /sc\.setPointerCapture\(e\.pointerId\)/.test(S2)
     && /sc\.scrollLeft = press\.start - dx;/.test(S2) && /if \(_svPanned\) \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}/.test(S2) && /_svPanBy\(e\.key === 'ArrowLeft' \? -240 : 240, true\)/.test(S2) && /function _svEdgeTick/.test(S2)
@@ -504,7 +505,7 @@ console.log('15. Selecting a villager: the radial menu (§3.6)');
   check('15h. each villager is a real button with a label; a small hit box takes clicks', /makeFigure\(true\)/.test(E) && /setAttribute\('aria-label', nameLine\(c\)/.test(E) && /\.kwv-cit \.kwv-hit \{ position: absolute; pointer-events: auto/.test(CSS) && /\.kwv-cit \{[^}]*pointer-events: none/.test(CSS));
   check('15i. selected: stands facing the camera, bright outline, a ring and their name; nobody chats with them', /if \(v\.selected \|\| v\.pressed\) return;/.test(E) && /\.kwv-selected \.kwv-sprite/.test(CSS) && /\.kwv-ring \{/.test(CSS) && /\.kwv-name \{/.test(CSS) && /selected: !!v\.selected \|\| !!v\.held/.test(E));
   check('15j. click elsewhere, Esc, or a button deselects; a window from the menu holds them until it closes', /addEventListener\('pointerdown'[\s\S]{0,400}if \(M\.v && v !== M\.v\) deselect\(true\)/.test(E) && /e\.key !== 'Escape' \|\| !M\.v/.test(E) && /v\.held = true;[\s\S]{0,200}deselect\(true\)/.test(E) && /const gone = v\.heldBy \? !stillOpen\(v\.heldBy\) : now - v\.heldFrom > 3000;/.test(E));
-  check('15k. the buttons: profile, family line, the job picker (or trade) in the profile, their home', /call\('openCitizenProfile', id\)/.test(E) && /KWFamilies\.open\(c\.family_id \? \{ family: c\.family_id \}/.test(E) && /focusInProfile\('\.cp-role-section \.cp-role-select'\)/.test(E) && /data-house="' \+ c\.house_id/.test(E) && /data-house="' \+ house\.id/.test(S3));
+  check('15k. the buttons: profile, family line, the job picker (or trade) in the profile, their home', /call\('openCitizenProfile', id\)/.test(E) && /KWFamilies\.open\(c\.family_id \? \{ family: c\.family_id \}/.test(E) && /focusInProfile\('\.cp-role-section \.cp-role-select'\)/.test(E) && /KWHood\.open\(c\.house_id != null \? \{ house: c\.house_id \} : \{\}\)/.test(E) && /if \(target\) openHouse\(target\.id\);/.test(read('js/neighbourhood.js')));
   check('15l. keyboard: Enter opens it with the first button focused; arrows move between buttons; Tab reaches villagers after the buildings',
     /if \(e\.detail !== 0\) return; if \(v\.selected\) deselect\(true\); else select\(v, true\)/.test(E) && /'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'/.test(E) && /:scope > \.kwv-villager, :scope > \.kwv-radial/.test(S3));
   check('15q. a press-and-release selects, even if they walk a little meanwhile (they stop while pressed); more than 10 px is a pan',
@@ -525,7 +526,7 @@ console.log('16. Phones and comfort (step 8), names, faces');
   const grab = (src, name) => { const i = src.indexOf('function ' + name + '('); let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}' && !--d) return src.slice(i, k + 1); } return ''; };
   const bx = {}; vm.createContext(bx); vm.runInContext(grab(S4, '_svScaleFor'), bx);
   check('16a. short screens draw the town smaller in whole steps: 1× from 600 px tall, ¾ from 420, else ½', bx._svScaleFor(810) === 1 && bx._svScaleFor(690) === 1 && bx._svScaleFor(500) === 0.75 && bx._svScaleFor(287) === 0.5);
-  check('16b. the scaled world still pans to its edges and keeps the far strips in step', /SV_WORLD_W \* _svScale - _svSeenW\(\)/.test(S4) && /scale\(' \+ _svScale \+ '\)/.test(S4) && /px \/ _svScale \* k/.test(S4) && /transform-origin: 0 0/.test(CSS));
+  check('16b. the scaled world still pans to its edges and keeps the far strips in step', /_svWorldW\(\) \* _svScale - _svSeenW\(\)/.test(S4) && /scale\(' \+ _svScale \+ '\)/.test(S4) && /px \/ _svScale \* k/.test(S4) && /transform-origin: 0 0/.test(CSS));
   check('16c. Build mode: "Move to…" buttons move a building without dragging (keyboard, switch, fiddly touch); focus follows it',
     /function _svMoveHtml\(slot\)/.test(S4) && /_svMoveHtml\(slot\)/.test(S4.slice(S4.indexOf('function _openBuildPanel'))) && /b\.focus\(/.test(grab(S4, '_svMoveTo')) && /min-height: 44px/.test(CSS));
   check('16d. on touch, the build panel\'s buttons are at least 44 px; reduced motion switches the lit windows instead of fading', /pointer: coarse\) \{\s*#settlement-view \.sv-bp-build-btn/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwh-lit, #settlement-view \.sv-glow \{ transition: none; \}/.test(CSS));
@@ -792,6 +793,54 @@ console.log('23. Villagers keep a working day (seeded)');
     /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(first && wd && working\(v, now\)\) \{ v\.x = wd\.x; v\.y = wd\.y; goIndoors\(v, now, wk\); \}/.test(E)
     && /if \(working\(v, now\)\) \{ const d = doorOf\(workKey\(v\)\); walkTo\(v, doorSpot\(d, othersOf\(v\)\), d\.key\); return; \}/.test(E) && /const b = ROLE_BUILDING\[c\.role\];\s*return \(b && builtArea\(b\)\) \|\| 'town';/.test(E));
   check('23g. it stays cosmetic: the engine sends nothing to the server', !/apiFetch|fetch\(/.test(E));
+}
+
+// ── 24. The Neighbourhood scene (js/neighbourhood.js; HOME_SCENE.md Part C, step 11) ──
+console.log('24. The Neighbourhood scene');
+{
+  const g = { console, Math, Date, Map, Set, Promise, setTimeout, document: null }; g.window = g; vm.createContext(g);
+  vm.runInContext(read('js/neighbourhood.js'), g);
+  const KD = g.KWHood, NJ = read('js/neighbourhood.js'), E = read('js/villager-engine.js'), S = read('js/settlement-view.js'), CSS = read('css/home-scene.css'), IX = read('index.html'), PL = read('js/places.js');
+  const camp = [7, 8, 9, 10, 25, 26], city = Array.from({ length: 36 }, (_, i) => i);
+  const lc = KD.layout(camp), lz = KD.layout(city);
+  check('24a. two rows: the back row, and the front row half a plot along; feet at 58 % and 92 % of the height',
+    lc.at(8).y === 58 && lc.at(26).y === 92 && Math.abs((lc.at(26).x - lc.at(8).x) - KD.PITCH / 2) < 0.01 && Math.abs((lc.at(9).x - lc.at(8).x) - KD.PITCH) < 0.01);
+  check('24b. the world is only as wide as the plots in use: a camp is a short street (never narrower than the view), a city the whole length',
+    lc.w === KD.MIN_W && lz.w > 4500 && lz.w < 5200 && lc.at(7).x > KD.MARGIN && lc.at(10).x < lc.w - KD.MARGIN && lz.at(0).x >= KD.MARGIN && lz.at(35).x <= lz.w - KD.MARGIN / 2);
+  const xs = city.map(p => lz.at(p)), apart = (a, b) => Math.hypot(a.x - b.x, (a.y - b.y) * 7);   // 1 % of 700 px
+  let close = Infinity; for (let i = 0; i < 36; i++) for (let j = i + 1; j < 36; j++) close = Math.min(close, apart(xs[i], xs[j]));
+  check('24c. no two plots stand closer than a house is wide, so no house covers another', close >= 215 && KD.PITCH >= 225);
+  check('24d. the plots drawn are the tier\'s open ones and every house\'s (a town over its number keeps its homes)',
+    KD.plotsInUse({ open: [8, 9], houses: [{ plot: 9 }, { plot: 30 }] }).sort((a, b) => a - b).join() === '8,9,30');
+  check('24e. a house is an ordinary scene button: the engine reads its door from its style\'s art, paths and the night glow follow',
+    /data-kwh="house-\$\{h\.id\}" data-kwh-art="house_\$\{esc\(h\.style\)\}"/.test(NJ) && /KWHome\.art\(btn\.getAttribute\('data-kwh-art'\) \|\| key\)/.test(E) && /KWCast\.resurvey\(\)/.test(NJ)
+    && /id="sv-layer-fg-neighbourhood"/.test(S) && /\/js\/neighbourhood\.js\?v=/.test(IX));
+  check('24f. an empty house is dark at night; free plots show only in Build mode, as staked ground',
+    /\$\{empty \? ' kwh-dark' : ''\}/.test(NJ) && /if \(!h && \(!bm \|\| !n\.open\.includes\(plot\)\)\) continue;/.test(NJ) && /\.kwn-stake \{/.test(CSS));
+  check('24g. a house has the building menu: Enter opens its window, Demolish pulls that house down (asking first); no Upgrade',
+    /KWBuildingMenu\.click\(slot, \{ key: 'house-' \+ h\.id, label: h\.display, enter: \(\) => openHouse\(h\.id\), demolish: \(\) => demolish\(h\.id\) \}, e\)/.test(NJ)
+    && /KWDialog\.confirm\(\{ title: `Pull down \$\{h\.display\}\?`, danger: true/.test(NJ) && /post\(`\/houses\/\$\{id\}\/demolish`\)/.test(NJ));
+  check('24h. the house\'s window: who lives there (each one opens their profile), move in and out, rename, change its look (looks only)',
+    /id: 'house', icon: '🏡', size: 'S'/.test(NJ) && /who\(el\) \{ call\('openCitizenProfile'/.test(NJ) && /housing\('\/unassign'/.test(NJ) && /housing\('\/assign'/.test(NJ)
+    && /'\/api\/housing\/' \+ w\.state\.id \+ '\/name'/.test(NJ) && /post\(`\/houses\/\$\{w\.state\.id\}\/style`/.test(NJ) && /Looks only: every home holds four\./.test(NJ));
+  check('24i. Build mode: a free plot builds a home in a chosen style; a house is picked up and put on a plot or swapped with another, or pulled down',
+    /post\(`\/\$\{n\.id\}\/houses`, \{ plot, style: S\.style \|\| 'thatch' \}\)/.test(NJ) && /if \(S\.picked && \(!h \|\| h\.id !== S\.picked\)\) return void moveTo\(plot\);/.test(NJ)
+    && /post\(`\/houses\/\$\{id\}\/move`, \{ plot, neighbourhood_id: S\.hoodId \}\)/.test(NJ) && /KWHood\.buildModeChanged\(\)/.test(S) && /\.kwn-picked \.kwh-art/.test(CSS));
+  check('24j. the cast is who lives there (and anyone with no bed); those at work are away, leaving and coming home by the signpost; home is their own door',
+    /const areaFor = c => \(inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\)\);/.test(E)
+    && /if \(inHood\(\)\) return v\.c\.house_id != null \? doorOf\('house-' \+ v\.c\.house_id\) : null;/.test(E) && /\(inHood\(\) && \(\(why === 'rotate' && homeDoor\(v\)\) \|\| S\.exits\[0\]\)\)/.test(E)
+    && /return c\.house_id == null \? true : n\.houses\.some\(h => h\.id === Number\(c\.house_id\)\);/.test(NJ) && /\(outAtWork\(c\) \? 'w' : ''\)/.test(E));
+  check('24k. Who\'s here in a house: at home, or visiting',
+    /if \(key\.indexOf\('house-'\) === 0\) return key === 'house-' \+ v\.c\.house_id \? 'at home' : 'visiting';/.test(E));
+  check('24l. ways in and out: the Neighbourhood\'s door in Town (in Build mode, straight to building homes), a signpost and a "To town" chip back; the old housing windows are gone',
+    /neighbourhood: \{ opens: 'Walk to the homes',\s+run: \(\) => \(global\.KWHood \? global\.KWHood\.open\(\) : null\) \}/.test(read('js/home-scene.js')) && /KWHood\.open\(\{ build: true \}\)/.test(S)
+    && /id: 'signpost-hood', kind: 'signpost', area: 'neighbourhood'/.test(read('js/home-scene.js')) && /key: 'totown'/.test(PL)
+    && !fs.existsSync(path.join(ROOT, 'js/housing.js')) && !/housing-modal/.test(IX) && !/sv-housing-modal/.test(S) && /global\.openHousingModal = \(\) => open\(\);/.test(NJ));
+  check('24m. each area has its own width; the pan, the track and the far strips follow the area showing',
+    /var SV_AREA_W = \{ town: SV_WORLD_W, outskirts: SV_WORLD_W, neighbourhood: SV_WORLD_W \};/.test(S) && /world\.style\.width = _svWorldW\(\) \+ 'px';/.test(S) && /typeof where === 'number'/.test(S));
+  check('24n. on phones the moment cards step aside in Build mode (they covered the build panel and took its taps)',
+    /classList\.toggle\('sv-building', _svBuildMode\)/.test(S) && /body\.kw-shell\.sv-building #kw-moments \{ display: none; \}/.test(read('css/mobile-shell.css'))
+    && /body\.kw-shell #settlement-view \.sv-build-panel \{ position: fixed; \}/.test(read('css/mobile-shell.css')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

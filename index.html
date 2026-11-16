@@ -124,7 +124,7 @@
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
   <link rel="stylesheet" href="/css/tokens.css?v=h5aa3c0f1">
-  <link rel="stylesheet" href="/css/main.css?v=h38ae2d04">
+  <link rel="stylesheet" href="/css/main.css?v=hde47abb7">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=h440c5c14">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=h94c765de">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=h603e58c0">
@@ -132,7 +132,7 @@
   <link rel="stylesheet" href="/css/carousel.css?v=h7a987398">
   <link rel="stylesheet" href="/css/hero.css?v=h42deb4df">
   <link rel="stylesheet" href="/css/mobile.css?v=h61063c43">
-  <link rel="stylesheet" href="/css/mobile-shell.css?v=h59adca8b">
+  <link rel="stylesheet" href="/css/mobile-shell.css?v=h1e2feaf8">
   <link rel="stylesheet" href="/css/clans.css?v=h0a034a65">
   <link rel="stylesheet" href="/css/market.css?v=hbe35ce88">
   <link rel="stylesheet" href="/css/careers.css?v=hcbc56171">
@@ -153,7 +153,7 @@
   <link rel="stylesheet" href="/css/first-steps.css?v=h05c0fe7a">
   <link rel="stylesheet" href="/css/modal-sizes.css?v=he7de3129">
   <link rel="stylesheet" href="/css/places.css?v=h379133cc"><!-- the five places; after mobile-shell.css -->
-  <link rel="stylesheet" href="/css/home-scene.css?v=h603a338f"><!-- the Home scene: buildings are the buttons -->
+  <link rel="stylesheet" href="/css/home-scene.css?v=h2555e460"><!-- the Home scene: buildings are the buttons -->
   <link rel="stylesheet" href="/css/context.css?v=h2f16fbe5"><!-- the context panel and the town card -->
   <link rel="stylesheet" href="/css/news.css?v=h9f48e0ed"><!-- the News window (the bell) -->
   <link rel="stylesheet" href="/css/hud.css?v=h891388c3"><!-- the top bar and the map's controls -->
@@ -946,7 +946,7 @@
   <script defer src="/js/window.js?v=h199528b3"></script>
   <script defer src="/js/life.js?v=he5496c45"></script>
   <script defer src="/js/families.js?v=hb9287b84"></script>
-  <script defer src="/js/places.js?v=h24fd23f5"></script>
+  <script defer src="/js/places.js?v=hf605fd78"></script>
   <script defer src="/js/context.js?v=hc6c1da71"></script>
   <script defer src="/js/news.js?v=h0410c42e"></script>
   <script defer src="/js/hud.js?v=ha3d269db"></script>
@@ -956,7 +956,7 @@
   <script defer src="/js/journeys.js?v=hb8da9974"></script>
   <script defer src="/js/outposts.js?v=h6b2d1451"></script>
   <script defer src="/js/first-steps.js?v=hc54da18c"></script>
-  <script defer src="/js/a11y.js?v=h19f7c1e7"></script>
+  <script defer src="/js/a11y.js?v=hf4664c44"></script>
   <script defer src="/js/day-cycle.js?v=h2a3fee79"></script>
   <script defer src="/js/happening-effects.js?v=ha6050d7e"></script>
   <script defer src="/js/server-clock.js?v=ha95ec175"></script>
@@ -980,7 +980,7 @@
   <script defer src="/js/crafting.js?v=h7102f5f8"></script>
   <script defer src="/js/research.js?v=h66718ac4"></script>
   <script defer src="/js/career-balance.js?v=hd74b710b"></script>
-  <script defer src="/js/citizens.js?v=h34daa0d8"></script>
+  <script defer src="/js/citizens.js?v=h5fab6702"></script>
   <script defer src="/js/buildings.js?v=hfa470ce9"></script>
   <script defer src="/js/expeditions.js?v=h704c5542"></script>
   <script defer src="/js/seasons.js?v=hf364c56c"></script>
@@ -1025,7 +1025,6 @@
   <script defer src="/js/citizen-picker.js?v=he2ad86ff"></script>
   <script defer src="/js/quests.js?v=h33e1d924"></script>
   <script defer src="/js/fishing.js?v=h57f22bcf"></script>
-  <script defer src="/js/housing.js?v=h483d6501"></script>
   <script defer src="/js/events.js?v=h03164372"></script>
   <script defer src="/js/inventory.js?v=ha500d3b4"></script>
   <script defer src="/js/diplomacy.js?v=hcb3cc60f"></script>
@@ -1056,19 +1055,6 @@
   <script defer src="/js/mobile-shell.js?v=h258f1d6c"></script>
 
   <!-- VIEW ALL CITIZENS MODAL -->
-  <!-- HOUSING MODAL -->
-  <div class="housing-backdrop" id="housing-modal">
-    <div class="housing-modal" role="dialog" aria-modal="true" aria-label="Housing">
-      <div class="housing-modal-header">
-        <div class="housing-modal-title">🏡 Settlement Housing</div>
-        <button class="housing-modal-close" onclick="closeHousingModal()" aria-label="Close">✕</button>
-      </div>
-      <div class="housing-modal-body" id="housing-modal-body">
-        <div class="housing-loading">Loading…</div>
-      </div>
-    </div>
-  </div>
-
   <!-- CITIZEN PROFILE MODAL -->
   <div class="citizen-profile-backdrop" id="citizen-profile-modal">
     <div class="citizen-profile-modal" role="dialog" aria-modal="true" aria-label="Citizen profile">
@@ -1496,12 +1482,13 @@
     </div>
   </div>
 
-    <script defer src="/js/settlement-view.js?v=h177a3d5f"></script>
-    <script defer src="/js/home-scene.js?v=hd9cd9397"></script>
+    <script defer src="/js/settlement-view.js?v=h00ee6654"></script>
+    <script defer src="/js/home-scene.js?v=h9b256a98"></script>
+    <script defer src="/js/neighbourhood.js?v=h3d666be2"></script>
     <script defer src="/js/building-menu.js?v=h05d2edf9"></script>
     <script defer src="/js/home-ground.js?v=hba9fdeaf"></script>
     <script defer src="/js/villagers.js?v=h4afbc0a0"></script>
-    <script defer src="/js/villager-engine.js?v=h285ea21d"></script>
+    <script defer src="/js/villager-engine.js?v=h738288f9"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

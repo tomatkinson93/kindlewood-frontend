@@ -37,7 +37,7 @@ console.log('1. Icon buttons have names');
 console.log('2. Windows are dialogs');
 {
   const H = read('index.html');
-  const ids = ['diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'inventory-modal', 'housing-modal', 'citizen-profile-modal', 'all-citizens-modal',
+  const ids = ['diplomacy-modal', 'noticeboard-modal', 'quests-modal', 'inventory-modal', 'citizen-profile-modal', 'all-citizens-modal',
     /* Dev Tools' markup is in kindlewood-server */ ...(require('./_devmarkup').HAVE ? ['cheat-modal'] : []), 'online-modal', 'community-modal', 'tier-upgrade-modal', 'tier-celebration-modal', 'profile-modal', 'view-profile-modal', 'map-preview-modal', 'settings-backdrop'];
   const miss = ids.filter(id => { const i = H.indexOf(`id="${id}"`); if (i < 0) return true; const after = H.slice(i, i + 700); return !/role="dialog" aria-modal="true" aria-(label|labelledby)="[^"]+"/.test(after); });
   check('2a. each modal in the page is a named, modal dialog', miss.length === 0, miss.join(', '));

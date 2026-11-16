@@ -38,7 +38,8 @@
   // The whole flat meadow below the horizon (25 %), less a margin
   // (docs/ART_GUIDE.md §4.3). x is percent of the world's width.
   const MEADOW = [[1, 31], [99, 31], [99, 97], [1, 97]];
-  const GROUND = { town: MEADOW, outskirts: MEADOW };
+  const GROUND = { town: MEADOW, outskirts: MEADOW, neighbourhood: MEADOW };
+  const HOOD = 'neighbourhood';   // the Neighbourhood scene (js/neighbourhood.js): the cast is who lives there
   // Named spots worth walking to (percent). Placeholders until the new art.
   const SPOTS = {
     // In the gaps between the front row's buildings, and along the front.
@@ -339,7 +340,7 @@
       if (!btn) return;
       S.blocks.push({ l: rect.left, r: rect.left + rect.width, t: rect.top, b: foot });   // what stands here (for a clear spot)
       const key = btn.getAttribute('data-kwh');
-      const art = artEl && artEl.classList.contains('kwh-art') && global.KWHome ? global.KWHome.art(key) : artEl && artEl.classList.contains('kwh-hut') ? { hut: true } : null;
+      const art = artEl && artEl.classList.contains('kwh-art') && global.KWHome ? global.KWHome.art(btn.getAttribute('data-kwh-art') || key) : artEl && artEl.classList.contains('kwh-hut') ? { hut: true } : null;
       const d = doorPoint(rect, art);
       const g = onGround(S.area, d.x / W() * 100, d.y / H() * 100);
       const p = { key, x: g.x / 100 * W(), y: g.y / 100 * H(), btn };
@@ -367,6 +368,26 @@
   }
   // Their job's building, when it stands in this area; grown-ups only.
   const workKey = v => (!v.child && !isElder(v.c) && doorOf(ROLE_BUILDING[v.c.role])) ? ROLE_BUILDING[v.c.role] : null;
+  // ── The Neighbourhood (HOME_SCENE.md C.5) ──────────────────────────────
+  // Its cast is the people who live there (and anyone with no bed). Someone
+  // whose job has a building anywhere in town is away at it during their
+  // working hours: they walk out past the signpost in the morning and come
+  // back that way in the evening.
+  const inHood = () => S.area === HOOD;
+  const livesHere = c => (global.KWHood && global.KWHood.livesHere ? global.KWHood.livesHere(c) : false);
+  function outAtWork(c) {
+    if (isChild(c) || isElder(c) || !ROLE_BUILDING[c.role] || !builtArea(ROLE_BUILDING[c.role])) return false;
+    const k = gameClock();
+    return atWork(routine(Number(c.id), k.day), k.hour);
+  }
+  // The area someone is in, for the scene showing.
+  const areaFor = c => (inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea));
+  // Their own front door: their house in the Neighbourhood, the
+  // Neighbourhood's door in Town, the way back to town from the Outskirts.
+  function homeDoor(v) {
+    if (inHood()) return v.c.house_id != null ? doorOf('house-' + v.c.house_id) : null;
+    return S.area === 'town' ? doorOf('neighbourhood') : nearestDoor(v.x, v.y, S.exits);
+  }
   // At work right now (their routine, and not on an extra break).
   function working(v, now) {
     if (!workKey(v) || (v.breakUntil && now < v.breakUntil)) return false;
@@ -416,7 +437,7 @@
   // evening, home at night (all but two or three), else a spot or open ground.
   function errand(v, now) {
     const owls = S.owls.size ? S.owls : nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
-    const home = S.area === 'town' ? doorOf('neighbourhood') : nearestDoor(v.x, v.y, S.exits);
+    const home = homeDoor(v);
     // Their working day (§3.5a): at work, they go to it; on a break or off
     // work, they do what everyone does.
     if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
@@ -483,6 +504,7 @@
   // there, or are visiting.
   function insideWhy(v, key) {
     if (key === 'neighbourhood') return 'at home';
+    if (key.indexOf('house-') === 0) return key === 'house-' + v.c.house_id ? 'at home' : 'visiting';
     const w = ROLE_BUILDING[v.c.role];
     return w === key ? 'working' : 'visiting';
   }
@@ -503,7 +525,9 @@
     if (v.selected) { deselect(true); return; }   // deselect resumes a 'town' leave
     v.held = false;
     endChat(v, performanceNow());
-    const d = nearestDoor(v.x, v.y);
+    // Out of the Neighbourhood: by the signpost back to town.
+    // (When the cast is only changing, they go indoors at their own house.)
+    const d = (inHood() && ((why === 'rotate' && homeDoor(v)) || S.exits[0])) || nearestDoor(v.x, v.y);
     if (v.state === 'indoors') { drop(v); return; }
     v.state = 'leave';
     if (d) { v.tx = d.x; v.ty = d.y; } else { v.tx = v.x; v.ty = v.y; }
@@ -572,7 +596,7 @@
     S.phase = S.hold || clockPhase();
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const all = cits();
-    const want = pickCast(all, { cap, area: S.area, areaOf: c => areaOf(c, builtArea), away: awayOf, momentIds: momentIds(), rand: S.rand });
+    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds(), rand: S.rand });
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
@@ -585,32 +609,37 @@
       if (S.vs.has(id) || present() >= cap) continue;
       const c = byId.get(id);
       if (!c) continue;
-      const door = S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
+      // In the Neighbourhood people start at (or in) their own house, and
+      // arrive later from town by the signpost.
+      const own = inHood() && c.house_id != null ? doorOf('house-' + c.house_id) : null;
+      const door = inHood() ? (first ? own : S.exits[0] || own) : S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
       const at = first || !door ? px(groundPoint(S.area, S.rand)) : { x: door.x, y: door.y };
       const v = make(c, at, !first);
       // On opening, someone at work is in their building; some others start
       // indoors (most of them at night).
       const wk = workKey(v), wd = wk && doorOf(wk);
       if (first && wd && working(v, now)) { v.x = wd.x; v.y = wd.y; goIndoors(v, now, wk); }
-      else if (first && door && !v.child && S.rand() < (S.phase === 'night' ? 0.85 : 0.2)) { v.x = door.x; v.y = door.y; goIndoors(v, now, door.key); v.until = now + S.rand() * INDOORS_MS[1]; }
+      else if (first && door && door.key && !v.child && S.rand() < (S.phase === 'night' ? 0.85 : 0.2)) { v.x = door.x; v.y = door.y; goIndoors(v, now, door.key); v.until = now + S.rand() * INDOORS_MS[1]; }
     }
     S.sig = signature(all);
     markMoments();
   }
   function signature(all) {
-    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '')).join(',') + '|' + momentIds().join(',');
+    // (In the Neighbourhood, also who is out at work and who lives where.)
+    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',');
   }
   // Now and then one walks into a building and someone else comes out.
   function rotate() {
     const cap = isPhone() ? CAP.phone : CAP.desktop;
-    const pool = cits().filter(c => living(c) && !awayOf(c) && areaOf(c, builtArea) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
+    const pool = cits().filter(c => living(c) && !awayOf(c) && areaFor(c) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
     const moments = momentIds().map(Number);
     const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
     leave(out[Math.floor(S.rand() * out.length)], 'rotate');
     const inn = pool[Math.floor(S.rand() * pool.length)];
-    const door = S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
+    const door = inHood() ? (inn.house_id != null && doorOf('house-' + inn.house_id)) || S.exits[0] || null
+      : S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
     if (door) setTimeout(() => { if (S.shown && !S.paused && !S.vs.has(Number(inn.id))) make(inn, { x: door.x, y: door.y }, true); }, 2500);
   }
 
@@ -761,20 +790,16 @@
     };
     setTimeout(tryIt, 50);
   }
-  // The scene's Homes window, scrolled to their house.
+  // Their home in the Neighbourhood scene, with its window open.
   async function openHome(c) {
-    if (typeof global._openHousingModal === 'function') await global._openHousingModal();
-    else if (typeof global.openHousingModal === 'function') await global.openHousingModal();
-    const h = c.house_id != null && doc.querySelector('#sv-housing-modal [data-house="' + c.house_id + '"]');
-    if (h) { h.scrollIntoView({ block: 'center' }); h.classList.add('kwv-flash'); }
+    if (global.KWHood) await global.KWHood.open(c.house_id != null ? { house: c.house_id } : {});
   }
   // The window a menu button opened (the topmost one), and whether it is
   // still open. A KWWindow (Families) is tracked by its id.
   function openWindow() {
     const W = global.KWWindow;
     if (W && W.isOpen && W.isOpen('families')) return { kww: 'families' };
-    const hm = doc.getElementById('sv-housing-modal');
-    if (hm && hm.classList.contains('open')) return { el: hm, cls: 'open' };
+    if (W && W.isOpen && W.isOpen('house')) return { kww: 'house' };
     const top = global.KWA11y && global.KWA11y.topmost ? global.KWA11y.topmost() : null;
     return top ? { el: top } : null;
   }
@@ -1093,7 +1118,7 @@
   function stop() { if (S.raf) { (global.cancelAnimationFrame || clearTimeout)(S.raf); S.raf = 0; } }
 
   function sceneShown(layer) {
-    const area = layer && layer.id === 'sv-layer-fg-outskirts' ? 'outskirts' : 'town';
+    const area = layer && /^sv-layer-fg-/.test(layer.id) && GROUND[layer.id.slice(12)] ? layer.id.slice(12) : 'town';
     if (layer !== S.layer || area !== S.area) { clear(); S.layer = layer; S.area = area; }
     S.shown = true;
     start();

@@ -17,6 +17,14 @@ const SV_BACKDROP = {
 };
 // Town and the Outskirts are wider than a screen and pan sideways (§4.4).
 const SV_WORLD_W = 2600;
+// The scene's areas, each a layer in the world, one shown at a time: Town,
+// the Outskirts, and the Neighbourhood (js/neighbourhood.js), which is wider.
+const SV_AREAS = ['town', 'outskirts', 'neighbourhood'];
+var SV_AREA_W = { town: SV_WORLD_W, outskirts: SV_WORLD_W, neighbourhood: SV_WORLD_W };
+function _svWorldW() { return SV_AREA_W[_svActiveArea] || SV_WORLD_W; }
+function _svAreaLayer(area) { return document.getElementById('sv-layer-fg-' + area); }
+window._svSetAreaWidth = function(area, w) { SV_AREA_W[area] = w; if (area === _svActiveArea) { var world = document.getElementById('sv-world'); if (world) world.style.width = w + 'px'; _svSizeTrack(); } };
+window._svActiveAreaName = function() { return _svActiveArea; };
 
 // ── Buildable ids ─────────────────────────────────────────────────────────────
 // Any building can go in any building slot. The list comes from the server's
@@ -161,7 +169,7 @@ function _applySlotPositions() {
 // in that order inside each area's layer (a villager's place among them
 // doesn't matter: depth comes from z-index).
 function _svTabOrder() {
-  ['sv-layer-fg-town', 'sv-layer-fg-outskirts'].forEach(function(id) {
+  SV_AREAS.map(function(a) { return 'sv-layer-fg-' + a; }).forEach(function(id) {
     var layer = document.getElementById(id);
     if (!layer) return;
     var slots = Array.prototype.slice.call(layer.querySelectorAll(':scope > .sv-slot'));
@@ -349,96 +357,6 @@ function _injectSvStyles() {
 .sv-neighbourhood-building .sv-building-struct { border: 2px solid rgba(255,200,100,0.25); }
 .sv-neighbourhood-building:hover { transform: translateY(-5px) scale(1.06); filter: brightness(1.1); }
 
-/* Housing modal — slides up from bottom like the build panel */
-.sv-housing-modal {
-  position: absolute; bottom: 0; left: 50%;
-  transform: translateX(-50%) translateY(110%);
-  width: min(560px, 98vw);
-  max-height: 72vh;
-  background: linear-gradient(160deg, #2a1e14 0%, #1e1510 100%);
-  border: 1px solid rgba(180,140,80,0.45); border-bottom: none;
-  border-radius: 14px 14px 0 0; z-index: 20;
-  transition: transform 0.38s cubic-bezier(0.34,1.48,0.64,1);
-  box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.sv-housing-modal.open { transform: translateX(-50%) translateY(0); }
-.sv-hm-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 16px 20px 12px; border-bottom: 1px solid rgba(180,140,80,0.15);
-  flex-shrink: 0;
-}
-.sv-hm-title { font-size: 16px; font-weight: 700; color: #e8d090; }
-.sv-hm-tooltip { font-size: 11px; color: rgba(200,180,130,0.5); font-style: italic; margin-top: 2px; }
-.sv-hm-summary {
-  font-size: 11px; color: rgba(200,175,130,0.6);
-  padding: 8px 20px 2px; flex-shrink: 0;
-}
-.sv-hm-body { overflow-y: auto; flex: 1; padding: 6px 20px 10px; }
-.sv-hm-footer { padding: 10px 20px 18px; flex-shrink: 0; border-top: 1px solid rgba(180,140,80,0.1); }
-.sv-hm-section-label {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
-  color: rgba(200,180,120,0.4); margin: 8px 0 5px; font-weight: 700;
-}
-.sv-hm-empty {
-  color: rgba(200,180,120,0.4); font-size: 13px; text-align: center;
-  padding: 24px 0; line-height: 1.7;
-}
-.sv-hm-house {
-  background: rgba(255,220,150,0.04); border: 1px solid rgba(180,140,80,0.16);
-  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
-}
-.sv-hm-house-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.sv-hm-house-name { font-size: 13px; font-weight: 700; color: #e0c878; flex: 1; }
-.sv-hm-house-cap { font-size: 11px; color: rgba(200,175,120,0.5); white-space: nowrap; }
-.sv-hm-demolish-btn {
-  background: rgba(160,40,30,0.12); border: 1px solid rgba(200,60,50,0.28);
-  border-radius: 5px; color: rgba(210,90,70,0.7); font-size: 10px;
-  cursor: pointer; padding: 2px 8px; font-family: inherit; transition: all 0.2s;
-}
-.sv-hm-demolish-btn:hover { background: rgba(180,50,40,0.25); color: #e86050; border-color: rgba(220,80,60,0.5); }
-.sv-hm-resident {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 4px; font-size: 12px; color: rgba(220,200,160,0.85);
-  border-bottom: 1px solid rgba(180,140,80,0.07);
-}
-.sv-hm-resident:last-of-type { border-bottom: none; }
-.sv-hm-resident-name { flex: 1; }
-.sv-hm-resident-role { font-size: 10px; color: rgba(180,155,110,0.5); text-transform: capitalize; }
-.sv-hm-unassign-btn {
-  background: none; border: 1px solid rgba(180,140,80,0.2); border-radius: 4px;
-  color: rgba(200,170,110,0.4); font-size: 10px; cursor: pointer;
-  padding: 1px 6px; font-family: inherit; transition: all 0.2s;
-}
-.sv-hm-unassign-btn:hover { border-color: rgba(200,80,60,0.45); color: rgba(220,100,80,0.8); }
-.sv-hm-assign-row { display: flex; gap: 6px; margin-top: 8px; }
-.sv-hm-assign-sel {
-  flex: 1; background: rgba(0,0,0,0.35); border: 1px solid rgba(180,140,80,0.22);
-  border-radius: 5px; color: rgba(200,180,140,0.8); padding: 4px 8px;
-  font-size: 11px; font-family: inherit;
-}
-.sv-hm-assign-btn {
-  background: rgba(80,130,55,0.18); border: 1px solid rgba(100,160,70,0.32);
-  border-radius: 5px; color: rgba(130,195,90,0.85); font-size: 11px;
-  cursor: pointer; padding: 4px 12px; font-family: inherit; white-space: nowrap; transition: all 0.2s;
-}
-.sv-hm-assign-btn:hover { background: rgba(100,150,65,0.28); color: #90d068; }
-.sv-hm-slot-empty {
-  font-size: 11px; color: rgba(200,175,120,0.32); padding: 4px 4px;
-  font-style: italic;
-}
-.sv-hm-unhoused-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
-.sv-hm-unhoused-chip {
-  background: rgba(255,210,90,0.05); border: 1px solid rgba(200,175,100,0.15);
-  border-radius: 10px; padding: 2px 10px; font-size: 11px; color: rgba(210,185,125,0.6);
-}
-.sv-hm-build-btn {
-  width: 100%; padding: 10px; background: rgba(120,80,28,0.2);
-  border: 1px solid rgba(200,148,58,0.4); border-radius: 8px;
-  color: #f0d070; font-size: 13px; font-weight: 700; cursor: pointer;
-  font-family: inherit; transition: all 0.2s; letter-spacing: 0.04em;
-}
-.sv-hm-build-btn:hover { background: rgba(150,100,38,0.3); border-color: rgba(240,188,88,0.6); }
   `;
   document.head.appendChild(s);
 }
@@ -488,6 +406,7 @@ function _ensureSvDOM() {
   }
   townSlots = townSlots.concat(PROPS.filter(function(p) { return p.area === 'town'; }).map(function(p) { return { prop: p }; }));
   outSlots  = outSlots.concat(PROPS.filter(function(p) { return p.area === 'outskirts'; }).map(function(p) { return { prop: p }; }));
+  var hoodProps = PROPS.filter(function(p) { return p.area === 'neighbourhood'; }).map(function(p) { return { prop: p }; });
   var anyHTML = function(sl) { return sl.prop ? propHTML(sl.prop) : slotHTML(sl); };
 
   // The scene is the window; the world inside it is SV_WORLD_W wide and pans
@@ -502,6 +421,9 @@ function _ensureSvDOM() {
     + townSlots.map(anyHTML).join('') + '</div>'
     + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts">'
     + outSlots.map(anyHTML).join('') + '</div>'
+    // The Neighbourhood: its houses are drawn by js/neighbourhood.js.
+    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-neighbourhood">'
+    + hoodProps.map(anyHTML).join('') + '</div>'
     // Evening and night: one multiply over the world, the lit windows' glow above it (css/home-scene.css).
     + '<div class="sv-night" aria-hidden="true"></div><div class="sv-glow" id="sv-glow" aria-hidden="true"></div>'
     + '</div></div></div>'
@@ -517,8 +439,7 @@ function _ensureSvDOM() {
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<button class="sv-edit-reset-btn" id="sv-edit-reset-btn" style="display:none" onclick="_svResetLayout()">&#8635; Reset layout</button>'
     + '</div></div>'
-    + '<div class="sv-build-panel" id="sv-build-panel"></div>'
-    + '<div class="sv-housing-modal" id="sv-housing-modal"></div>';
+    + '<div class="sv-build-panel" id="sv-build-panel"></div>';
 
   _buildBackdrop();
   _applySlotPositions();
@@ -526,9 +447,8 @@ function _ensureSvDOM() {
 
   document.getElementById('sv-scene').addEventListener('click', function(e) {
     if (_svPanned) return;   // the end of a pan is no click
-    if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel') && !e.target.closest('.sv-housing-modal') && !e.target.closest('.kwv-test-panel')) {
+    if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel') && !e.target.closest('.kwv-test-panel')) {
       _closeBuildPanel();
-      _closeHousingModal();
     }
   });
 }
@@ -610,7 +530,6 @@ function closeSettlementView() {
   if (window.KWVillagers) KWVillagers.sceneHidden();
   if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
   _closeBuildPanel();
-  _closeHousingModal();
 
   var commBar = document.querySelector('.community-bar');
   if (commBar && _svCommBarHandler) {
@@ -632,24 +551,25 @@ function _svSwitchArea(area, force, where) {
   _svActiveArea = area;
   _closeBuildPanel();
   if (window.KWBuildingMenu) KWBuildingMenu.close(false, true);
-  var tl = document.getElementById('sv-layer-fg-town');
-  var ol = document.getElementById('sv-layer-fg-outskirts');
-  if (area === 'town') {
-    if (tl) tl.classList.remove('sv-area-hidden');
-    if (ol) ol.classList.add('sv-area-hidden');
-  } else {
-    if (ol) ol.classList.remove('sv-area-hidden');
-    if (tl) tl.classList.add('sv-area-hidden');
-  }
-  // The hidden area's buttons are out of the Tab order too.
-  if (tl) tl.inert = area !== 'town';
-  if (ol) ol.inert = area === 'town';
+  // One layer shows; the hidden areas' buttons are out of the Tab order too.
+  SV_AREAS.forEach(function(a) {
+    var l = _svAreaLayer(a);
+    if (!l) return;
+    l.classList.toggle('sv-area-hidden', a !== area);
+    l.inert = a !== area;
+  });
+  var world = document.getElementById('sv-world');
+  if (world) world.style.width = _svWorldW() + 'px';
+  _svSizeTrack();
+  var sc0 = document.getElementById('sv-scene');
+  if (sc0) sc0.setAttribute('data-area', area);
   _svPanArea(area, where);
   document.querySelectorAll('.sv-area-tab').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.area === area);
   });
   // Villagers walk in whichever area is showing (js/villagers.js).
-  if (_svOpen && window.KWVillagers) KWVillagers.sceneShown(area === 'town' ? tl : ol);
+  if (_svOpen && window.KWVillagers) KWVillagers.sceneShown(_svAreaLayer(area));
+  if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();
 }
 window._svSwitchArea = _svSwitchArea;
 
@@ -663,6 +583,8 @@ async function _svLoad() {
     var data = await res.json();
     _svBuildings = data.buildings || [];
     if (mf) await mf;
+    // The Neighbourhood's houses (js/neighbourhood.js): fetched alongside, drawn when they arrive.
+    if (window.KWHood) KWHood.load(true).then(function() { if (_svActiveArea === 'neighbourhood') KWHood.render(); });
   } catch(e) { _svBuildings = []; }
   _renderScene();
 }
@@ -687,11 +609,11 @@ function _renderScene() {
       var houseCount = housingB ? housingB.currentLevel : 0;
       el.appendChild(_buildNeighbourhoodEl(slot, houseCount));
       el.hidden = false;
-      // In Build mode the Neighbourhood is where huts are built: its window.
-      // Otherwise its radial menu (js/building-menu.js): no Upgrade or
-      // Demolish (its huts are built and pulled down in its window).
+      // The door to the Neighbourhood scene (js/neighbourhood.js). In Build
+      // mode it goes straight there, still building: homes are built on its
+      // plots. Otherwise its radial menu (no Upgrade or Demolish here).
       el.onclick = function(ev) {
-        if (_svBuildMode) return _openHousingModal();
+        if (_svBuildMode) return window.KWHood && KWHood.open({ build: true });
         if (!window.KWBuildingMenu) return _svOpenBuilding('neighbourhood');
         KWBuildingMenu.click(this, { key: 'neighbourhood', label: 'Neighbourhood', enter: function() { _svOpenBuilding('neighbourhood'); } }, ev);
       };
@@ -743,7 +665,6 @@ function _renderScene() {
 // Opens what a building opens (js/home-scene.js), closing the panels first.
 function _svOpenBuilding(id, panel) {
   _closeBuildPanel();
-  _closeHousingModal();
   if (window.KWHome) return KWHome.open(id, panel);
   if (panel) panel();
 }
@@ -832,7 +753,9 @@ function _buildOccupiedEl(slot, building) {
 
 function _buildNeighbourhoodEl(slot, houseCount) {
   var vis = SV_VISUALS.neighbourhood || { emoji:'🏘️', bodyColor:'#7a5c40', roofColor:'#5a3820' };
-  var sub = houseCount > 0 ? houseCount + ' home' + (houseCount !== 1 ? 's' : '') : 'No homes yet';
+  // "3 homes · 11 of 12 beds" once the town's numbers are in.
+  var st = window.KWHome ? KWHome.sceneState() : {};
+  var sub = houseCount > 0 ? houseCount + ' home' + (houseCount !== 1 ? 's' : '') + (st.beds != null && st.living != null ? ' · ' + Math.min(st.living, st.beds) + ' of ' + st.beds + ' beds' : '') : 'No homes yet';
   var btn = _svBuildingButton('neighbourhood', 'Neighbourhood', vis, _svGetSlotSize(slot.id), sub);
   btn.classList.add('sv-neighbourhood-building');
   // A home with nobody in it stays dark at night (HOME_SCENE.md C.5): with no
@@ -841,230 +764,14 @@ function _buildNeighbourhoodEl(slot, houseCount) {
   return btn;
 }
 
-// ── Housing modal ─────────────────────────────────────────────────────────────
 function _svEsc(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-async function _openHousingModal() {
-  _closeBuildPanel();
-  var modal = document.getElementById('sv-housing-modal');
-  if (!modal) return;
-  modal.innerHTML = '<div class="sv-hm-header"><span class="sv-hm-title">🏘️ Neighbourhood</span>'
-    + '<button class="sv-bp-close" onclick="_closeHousingModal()">\xD7</button></div>'
-    + '<div class="sv-hm-body"><div class="sv-hm-empty">Loading…</div></div>';
-  modal.classList.add('open');
-
-  try {
-    var res = await apiFetch('/api/housing');
-    if (!res.ok) { _renderHousingModal(null); return; }
-    var data = await res.json();
-    _renderHousingModal(data);
-  } catch(e) {
-    _renderHousingModal(null);
-  }
-}
-window._openHousingModal = _openHousingModal;
-
-function _closeHousingModal() {
-  var modal = document.getElementById('sv-housing-modal');
-  if (modal) modal.classList.remove('open');
-}
-window._closeHousingModal = _closeHousingModal;
-
-function _renderHousingModal(data) {
-  var modal = document.getElementById('sv-housing-modal');
-  if (!modal) return;
-
-  if (!data) {
-    modal.innerHTML = '<div class="sv-hm-header"><span class="sv-hm-title">🏘️ Neighbourhood</span>'
-      + '<button class="sv-bp-close" onclick="_closeHousingModal()">\xD7</button></div>'
-      + '<div class="sv-hm-body"><div class="sv-hm-empty">Failed to load housing data.</div></div>';
-    return;
-  }
-
-  var houses   = data.houses   || [];
-  var unhoused = data.unhoused || [];
-  var housingB = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
-  var totalResidents = houses.reduce(function(sum, h) { return sum + h.residents.length; }, 0);
-  var totalCapacity  = houses.reduce(function(sum, h) { return sum + h.capacity;         }, 0);
-
-  var costStr = '';
-  if (housingB && housingB.cost) {
-    costStr = Object.entries(housingB.cost)
-      .filter(function(e) { return e[1] > 0; })
-      .map(function(e) { return _svResIcon(e[0]) + ' ' + e[1]; })
-      .join('  ');
-  }
-
-  var html = '<div class="sv-hm-header">'
-    + '<span class="sv-hm-title">🏘️ Neighbourhood</span>'
-    + '<button class="sv-bp-close" onclick="_closeHousingModal()">\xD7</button>'
-    + '</div>';
-
-  if (houses.length > 0) {
-    html += '<div class="sv-hm-summary">'
-      + houses.length + ' home' + (houses.length !== 1 ? 's' : '')
-      + ' &nbsp;·&nbsp; ' + totalResidents + ' of ' + totalCapacity + ' spaces filled'
-      + '</div>';
-  } else {
-    html += '<div class="sv-hm-summary" style="font-style:italic">Manage homes, residents, and family life.</div>';
-  }
-
-  html += '<div class="sv-hm-body">';
-
-  if (houses.length === 0) {
-    html += '<div class="sv-hm-empty">No homes built yet.<br>'
-      + '<span style="font-size:11px;opacity:0.6">Build housing to shelter and house your citizens.</span></div>';
-  } else {
-    html += '<div class="sv-hm-section-label">Homes</div>';
-    for (var i = 0; i < houses.length; i++) {
-      var house = houses[i];
-      html += '<div class="sv-hm-house" data-house="' + house.id + '">'
-        + '<div class="sv-hm-house-header">'
-        + '<span class="sv-hm-house-name">🏡 ' + _svEsc(house.name) + '</span>'
-        + '<span class="sv-hm-house-cap">' + house.residents.length + ' / ' + house.capacity + '</span>'
-        + '<button class="sv-hm-demolish-btn" onclick="_svDemolishHouse()">🔨 Demolish</button>'
-        + '</div>';
-
-      for (var j = 0; j < house.residents.length; j++) {
-        var r = house.residents[j];
-        html += '<div class="sv-hm-resident">'
-          + '<span class="sv-hm-resident-name">' + _svEsc(r.name) + '</span>'
-          + '<span class="sv-hm-resident-role">' + r.role + '</span>'
-          + '<button class="sv-hm-unassign-btn" onclick="_svUnassignFromHouse(' + r.id + ')">Move out</button>'
-          + '</div>';
-      }
-
-      var emptySlots = house.capacity - house.residents.length;
-      if (emptySlots > 0) {
-        if (unhoused.length > 0) {
-          html += '<div class="sv-hm-assign-row">'
-            + '<select class="sv-hm-assign-sel" id="sv-hm-assign-' + house.id + '">'
-            + '<option value="">— Assign a citizen —</option>'
-            + unhoused.map(function(c) {
-                return '<option value="' + c.id + '">' + _svEsc(c.name) + ' (' + c.role + ')</option>';
-              }).join('')
-            + '</select>'
-            + '<button class="sv-hm-assign-btn" onclick="_svAssignToHouse(' + house.id + ')">Move in</button>'
-            + '</div>';
-        } else {
-          html += '<div class="sv-hm-slot-empty">'
-            + emptySlots + ' space' + (emptySlots !== 1 ? 's' : '') + ' available — no unhoused citizens.'
-            + '</div>';
-        }
-      }
-
-      html += '</div>'; // .sv-hm-house
-    }
-  }
-
-  // Show unhoused list when there are no houses to show assign dropdowns in
-  if (unhoused.length > 0 && houses.length === 0) {
-    html += '<div class="sv-hm-section-label">Unhoused citizens (' + unhoused.length + ')</div>'
-      + '<div class="sv-hm-unhoused-list">'
-      + unhoused.map(function(c) {
-          return '<span class="sv-hm-unhoused-chip">' + _svEsc(c.name) + '</span>';
-        }).join('')
-      + '</div>';
-  }
-
-  html += '</div>'; // .sv-hm-body
-
-  html += '<div class="sv-hm-footer">'
-    + '<button class="sv-hm-build-btn" onclick="_svBuildHousing()">🏗 Build Housing'
-    + (costStr ? ' &nbsp;—&nbsp; ' + costStr : '')
-    + '</button></div>';
-
-  modal.innerHTML = html;
-}
-window._renderHousingModal = _renderHousingModal;
-
-async function _svBuildHousing() {
-  if (typeof buildBuilding !== 'function') return;
-  var housingB = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
-  var cost = housingB ? housingB.cost : null;
-  await buildBuilding('starter_house');
-  _svPlaySound('/assets/audio/construct.wav');
-  if (typeof refreshResources === 'function') await refreshResources();
-  if (cost && typeof _spawnFloater === 'function') {
-    Object.entries(cost).forEach(function(e) { if (e[1]) _spawnFloater(e[0], -e[1]); });
-  }
-  await _svLoad();
-  _openHousingModal();
-}
-window._svBuildHousing = _svBuildHousing;
-
-async function _svDemolishHouse() {
-  if (!await KWDialog.confirm({ title: 'Demolish a Willow Hut?', message: 'The most recently built home will be removed and its residents will be unhoused. You will receive 50% of build resources back.', ok: 'Demolish', danger: true })) return;
-  try {
-    var res = await apiFetch('/api/buildings/remove', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ buildingId: 'starter_house' }),
-    });
-    if (!res.ok) {
-      var d = await res.json();
-      KWDialog.alert(d.error || 'Demolition failed.');
-      return;
-    }
-    var d = await res.json();
-    if (typeof refreshResources === 'function') await refreshResources();
-    if (d.refund && typeof _spawnFloater === 'function') {
-      Object.entries(d.refund).forEach(function(e) { if (e[1]) _spawnFloater(e[0], e[1]); });
-    }
-    await _svLoad();
-    _openHousingModal();
-  } catch(e) {
-    KWDialog.alert('Demolition failed.');
-  }
-}
-window._svDemolishHouse = _svDemolishHouse;
-
-async function _svAssignToHouse(houseId) {
-  var sel = document.getElementById('sv-hm-assign-' + houseId);
-  if (!sel || !sel.value) return;
-  var citizenId = parseInt(sel.value);
-  try {
-    var res = await apiFetch('/api/housing/assign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ citizen_id: citizenId, house_id: houseId }),
-    });
-    if (!res.ok) {
-      var d = await res.json();
-      KWDialog.alert(d.error || 'Could not assign citizen.');
-      return;
-    }
-    _openHousingModal();
-  } catch(e) {
-    KWDialog.alert('Assignment failed.');
-  }
-}
-window._svAssignToHouse = _svAssignToHouse;
-
-async function _svUnassignFromHouse(citizenId) {
-  try {
-    var res = await apiFetch('/api/housing/unassign', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ citizen_id: citizenId }),
-    });
-    if (!res.ok) {
-      var d = await res.json();
-      KWDialog.alert(d.error || 'Could not move citizen out.');
-      return;
-    }
-    _openHousingModal();
-  } catch(e) {
-    KWDialog.alert('Failed to move citizen out.');
-  }
-}
-window._svUnassignFromHouse = _svUnassignFromHouse;
+// (The housing list that lived here is the Neighbourhood scene now: js/neighbourhood.js.)
 
 // ── Build panel ───────────────────────────────────────────────────────────────
 function _openBuildPanel(slot, occupant) {
-  _closeHousingModal();
   _svSelectedSlot = slot;
   var panel   = document.getElementById('sv-build-panel');
   var areaTag = slot.area === 'town' ? 'Town' : 'Outskirts';
@@ -1182,7 +889,6 @@ function _closeBuildPanel() {
 }
 window._closeBuildPanel = _closeBuildPanel;
 
-// _closeHousingModal is defined earlier (before build panel) — referenced here for clarity
 
 function _svPlaySound(src) {
   var a = new Audio(src);
@@ -1251,7 +957,7 @@ function _svResIcon(res) {
 // scene's left or right edge. The far strips move a little slower than the
 // meadow (their data-pan), which is the only depth effect: nothing follows
 // the mouse. Each area remembers where it was; it first opens centred.
-var _svPanX = { town: null, outskirts: null };
+var _svPanX = { town: null, outskirts: null, neighbourhood: null };
 var _svPanned = false;          // true just after a pan, so its click is ignored
 var _SV_PAN_PX = 8;              // under this a press is a tap; over it, a pan
 var _svPanBound = false;
@@ -1262,13 +968,13 @@ function _svViewW() { var sc = document.getElementById('sv-scene'); return sc ? 
 // pan treats it as off screen, so the rightmost building can clear the card.
 function _svRightInset() { return window.KWContext && KWContext.rightInset ? KWContext.rightInset() : 0; }
 function _svSeenW() { return Math.max(0, _svViewW() - _svRightInset()); }
-function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svSeenW()); }
+function _svPanMax() { return Math.max(0, _svWorldW() * _svScale - _svSeenW()); }
 window._svPanRefit = function() { _svSizeTrack(); _svPanTo(_svPanX[_svActiveArea] || 0); };
 // The scroll track: the world's drawn width plus the card's inset, so the
 // native scroll's end is the pan limit (_svPanMax).
 function _svSizeTrack() {
   var tr = document.getElementById('sv-track');
-  if (tr) tr.style.width = Math.round(SV_WORLD_W * _svScale + _svRightInset()) + 'px';
+  if (tr) tr.style.width = Math.round(_svWorldW() * _svScale + _svRightInset()) + 'px';
 }
 // Short screens (a phone on its side) draw the town smaller, in whole steps
 // (¾ or ½) so pixel art stays even (HOME_SCENE.md step 8). Pure.
@@ -1293,7 +999,7 @@ function _svClampPan(x, viewW, worldW) { return Math.max(0, Math.min(Math.max(0,
 function _svPanTo(x, smooth) {
   var sc = document.getElementById('sv-scene');
   if (!sc) return;
-  var px = Math.round(_svClampPan(x, _svSeenW(), SV_WORLD_W * _svScale));
+  var px = Math.round(_svClampPan(x, _svSeenW(), _svWorldW() * _svScale));
   _svPanX[_svActiveArea] = px;
   if (smooth && sc.scrollTo) sc.scrollTo({ left: px, behavior: 'smooth' });
   else sc.scrollLeft = px;
@@ -1319,8 +1025,9 @@ function _svPanBy(dx, smooth) { var sc = document.getElementById('sv-scene'); _s
 function _svPanArea(area, where) {
   var x = _svPanX[area];
   if (where === 'start') x = 0;
-  else if (where === 'end') x = SV_WORLD_W * _svScale;
-  else if (x == null) x = (SV_WORLD_W * _svScale - _svSeenW()) / 2;
+  else if (where === 'end') x = _svWorldW() * _svScale;
+  else if (typeof where === 'number') x = where * _svScale - _svSeenW() / 2;   // centred on a world x
+  else if (x == null) x = (_svWorldW() * _svScale - _svSeenW()) / 2;
   _svPanTo(x);
 }
 
@@ -1337,7 +1044,7 @@ function _svBindPan() {
   var press = null;
   sc.addEventListener('pointerdown', function(e) {
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    if (e.target.closest('.sv-build-panel, .sv-housing-modal, .kwv-test-panel, .sv-header, .kwv-radial')) return;
+    if (e.target.closest('.sv-build-panel, .kwv-test-panel, .sv-header, .kwv-radial')) return;
     // In Build mode a press on a building moves the building, not the view.
     var slot = e.target.closest('.sv-slot');
     if (_svBuildMode && slot && slot.dataset.slot && _svDraggable(slot.dataset.slot)) return;
@@ -1386,7 +1093,7 @@ var _SV_EDGE = 36, _SV_EDGE_WAIT = 300, _SV_EDGE_SPEED = 700;
 function _svEdgeWatch(e) {
   if (!_svOpen || e.pointerType !== 'mouse') return;
   var sc = document.getElementById('sv-scene');
-  if (!sc || !sc.contains(e.target) || e.target.closest('.sv-build-panel, .sv-housing-modal')) { _svEdge.dir = 0; return; }
+  if (!sc || !sc.contains(e.target) || e.target.closest('.sv-build-panel')) { _svEdge.dir = 0; return; }
   var r = sc.getBoundingClientRect();
   var dir = e.clientX < r.left + _SV_EDGE ? -1 : e.clientX > r.right - _SV_EDGE ? 1 : 0;
   if (dir !== _svEdge.dir) { _svEdge.dir = dir; _svEdge.since = performance.now(); }
@@ -1417,7 +1124,6 @@ function _svToggleBuildMode(on) {
   var scene    = document.getElementById('sv-scene');
   var resetBtn = document.getElementById('sv-edit-reset-btn');
   _closeBuildPanel();
-  _closeHousingModal();
   if (_svBuildMode) {
     if (scene) scene.classList.add('sv-editing', 'sv-build-mode');
     if (resetBtn) resetBtn.style.display = _svHasCustomLayout() ? '' : 'none';
@@ -1429,9 +1135,11 @@ function _svToggleBuildMode(on) {
     _svDetachDragHandlers();
     document.removeEventListener('keydown', _svBuildKey);
   }
+  document.body.classList.toggle('sv-building', _svBuildMode);   // phones: the moment cards step aside (css/mobile-shell.css)
   if (window.KWVillagers) KWVillagers.setPaused(_svBuildMode);   // villagers hide while building
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();   // the chip reads Build / Done
   _renderScene();
+  if (window.KWHood) KWHood.buildModeChanged();
   return _svBuildMode;
 }
 window._svToggleBuildMode = _svToggleBuildMode;
@@ -1443,10 +1151,9 @@ window._svIsOpen = function() { return _svOpen; };
 function _svBuildKey(e) {
   if (e.key !== 'Escape' || e.defaultPrevented || !_svBuildMode) return;
   if ((window.KWDialog && KWDialog.isOpen()) || (window.KWWindow && KWWindow.isOpen())) return;
-  var panel = document.getElementById('sv-build-panel'), hm = document.getElementById('sv-housing-modal');
+  var panel = document.getElementById('sv-build-panel');
   e.preventDefault();
   if (panel && panel.classList.contains('open')) { _closeBuildPanel(); return; }
-  if (hm && hm.classList.contains('open')) { _closeHousingModal(); return; }
   _svToggleBuildMode(false);
 }
 
