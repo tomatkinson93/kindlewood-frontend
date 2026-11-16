@@ -14,7 +14,12 @@ console.log('1. Every file is versioned');
   const tags = [...H.matchAll(/<script[^>]*\bsrc="([^"]+)"/g), ...H.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(m => m[1]).filter(u => !/^https?:/.test(u));
   const bad = tags.filter(u => !/^\/(js|css)\/[^?]+\?v=[A-Za-z0-9_.-]+$/.test(u));
   check('1a. every local script and stylesheet is /js/… or /css/… with ?v=', bad.length === 0, bad.join(', '));
-  check('1b. settlement-view.js is absolute and re-versioned', /src="\/js\/settlement-view\.js\?v=r5g"/.test(H));
+  check('1b. settlement-view.js is absolute and versioned', /src="\/js\/settlement-view\.js\?v=[A-Za-z0-9]+"/.test(H));
+  // The site serves the repository's files as they are, so ?v= is what makes a
+  // browser fetch a changed file: each must be the hash of the file's contents.
+  const ST = require(path.join(ROOT, 'scripts', 'stamp_versions.js'));
+  const stale = ST.stamps(H).filter(s => s.want && s.current !== s.want);
+  check('1c. every ?v= is the hash of its file (node scripts/stamp_versions.js)', stale.length === 0, stale.slice(0, 5).map(s => s.file).join(', '));
   const missing = tags.map(u => u.split('?')[0].slice(1)).filter(f => !fs.existsSync(path.join(ROOT, f)));
   check('1c. every tag points at a file that exists', missing.length === 0, missing.join(', '));
 }

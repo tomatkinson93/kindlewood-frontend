@@ -363,7 +363,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
     && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
   check('12v. children are drawn at 0.75×; each family has its own gentle look', /v\.child \? 0\.75 : 1/.test(E) && /TINTS\[Math\.abs\(Number\(c\.family_id\)/.test(E));
   check('12w. leaving town: walk to the nearest door and fade; arriving: out of a door; nobody pops up except when Home opens',
-    /function leave\(v\)/.test(E) && /nearestDoor\(v\.x, v\.y\)/.test(E) && /make\(c, at, !first\)/.test(E));
+    /function leave\(v, why = 'town'\)/.test(E) && /nearestDoor\(v\.x, v\.y\)/.test(E) && /make\(c, at, !first\)/.test(E));
   check('12x. a picture only: the engine never calls the server', !/apiFetch|fetch\(/.test(E));
   check('12y. loaded after js/villagers.js; the scene\'s hooks reach it', H.indexOf('/js/villager-engine.js?v=') > H.indexOf('/js/villagers.js?v=') && /cast\(\)\.sceneShown\(T\.layer\)/.test(VJ) && /cast\(\)\.setPaused\(T\.paused\)/.test(VJ));
   check('12z. the loop measures its own cost per frame (the phone pass targets under 2 ms)', /S\.ms = S\.ms \* 0\.95/.test(E) && /get frameMs\(\)/.test(E));
@@ -500,6 +500,17 @@ console.log('16. Phones and comfort (step 8), names, faces');
   check('16g. no sheet data yet: no face (and no error)', fv.KWVillagers.faceHtml('Mice') === '');
   check('16h. the family tree shows each villager\'s face (smaller for a child, grey for the dead), facing the camera from their idle sheet',
     /KWVillagers\.faceHtml\(m\.species \|\| townSpecies\(\), m\.stage === 'child' \? 33 : 44/.test(FJ) && /kwf-face-gone/.test(FJ) && /\.kwf-face-gone \{ filter: grayscale\(1\)/.test(CSS) && /\.kwv-face \{[^}]*image-rendering: pixelated/.test(CSS));
+}
+
+console.log('17. Villagers\' name plates; nobody unclickable');
+{
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  check('17a. each villager has a name plate (their first name) under their feet', /tag\.className = 'kwv-tag'/.test(E) && /split\(' '\)\[0\]/.test(E) && /tag\.style\.top = Math\.round\(\(sp\.foot\.y \+ 5\) \* k\)/.test(E));
+  check('17b. shown with Names on (the chip, N), during the touch peek, or on hover and focus; hidden while selected',
+    /#settlement-view\.kwh-names \.kwv-tag, #settlement-view\.kwh-peek \.kwv-tag/.test(CSS) && /\.kwv-cit:hover \.kwv-tag/.test(CSS) && /\.kwv-selected \.kwv-tag \{ display: none !important; \}/.test(CSS));
+  check('17c. someone walking into a building (the cast changing) can still be picked: they stop and stay', /v && v\.state !== 'gone' && v\.state !== 'indoors'\) return v;/.test(E)
+    && /if \(v\.state === 'leave'\) v\.state = 'idle';/.test(E) && /leave\(out\[Math\.floor\(S\.rand\(\) \* out\.length\)\], 'rotate'\)/.test(E));
+  check('17d. someone leaving town (a quest, a death) who is picked on the way goes on after the menu closes', /if \(v\.leaveWhy === 'town' && !v\.held\) leave\(v, 'town'\)/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

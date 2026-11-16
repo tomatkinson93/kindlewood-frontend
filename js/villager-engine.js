@@ -283,6 +283,9 @@
     v.el.setAttribute('aria-label', nameLine(c) + '. Show choices');
     v.el.setAttribute('aria-haspopup', 'menu');
     const hit = doc.createElement('span'); hit.className = 'kwv-hit'; v.el.appendChild(hit);
+    // Their name plate (first name), shown with Names on, or on hover/focus.
+    const tag = doc.createElement('span'); tag.className = 'kwv-tag'; tag.setAttribute('aria-hidden', 'true');
+    tag.textContent = String(c.name || '').split(' ')[0]; v.el.appendChild(tag);
     // Pointer selection is press-and-release (below, pressAt); this click is
     // the keyboard's (Enter or Space: detail 0).
     v.el.addEventListener('click', e => { e.stopPropagation(); if (e.detail !== 0) return; if (v.selected) deselect(true); else select(v, true); });
@@ -340,9 +343,13 @@
   }
 
   // Leaving town: walk to the nearest door, fade, gone.
-  function leave(v) {
-    if (!live(v)) return;
-    if (v.selected) deselect(true);
+  // `why`: 'town' (they left town or died: they must go) or 'rotate' (the
+  // cast changing: selecting them on the way cancels it).
+  function leave(v, why = 'town') {
+    if (v.state === 'gone') return;
+    if (v.state === 'leave') { if (why === 'town') v.leaveWhy = 'town'; return; }
+    v.leaveWhy = why;
+    if (v.selected) { deselect(true); return; }   // deselect resumes a 'town' leave
     v.held = false;
     endChat(v, performanceNow());
     const d = nearestDoor(v.x, v.y);
@@ -447,7 +454,7 @@
     const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
-    leave(out[Math.floor(S.rand() * out.length)]);
+    leave(out[Math.floor(S.rand() * out.length)], 'rotate');
     const inn = pool[Math.floor(S.rand() * pool.length)];
     const door = S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
     if (door) setTimeout(() => { if (S.shown && !S.paused && !S.vs.has(Number(inn.id))) make(inn, { x: door.x, y: door.y }, true); }, 2500);
@@ -495,7 +502,9 @@
   }
 
   function select(v, byKeyboard) {
-    if (!live(v) || v.state === 'indoors') return;
+    if (v.state === 'gone' || v.state === 'indoors') return;
+    // Someone walking into a building can still be picked: they stop.
+    if (v.state === 'leave') v.state = 'idle';
     if (M.v && M.v !== v) deselect(true, true);
     endChat(v, performanceNow());
     v.selected = true; v.held = false;
@@ -521,7 +530,8 @@
     v.el.removeAttribute('aria-expanded');
     const tag = v.el.querySelector('.kwv-name'); if (tag) tag.remove();
     const ring = v.el.querySelector('.kwv-ring'); if (ring) ring.remove();
-    if (!v.held) idle(v, performanceNow(), 600 + S.rand() * 900);
+    if (v.leaveWhy === 'town' && !v.held) leave(v, 'town');   // they were on their way out of town
+    else { v.leaveWhy = null; if (!v.held) idle(v, performanceNow(), 600 + S.rand() * 900); }
     if (soundOff && !quiet) sound('off');
   }
 
@@ -626,6 +636,8 @@
     hit.style.top = Math.round((sp.foot.y - h + 6) * k) + 'px';
     hit.style.width = Math.round(w * k) + 'px';
     hit.style.height = Math.round(h * k) + 'px';
+    const tag = v.el.querySelector('.kwv-tag');
+    if (tag) { tag.style.left = Math.round(sp.foot.x * k) + 'px'; tag.style.top = Math.round((sp.foot.y + 5) * k) + 'px'; }
   }
   const coarse = () => !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
   // The villager under a point, even one standing just behind a building's
@@ -634,7 +646,7 @@
     if (!S.shown || S.paused || !doc.elementsFromPoint) return null;
     for (const el of doc.elementsFromPoint(x, y)) {
       if (el.classList && el.classList.contains('kwv-radial')) return null;
-      if (el.classList && el.classList.contains('kwv-hit')) { const b = el.closest('.kwv-cit'); const v = b && S.vs.get(Number(b.getAttribute('data-cid'))); if (v && live(v) && v.state !== 'indoors') return v; }
+      if (el.classList && el.classList.contains('kwv-hit')) { const b = el.closest('.kwv-cit'); const v = b && S.vs.get(Number(b.getAttribute('data-cid'))); if (v && v.state !== 'gone' && v.state !== 'indoors') return v; }
     }
     return null;
   }
@@ -835,6 +847,7 @@
     get selected() { return M.v ? M.v.id : null; },
     select: id => { const v = S.vs.get(Number(id)); if (v) select(v, false); return !!v; },
     _villagerAt: (x, y) => { const v = villagerAt(x, y); return v ? v.id : null; },
+    _rotate: () => rotate(),   // tests: send one walking in now
     deselect: () => deselect(true),
     SOUND, _nameLine: nameLine, _menuItems: menuItems, _arc: arc,
     GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT,
