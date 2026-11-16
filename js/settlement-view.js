@@ -493,7 +493,10 @@ function _ensureSvDOM() {
   // The scene is the window; the world inside it is SV_WORLD_W wide and pans
   // sideways (§4.4). Both areas' layers live in the world, one shown at a time.
   root.innerHTML =
-    '<div class="sv-scene" id="sv-scene">'
+    // The scene scrolls sideways natively (momentum, the compositor's own
+    // smoothness on phones); the track is what it scrolls, the world is drawn
+    // in it (scaled on short screens). HOME_SCENE.md §4.4.
+    '<div class="sv-scene" id="sv-scene"><div class="sv-track" id="sv-track">'
     + '<div class="sv-world" id="sv-world" style="width:' + SV_WORLD_W + 'px">'
     + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town">'
     + townSlots.map(anyHTML).join('') + '</div>'
@@ -501,7 +504,7 @@ function _ensureSvDOM() {
     + outSlots.map(anyHTML).join('') + '</div>'
     // Evening and night: one multiply over the world, the lit windows' glow above it (css/home-scene.css).
     + '<div class="sv-night" aria-hidden="true"></div><div class="sv-glow" id="sv-glow" aria-hidden="true"></div>'
-    + '</div></div>'
+    + '</div></div></div>'
     + '<div class="sv-header">'
     // Back button: on desktop this view is dismissed by clicking the community
     // bar, which the mobile shell hides — leaving no way out. Hidden on desktop
@@ -628,6 +631,7 @@ function _svSwitchArea(area, force, where) {
   if (area === _svActiveArea && !force) return;
   _svActiveArea = area;
   _closeBuildPanel();
+  if (window.KWBuildingMenu) KWBuildingMenu.close(false, true);
   var tl = document.getElementById('sv-layer-fg-town');
   var ol = document.getElementById('sv-layer-fg-outskirts');
   if (area === 'town') {
@@ -684,7 +688,13 @@ function _renderScene() {
       el.appendChild(_buildNeighbourhoodEl(slot, houseCount));
       el.hidden = false;
       // In Build mode the Neighbourhood is where huts are built: its window.
-      el.onclick = function() { if (_svBuildMode) _openHousingModal(); else _svOpenBuilding('neighbourhood'); };
+      // Otherwise its radial menu (js/building-menu.js): no Upgrade or
+      // Demolish (its huts are built and pulled down in its window).
+      el.onclick = function(ev) {
+        if (_svBuildMode) return _openHousingModal();
+        if (!window.KWBuildingMenu) return _svOpenBuilding('neighbourhood');
+        KWBuildingMenu.click(this, { key: 'neighbourhood', label: 'Neighbourhood', enter: function() { _svOpenBuilding('neighbourhood'); } }, ev);
+      };
     } else {
       var occupant = _occupantFor(slot);
       if (occupant) {
@@ -692,13 +702,18 @@ function _renderScene() {
         // A click opens the building's screen (js/home-scene.js ROUTES), or
         // its panel when it has none.
         el.hidden = false;
-        // Normally a click opens the building's screen (js/home-scene.js
-        // ROUTES), or its panel when it has none; in Build mode, always the
-        // manage panel (upgrade, demolish). A drag that just ended is no click.
-        (function(s, o) { el.onclick = function() {
+        // A click opens the building's radial menu (js/building-menu.js):
+        // Enter opens its screen (js/home-scene.js ROUTES), or its panel when
+        // it has none; Upgrade (not at the top level) and Demolish. In Build
+        // mode, the panel for moving it. A drag that just ended is no click.
+        (function(s, o) { el.onclick = function(ev) {
           if (_svJustDragged) return;
-          if (_svBuildMode) _openBuildPanel(s, o);
-          else _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); });
+          if (_svBuildMode) return _openBuildPanel(s, o);
+          var enter = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); };
+          if (!window.KWBuildingMenu) return enter();
+          KWBuildingMenu.click(this, { key: o.id, label: o.label, enter: enter,
+            upgrade: o.currentLevel < o.maxLevel ? function() { _openBuildPanel(s, o); } : null,
+            demolish: function() { _svDemolish(o.id); } }, ev);
         }; })(slot, occupant);
       } else {
         var areaBuildings = _svSlotBuildingIds();
@@ -722,6 +737,7 @@ function _renderScene() {
   }
   _renderProps();
   _applySlotPositions();
+  if (window.KWBuildingMenu) { KWBuildingMenu.close(false, true); KWBuildingMenu.apply(); }   // see-through ones stay so
 }
 
 // Opens what a building opens (js/home-scene.js), closing the panels first.
@@ -1077,6 +1093,7 @@ function _openBuildPanel(slot, occupant) {
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">★ MAX</span>'
         : occupant.nextLevelTierMet === false
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">🔒 Lv ' + (occupant.currentLevel + 1) + ' needs a ' + _svTierLabel(occupant.nextLevelTier) + '</span>'
+        : _svBuildMode ? ''   // Build mode places and moves; Upgrade is in the building's menu
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div><div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
@@ -1096,8 +1113,8 @@ function _openBuildPanel(slot, occupant) {
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
-      + _svMoveHtml(slot)
-      + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
+      + _svMoveHtml(slot);   // Demolish is in the building's radial menu (js/building-menu.js)
+    void refundStr;
   } else {
     var areaIds = _svSlotBuildingIds();
     var taken = Object.values(_svGetAssignments()); // already placed in other slots
@@ -1236,7 +1253,7 @@ function _svResIcon(res) {
 // the mouse. Each area remembers where it was; it first opens centred.
 var _svPanX = { town: null, outskirts: null };
 var _svPanned = false;          // true just after a pan, so its click is ignored
-var _SV_PAN_PX = 6;
+var _SV_PAN_PX = 8;              // under this a press is a tap; over it, a pan
 var _svPanBound = false;
 var _svEdge = { dir: 0, since: 0, raf: 0, last: 0 };
 
@@ -1246,7 +1263,13 @@ function _svViewW() { var sc = document.getElementById('sv-scene'); return sc ? 
 function _svRightInset() { return window.KWContext && KWContext.rightInset ? KWContext.rightInset() : 0; }
 function _svSeenW() { return Math.max(0, _svViewW() - _svRightInset()); }
 function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svSeenW()); }
-window._svPanRefit = function() { _svPanTo(_svPanX[_svActiveArea] || 0); };
+window._svPanRefit = function() { _svSizeTrack(); _svPanTo(_svPanX[_svActiveArea] || 0); };
+// The scroll track: the world's drawn width plus the card's inset, so the
+// native scroll's end is the pan limit (_svPanMax).
+function _svSizeTrack() {
+  var tr = document.getElementById('sv-track');
+  if (tr) tr.style.width = Math.round(SV_WORLD_W * _svScale + _svRightInset()) + 'px';
+}
 // Short screens (a phone on its side) draw the town smaller, in whole steps
 // (¾ or ½) so pixel art stays even (HOME_SCENE.md step 8). Pure.
 function _svScaleFor(sceneH) { return sceneH >= 600 ? 1 : sceneH >= 420 ? 0.75 : 0.5; }
@@ -1261,27 +1284,37 @@ function _svFit() {
   world.style.height = _svScale === 1 ? '' : Math.round(h / _svScale) + 'px';
   world.style.bottom = _svScale === 1 ? '' : 'auto';
   world.classList.toggle('sv-scaled', _svScale !== 1);
+  world.style.transform = _svScale !== 1 ? 'scale(' + _svScale + ')' : '';
+  _svSizeTrack();
 }
 // Clamps a pan to the world. Pure.
 function _svClampPan(x, viewW, worldW) { return Math.max(0, Math.min(Math.max(0, worldW - viewW), x)); }
 
-function _svPanTo(x) {
-  var world = document.getElementById('sv-world');
-  if (!world) return;
-  var max = _svPanMax();
+function _svPanTo(x, smooth) {
+  var sc = document.getElementById('sv-scene');
+  if (!sc) return;
   var px = Math.round(_svClampPan(x, _svSeenW(), SV_WORLD_W * _svScale));
   _svPanX[_svActiveArea] = px;
-  world.style.transform = 'translate3d(' + (-px) + 'px,0,0)' + (_svScale !== 1 ? ' scale(' + _svScale + ')' : '');
+  if (smooth && sc.scrollTo) sc.scrollTo({ left: px, behavior: 'smooth' });
+  else sc.scrollLeft = px;
+  _svOnScroll();
+}
+// Whatever moved the scroll (a finger, the wheel, a drag, a key): remember
+// where this area is, slide the far strips, and mark the ends.
+function _svOnScroll() {
+  var sc = document.getElementById('sv-scene'), world = document.getElementById('sv-world');
+  if (!sc || !world) return;
+  var px = sc.scrollLeft, max = _svPanMax();
+  _svPanX[_svActiveArea] = px;
   // Far strips lag behind: shift them back by part of the pan (in world pixels).
   world.querySelectorAll('.sv-bd[data-pan]').forEach(function(el) {
     var k = 1 - (+el.dataset.pan || 1);
     el.style.transform = k ? 'translate3d(' + Math.round(px / _svScale * k) + 'px,0,0)' : '';
   });
-  var sc = document.getElementById('sv-scene');
-  if (sc) { sc.classList.toggle('sv-at-start', px <= 0); sc.classList.toggle('sv-at-end', px >= max); }
+  sc.classList.toggle('sv-at-start', px <= 0); sc.classList.toggle('sv-at-end', px >= max - 1);
 }
 window._svPanTo = _svPanTo;
-function _svPanBy(dx) { _svPanTo((_svPanX[_svActiveArea] || 0) + dx); }
+function _svPanBy(dx, smooth) { var sc = document.getElementById('sv-scene'); _svPanTo((sc ? sc.scrollLeft : _svPanX[_svActiveArea] || 0) + dx, smooth); }
 // Where an area opens: where it was left, else `where` ('start', 'end' or the middle).
 function _svPanArea(area, where) {
   var x = _svPanX[area];
@@ -1296,21 +1329,26 @@ function _svBindPan() {
   _svPanBound = true;
   var sc = document.getElementById('sv-scene');
   if (!sc) return;
+  // Touch and pen pan natively (the scene is a horizontal scroller: momentum,
+  // and the browser tells a tap from a pan). The mouse drags: 1:1, with the
+  // pointer captured, from anywhere, a building or a villager included; under
+  // 8 px it is a click, over it a pan that neither selects nor opens.
+  sc.addEventListener('scroll', _svOnScroll, { passive: true });
   var press = null;
   sc.addEventListener('pointerdown', function(e) {
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
-    if (e.target.closest('.sv-build-panel, .sv-housing-modal, .kwv-test-panel, .sv-header')) return;
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    if (e.target.closest('.sv-build-panel, .sv-housing-modal, .kwv-test-panel, .sv-header, .kwv-radial')) return;
     // In Build mode a press on a building moves the building, not the view.
     var slot = e.target.closest('.sv-slot');
     if (_svBuildMode && slot && slot.dataset.slot && _svDraggable(slot.dataset.slot)) return;
-    press = { id: e.pointerId, x: e.clientX, start: _svPanX[_svActiveArea] || 0, moved: false };
+    press = { id: e.pointerId, x: e.clientX, start: sc.scrollLeft, moved: false };
   });
   window.addEventListener('pointermove', function(e) {
     if (press && e.pointerId === press.id) {
       var dx = e.clientX - press.x;
       if (!press.moved && Math.abs(dx) < _SV_PAN_PX) return;
-      if (!press.moved) { press.moved = true; sc.classList.add('sv-panning'); }
-      _svPanTo(press.start - dx);
+      if (!press.moved) { press.moved = true; sc.classList.add('sv-panning'); try { sc.setPointerCapture(e.pointerId); } catch (_) {} }
+      sc.scrollLeft = press.start - dx;
       return;
     }
     _svEdgeWatch(e);
@@ -1324,11 +1362,11 @@ function _svBindPan() {
   window.addEventListener('pointercancel', end);
   // A drag that panned must not also click the building it started on.
   sc.addEventListener('click', function(e) { if (_svPanned) { e.stopPropagation(); e.preventDefault(); } }, true);
+  // A sideways wheel or trackpad swipe scrolls natively; Shift+wheel too.
   sc.addEventListener('wheel', function(e) {
-    var dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
-    if (!dx) return;
+    if (!e.shiftKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY) || !e.deltaY) return;
     e.preventDefault();
-    _svPanBy(dx);
+    _svPanBy(e.deltaY);
   }, { passive: false });
   document.addEventListener('keydown', function(e) {
     if (!_svOpen || e.defaultPrevented || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
@@ -1336,7 +1374,7 @@ function _svBindPan() {
     if ((window.KWWindow && KWWindow.isOpen()) || (window.KWDialog && KWDialog.isOpen())) return;
     if (window.KWA11y && KWA11y.topmost()) return;
     e.preventDefault();
-    _svPanBy(e.key === 'ArrowLeft' ? -240 : 240);
+    _svPanBy(e.key === 'ArrowLeft' ? -240 : 240, true);
   });
   sc.addEventListener('mouseleave', function() { _svEdge.dir = 0; });
   window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); if (window.KWHome) KWHome.syncGlow(); if (window.KWCast && KWCast.resurvey) KWCast.resurvey(); } });

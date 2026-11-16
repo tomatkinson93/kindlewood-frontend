@@ -293,7 +293,7 @@ console.log('11. Build mode (§2.3)');
   check('11d. onto a building, the two swap (a building shown by default is pinned where it goes)', swapped.a === 'mine' && swapped.b === 'farm');
   check('11e. the map passed in is left alone', JSON.stringify(b._svMoveAssignment({ a: 'x' }, 'a', 'a', occ({ a: 'x' }))) === '{"a":"x"}');
   check('11f. empty plots show only in Build mode', /el\.hidden = !_svBuildMode;/.test(S) && /\.sv-slot\[hidden\] \{ display: none; \}/.test(read('css/home-scene.css')));
-  check('11g. in Build mode a building opens its manage panel; otherwise its screen', /if \(_svBuildMode\) _openBuildPanel\(s, o\);\s*else _svOpenBuilding\(o\.id/.test(S));
+  check('11g. in Build mode a building opens its panel for moving it; otherwise its radial menu, whose Enter opens its screen', /if \(_svBuildMode\) return _openBuildPanel\(s, o\);/.test(S) && /var enter = function\(\) \{ _svOpenBuilding\(o\.id/.test(S) && /KWBuildingMenu\.click\(this, \{ key: o\.id/.test(S));
   check('11h. a drag that just ended does not also click', /if \(_svJustDragged\) return;/.test(S) && /_SV_DRAG_PX = 6/.test(S));
   check('11i. Esc closes an open panel first, then leaves Build mode; windows keep their own Escape',
     /function _svBuildKey/.test(S) && /KWWindow\.isOpen\(\)\)\) return;/.test(grab('_svBuildKey')) && /_closeBuildPanel\(\); return;/.test(grab('_svBuildKey')) && /_svToggleBuildMode\(false\)/.test(grab('_svBuildKey')));
@@ -423,6 +423,13 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
   check('14e. a pan stays inside the world', bx._svClampPan(-50, 1400, 2600) === 0 && bx._svClampPan(5000, 1400, 2600) === 1200 && bx._svClampPan(300, 1400, 2600) === 300 && bx._svClampPan(300, 3000, 2600) === 0);
   check('14f. a drag that pans never clicks the building it started on; in Build mode a building drag moves it instead', /if \(_svPanned\) \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}/.test(S2) && /_svBuildMode && slot && slot\.dataset\.slot && _svDraggable/.test(S2));
   check('14g. the map leaves the arrow keys alone while Home shows', /window\._svIsOpen\(\)\) return;/.test(MAP));
+  check('14h2. the scene pans as a native horizontal scroller: momentum from the browser, vertical swipes left to the page, no overscroll "back", the track sized to the pan limit',
+    /\.sv-scene \{ cursor: grab; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; overscroll-behavior-x: contain;/.test(CSS) && /class="sv-track" id="sv-track"/.test(S2)
+    && /tr\.style\.width = Math\.round\(SV_WORLD_W \* _svScale \+ _svRightInset\(\)\)/.test(S2) && /sc\.addEventListener\('scroll', _svOnScroll, \{ passive: true \}\)/.test(S2));
+  check('14h3. the mouse drags from anywhere (a building or a villager too): 1:1, pointer captured; under 8 px a click, over it a pan that opens nothing; touch is left to the browser; keys and the edge still pan',
+    /var _SV_PAN_PX = 8;/.test(S2) && /if \(e\.pointerType !== 'mouse' \|\| e\.button !== 0\) return;/.test(S2) && /sc\.setPointerCapture\(e\.pointerId\)/.test(S2)
+    && /sc\.scrollLeft = press\.start - dx;/.test(S2) && /if \(_svPanned\) \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}/.test(S2) && /_svPanBy\(e\.key === 'ArrowLeft' \? -240 : 240, true\)/.test(S2) && /function _svEdgeTick/.test(S2)
+    && /\.sv-build-mode \.sv-slot \{ touch-action: none; \}/.test(CSS));
   check('14h. the far strips pan a little slower (the only depth), and only with the pan', /pan: 0\.45/.test(S2) && /pan: 0\.75/.test(S2) && /el\.dataset\.pan/.test(S2));
   const slots = [...S2.matchAll(/\{ id:'([a-z-]+)',\s+area:'(town|outskirts)',\s+x:([\d.]+),\s+y:([\d.]+)/g)].map(m => ({ id: m[1], area: m[2], x: +m[3], y: +m[4] }));
   check('14i. slots for a flat field: two rows, feet in the meadow (back row under the tree line)', slots.length === 18 && slots.every(q => q.y >= 50 && q.y <= 95 && q.x > 2 && q.x < 98)
@@ -667,6 +674,124 @@ console.log('20. The ground: paths between the doors, and props');
   check('20l. the layer ships empty: no props, no placeholders, until the art arrives',
     pm.scale === 2 && Object.keys(pm.props).length === 0 && G.scatter({ manifest: pm, seed: 1, segs, plots }).length === 0 && G.scatter({ manifest: null }).length === 0
     && /home-ground\.js\?v=/.test(read('index.html')));
+}
+
+// ── 21. Music: the loading screen and Home (js/music.js) ──
+console.log('21. Music: the loading screen and Home');
+{
+  const g = { console, Math, setTimeout() { return 1; }, setInterval() { return 1; }, navigator: {} }; g.window = g; vm.createContext(g);
+  vm.runInContext(read('js/music.js'), g);
+  const MU = g.KWMusic, MJ = read('js/music.js'), MN = read('js/main.js'), AU = read('js/audio.js'), IX = read('index.html');
+  check('21a. the files: loading.mp3, home_day.mp3 and home_night.mp3 in assets/audio/music/',
+    MU.FILES.loading === '/assets/audio/music/loading.mp3' && MU.FILES.day === '/assets/audio/music/home_day.mp3' && MU.FILES.night === '/assets/audio/music/home_night.mp3');
+  const tg = o => JSON.stringify(MU.targets(o));
+  check('21b. loading music on the loading screen; Home\'s day or night track on Home; nothing of ours while other music plays or elsewhere',
+    tg({ scene: 'loading', homeTrack: 'day' }) === '{"loading":1,"day":0,"night":0}' && tg({ scene: 'home', homeTrack: 'night' }) === '{"loading":0,"day":0,"night":1}'
+    && tg({ scene: 'home', homeTrack: 'day', others: true }) === '{"loading":0,"day":0,"night":0}' && tg({ scene: null, homeTrack: 'day' }) === '{"loading":0,"day":0,"night":0}');
+  check('21c. Start playing fades the loading music out over 1.5 s while Home\'s fades in over 2 s; day and night cross-fade',
+    MU.FADE.out === 1500 && MU.FADE.in === 2000 && MU.FADE.xfade > 0 && /KWMusic\.startPlaying\(\)/.test(MN) && /KWMusic\.loading\(\)/.test(MN) && /KWMusic\.loadingDone\(\)/.test(MN)
+    && /attributeFilter: \['data-phase'\]/.test(MJ));
+  check('21d. a missing night track falls back to the day one; a missing file stays quiet',
+    /return night && !\(T\.night && T\.night\.dead\) \? 'night' : 'day';/.test(MJ) && /a\.addEventListener\('error', \(\) => \{\s*t\.dead = true;/.test(MJ));
+  check('21e. blocked until a press: silent, no error, and the first press or key starts it; paused while the tab is hidden; follows the music volume',
+    /if \(t\.blocked && !S\.gestured\) \{ t\.gain = 0; continue; \}/.test(MJ) && /doc\.addEventListener\('pointerdown', gesture, true\)/.test(MJ)
+    && /const audible = t\.gain > 0 && !hidden\(\);/.test(MJ) && /a\.volume = Math\.max\(0, Math\.min\(1, vol \* t\.gain\)\)/.test(MJ) && /'kw-music-volume', kick/.test(MJ));
+  check('21f. Home\'s music fades out when Home closes or other music plays; the ambient beds sit low under it; never on top of welcome.mp3',
+    /addEventListener\('kw:home', e => \{ if \(e\.detail && e\.detail\.open\) scene\('home'\); else if \(S\.scene === 'home'\) scene\(null\); \}\)/.test(MJ)
+    && /global\.KWMusic && global\.KWMusic\.playing\(\)\) \? AMB_DUCK : 1/.test(AU) && /otherMusic: _otherMusicPlaying/.test(AU)
+    && /if \(S\.scene === 'loading'\) pauseWelcome\(\);/.test(MJ) && /bg && !bg\.paused/.test(MJ) && /\/js\/music\.js\?v=/.test(IX));
+}
+
+// ── 22. A building's radial menu (js/building-menu.js) ──
+console.log('22. A building\'s radial menu');
+{
+  const g = { console, Math, Date, setTimeout, document: null }; g.window = g; vm.createContext(g);
+  vm.runInContext(read('js/building-menu.js'), g);
+  const BM = g.KWBuildingMenu, BJ = read('js/building-menu.js'), CSS = read('css/home-scene.css'), E = read('js/villager-engine.js'), PL = read('js/places.js'), S = read('js/settlement-view.js');
+  const keys = o => BM.items(o).map(i => i.key).join();
+  check('22a. Enter first (and largest), then Minimise, Upgrade, Demolish and Who\'s here; what doesn\'t apply is left out',
+    keys({ enter: 1, upgrade: 1, demolish: 1 }) === 'enter,min,upgrade,demolish,who' && keys({ enter: 1, demolish: 1 }) === 'enter,min,demolish,who'
+    && keys({ enter: 1 }) === 'enter,min,who' && BM.items({ enter: 1 })[0].big === true && /\.kwv-rb\.kwb-enter \{ width: 62px; height: 62px;/.test(CSS));
+  check('22b. at the top level no Upgrade; the Neighbourhood has neither Upgrade nor Demolish; Build mode keeps placing and moving',
+    /upgrade: o\.currentLevel < o\.maxLevel \? function/.test(S) && /KWBuildingMenu\.click\(this, \{ key: 'neighbourhood', label: 'Neighbourhood', enter: function\(\) \{ _svOpenBuilding\('neighbourhood'\); \} \}, ev\)/.test(S)
+    && /_svBuildMode \? ''   \/\/ Build mode places and moves/.test(S) && !/sv-bp-demolish-btn" onclick/.test(S));
+  const r = BM.ring(4, 100);
+  check('22c. the others sit evenly round Enter, the first straight above', r.length === 4 && r[0].x === 0 && r[0].y === -100 && r[2].y === 100);
+  check('22d. a double click, or Enter twice, goes straight in; a keyboard opening focuses Enter',
+    BM.DOUBLE_MS >= 300 && BM.DOUBLE_MS <= 600 && /if \(now - M\.at < DOUBLE_MS\) \{ go\('enter'\); return; \}/.test(BJ) && /open\(slot, o, !!\(e && e\.detail === 0\)\)/.test(BJ) && /querySelector\('\.kwb-enter'\); if \(first\) first\.focus\(\)/.test(BJ));
+  check('22e. Minimise: see-through (30 %) and click-through, the nameplate stays and restores it; the sound both ways; until the player leaves Home',
+    /\.sv-slot\.kwb-min, #settlement-view \.sv-slot\.kwb-min \.kwh-btn \{ pointer-events: none; \}/.test(CSS) && /\.kwb-min \.kwh-art, #settlement-view \.sv-slot\.kwb-min \.kwh-bubble-host \{ opacity: 0\.3;/.test(CSS)
+    && /\.kwb-min \.kwh-plate \{ opacity: 1; pointer-events: auto;/.test(CSS) && /if \(minimised\.has\(o\.key\)\) \{ restore\(o\.key\); return; \}/.test(BJ)
+    && BM.SOUND.min === 'ui/minimize.wav' && /minimised\.clear\(\)/.test(BJ) && /lit\.closest\('\.kwb-min'\)/.test(read('js/home-scene.js')));
+  check('22f. Who\'s here lists exactly the villagers the scene has inside; a name brings them out with their menu',
+    /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(v\.state === 'indoors'\) comeOut\(v, performanceNow\(\)\);/.test(E)
+    && /C\.callOut\(id\)/.test(BJ) && /Nobody inside right now\./.test(BJ));
+  check('22g. one menu at a time; a See through toggle beside Names does every building; props keep their single click',
+    /global\.KWBuildingMenu\.close\(false, true\);   \/\/ one menu at a time/.test(E) && /C\.deselect\(\)/.test(BJ) && /key: 'seethrough'/.test(PL)
+    && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
+}
+
+// ── 23. Villagers keep a working day (seeded; js/villager-engine.js) ──
+console.log('23. Villagers keep a working day (seeded)');
+{
+  const e6 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e6.window = e6; vm.createContext(e6); vm.runInContext(read('js/villager-engine.js'), e6);
+  const C6 = e6.KWCast, E = read('js/villager-engine.js');
+  // (a) Inside for most of the working day; breaks of about a quarter, two or three, apart.
+  let okA = true, shares = [];
+  for (let id = 1; id <= 60; id++) for (let day = 20400; day < 20403; day++) {
+    const rt = C6._routine(id, day);
+    let on = 0, n = 0;
+    for (let h = rt.start; h < rt.end; h += 0.05) { n++; if (C6._atWork(rt, h)) on++; }
+    shares.push(on / n);
+    const br = rt.breaks;
+    if (br.length < 2 || br.length > 3 || rt.start < 10 || rt.start > 11 || rt.end < 22.4 || rt.end > 23) okA = false;
+    for (let i = 0; i < br.length; i++) { if (br[i][0] < rt.start || br[i][1] > rt.end || br[i][1] <= br[i][0]) okA = false; if (i && br[i][0] < br[i - 1][1]) okA = false; }
+  }
+  check('23a. a worker is inside for most of the working day: breaks take about a quarter (60 villagers × 3 days)',
+    okA && Math.min(...shares) >= 0.65 && Math.max(...shares) <= 0.82 && JSON.stringify(C6._routine(7, 20400)) === JSON.stringify(C6._routine(7, 20400)) && JSON.stringify(C6._routine(7, 20400)) !== JSON.stringify(C6._routine(7, 20401)));
+  // (b) Staggered: at no hour of the working day are most workers on a break at once.
+  let worst = 0;
+  for (let h = 11.5; h < 22.3; h += 0.25) {
+    let off = 0;
+    for (let id = 1; id <= 40; id++) { const rt = C6._routine(id, 20400); if (h >= rt.start && h < rt.end && !C6._atWork(rt, h)) off++; }
+    worst = Math.max(worst, off / 40);
+  }
+  const firsts = Array.from({ length: 40 }, (_, i) => C6._routine(i + 1, 20400).breaks[0][0]);
+  check('23b. breaks are staggered: never more than half of 40 workers on a break at once; their first breaks spread over more than two hours',
+    worst <= 0.5 && Math.max(...firsts) - Math.min(...firsts) > 2);
+  // (c) The minimum outside.
+  const vs = (inside, workers) => Array.from({ length: 6 }, (_, i) => ({ id: i + 1, inside: i < inside, worker: i < workers, since: 10 - i }));
+  check('23c. by day at least 4 out on desktop and 3 on a phone whenever that many are present: visitors (children, elders, the idle) come out first, then the worker inside longest',
+    C6.MIN_OUT.desktop === 4 && C6.MIN_OUT.phone === 3
+    && C6._callOut(vs(6, 6), 4).length === 4 && C6._callOut(vs(6, 3), 4).slice(0, 3).join() === '6,5,4' && C6._callOut(vs(2, 2), 4).length === 0
+    && C6._callOut(vs(4, 4), 3).length === 1 && C6._callOut(vs(3, 3).slice(0, 3), 4).length === 0
+    && /if \(workKey\(v\) && v\.inside === workKey\(v\)\) v\.breakUntil = now \+ 240000/.test(E) && /outsideCount\(\) <= minOut\(\)/.test(E));
+  // (d) The tavern in the evening against midday: a small seeded simulation of 8 villagers for two hours.
+  const doors = ['tavern', 'smithy', 'market', 'library', 'granary'].map((k, i) => ({ key: k, x: i * 100, y: 0 }));
+  const occupancy = phase => {
+    const rand = C6._seeded(phase === 'dusk' ? 11 : 12); let total = 0, samples = 0;
+    const vsim = Array.from({ length: 8 }, () => ({ until: 0, inside: null }));
+    for (let t = 0; t < 7200000; t += 5000) {
+      for (const v of vsim) if (t >= v.until) {
+        if (v.inside) { v.inside = null; v.until = t + 15000; continue; }   // out, a walk and a pause
+        const g = C6._chooseErrand({ phase, work: null, tavern: doors[0], home: { key: 'neighbourhood', x: 0, y: 0 }, doors, spots: [], ground: () => ({ x: 0, y: 0 }), owl: false }, rand);
+        if (g.kind === 'door') { v.inside = g.key; v.until = t + 15000 + C6._stayMs(g.key, phase, rand); } else v.until = t + 15000 + 6500;
+      }
+      total += vsim.filter(v => v.inside === 'tavern').length; samples++;
+    }
+    return total / samples;
+  };
+  const eve = occupancy('dusk'), mid = occupancy('day');
+  check('23d. the tavern holds more villagers in the evening than at midday (and an evening there is a long one)', eve > mid * 3 && eve > 1.5 && C6._stayMs('tavern', 'dusk', () => 0) >= 90000);
+  const owls = C6._nightOwls([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  let home = 0;
+  for (let id = 1; id <= 10; id++) { const g = C6._chooseErrand({ phase: 'night', work: null, tavern: doors[0], home: { key: 'neighbourhood', x: 0, y: 0 }, doors, spots: [], ground: () => ({ x: 0, y: 0 }), owl: owls.has(id) }, C6._seeded(id)); if (g.kind === 'door' && g.key === 'neighbourhood') home++; }
+  check('23e. night sends most home; a few stay out', home === 7 && owls.size === 3);
+  check('23f. Who\'s here is the engine\'s own list of who is inside; workers on shift start inside on opening; nobody appears or vanishes in the open; outskirts workers keep their day there',
+    /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(first && wd && working\(v, now\)\) \{ v\.x = wd\.x; v\.y = wd\.y; goIndoors\(v, now, wk\); \}/.test(E)
+    && /if \(working\(v, now\)\) \{ const d = doorOf\(workKey\(v\)\); walkTo\(v, doorSpot\(d, othersOf\(v\)\), d\.key\); return; \}/.test(E) && /const b = ROLE_BUILDING\[c\.role\];\s*return \(b && builtArea\(b\)\) \|\| 'town';/.test(E));
+  check('23g. it stays cosmetic: the engine sends nothing to the server', !/apiFetch|fetch\(/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

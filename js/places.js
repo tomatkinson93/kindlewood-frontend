@@ -52,6 +52,10 @@
       // profile menu's Show names; N on the keyboard). Pressed while on.
       { key: 'names',    label: 'Names',    glyph: '🏷', on: () => !!(global.KWHome && global.KWHome.namesOn()),
         run: () => { if (global.KWHome) global.KWHome.setNames(!global.KWHome.namesOn()); } },
+      // Every building see-through and click-through at once, or back
+      // (js/building-menu.js); until the player leaves Home. Pressed while on.
+      { key: 'seethrough', label: 'See through', glyph: '👁', on: () => !!(global.KWBuildingMenu && global.KWBuildingMenu.allMin()),
+        run: () => { if (global.KWBuildingMenu) global.KWBuildingMenu.toggleAll(); } },
       // The rest are the buildings themselves now (docs/HOME_SCENE.md §2,
       // js/home-scene.js), and a plain list in the profile menu.
     ],

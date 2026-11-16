@@ -206,7 +206,8 @@
     const t = _ambNow();
     const dt = _amb.lastTick ? t - _amb.lastTick : AMB_TICK_MS;
     _amb.lastTick = t;
-    const target = _otherMusicPlaying() ? AMB_DUCK : 1;
+    // Under other music, and under Home's music (js/music.js), the beds sit low.
+    const target = _otherMusicPlaying() || (global.KWMusic && global.KWMusic.playing()) ? AMB_DUCK : 1;
     const step = dt / AMB_DUCK_MS * (1 - AMB_DUCK);
     _amb.duck = _amb.duck < target ? Math.min(target, _amb.duck + step) : Math.max(target, _amb.duck - step);
     const allowed = _ambAllowed();
@@ -249,7 +250,7 @@
 
   global.KWAmbient = {
     BEDS: AMBIENT_BEDS, XFADE_MS: AMB_XFADE_MS, DUCK: AMB_DUCK,
-    start: startAmbient, setPhase: setAmbientPhase, tick: _ambTick,
+    start: startAmbient, setPhase: setAmbientPhase, tick: _ambTick, otherMusic: _otherMusicPlaying,
     getVolume: getAmbientVolume, setVolume: setAmbientVolume,
     state: () => ({
       duck: _amb.duck, crossfades: _amb.crossfades, gestured: _amb.gestured,
