@@ -1,0 +1,141 @@
+{
+  "tavern": {
+    "w": 331,
+    "h": 320,
+    "door": [
+      162,
+      316
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "tavern.webp",
+    "lit": "tavern_lit.webp"
+  },
+  "granary": {
+    "w": 346,
+    "h": 342,
+    "door": [
+      173,
+      338
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "granary.webp"
+  },
+  "market": {
+    "w": 392,
+    "h": 327,
+    "door": [
+      196,
+      323
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "market.webp"
+  },
+  "library": {
+    "w": 333,
+    "h": 349,
+    "door": [
+      163,
+      345
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "library.webp",
+    "lit": "library_lit.webp"
+  },
+  "smithy": {
+    "w": 388,
+    "h": 264,
+    "door": [
+      159,
+      260
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "smithy.webp"
+  },
+  "workshop": {
+    "w": 392,
+    "h": 240,
+    "door": [
+      180,
+      236
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "workshop.webp"
+  },
+  "guild_hall": {
+    "w": 452,
+    "h": 415,
+    "door": [
+      231,
+      411
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "guild_hall.webp"
+  },
+  "house_thatch": {
+    "w": 212,
+    "h": 196,
+    "door": [
+      89,
+      192
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "house_thatch.webp",
+    "lit": "house_thatch_lit.webp"
+  },
+  "house_timber": {
+    "w": 219,
+    "h": 209,
+    "door": [
+      92,
+      205
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "house_timber.webp",
+    "lit": "house_timber_lit.webp"
+  },
+  "house_stone": {
+    "w": 216,
+    "h": 208,
+    "door": [
+      89,
+      204
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "house_stone.webp",
+    "lit": "house_stone_lit.webp"
+  },
+  "house_burrow": {
+    "w": 239,
+    "h": 159,
+    "door": [
+      103,
+      155
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "lit": "house_burrow_lit.webp",
+    "file": "house_burrow_lit.webp",
+    "note": "no unlit version yet; the lit one stands in"
+  }
+}

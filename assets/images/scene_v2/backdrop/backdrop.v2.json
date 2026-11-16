@@ -1,0 +1,23 @@
+{
+  "scale": 2,
+  "trees": {
+    "file": "trees.webp",
+    "w": 2000,
+    "h": 120,
+    "tile": "x",
+    "note": "already mirrored; w is the on-screen width of one tile"
+  },
+  "mountains": {
+    "file": "mountains.webp",
+    "w": 2000,
+    "h": 82,
+    "tile": "x",
+    "note": "already mirrored"
+  },
+  "ground": {
+    "file": "ground.webp",
+    "w": 1000,
+    "h": 363,
+    "tile": "xy"
+  }
+}
