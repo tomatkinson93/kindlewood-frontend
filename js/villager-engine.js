@@ -262,7 +262,9 @@
   const townSpecies = () => { const gd = global.gameData; return (gd && (gd.species || (gd.settlement && gd.settlement.species))) || 'Mice'; };
   const momentIds = () => { try { return (global.KWMoments ? global.KWMoments.list() : []).flatMap(m => (m.subject && m.subject.citizen_ids) || []); } catch (_) { return []; } };
   const clockPhase = () => { try { return global.KWClock ? global.KWClock.phase().phase : global.KWDayCycle ? global.KWDayCycle.phaseAt(Date.now()).phase : 'day'; } catch (_) { return 'day'; } };
-  const W = () => S.layer.clientWidth, H = () => S.layer.clientHeight;
+  // The layer's size: read once at the start of each frame (before any write,
+  // so it never forces a layout), live otherwise.
+  const W = () => S.size ? S.size.w : S.layer.clientWidth, H = () => S.size ? S.size.h : S.layer.clientHeight;
   const px = p => ({ x: p.x / 100 * W(), y: p.y / 100 * H() });
   const live = v => v.state !== 'gone' && v.state !== 'leave';
 
@@ -915,7 +917,8 @@
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
     V().paint(v.el, s, frame, v.child ? 0.75 : 1, v.x, v.y);
-    v.el.style.zIndex = String(v.selected ? 1005 : depth(v.y));   // under the night overlay (1050)
+    const z = v.selected ? 1005 : depth(v.y);   // under the night overlay (1050)
+    if (v.z !== z) { v.z = z; v.el.style.zIndex = String(z); }
     if (!v.hitSet) { v.hitSet = true; placeHit(v, s); }
   }
   // Every couple of seconds, maybe one pair stops for a chat.
@@ -942,7 +945,8 @@
     if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
-    for (const v of S.vs.values()) { step(v, dt, now); draw(v, false); }
+    S.size = { w: S.layer.clientWidth, h: S.layer.clientHeight };
+    try { for (const v of S.vs.values()) { step(v, dt, now); draw(v, false); } } finally { S.size = null; }
     S.ms = S.ms * 0.95 + (performanceNow() - t0) * 0.05;   // the loop's own cost (target: under 2 ms)
     S.raf = requestFrame(tick);
   }

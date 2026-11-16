@@ -215,14 +215,13 @@
 #settlement-view[data-phase="night"] :is(.kwh-plate, .kwh-bubble-host, .kwv-tag, .kwv-mark, .kwv-say, .kwv-name) { filter: url(#kwn-undo-night); }
 #settlement-view[data-phase="dusk"] :is(.kwh-plate, .kwh-bubble-host, .kwv-tag, .kwv-mark, .kwv-say, .kwv-name) { filter: url(#kwn-undo-dusk); }
 
-/* Villagers stand out against the cartoon buildings (§4.7): a 1 px dark
-   outline and a slight lift, plus their family's look (--kwv-tint), and a
-   shadow at their feet. */
-#settlement-view .kwv-sprite {
-  filter: var(--kwv-tint, brightness(1)) drop-shadow(1px 0 0 #2a180c) drop-shadow(-1px 0 0 #2a180c) drop-shadow(0 1px 0 #2a180c) drop-shadow(0 -1px 0 #2a180c) brightness(1.07);
-}
+/* Villagers stand out against the cartoon buildings (§4.7): their 1 px dark
+   outline and slight lift are baked into the sheets (scripts/pack_sprites.js),
+   so a villager has no filter but their family's look (--kwv-tint, none for
+   most), and a shadow at their feet. */
+#settlement-view .kwv-sprite { filter: var(--kwv-tint, none); }
 #settlement-view .kwv-shadow {
-  position: absolute; width: 34px; height: 9px; margin: -5px 0 0 -17px; border-radius: 50%;
+  position: absolute; left: 0; top: 0; width: 34px; height: 9px; margin: -5px 0 0 -17px; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(28, 58, 22, 0.45), rgba(28, 58, 22, 0)); pointer-events: none;
 }
 
@@ -239,7 +238,7 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 #settlement-view .kwv-cit:focus-visible .kwv-hit { outline: 2px solid #ffd27a; outline-offset: 3px; }
 /* Selected: a bright outline, a ring on the ground, their name and job. */
 #settlement-view .kwv-selected .kwv-sprite {
-  filter: var(--kwv-tint, brightness(1)) drop-shadow(1px 0 0 #fff3c4) drop-shadow(-1px 0 0 #fff3c4) drop-shadow(0 1px 0 #fff3c4) drop-shadow(0 -1px 0 #fff3c4) drop-shadow(0 0 5px rgba(255, 214, 110, 0.9)) brightness(1.12);
+  filter: var(--kwv-tint, brightness(1)) drop-shadow(1px 0 0 #fff3c4) drop-shadow(-1px 0 0 #fff3c4) drop-shadow(0 1px 0 #fff3c4) drop-shadow(0 -1px 0 #fff3c4) drop-shadow(0 0 5px rgba(255, 214, 110, 0.9));
 }
 #settlement-view .kwv-ring {
   position: absolute; left: 48px; top: 77px; width: 46px; height: 14px; margin: -7px 0 0 -23px; border-radius: 50%;

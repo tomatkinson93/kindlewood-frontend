@@ -131,11 +131,12 @@ console.log('5. The packer');
   const { sheets, meta } = P.packSpecies({ walk_e: walkE, walk_n: walkN, idle_s: idleS, notes: Buffer.from('x') });
   const png = readPng(sheets.walk);
   check('5e. one sheet per animation: frames across, 8 directions down', png.sig && png.width === 3 * W && png.height === 8 * Hh && Object.keys(sheets).sort().join() === 'idle,walk');
-  const rowE = 6, rowW = 2, rowS = 0;
-  check('5f. the E row holds the E frames, in order', png.at(1, rowE * Hh + 3)[0] === 9 && png.at(W + 2, rowE * Hh + 3)[0] === 10);
-  check('5g. W is E mirrored', png.at(W - 1 - 1, rowW * Hh + 3)[0] === 9 && png.at(1, rowW * Hh + 3)[3] === 0 && meta.anims.walk.mirrored.includes('w'));
+  const rowE = 6, rowW = 2, rowS = 0, lift = v => Math.round(v * P.LIFT);   // drawn pixels come out lifted (14n)
+  const emptyOrOutline = px => px[3] === 0 || px.slice(0, 3).join() === P.OUTLINE.join();
+  check('5f. the E row holds the E frames, in order', png.at(1, rowE * Hh + 3)[0] === lift(9) && png.at(W + 2, rowE * Hh + 3)[0] === lift(10));
+  check('5g. W is E mirrored', png.at(W - 1 - 1, rowW * Hh + 3)[0] === lift(9) && emptyOrOutline([...png.at(1, rowW * Hh + 3)]) && meta.anims.walk.mirrored.includes('w'));
   check('5h. a direction with no mirror (S) borrows the nearest that exists, and says so', meta.anims.walk.borrowed.includes('s') && png.at(0, rowS * Hh)[3] >= 0);
-  check('5i. a shorter animation repeats to fill the row (N has 2 frames of 3)', png.at(2 * W + 3, 4 * Hh + 3)[0] === 20);
+  check('5i. a shorter animation repeats to fill the row (N has 2 frames of 3)', png.at(2 * W + 3, 4 * Hh + 3)[0] === lift(20));
   check('5j. villagers.json facts: frame size, frames, time, foot point from idle S',
     meta.frame.w === 8 && meta.anims.walk.frames === 3 && meta.anims.walk.ms === 150 && meta.anims.idle.frames === 1
     && Math.abs(meta.foot.x - 4.5) <= 0.5 && meta.foot.y === 7);
@@ -357,7 +358,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
   check('12s. speeds: adults 40, elders 30, children 55 px a second', C.SPEED.adult === 40 && C.SPEED.elder === 30 && C.SPEED.child === 55);
 
   const E = read('js/villager-engine.js'), VJ = read('js/villagers.js'), H = read('index.html');
-  check('12t. depth from the foot: villagers and buildings share one z-index scale', /el\.style\.zIndex = String\(v\.selected \? 1005 : depth\(v\.y\)\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
+  check('12t. depth from the foot: villagers and buildings share one z-index scale', /const z = v\.selected \? 1005 : depth\(v\.y\);/.test(E) && /v\.el\.style\.zIndex = String\(z\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
   check('12u. one loop, transform only; it stops off Home, with the tab hidden, in Build mode, and stands still under reduced motion',
     /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\)/.test(E) && /visibilitychange/.test(E)
     && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
@@ -444,7 +445,23 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
     /sv-bd-sky/.test(S2) && /\.sv-bd-sky \{[^}]*z-index: -5;/.test(CSS) && /\.sv-bd-ground \{[^}]*z-index: -3;/.test(CSS)
     && /\.sv-world > \.sv-layer \{[^}]*z-index: auto; will-change: auto;/.test(CSS) && !/z-index:70/.test(S2)
     && /data-phase="night"\] :is\(\.kwh-plate[^)]*\) \{ filter: url\(#kwn-undo-night\); \}/.test(CSS));
-  check('14n. villagers stand out: a 1 px dark outline and a slight lift, with the family look', /drop-shadow\(1px 0 0 #2a180c\) drop-shadow\(-1px 0 0 #2a180c\) drop-shadow\(0 1px 0 #2a180c\) drop-shadow\(0 -1px 0 #2a180c\) brightness\(1\.07\)/.test(CSS) && /--kwv-tint/.test(E));
+  // 3×3 frame, one drawn pixel in the middle: its four neighbours get the outline, the corners stay empty.
+  const of = new Uint8Array(36); of.set([100, 200, 250, 255], 16);
+  const oo = P.outlineFrame(of, 3, 3);
+  check('14n. villagers stand out: a 1 px dark outline and a ×1.07 lift baked into the sheets; no filter of their own but the family look',
+    [4, 12, 20, 28].every(i => [...oo.slice(i, i + 4)].join() === '42,24,12,255') && [0, 8, 24, 32].every(i => oo[i + 3] === 0)
+    && [...oo.slice(16, 20)].join() === '107,214,255,255' && of[16] === 100
+    && /f = outlineFrame\(f, fw, fh\)/.test(read('scripts/pack_sprites.js'))
+    && /\.kwv-sprite \{ filter: var\(--kwv-tint, none\); \}/.test(CSS) && !/drop-shadow\(1px 0 0 #2a180c\)/.test(CSS) && /--kwv-tint/.test(E));
+  // paint() writes only what changed, and moves by transform alone.
+  const pw = []; const pst = new Proxy({}, { set(o, k, v) { pw.push(k); o[k] = v; return true; } });
+  const pel = { style: pst, firstChild: { style: pst, classList: { toggle() {} } }, querySelector: () => null };
+  const ps = { url: 'a.png', w: 96, h: 96, frames: 4, row: 2, flip: false, foot: { x: 49, y: 77 } };
+  V.paint(pel, ps, 0, 1, 100, 100); const first = pw.length; pw.length = 0;
+  V.paint(pel, ps, 0, 1, 100.2, 100.3); const same = pw.length;
+  V.paint(pel, ps, 1, 1, 104, 100); const moved = pw.slice();
+  check('14n2. painting a villager each frame writes only what changed: nothing when still, the frame and the transform when moving (no left/top, width or height)',
+    first >= 5 && same === 0 && moved.join() === 'backgroundPosition,transform' && !/\.style\.(left|top) =/.test(VJ.slice(VJ.indexOf('function paint('), VJ.indexOf('// ── The style test'))));
   const cm = { house_timber: { file: 'a.webp', lit: 'a_lit.webp', w: 219, h: 209, door: [92, 205] }, house_stone: { file: 'b.webp', w: 216, h: 208, door: [89, 204] }, house_thatch: { file: 'c.webp', lit: 'c_lit.webp', w: 212, h: 196, door: [89, 192] } };
   const cl = KH.art('neighbourhood', cm);
   check('14o. the Neighbourhood\'s door is a cluster of the house drawings until its own art exists; its door is the front house\'s',

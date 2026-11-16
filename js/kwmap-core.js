@@ -312,7 +312,9 @@ window.KWMap = (() => {
     // ── The render loop (absorbs main.js's _startFogAnimation) ──────────
     // Same tick body: dt, fog drift advance, draw. New: visibility gating.
     _loopShouldRun() {
-      return this._visible && !document.hidden;
+      // Not under the Home scene either: it covers the map, which still
+      // counts as on screen to the IntersectionObserver.
+      return this._visible && !document.hidden && !(typeof window._svIsOpen === 'function' && window._svIsOpen());
     },
 
     startLoop() {
@@ -348,6 +350,7 @@ window.KWMap = (() => {
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) this.stopLoop(); else this.startLoop();
       });
+      window.addEventListener('kw:home', e => { if (e.detail && e.detail.open) this.stopLoop(); else this.startLoop(); });
     },
 
     // ── uifx canvas (layers 140–160) ─────────────────────────────────────

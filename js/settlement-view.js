@@ -543,6 +543,7 @@ function _svRecalcTop() {
 async function openSettlementView() {
   _ensureSvDOM();
   _svOpen = true;
+  window.dispatchEvent(new CustomEvent('kw:home', { detail: { open: true } }));   // the map's loops pause under Home
   _svSelectedSlot = null;
 
   var root = document.getElementById('settlement-view');
@@ -602,6 +603,7 @@ window.openSettlementBuild = openSettlementBuild;
 function closeSettlementView() {
   if (_svBuildMode) _svToggleBuildMode(false);
   _svOpen = false;
+  window.dispatchEvent(new CustomEvent('kw:home', { detail: { open: false } }));
   if (window.KWVillagers) KWVillagers.sceneHidden();
   if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
   _closeBuildPanel();
