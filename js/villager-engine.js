@@ -269,7 +269,7 @@
 
   // ── Villagers ───────────────────────────────────────────────────────────
   function make(c, at, emerging) {
-    const v = { id: Number(c.id), c, el: V().makeFigure(), x: at.x, y: at.y, tx: at.x, ty: at.y, state: 'idle', until: 0, t: S.rand() * 2000, dir: 's',
+    const v = { id: Number(c.id), c, el: V().makeFigure(true), x: at.x, y: at.y, tx: at.x, ty: at.y, state: 'idle', until: 0, t: S.rand() * 2000, dir: 's',
       child: isChild(c), elder: isElder(c), goal: null, partner: null, say: null };
     v.speed = v.child ? SPEED.child : v.elder ? SPEED.elder : SPEED.adult;
     v.until = performanceNow() + IDLE_MS[0] * S.rand();
@@ -277,6 +277,13 @@
     if (tint) v.el.firstChild.style.setProperty('--kwv-tint', tint);   // with the outline (css/home-scene.css)
     v.el.classList.add('kwv-cit');
     v.el.setAttribute('data-cid', String(v.id));
+    // A real button (step 7): Tab reaches it after the buildings; a small hit
+    // box round the figure takes clicks, so the empty corners of the frame
+    // don't steal them from buildings behind.
+    v.el.setAttribute('aria-label', nameLine(c) + '. Show choices');
+    v.el.setAttribute('aria-haspopup', 'menu');
+    const hit = doc.createElement('span'); hit.className = 'kwv-hit'; v.el.appendChild(hit);
+    v.el.addEventListener('click', e => { e.stopPropagation(); if (v.selected) deselect(true); else select(v, e.detail === 0); });
     if (emerging) { v.el.classList.add('kwv-gone'); requestFrame(() => v.el.classList.remove('kwv-gone')); }
     S.layer.appendChild(v.el);
     S.vs.set(v.id, v);
@@ -333,6 +340,8 @@
   // Leaving town: walk to the nearest door, fade, gone.
   function leave(v) {
     if (!live(v)) return;
+    if (v.selected) deselect(true);
+    v.held = false;
     endChat(v, performanceNow());
     const d = nearestDoor(v.x, v.y);
     if (v.state === 'indoors') { drop(v); return; }
@@ -433,7 +442,7 @@
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const pool = cits().filter(c => living(c) && !awayOf(c) && areaOf(c, builtArea) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
     const moments = momentIds().map(Number);
-    const out = [...S.vs.values()].filter(v => live(v) && v.state !== 'chat' && v.state !== 'tochat' && !v.child && !moments.includes(v.id)
+    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
     leave(out[Math.floor(S.rand() * out.length)]);
@@ -442,13 +451,201 @@
     if (door) setTimeout(() => { if (S.shown && !S.paused && !S.vs.has(Number(inn.id))) make(inn, { x: door.x, y: door.y }, true); }, 2500);
   }
 
+  // ── Selecting a villager: the radial menu (§3.6, step 7) ────────────────
+  // A click, tap or Enter selects: they stop facing the camera with a bright
+  // outline, a ring on the ground and their name and job under them, and
+  // round buttons fan out in an arc above (turned to stay on screen near an
+  // edge). Click elsewhere, Esc, or a button deselects. A window opened from
+  // the menu holds them standing until it closes. Sounds: a pop as the menu
+  // opens, another as it closes.
+  const SOUND = { on: 'ui/pop_on.mp3', off: 'ui/pop_off.mp3' };
+  const sound = k => { if (typeof global.playSfx === 'function') global.playSfx(SOUND[k]); };
+  const M = { v: null, el: null };
+  const roleLabel = r => { try { return global.KWCareers && global.KWCareers.roleLabel ? global.KWCareers.roleLabel(r) : null; } catch (_) { return null; } };
+  // "Poppy Brightburrow · farmer, 20". Pure.
+  function nameLine(c, label = roleLabel) {
+    const age = Number.isFinite(Number(c.age)) ? Math.floor(Number(c.age)) : null;
+    let what;
+    if (c.stage === 'child' || (!c.stage && c.life_stage === 'child')) what = 'child';
+    else if (c.stage === 'youth') { const k = c.apprentice && c.apprentice.class_key; what = k ? 'apprentice ' + String(label(k) || k).toLowerCase() : 'youth'; }
+    else what = String(label(c.role) || c.role || 'villager').toLowerCase();
+    return (c.name || 'Villager') + ' · ' + what + (age != null ? ', ' + age : '');
+  }
+  // The menu's buttons for someone. Children have no Change work; youths
+  // have Apprenticeship in its place. Pure.
+  function menuItems(c) {
+    const youth = c.stage === 'youth', child = !youth && (c.stage === 'child' || (!c.stage && c.life_stage === 'child'));
+    const items = [{ key: 'inspect', icon: '🔍', label: 'Inspect' }, { key: 'family', icon: '👪', label: 'Family' }];
+    if (youth) items.push({ key: 'apprentice', icon: '🎓', label: 'Apprenticeship' });
+    else if (!child) items.push({ key: 'work', icon: '🛠', label: 'Change work' });
+    items.push({ key: 'house', icon: '🏡', label: 'House' });
+    return items;
+  }
+  // Where the buttons go: an arc of `n` around `centre` degrees (−90 is
+  // straight up; screen y grows downward), turned toward the middle when the
+  // villager stands near the left or right edge of the view. Pure.
+  function arc(n, { radius = 96, spread = 150, sx = 500, viewW = 1000, edge = 130 } = {}) {
+    const atEdge = sx < edge || sx > viewW - edge;
+    const centre = sx < edge ? -60 : sx > viewW - edge ? -120 : -90;
+    if (atEdge) spread = Math.min(spread, 115);   // turned, and narrower, so it stays above the head
+    const step = n > 1 ? spread / (n - 1) : 0, start = centre - spread / 2 * (n > 1 ? 1 : 0);
+    return Array.from({ length: n }, (_, i) => { const a = (start + step * i) * Math.PI / 180; return { x: Math.round(Math.cos(a) * radius), y: Math.round(Math.sin(a) * radius) }; });
+  }
+
+  function select(v, byKeyboard) {
+    if (!live(v) || v.state === 'indoors') return;
+    if (M.v && M.v !== v) deselect(true, true);
+    endChat(v, performanceNow());
+    v.selected = true; v.held = false;
+    v.dir = 's';
+    v.el.classList.add('kwv-selected');
+    v.el.setAttribute('aria-expanded', 'true');
+    let tag = v.el.querySelector('.kwv-name');
+    if (!tag) { tag = doc.createElement('span'); tag.className = 'kwv-name'; v.el.appendChild(tag); }
+    tag.textContent = nameLine(v.c);
+    const ring = v.el.querySelector('.kwv-ring') || v.el.appendChild(Object.assign(doc.createElement('span'), { className: 'kwv-ring' }));
+    placeHit(v); void ring;
+    draw(v, false);
+    openMenu(v, byKeyboard);
+    sound('on');
+  }
+  // `quiet`: no sound (another villager was picked, or the scene is closing).
+  function deselect(soundOff, quiet) {
+    const v = M.v;
+    closeMenu();
+    if (!v) return;
+    v.selected = false;
+    v.el.classList.remove('kwv-selected');
+    v.el.removeAttribute('aria-expanded');
+    const tag = v.el.querySelector('.kwv-name'); if (tag) tag.remove();
+    const ring = v.el.querySelector('.kwv-ring'); if (ring) ring.remove();
+    if (!v.held) idle(v, performanceNow(), 600 + S.rand() * 900);
+    if (soundOff && !quiet) sound('off');
+  }
+
+  function openMenu(v, byKeyboard) {
+    closeMenu();
+    M.v = v;
+    const items = menuItems(v.c);
+    const sc = doc.getElementById('sv-scene');
+    const vr = v.el.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : { left: 0, width: 1000 };
+    const pts = arc(items.length, { sx: vr.left + vr.width / 2 - sr.left, viewW: sr.width, radius: isPhone() ? 100 : 96 });
+    const m = doc.createElement('div');
+    m.className = 'kwv-radial';
+    m.setAttribute('role', 'menu');
+    m.setAttribute('aria-label', v.c.name || 'Villager');
+    const head = (v.child ? 0.75 : 1) * 62;   // the figure is about 62 px tall
+    m.style.left = Math.round(v.x) + 'px';
+    m.style.top = Math.round(v.y - head) + 'px';
+    m.innerHTML = items.map((it, i) => `<button type="button" class="kwv-rb" role="menuitem" data-kwv-act="${it.key}" style="--rx:${pts[i].x}px;--ry:${pts[i].y}px">`
+      + `<span class="kwv-rb-i" aria-hidden="true">${it.icon}</span><span class="kwv-rb-l">${it.label}</span></button>`).join('');
+    m.addEventListener('click', e => {
+      e.stopPropagation();
+      const b = e.target.closest('[data-kwv-act]');
+      if (b) choose(b.getAttribute('data-kwv-act'));
+    });
+    m.addEventListener('keydown', e => {
+      const bs = [...m.querySelectorAll('.kwv-rb')], i = bs.indexOf(doc.activeElement);
+      if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.key)) {
+        e.preventDefault(); e.stopPropagation();
+        const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+        bs[(i + d + bs.length) % bs.length].focus();
+      }
+    });
+    S.layer.appendChild(m);
+    M.el = m;
+    // Fan out (CSS does 150 ms; none under reduced motion).
+    requestFrame(() => m.classList.add('kwv-open'));
+    if (byKeyboard) { const first = m.querySelector('.kwv-rb'); if (first) first.focus(); }
+  }
+  function closeMenu() {
+    if (M.el) M.el.remove();
+    M.el = null; M.v = null;
+  }
+
+  // What each button does. The villager is held until the window closes.
+  function choose(key) {
+    const v = M.v;
+    if (!v) return;
+    const c = v.c, id = v.id;
+    v.held = true; v.heldFrom = performanceNow(); v.heldCheck = 0;
+    deselect(true);
+    const call = (name, ...a) => (typeof global[name] === 'function' ? global[name](...a) : null);
+    if (key === 'inspect') call('openCitizenProfile', id);
+    else if (key === 'family') { if (global.KWFamilies) global.KWFamilies.open(c.family_id ? { family: c.family_id } : {}); }
+    else if (key === 'work' || key === 'apprentice') { call('openCitizenProfile', id); focusInProfile('.cp-role-section .cp-role-select'); }   // the job picker, or a youth's trade
+    else if (key === 'house') openHome(c);
+  }
+  // The job picker (or the apprenticeship) is in the citizen's profile: open
+  // it there, scrolled to and focused.
+  function focusInProfile(sel) {
+    let n = 0;
+    const tryIt = () => {
+      const el = doc.querySelector('#citizen-profile-modal ' + sel);
+      if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); const box = el.closest('.cp-role-section'); if (box) { box.classList.remove('kwv-flash'); void box.offsetWidth; box.classList.add('kwv-flash'); } }
+      else if (++n < 20) setTimeout(tryIt, 100);
+    };
+    setTimeout(tryIt, 50);
+  }
+  // The scene's Homes window, scrolled to their house.
+  async function openHome(c) {
+    if (typeof global._openHousingModal === 'function') await global._openHousingModal();
+    else if (typeof global.openHousingModal === 'function') await global.openHousingModal();
+    const h = c.house_id != null && doc.querySelector('#sv-housing-modal [data-house="' + c.house_id + '"]');
+    if (h) { h.scrollIntoView({ block: 'center' }); h.classList.add('kwv-flash'); }
+  }
+  // Is a window from the menu still up?
+  function windowUp() {
+    if (global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen()) return true;
+    if (global.KWA11y && global.KWA11y.topmost && global.KWA11y.topmost()) return true;
+    const hm = doc.getElementById('sv-housing-modal');
+    return !!(hm && hm.classList.contains('open'));
+  }
+  // The hit box: round the figure, from the sheet's foot point.
+  function placeHit(v, s) {
+    const hit = v.el.querySelector('.kwv-hit');
+    if (!hit) return;
+    const sp = s || (V().spriteFor(V().meta, v.c.species || townSpecies(), 'idle', 's'));
+    if (!sp) return;
+    const k = v.child ? 0.75 : 1;
+    hit.style.left = Math.round((sp.foot.x - 18) * k) + 'px';
+    hit.style.top = Math.round((sp.foot.y - 60) * k) + 'px';
+    hit.style.width = Math.round(36 * k) + 'px';
+    hit.style.height = Math.round(64 * k) + 'px';
+  }
+  // Click or tap elsewhere, or Esc, closes the menu.
+  if (doc) {
+    doc.addEventListener('pointerdown', e => {
+      if (!M.v) return;
+      if (e.target.closest && (e.target.closest('.kwv-radial') || e.target.closest('.kwv-cit[data-cid="' + M.v.id + '"]'))) return;
+      deselect(true);
+    }, true);
+    doc.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || !M.v || e.defaultPrevented) return;
+      e.preventDefault();
+      const v = M.v;
+      deselect(true);
+      try { v.el.focus({ preventScroll: true }); } catch (_) {}
+    });
+  }
+
   // ── The loop ────────────────────────────────────────────────────────────
   function step(v, dt, now) {
     if (v.state === 'gone') return;
     v.t += dt;
+    // Selected: stands facing the camera until the menu closes. Held: a window
+    // opened from the menu is still up; they walk on once it closes.
+    if (v.selected) return;
+    if (v.held) {
+      if (now - v.heldFrom > 1500 && now >= (v.heldCheck || 0)) { v.heldCheck = now + 500; if (!windowUp()) { v.held = false; idle(v, now, 400 + S.rand() * 800); } }
+      return;
+    }
     if (v.state === 'indoors') {
       // Night keeps people in until morning (staggered); otherwise their time is up.
       const nightIn = S.phase === 'night' && !S.owls.has(v.id);
+      // Kept in overnight: come out over the next 20 s in the morning, not all at once.
+      if (nightIn) v.nightIn = true;
+      else if (v.nightIn) { v.nightIn = false; v.until = Math.max(v.until, now + S.rand() * 20000); }
       if (now >= v.until && !nightIn && !(v.child && parentOf(v) && parentOf(v).state === 'indoors')) comeOut(v, now);
       return;
     }
@@ -495,16 +692,17 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && ['walk', 'leave', 'tochat', 'follow', 'ahead', 'chase'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
-    const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still ? 's' : v.dir);
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'follow', 'ahead', 'chase'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
     V().paint(v.el, s, frame, v.child ? 0.75 : 1, v.x, v.y);
-    v.el.style.zIndex = String(depth(v.y));
+    v.el.style.zIndex = String(v.selected ? 1400 : depth(v.y));
+    if (!v.hitSet) { v.hitSet = true; placeHit(v, s); }
   }
   // Every couple of seconds, maybe one pair stops for a chat.
   function maybeChat(now) {
-    const free = [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, child: v.child, selected: !!v.selected,
+    const free = [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, child: v.child, selected: !!v.selected || !!v.held,
       free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.goal && v.partner == null && (S.phase !== 'night') }));
     const pairs = chatPairs(free, now, S.cool);
     if (pairs.length && S.rand() < 0.35) startChat(S.vs.get(pairs[0][0]), S.vs.get(pairs[0][1]), now);
@@ -539,7 +737,7 @@
     v.setAttribute('data-phase', S.phase);
   }
 
-  function clear() { for (const v of S.vs.values()) v.el.remove(); S.vs.clear(); }
+  function clear() { closeMenu(); for (const v of S.vs.values()) v.el.remove(); S.vs.clear(); }
   function start() {
     if (!S.shown || S.paused || !S.layer || !V()) return;
     V().injectStyles();
@@ -567,7 +765,7 @@
   function sceneHidden() { S.shown = false; stop(); clear(); }
   function setPaused(p) {
     S.paused = !!p;
-    if (S.paused) { stop(); for (const v of S.vs.values()) v.el.style.display = 'none'; }
+    if (S.paused) { deselect(true); stop(); for (const v of S.vs.values()) v.el.style.display = 'none'; }
     else { for (const v of S.vs.values()) v.el.style.display = ''; start(); }
   }
   if (doc) doc.addEventListener('visibilitychange', () => { if (doc.hidden) stop(); else start(); });
@@ -578,7 +776,11 @@
     get frameMs() { return S.ms; },
     get phase() { return S.phase; },
     get count() { return [...S.vs.values()].filter(v => v.state !== 'gone').length; },
-    get villagers() { return [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, state: v.state, dir: v.dir, child: v.child, partner: v.partner, say: v.say, inside: v.inside || null })); },
+    get villagers() { return [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, state: v.state, dir: v.dir, child: v.child, partner: v.partner, say: v.say, inside: v.inside || null, selected: !!v.selected, held: !!v.held })); },
+    get selected() { return M.v ? M.v.id : null; },
+    select: id => { const v = S.vs.get(Number(id)); if (v) select(v, false); return !!v; },
+    deselect: () => deselect(true),
+    SOUND, _nameLine: nameLine, _menuItems: menuItems, _arc: arc,
     GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT,
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,

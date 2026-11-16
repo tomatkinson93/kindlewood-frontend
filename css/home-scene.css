@@ -214,3 +214,51 @@
 /* Phones: the scene no longer scrolls as one 860 px page; the world pans. */
 body.kw-shell #settlement-view { overflow: hidden; }
 body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; }
+
+/* ── Selecting a villager (HOME_SCENE.md §3.6, js/villager-engine.js) ── */
+/* The villager is a button, but only a small box round the figure takes
+   clicks, so the frame's empty corners never cover a building. */
+#settlement-view .kwv-cit { appearance: none; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; pointer-events: none; }
+#settlement-view .kwv-cit .kwv-hit { position: absolute; pointer-events: auto; cursor: pointer; border-radius: 40% 40% 30% 30%; }
+#settlement-view .kwv-cit:focus { outline: none; }
+#settlement-view .kwv-cit:focus-visible .kwv-hit { outline: 2px solid #ffd27a; outline-offset: 3px; }
+/* Selected: a bright outline, a ring on the ground, their name and job. */
+#settlement-view .kwv-selected .kwv-sprite {
+  filter: var(--kwv-tint, brightness(1)) drop-shadow(1px 0 0 #fff3c4) drop-shadow(-1px 0 0 #fff3c4) drop-shadow(0 1px 0 #fff3c4) drop-shadow(0 -1px 0 #fff3c4) drop-shadow(0 0 5px rgba(255, 214, 110, 0.9)) brightness(1.12);
+}
+#settlement-view .kwv-ring {
+  position: absolute; left: 48px; top: 77px; width: 46px; height: 14px; margin: -7px 0 0 -23px; border-radius: 50%;
+  border: 2px solid #ffe08a; box-shadow: 0 0 8px rgba(255, 214, 110, 0.8); pointer-events: none;
+}
+#settlement-view .kwv-name {
+  position: absolute; left: 48px; top: 84px; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  padding: 2px 8px; border-radius: 6px; background: rgba(24, 16, 9, 0.86); border: 1px solid rgba(220, 180, 100, 0.45);
+  color: #ffe9a8; font: 600 12px/1.3 system-ui, sans-serif;
+}
+/* The radial menu: round buttons fanned out in an arc above the head. */
+#settlement-view .kwv-radial { position: absolute; width: 0; height: 0; z-index: 1600; }
+/* The scene's layers are pointer-events: none; the menu's buttons opt back in. */
+#settlement-view .kwv-rb {
+  pointer-events: auto;
+  position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 0;
+  border-radius: 50%; border: 2px solid #b98a4a; background: #fff6df; color: #3a2414; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transform: translate(0, 0) scale(0.3); opacity: 0;
+  transition: transform 150ms ease-out, opacity 150ms ease-out, background 0.15s;
+}
+#settlement-view .kwv-radial.kwv-open .kwv-rb { transform: translate(var(--rx), var(--ry)) scale(1); opacity: 1; }
+#settlement-view .kwv-rb:hover, #settlement-view .kwv-rb:focus-visible { background: #ffe7a8; outline: none; box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.9), 0 2px 6px rgba(0, 0, 0, 0.35); }
+#settlement-view .kwv-rb-i { font-size: 20px; line-height: 1; }
+#settlement-view .kwv-rb-l {
+  position: absolute; top: 100%; left: 50%; transform: translate(-50%, 3px); white-space: nowrap; pointer-events: none;
+  padding: 1px 6px; border-radius: 5px; background: rgba(24, 16, 9, 0.84); color: #ffe9a8; font: 600 11px/1.3 system-ui, sans-serif;
+}
+@media (pointer: coarse) {
+  #settlement-view .kwv-rb { width: 48px; height: 48px; margin: -24px 0 0 -24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #settlement-view .kwv-rb { transition: none; }
+}
+/* Where a menu button lands: the job picker, or their home. */
+@keyframes kwv-flash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.9); } }
+.kwv-flash { animation: kwv-flash 1.4s ease-out 1; border-radius: 8px; }
