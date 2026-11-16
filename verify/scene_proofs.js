@@ -2,7 +2,8 @@
 // The living Home scene (docs/HOME_SCENE.md §5). Step 2, the style test:
 // the sprite packer (scripts/pack_sprites.js) and the villager helpers
 // (js/villagers.js). Step 3, buildings are the buttons (js/home-scene.js).
-// Step 4, Build mode (js/settlement-view.js).
+// Step 4, Build mode (js/settlement-view.js). Step 5, the villager engine
+// (js/villager-engine.js).
 // Later steps add the cast, errands, chat and selection.
 //   node verify/scene_proofs.js
 const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
@@ -289,6 +290,72 @@ console.log('11. Build mode (§2.3)');
   check('11l. the Build chip turns it on and reads "Done" while on', /onLabel: 'Done'/.test(PL) && /_svToggleBuildMode/.test(PL) && /aria-pressed/.test(PL) && /KWPlaces\.refreshTools\(\)/.test(S));
   check('11m. villagers hide and props (but the signposts) step aside while building', /KWVillagers\.setPaused\(_svBuildMode\)/.test(S) && /_svBuildMode && p\.kind !== 'signpost'/.test(S));
   check('11n. leaving Home leaves Build mode', /function closeSettlementView\(\) \{\s*if \(_svBuildMode\) _svToggleBuildMode\(false\);/.test(S));
+}
+
+console.log('12. The cast and walking (§3.2–3.4)');
+{
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e);
+  vm.runInContext(read('js/villager-engine.js'), e);
+  const C = e.KWCast;
+  const mk = (id, o = {}) => Object.assign({ id, name: 'C' + id, life_stage: 'adult', stage: 'adult', role: 'forager', family_id: id, parent_ids: [] }, o);
+  const town = [mk(1, { family_id: 10 }), mk(2, { family_id: 10 }), mk(3, { family_id: 11 }), mk(4, { family_id: 12 }), mk(5, { family_id: 12, stage: 'elder' }),
+    mk(6, { family_id: 10, stage: 'child', life_stage: 'child', parent_ids: [1, 2] }), mk(7, { family_id: 13, stage: 'child', life_stage: 'child', parent_ids: [99] }),
+    mk(8, { life_stage: 'deceased', stage: 'deceased' }), mk(9, { family_id: 14, active_quest: {} }), mk(10, { family_id: 15, role: 'farmer' }),
+    mk(11, { family_id: 16 }), mk(12, { family_id: 17 }), mk(13, { family_id: 18 })];
+  const away = c => (c.active_quest ? { label: 'On Quest' } : null);
+  const builtArea = b => ({ farm: 'outskirts', tavern: 'town' }[b] || null);
+  const areaOf = c => C._areaOf(c, builtArea);
+  const pick = (o = {}) => C._pickCast(town, Object.assign({ cap: 14, area: 'town', areaOf, away, momentIds: [], rand: C._seeded(7) }, o));
+  const all = pick();
+  check('12a. never anyone dead or away', !all.includes(8) && !all.includes(9));
+  check('12b. the area decides: a farmer works out in the Outskirts; children and elders are in town', !all.includes(10) && pick({ area: 'outskirts' }).join() === '10' && all.includes(5));
+  check('12c. never a child without a parent (a child whose parent is not here stays indoors)', all.includes(6) && !all.includes(7)
+    && all.every(id => { const c = town.find(x => x.id === id); return !(c.stage === 'child') || c.parent_ids.some(p => all.includes(p)); }));
+  let capOk = true, kidOk = true;
+  for (let seed = 1; seed < 60; seed++) for (const cap of [1, 2, 3, 5, 8]) {
+    const r = pick({ cap, rand: C._seeded(seed) });
+    if (r.length > cap) capOk = false;
+    if (r.some(id => { const c = town.find(x => x.id === id); return c.stage === 'child' && !c.parent_ids.some(p => r.includes(p)); })) kidOk = false;
+  }
+  check('12d. never more than the cap, whatever the seed (60 seeds × 5 caps)', capOk);
+  check('12e. and never a lone child at any cap', kidOk);
+  const m = pick({ cap: 2, momentIds: [12, 6] });
+  check('12f. anyone with an open moment is always in (a child comes with a parent)', m.includes(12) || (m.includes(6) && (m.includes(1) || m.includes(2))));
+  check('12g. a moment subject first even when the cast is small', pick({ cap: 1, momentIds: [13] }).join() === '13');
+  const small = pick({ cap: 4, rand: C._seeded(3) });
+  check('12h. an elder if the town has one, even at a small cap', small.includes(5));
+  const fams = new Set(small.map(id => town.find(x => x.id === id).family_id));
+  check('12i. spread across families (4 people, 4 families)', fams.size === 4);
+  check('12j. the same seed picks the same cast (tests can replay a scene)', pick({ rand: C._seeded(5) }).join() === pick({ rand: C._seeded(5) }).join());
+  check('12k. caps: 14 on desktop, 8 on a phone', C.CAP.desktop === 14 && C.CAP.phone === 8);
+
+  const rnd = C._seeded(11);
+  let inside = true;
+  for (const area of ['town', 'outskirts']) for (let i = 0; i < 300; i++) { const p = C._groundPoint(area, rnd); if (!C._inPolygon(p.x, p.y, C.GROUND[area])) inside = false; }
+  check('12l. every place on open ground they walk to lies on the ground (600 samples)', inside);
+  check('12m. every named spot lies on the ground', ['town', 'outskirts'].every(a => C.SPOTS[a].every(s => C._inPolygon(s.x, s.y, C.GROUND[a]))));
+  check('12n. the ground is the meadow band, roughly y 66–94 %', ['town', 'outskirts'].every(a => C.GROUND[a].every(([x, y]) => x >= 0 && x <= 100 && y >= 66 && y <= 94)));
+  const g = C._onGround('town', 60, 40);
+  check('12o. a door up in the sky is brought down to the ground', C._inPolygon(g.x, g.y, C.GROUND.town) && C._onGround('town', 30, 85).y === 85);
+  const art = { w: 300, h: 240, door: { x: 150, y: 230 } };
+  const d1 = C._doorPoint({ left: 100, top: 200, width: 150, height: 120 }, art), d2 = C._doorPoint({ left: 400, top: 210, width: 150, height: 120 }, art);
+  check('12p. a door comes from the manifest, scaled to the drawn size', d1.x === 175 && d1.y === 315);
+  check('12q. a door follows a moved building', d2.x - d1.x === 300 && d2.y - d1.y === 10);
+  check('12r. the placeholder hut\'s door; else the bottom centre', C._doorPoint({ left: 0, top: 0, width: 120, height: 105 }, { hut: true }).x === 55 && C._doorPoint({ left: 0, top: 0, width: 80, height: 60 }, null).y === 60);
+  check('12s. speeds: adults 40, elders 30, children 55 px a second', C.SPEED.adult === 40 && C.SPEED.elder === 30 && C.SPEED.child === 55);
+
+  const E = read('js/villager-engine.js'), VJ = read('js/villagers.js'), H = read('index.html');
+  check('12t. depth from the foot: villagers and buildings share one z-index scale', /el\.style\.zIndex = String\(depth\(v\.y\)\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
+  check('12u. one loop, transform only; it stops off Home, with the tab hidden, in Build mode, and stands still under reduced motion',
+    /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\)/.test(E) && /visibilitychange/.test(E)
+    && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/style\.(left|top) =/.test(E));
+  check('12v. children are drawn at 0.75×; each family has its own gentle look', /v\.child \? 0\.75 : 1/.test(E) && /TINTS\[Math\.abs\(Number\(c\.family_id\)/.test(E));
+  check('12w. leaving town: walk to the nearest door and fade; arriving: out of a door; nobody pops up except when Home opens',
+    /function leave\(v\)/.test(E) && /nearestDoor\(v\.x, v\.y\)/.test(E) && /make\(c, at, !first\)/.test(E));
+  check('12x. a picture only: the engine never calls the server', !/apiFetch|fetch\(/.test(E));
+  check('12y. loaded after js/villagers.js; the scene\'s hooks reach it', H.indexOf('/js/villager-engine.js?v=') > H.indexOf('/js/villagers.js?v=') && /cast\(\)\.sceneShown\(T\.layer\)/.test(VJ) && /cast\(\)\.setPaused\(T\.paused\)/.test(VJ));
+  check('12z. the loop measures its own cost per frame (the phone pass targets under 2 ms)', /S\.ms = S\.ms \* 0\.95/.test(E) && /get frameMs\(\)/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

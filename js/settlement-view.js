@@ -355,7 +355,7 @@ function _injectSvStyles() {
 }
 .sv-edit-reset-btn:hover { background: rgba(120,40,30,0.48); color: #e87060; }
 /* Build mode: buildings show a grab cursor (css/home-scene.css). */
-.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 999 !important; transition: none !important; }
+.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 2000 !important; transition: none !important; }
 .sv-slot.sv-dragging .sv-building,
 .sv-slot.sv-dragging .sv-slot-empty { filter: drop-shadow(0 8px 28px rgba(100,180,255,0.55)) brightness(1.18); }
 .sv-slot.sv-drag-bad .sv-building,
