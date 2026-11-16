@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  KWGround — the Home scene's ground: dirt paths drawn by code and the
-//  props layer (docs/HOME_SCENE.md §2.7, docs/ART_GUIDE.md §4b).
+//  props layer (docs/ART_GUIDE.md §4b, docs/HOME_SCENE.md §3.4).
 //
 //  Paths: a soft band about 28 px wide under everything, from each door down
 //  to its row's lane, the lanes joined, and the signpost on the nearest lane.
