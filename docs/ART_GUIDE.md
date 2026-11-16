@@ -138,6 +138,51 @@ In this order, each step shippable:
 Check in the browser at 1400 × 900 and 390 × 844, by day and by night. The
 reviewer's mock-ups of the target are with the owner.
 
+## 4a. Built (2026-11-16)
+
+§4 steps 1–7 are in, plus the owner's request to drop the mouse-drift effect.
+Proofs: `verify/scene_proofs.js` §14 (and §8, §12 updated).
+
+- **Manifest** (`js/home-scene.js`): reads `scene_v2/buildings/manifest.v2.json`
+  only. Each building is a `.kwh-art` box at the manifest's `w` × `h` holding
+  the day image and, on top, the lit one. Keys with no new art keep the
+  placeholder hut (drawn larger, about a house's size); the painted scene's
+  PNGs are no longer shown. The Neighbourhood's door in Town is a cluster of
+  the three house drawings (timber, stone, thatch at 0.62×) until its own art
+  exists; its door is the front house's.
+- **Backdrop** (`js/settlement-view.js` `SV_BACKDROP`, `css/home-scene.css`):
+  sky by code with a gradient per time of day, mountains and trees as
+  `repeat-x` strips with haze (25 %, 18 %), the meadow as a `repeat` fill from
+  25 % down; the tree line overlaps it by 12 px.
+- **No drift**: the parallax that followed the mouse is gone. The only depth
+  effect left is the far strips panning a little slower than the meadow
+  (0.45 and 0.75) when the view pans.
+- **Layout**: two rows on the flat field, feet at 56 % (just under the tree
+  line) and 92 %, staggered; a slot's position is now the foot of what stands
+  there. Saved hand-made layouts from the painted scene are not carried over
+  (new storage keys).
+- **Panning**: Town and the Outskirts are 2600 px wide. Drag (on the meadow or
+  a building; a press that moves 6 px pans instead of clicking), sideways
+  wheel or Shift+wheel, the arrow keys (the map no longer takes them while
+  Home shows), or rest the mouse at the left or right edge. Each area opens
+  centred and remembers where it was; a signpost lands you at the matching
+  end. Phones pan by touch instead of scrolling an 860 px page.
+- **Shadows** by code under buildings (92 % wide) and villagers.
+- **Night**: SVG colour matrices (×0.42, ×0.48, ×0.78; lit ×0.72, ×0.72,
+  ×0.92; a halfway pair for the evening) on the meadow, strips, buildings and
+  villagers; lit images fade in over 3 s at dusk and stay through the night;
+  the sky changes with the phase. An empty Neighbourhood stays dark.
+  `KWCast.preview('night')` (or `'dusk'`, `'dawn'`, `'day'`) in the console
+  holds a time of day for a look; `KWCast.preview(null)` goes back to the clock.
+- **Villagers** get a 1 px dark outline and a slight lift (with their family
+  look) and walk the whole meadow.
+
+Not done yet: drifting clouds (no cloud art), §4 step 8 (house styles on the
+server waits for the Neighbourhood, `HOME_SCENE.md` step 10), a Dev Tools
+overlay for door points, `scripts/pack_buildings.js`, and the night tint on
+the signposts' painted words. The door points are as estimated; villagers walk
+to them and they look right at a glance.
+
 ## 5. Adding a new building later
 
 1. The owner makes the image (§8) and a matching lit one.

@@ -35,14 +35,15 @@
   // ── Pure rules (verify/scene_proofs.js) ─────────────────────────────────
 
   // The ground people may walk on, per area, in percent of the layer.
-  // Both areas share today's backdrop, so one shape for now: the meadow in
-  // front, dipping below the river on the right. Redraw with the new art.
-  const MEADOW = [[4, 72], [34, 68], [48, 72], [54, 78], [76, 79], [90, 75], [96, 75], [96, 94], [4, 94]];
+  // The whole flat meadow below the horizon (25 %), less a margin
+  // (docs/ART_GUIDE.md §4.3). x is percent of the world's width.
+  const MEADOW = [[1, 31], [99, 31], [99, 97], [1, 97]];
   const GROUND = { town: MEADOW, outskirts: MEADOW };
   // Named spots worth walking to (percent). Placeholders until the new art.
   const SPOTS = {
-    town:      [{ id: 'well', x: 30, y: 84 }, { id: 'bench', x: 19, y: 80 }, { id: 'riverbank', x: 62, y: 81 }, { id: 'square', x: 46, y: 90 }],
-    outskirts: [{ id: 'field-edge', x: 24, y: 86 }, { id: 'riverbank', x: 66, y: 82 }, { id: 'track', x: 44, y: 80 }],
+    // In the gaps between the front row's buildings, and along the front.
+    town:      [{ id: 'lane-west', x: 29.5, y: 70 }, { id: 'lane-mid', x: 48.5, y: 72 }, { id: 'lane-east', x: 67.5, y: 70 }, { id: 'front', x: 50, y: 96 }, { id: 'east-end', x: 92, y: 74 }],
+    outskirts: [{ id: 'track-west', x: 28.5, y: 70 }, { id: 'track-mid', x: 47.5, y: 72 }, { id: 'track-east', x: 66.5, y: 70 }, { id: 'front', x: 46, y: 96 }],
   };
   const CAP = { desktop: 14, phone: 8 };
   // A job's building (the server's ROLE_BUILDING_MAP, plus foragers).
@@ -129,7 +130,7 @@
   function onGround(area, x, y) {
     const poly = GROUND[area] || GROUND.town;
     if (inPolygon(x, y, poly)) return { x, y };
-    const cy = 86;
+    const cy = 90;
     for (let t = 0.1; t <= 1.0001; t += 0.1) {
       const px = Math.min(95, Math.max(5, x)), py = y + (cy - y) * t;
       if (inPolygon(px, py, poly)) return { x: px, y: py };
@@ -246,14 +247,16 @@
     S.layer.querySelectorAll(':scope > .sv-slot').forEach(slot => {
       if (slot.hidden) return;
       const btn = slot.querySelector('[data-kwh]');
-      const artEl = btn && (btn.querySelector('.kwh-img') || btn.querySelector('.kwh-hut') || btn.querySelector('.kwh-prop-art'));
+      // The art box (sized by the manifest), the placeholder hut, or a prop.
+      const box0 = btn && btn.querySelector('.kwh-art');
+      const artEl = box0 ? (box0.classList.contains('kwh-ph') ? box0.querySelector('.kwh-hut') || box0 : box0) : btn && btn.querySelector('.kwh-prop-art');
       const box = (artEl || slot).getBoundingClientRect();
       const rect = { left: (box.left - lr.left) / sx, top: (box.top - lr.top) / sy, width: box.width / sx, height: box.height / sy };
       const foot = rect.top + rect.height;
       if (!slot.classList.contains('sv-dragging')) slot.style.zIndex = String(depth(foot));
       if (!btn) return;
       const key = btn.getAttribute('data-kwh');
-      const art = artEl && artEl.classList.contains('kwh-img') && global.KWHome ? global.KWHome.art(key) : artEl && artEl.classList.contains('kwh-hut') ? { hut: true } : null;
+      const art = artEl && artEl.classList.contains('kwh-art') && global.KWHome ? global.KWHome.art(key) : artEl && artEl.classList.contains('kwh-hut') ? { hut: true } : null;
       const d = doorPoint(rect, art);
       const g = onGround(S.area, d.x / W() * 100, d.y / H() * 100);
       const p = { key, x: g.x / 100 * W(), y: g.y / 100 * H(), btn };
@@ -271,7 +274,7 @@
     v.speed = v.child ? SPEED.child : v.elder ? SPEED.elder : SPEED.adult;
     v.until = performanceNow() + IDLE_MS[0] * S.rand();
     const tint = TINTS[Math.abs(Number(c.family_id) || 0) % TINTS.length];
-    if (tint) v.el.firstChild.style.filter = tint;
+    if (tint) v.el.firstChild.style.setProperty('--kwv-tint', tint);   // with the outline (css/home-scene.css)
     v.el.classList.add('kwv-cit');
     v.el.setAttribute('data-cid', String(v.id));
     if (emerging) { v.el.classList.add('kwv-gone'); requestFrame(() => v.el.classList.remove('kwv-gone')); }
@@ -398,7 +401,7 @@
   function recast(first) {
     if (!S.layer || !V() || !V().meta) return;
     survey();
-    S.phase = clockPhase();
+    S.phase = S.hold || clockPhase();
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const all = cits();
     const want = pickCast(all, { cap, area: S.area, areaOf: c => areaOf(c, builtArea), away: awayOf, momentIds: momentIds(), rand: S.rand });
@@ -514,7 +517,7 @@
     if ((S.syncT += dt) > 5000) {   // the town changes: refresh the cast; the clock moves on
       S.syncT = 0;
       survey();
-      const ph = clockPhase();
+      const ph = S.hold || clockPhase();
       if (ph !== S.phase) { S.phase = ph; nightLights(); }
       if (signature(cits()) !== S.sig) recast(false);
     }
@@ -527,17 +530,20 @@
     S.raf = requestFrame(tick);
   }
   const running = () => S.shown && !S.paused && S.layer && !doc.hidden && !(V() && V().reducedMotion());
-  // Evening and night: the tavern's windows glow.
+  // Evening and night: buildings with a lit image glow. data-phase drives the
+  // sky, the night tint and the lit windows (css/home-scene.css).
   function nightLights() {
     const v = doc.getElementById('settlement-view');
-    if (v) v.classList.toggle('kwv-night', S.phase === 'night' || S.phase === 'dusk');
+    if (!v) return;
+    v.classList.toggle('kwv-night', S.phase === 'night' || S.phase === 'dusk');
+    v.setAttribute('data-phase', S.phase);
   }
 
   function clear() { for (const v of S.vs.values()) v.el.remove(); S.vs.clear(); }
   function start() {
     if (!S.shown || S.paused || !S.layer || !V()) return;
     V().injectStyles();
-    S.phase = clockPhase();
+    S.phase = S.hold || clockPhase();
     nightLights();
     V().load().then(() => {
       if (!S.shown || S.paused) return;
@@ -577,6 +583,9 @@
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
     _seed: n => { S.rand = seeded(n); },
-    _setPhase: p => { S.phase = p; nightLights(); },   // Dev and tests: see night or evening now
+    // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
+    // holds it until KWCast.preview(null) (or a reload) goes back to the clock.
+    preview: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); return S.phase; },
+    _setPhase: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

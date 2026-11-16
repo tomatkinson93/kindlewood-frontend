@@ -2,26 +2,21 @@
 // settlement-view.js — Layered environmental scene for settlement construction.
 // Biome themes compose modular SVG layers; buildings render between midground/foreground.
 
-// ── Biome config (eventually derived from world-map terrain) ──────────────────
-const SV_BIOME = 'mountain';
-
-// ── Layer registry ────────────────────────────────────────────────────────────
-// z: stacking order within .sv-scene.
-//   z 0–65 : environment layers (background → foreground)
-//   z 70   : building fg slots — always above all env layers
-// px/py: parallax pixel travel at cursor extreme (sky=least, foliage=most)
-// Foreground PNG must be transparent in the settlement centre so buildings show.
-const SV_LAYER_DEFS = {
-  'sky':        { z:  0, px:  2, py:  1, image: '/assets/images/biomes/mountain/sky.png'        },
-  'mtn-near':   { z: 20, px:  7, py:  4, image: '/assets/images/biomes/mountain/mountains.png'  },
-  'hills':      { z: 30, px: 10, py:  6, image: '/assets/images/biomes/mountain/midground.png'  },
-  'foliage-fg': { z: 65, px: 20, py: 12, image: '/assets/images/biomes/mountain/foreground.png' },
+// ── The backdrop (docs/ART_GUIDE.md §2, §4.2) ─────────────────────────────────
+// A sky drawn by code (its colours follow the time of day: css/home-scene.css),
+// two far strips that tile sideways (mountains, then a tree line) and one flat
+// meadow that tiles both ways. The horizon sits at a quarter of the height; the
+// tree line's foot overlaps the meadow by 12 px so there is no seam. Sizes are
+// on screen; the files are twice that.
+const SV_ART = '/assets/images/scene_v2/';
+const SV_HORIZON = 0.25;
+const SV_BACKDROP = {
+  mountains: { file: SV_ART + 'backdrop/mountains.webp', w: 2000, h: 82,  pan: 0.45 },
+  trees:     { file: SV_ART + 'backdrop/trees.webp',     w: 2000, h: 120, pan: 0.75 },
+  ground:    { file: SV_ART + 'backdrop/ground.webp',    w: 1000, h: 363 },
 };
-
-// ── Biome definitions ─────────────────────────────────────────────────────────
-const SV_BIOMES = {
-  mountain: ['sky', 'mtn-near', 'hills', 'foliage-fg'],
-};
+// Town and the Outskirts are wider than a screen and pan sideways (§4.4).
+const SV_WORLD_W = 2600;
 
 // ── Buildable ids ─────────────────────────────────────────────────────────────
 // Any building can go in any building slot. The list comes from the server's
@@ -38,24 +33,26 @@ function _svSlotBuildingIds() {
 // (e.g. from the sidebar) is shown here if it isn't placed anywhere else. It
 // does not restrict what can be built in the slot.
 const SV_SLOTS = [
-  { id:'town-granary',       area:'town',      x:8,   y:74, accepts:['granary'],      label:'West Quarter',  size:'md' },
-  { id:'town-tavern',        area:'town',      x:24,  y:72, accepts:['tavern'],        label:'Town Centre',   size:'md' },
-  { id:'town-market',        area:'town',      x:47,  y:78, accepts:['market'],        label:'Market Row',    size:'md' },
-  { id:'town-neighbourhood', area:'town',      x:67,  y:73, type:'neighbourhood',      label:'Neighbourhood', size:'md' },
-  { id:'town-guildhall',     area:'town',      x:86,  y:69, accepts:['guild_hall'],    label:'Guild Row',     size:'md' },
-  { id:'town-smithy',        area:'town',      x:36,  y:86, accepts:['smithy'],        label:'Forge Lane',    size:'md' },
-  { id:'town-jeweller',      area:'town',      x:58,  y:87, accepts:['jeweller'],      label:'Gem Corner',    size:'md' },
-  { id:'town-workshop',      area:'town',      x:14,  y:88, accepts:['workshop'],      label:'Sawdust Yard',  size:'md' },
-  { id:'out-forager',        area:'outskirts', x:16,  y:75, accepts:['forager_hut'],   label:'Forest Edge',   size:'md' },
-  { id:'out-farm',           area:'outskirts', x:31,  y:78, accepts:['farm'],          label:'Open Fields',   size:'md' },
-  { id:'out-lumber',         area:'outskirts', x:53,  y:70, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
-  { id:'out-fishing',        area:'outskirts', x:77,  y:80, accepts:['fishing_post'],  label:'Riverside',     size:'md' },
-  { id:'out-scout',          area:'outskirts', x:87,  y:64, accepts:['scout_post'],    label:'High Ground',   size:'md' },
-  { id:'out-mine',           area:'outskirts', x:65,  y:88, accepts:['mine'],          label:'Hillside',      size:'md' },
-  { id:'out-smelter',        area:'outskirts', x:44,  y:89, accepts:['smelter'],       label:'Furnace Row',   size:'md' },
-  { id:'town-library',       area:'town',      x:80,  y:88, accepts:['library'],       label:"Scholars' Walk", size:'md' },
-  { id:'out-watchtower',     area:'outskirts', x:6,   y:62, accepts:['watchtower'],    label:'The Palisade',  size:'md' },
-  { id:'out-walls',          area:'outskirts', x:94,  y:78, accepts:['walls'],         label:'Town Gate',     size:'md' },
+  // Town, back row (feet at 56 %), then the front row (feet at 92 %), staggered.
+  { id:'town-granary',       area:'town',      x:11,  y:56, accepts:['granary'],      label:'West Quarter',  size:'md' },
+  { id:'town-tavern',        area:'town',      x:29,  y:56, accepts:['tavern'],        label:'Town Centre',   size:'md' },
+  { id:'town-guildhall',     area:'town',      x:49,  y:56, accepts:['guild_hall'],    label:'Guild Row',     size:'md' },
+  { id:'town-neighbourhood', area:'town',      x:68,  y:56, type:'neighbourhood',      label:'Neighbourhood', size:'md' },
+  { id:'town-library',       area:'town',      x:86,  y:56, accepts:['library'],       label:"Scholars' Walk", size:'md' },
+  { id:'town-workshop',      area:'town',      x:20,  y:92, accepts:['workshop'],      label:'Sawdust Yard',  size:'md' },
+  { id:'town-smithy',        area:'town',      x:39,  y:92, accepts:['smithy'],        label:'Forge Lane',    size:'md' },
+  { id:'town-market',        area:'town',      x:58,  y:92, accepts:['market'],        label:'Market Row',    size:'md' },
+  { id:'town-jeweller',      area:'town',      x:77,  y:92, accepts:['jeweller'],      label:'Gem Corner',    size:'md' },
+  // The Outskirts.
+  { id:'out-watchtower',     area:'outskirts', x:10,  y:56, accepts:['watchtower'],    label:'The Palisade',  size:'md' },
+  { id:'out-lumber',         area:'outskirts', x:28,  y:56, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
+  { id:'out-scout',          area:'outskirts', x:47,  y:56, accepts:['scout_post'],    label:'High Ground',   size:'md' },
+  { id:'out-mine',           area:'outskirts', x:66,  y:56, accepts:['mine'],          label:'Hillside',      size:'md' },
+  { id:'out-walls',          area:'outskirts', x:86,  y:56, accepts:['walls'],         label:'Town Gate',     size:'md' },
+  { id:'out-forager',        area:'outskirts', x:19,  y:92, accepts:['forager_hut'],   label:'Forest Edge',   size:'md' },
+  { id:'out-farm',           area:'outskirts', x:38,  y:92, accepts:['farm'],          label:'Open Fields',   size:'md' },
+  { id:'out-fishing',        area:'outskirts', x:57,  y:92, accepts:['fishing_post'],  label:'Riverside',     size:'md' },
+  { id:'out-smelter',        area:'outskirts', x:76,  y:92, accepts:['smelter'],       label:'Furnace Row',   size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -126,8 +123,8 @@ function _svClearAssignment(buildingId) {
 }
 
 // ── Slot sizes (persisted to localStorage) ────────────────────────────────────
-const _SV_SIZE_KEY     = 'sv_slot_sizes';
-const _SV_SIZE_DEFAULT = 72;
+const _SV_SIZE_KEY     = 'sv_slot_sizes_v2';
+const _SV_SIZE_DEFAULT = 110;   // an empty plot's ring
 const _SV_SIZE_MIN     = 44;
 const _SV_SIZE_MAX     = 130;
 function _svGetSizes() {
@@ -144,7 +141,7 @@ function _svGetSlotSize(slotId) {
 }
 
 // ── Slot positions (persisted to localStorage) ────────────────────────────────
-const _SV_POS_KEY = 'sv_slot_positions';
+const _SV_POS_KEY = 'sv_slot_positions_v2';   // the painted scene's ('sv_slot_positions') no longer fit
 function _svGetPositions() {
   try { return JSON.parse(localStorage.getItem(_SV_POS_KEY) || '{}'); } catch(e) { return {}; }
 }
@@ -180,8 +177,6 @@ let _svOpen         = false;
 let _svBuildings    = [];
 let _svSelectedSlot = null;
 let _svActiveArea   = 'town';
-let _svTargetX = 0, _svTargetY = 0;
-let _svCurX    = 0, _svCurY    = 0;
 let _svRafId   = null;
 let _svCommBarHandler = null;
 let _svStylesInjected = false;
@@ -244,21 +239,8 @@ function _injectSvStyles() {
   will-change: transform;
   pointer-events: none;
 }
-.sv-env-layer {
-  position: absolute; inset: -4%;
-  width: 108%; height: 108%;
-  will-change: transform; pointer-events: none;
-}
-
-/* Layer images — pointer-events:none is essential: HTML children of a
-   pointer-events:none parent still receive events unless they opt out too */
-.sv-layer-img {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%; object-fit: cover; object-position: center;
-  opacity: 0; transition: opacity 0.6s ease;
-  pointer-events: none;
-}
-.sv-layer-img.sv-img-loaded { opacity: 1; }
+/* (The painted scene's .sv-env-layer and .sv-layer-img went with it: the
+   backdrop is css/home-scene.css's .sv-bd strips now.) */
 
 .sv-fg-layer { transition: opacity 0.45s ease; }
 .sv-area-hidden { opacity: 0 !important; pointer-events: none !important; }
@@ -464,41 +446,18 @@ function _injectSvStyles() {
 //  is the permanent sky fallback when sky.png is absent.)
 
 // ── DOM bootstrap ─────────────────────────────────────────────────────────────
-function _buildEnvLayers(biomeId) {
-  var layers = SV_BIOMES[biomeId];
-  if (!layers) return;
-  var scene   = document.getElementById('sv-scene');
-  var fgTown  = document.getElementById('sv-layer-fg-town');
-
-  scene.querySelectorAll('.sv-env-layer').forEach(function(el) { el.remove(); });
-
-  for (var i = 0; i < layers.length; i++) {
-    var lid = layers[i];
-    var def = SV_LAYER_DEFS[lid];
-    if (!def) continue;
-    var div = document.createElement('div');
-    div.className  = 'sv-env-layer';
-    div.id         = 'sv-env-' + lid;
-    div.dataset.px = def.px;
-    div.dataset.py = def.py;
-    div.style.zIndex = def.z;
-    if (lid === 'mtn-near') {
-      div.style.filter = 'brightness(0.82) contrast(1.2)';
-    }
-    if (!def.image) continue;
-    var img = document.createElement('img');
-    img.className = 'sv-layer-img';
-    img.alt = '';
-    img.onload  = function() { this.classList.add('sv-img-loaded'); };
-    img.onerror = function() { var p = this.parentElement; if (p) p.remove(); };
-    img.src = def.image;
-    div.appendChild(img);
-    if (def.z < 70) {
-      scene.insertBefore(div, fgTown);
-    } else {
-      scene.appendChild(div);
-    }
-  }
+// The far strips and the meadow, inside the panning world. The sky is the
+// scene's own background (css/home-scene.css, by time of day).
+function _buildBackdrop() {
+  var world = document.getElementById('sv-world');
+  if (!world) return;
+  world.querySelectorAll('.sv-bd').forEach(function(el) { el.remove(); });
+  var html = '';
+  ['mountains', 'trees', 'ground'].forEach(function(k) {
+    var d = SV_BACKDROP[k];
+    html += '<div class="sv-bd sv-bd-' + k + '" data-pan="' + (d.pan || 1) + '" style="--bd-img:url(\'' + d.file + '\');--bd-w:' + d.w + 'px;--bd-h:' + d.h + 'px"></div>';
+  });
+  world.insertAdjacentHTML('afterbegin', html);
 }
 
 function _ensureSvDOM() {
@@ -528,13 +487,16 @@ function _ensureSvDOM() {
   outSlots  = outSlots.concat(PROPS.filter(function(p) { return p.area === 'outskirts'; }).map(function(p) { return { prop: p }; }));
   var anyHTML = function(sl) { return sl.prop ? propHTML(sl.prop) : slotHTML(sl); };
 
+  // The scene is the window; the world inside it is SV_WORLD_W wide and pans
+  // sideways (§4.4). Both areas' layers live in the world, one shown at a time.
   root.innerHTML =
     '<div class="sv-scene" id="sv-scene">'
+    + '<div class="sv-world" id="sv-world" style="width:' + SV_WORLD_W + 'px">'
     + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town" style="z-index:70">'
     + townSlots.map(anyHTML).join('') + '</div>'
     + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts" style="z-index:70">'
     + outSlots.map(anyHTML).join('') + '</div>'
-    + '</div>'
+    + '</div></div>'
     + '<div class="sv-header">'
     // Back button: on desktop this view is dismissed by clicking the community
     // bar, which the mobile shell hides — leaving no way out. Hidden on desktop
@@ -550,10 +512,12 @@ function _ensureSvDOM() {
     + '<div class="sv-build-panel" id="sv-build-panel"></div>'
     + '<div class="sv-housing-modal" id="sv-housing-modal"></div>';
 
-  _buildEnvLayers(SV_BIOME);
+  _buildBackdrop();
   _applySlotPositions();
+  _svBindPan();
 
   document.getElementById('sv-scene').addEventListener('click', function(e) {
+    if (_svPanned) return;   // the end of a pan is no click
     if (!e.target.closest('.sv-slot') && !e.target.closest('.sv-build-panel') && !e.target.closest('.sv-housing-modal') && !e.target.closest('.kwv-test-panel')) {
       _closeBuildPanel();
       _closeHousingModal();
@@ -589,7 +553,6 @@ async function openSettlementView() {
 
   _svSwitchArea(_svActiveArea, true);
   if (window.KWHome) KWHome.homeShown();   // nameplates: Show names, the 4-second peek on touch
-  _bindParallax();
   if (window.KWPlaces) KWPlaces.seen('home');   // the scene is Home (js/places.js)
 
   var commBar = document.querySelector('.community-bar');
@@ -637,7 +600,6 @@ function closeSettlementView() {
   if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
   _closeBuildPanel();
   _closeHousingModal();
-  _unbindParallax();
 
   var commBar = document.querySelector('.community-bar');
   if (commBar && _svCommBarHandler) {
@@ -654,7 +616,7 @@ function closeSettlementView() {
 window.closeSettlementView = closeSettlementView;
 
 // ── Area switching ────────────────────────────────────────────────────────────
-function _svSwitchArea(area, force) {
+function _svSwitchArea(area, force, where) {
   if (area === _svActiveArea && !force) return;
   _svActiveArea = area;
   _closeBuildPanel();
@@ -670,6 +632,7 @@ function _svSwitchArea(area, force) {
   // The hidden area's buttons are out of the Tab order too.
   if (tl) tl.inert = area !== 'town';
   if (ol) ol.inert = area === 'town';
+  _svPanArea(area, where);
   document.querySelectorAll('.sv-area-tab').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.area === area);
   });
@@ -772,7 +735,7 @@ function _renderProps() {
     el.onclick = null;
     el.hidden = shown.indexOf(p.id) < 0 || (_svBuildMode && p.kind !== 'signpost');
     if (el.hidden) return;
-    var size = p.kind === 'signpost' ? 60 : _SV_SIZE_DEFAULT;
+    var size = p.kind === 'signpost' ? 110 : 170;   // beside the new buildings (docs/ART_GUIDE.md)
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'sv-building kwh-btn kwh-prop kwh-prop-' + p.kind;
@@ -848,6 +811,9 @@ function _buildNeighbourhoodEl(slot, houseCount) {
   var sub = houseCount > 0 ? houseCount + ' home' + (houseCount !== 1 ? 's' : '') : 'No homes yet';
   var btn = _svBuildingButton('neighbourhood', 'Neighbourhood', vis, _svGetSlotSize(slot.id), sub);
   btn.classList.add('sv-neighbourhood-building');
+  // A home with nobody in it stays dark at night (HOME_SCENE.md C.5): with no
+  // huts yet, the cluster's windows stay unlit.
+  if (!houseCount) btn.classList.add('kwh-dark');
   return btn;
 }
 
@@ -1227,54 +1193,124 @@ function _svResIcon(res) {
   return { food:'🌿', timber:'🌲', stone:'🪨', metal:'⚙️', wealth:'🪙' }[res] || (typeof _resIcon === 'function' ? _resIcon(res) : res);
 }
 
-// ── Parallax ──────────────────────────────────────────────────────────────────
-function _onParallaxMove(e) {
-  var scene = document.getElementById('sv-scene');
-  if (!scene) return;
-  var r = scene.getBoundingClientRect();
-  _svTargetX = ((e.clientX - r.left) / r.width  - 0.5) * 2;
-  _svTargetY = ((e.clientY - r.top)  / r.height - 0.5) * 2;
-  if (!_svRafId) _svRafId = requestAnimationFrame(_tickParallax);
-}
+// ── Panning (docs/ART_GUIDE.md §4.4) ──────────────────────────────────────────
+// Town and the Outskirts are SV_WORLD_W wide. Drag the meadow (or a building:
+// a press that moves more than a few pixels pans instead of clicking), use a
+// sideways wheel or Shift+wheel, the arrow keys, or rest the mouse at the
+// scene's left or right edge. The far strips move a little slower than the
+// meadow (their data-pan), which is the only depth effect: nothing follows
+// the mouse. Each area remembers where it was; it first opens centred.
+var _svPanX = { town: null, outskirts: null };
+var _svPanned = false;          // true just after a pan, so its click is ignored
+var _SV_PAN_PX = 6;
+var _svPanBound = false;
+var _svEdge = { dir: 0, since: 0, raf: 0, last: 0 };
 
-function _tickParallax() {
-  _svRafId = null;
-  if (!_svOpen) return;
-  var lerp = 0.07;
-  _svCurX += (_svTargetX - _svCurX) * lerp;
-  _svCurY += (_svTargetY - _svCurY) * lerp;
+function _svViewW() { var sc = document.getElementById('sv-scene'); return sc ? sc.clientWidth : 0; }
+function _svPanMax() { return Math.max(0, SV_WORLD_W - _svViewW()); }
+// Clamps a pan to the world. Pure.
+function _svClampPan(x, viewW, worldW) { return Math.max(0, Math.min(Math.max(0, worldW - viewW), x)); }
 
-  // Each env layer carries its own px/py multiplier
-  document.querySelectorAll('#sv-scene .sv-env-layer').forEach(function(el) {
-    var px = +(el.dataset.px) || 0;
-    var py = +(el.dataset.py) || 0;
-    el.style.transform = 'translate(' + (_svCurX * px) + 'px,' + (_svCurY * py) + 'px)';
+function _svPanTo(x) {
+  var world = document.getElementById('sv-world');
+  if (!world) return;
+  var max = _svPanMax();
+  var px = Math.round(_svClampPan(x, _svViewW(), SV_WORLD_W));
+  _svPanX[_svActiveArea] = px;
+  world.style.transform = 'translate3d(' + (-px) + 'px,0,0)';
+  // Far strips lag behind: shift them back by part of the pan.
+  world.querySelectorAll('.sv-bd[data-pan]').forEach(function(el) {
+    var k = 1 - (+el.dataset.pan || 1);
+    el.style.transform = k ? 'translate3d(' + Math.round(px * k) + 'px,0,0)' : '';
   });
+  var sc = document.getElementById('sv-scene');
+  if (sc) { sc.classList.toggle('sv-at-start', px <= 0); sc.classList.toggle('sv-at-end', px >= max); }
+}
+window._svPanTo = _svPanTo;
+function _svPanBy(dx) { _svPanTo((_svPanX[_svActiveArea] || 0) + dx); }
+// Where an area opens: where it was left, else `where` ('start', 'end' or the middle).
+function _svPanArea(area, where) {
+  var x = _svPanX[area];
+  if (where === 'start') x = 0;
+  else if (where === 'end') x = SV_WORLD_W;
+  else if (x == null) x = (SV_WORLD_W - _svViewW()) / 2;
+  _svPanTo(x);
+}
 
-  // Building fg layers — above all env layers (z:70); parallax between foliage-fg and rocks-fg
-  var tFg = document.getElementById('sv-layer-fg-town');
-  var oFg = document.getElementById('sv-layer-fg-outskirts');
-  if (tFg) tFg.style.transform = 'translate(' + (_svCurX * 14) + 'px,' + (_svCurY * 8) + 'px)';
-  if (oFg) oFg.style.transform = 'translate(' + (_svCurX * 14) + 'px,' + (_svCurY * 8) + 'px)';
+function _svBindPan() {
+  if (_svPanBound) return;
+  _svPanBound = true;
+  var sc = document.getElementById('sv-scene');
+  if (!sc) return;
+  var press = null;
+  sc.addEventListener('pointerdown', function(e) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (e.target.closest('.sv-build-panel, .sv-housing-modal, .kwv-test-panel, .sv-header')) return;
+    // In Build mode a press on a building moves the building, not the view.
+    var slot = e.target.closest('.sv-slot');
+    if (_svBuildMode && slot && slot.dataset.slot && _svDraggable(slot.dataset.slot)) return;
+    press = { id: e.pointerId, x: e.clientX, start: _svPanX[_svActiveArea] || 0, moved: false };
+  });
+  window.addEventListener('pointermove', function(e) {
+    if (press && e.pointerId === press.id) {
+      var dx = e.clientX - press.x;
+      if (!press.moved && Math.abs(dx) < _SV_PAN_PX) return;
+      if (!press.moved) { press.moved = true; sc.classList.add('sv-panning'); }
+      _svPanTo(press.start - dx);
+      return;
+    }
+    _svEdgeWatch(e);
+  });
+  var end = function(e) {
+    if (!press || (e && e.pointerId !== press.id)) return;
+    if (press.moved) { _svPanned = true; setTimeout(function() { _svPanned = false; }, 0); sc.classList.remove('sv-panning'); }
+    press = null;
+  };
+  window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
+  // A drag that panned must not also click the building it started on.
+  sc.addEventListener('click', function(e) { if (_svPanned) { e.stopPropagation(); e.preventDefault(); } }, true);
+  sc.addEventListener('wheel', function(e) {
+    var dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+    if (!dx) return;
+    e.preventDefault();
+    _svPanBy(dx);
+  }, { passive: false });
+  document.addEventListener('keydown', function(e) {
+    if (!_svOpen || e.defaultPrevented || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if ((window.KWWindow && KWWindow.isOpen()) || (window.KWDialog && KWDialog.isOpen())) return;
+    if (window.KWA11y && KWA11y.topmost()) return;
+    e.preventDefault();
+    _svPanBy(e.key === 'ArrowLeft' ? -240 : 240);
+  });
+  sc.addEventListener('mouseleave', function() { _svEdge.dir = 0; });
+  window.addEventListener('resize', function() { if (_svOpen) _svPanTo(_svPanX[_svActiveArea] || 0); });
+}
 
-  if (Math.abs(_svTargetX - _svCurX) > 0.001 || Math.abs(_svTargetY - _svCurY) > 0.001) {
-    _svRafId = requestAnimationFrame(_tickParallax);
+// Resting the mouse at the scene's left or right edge pans that way, after a
+// short pause so passing through the edge does nothing.
+var _SV_EDGE = 36, _SV_EDGE_WAIT = 300, _SV_EDGE_SPEED = 700;
+function _svEdgeWatch(e) {
+  if (!_svOpen || e.pointerType !== 'mouse') return;
+  var sc = document.getElementById('sv-scene');
+  if (!sc || !sc.contains(e.target) || e.target.closest('.sv-build-panel, .sv-housing-modal')) { _svEdge.dir = 0; return; }
+  var r = sc.getBoundingClientRect();
+  var dir = e.clientX < r.left + _SV_EDGE ? -1 : e.clientX > r.right - _SV_EDGE ? 1 : 0;
+  if (dir !== _svEdge.dir) { _svEdge.dir = dir; _svEdge.since = performance.now(); }
+  if (dir && !_svEdge.raf) { _svEdge.last = 0; _svEdge.raf = requestAnimationFrame(_svEdgeTick); }
+}
+function _svEdgeTick(t) {
+  _svEdge.raf = 0;
+  if (!_svEdge.dir || !_svOpen) return;
+  if (t - _svEdge.since > _SV_EDGE_WAIT) {
+    var dt = _svEdge.last ? Math.min(50, t - _svEdge.last) : 16;
+    _svPanBy(_svEdge.dir * _SV_EDGE_SPEED * dt / 1000);
   }
+  _svEdge.last = t;
+  _svEdge.raf = requestAnimationFrame(_svEdgeTick);
 }
 
-function _bindParallax() {
-  var sc = document.getElementById('sv-scene');
-  if (sc) sc.addEventListener('mousemove', _onParallaxMove);
-}
-
-function _unbindParallax() {
-  var sc = document.getElementById('sv-scene');
-  if (sc) sc.removeEventListener('mousemove', _onParallaxMove);
-  if (_svRafId) { cancelAnimationFrame(_svRafId); _svRafId = null; }
-  _svCurX = _svCurY = _svTargetX = _svTargetY = 0;
-}
-
-// ── Edit mode ─────────────────────────────────────────────────────────────────
 // ── Build mode (§2.3) ─────────────────────────────────────────────────────────
 // One mode for building and arranging: empty plots show ("Build here"), a
 // building opens its manage panel (upgrade, demolish) and can be dragged to
@@ -1291,13 +1327,6 @@ function _svToggleBuildMode(on) {
   _closeBuildPanel();
   _closeHousingModal();
   if (_svBuildMode) {
-    _unbindParallax();
-    // Zero out parallax transforms so plots sit at their real positions
-    document.querySelectorAll('#sv-scene .sv-env-layer').forEach(function(el) { el.style.transform = ''; });
-    var tFg = document.getElementById('sv-layer-fg-town');
-    var oFg = document.getElementById('sv-layer-fg-outskirts');
-    if (tFg) tFg.style.transform = '';
-    if (oFg) oFg.style.transform = '';
     if (scene) scene.classList.add('sv-editing', 'sv-build-mode');
     if (resetBtn) resetBtn.style.display = _svHasCustomLayout() ? '' : 'none';
     _svAttachDragHandlers();
@@ -1307,7 +1336,6 @@ function _svToggleBuildMode(on) {
     if (resetBtn) resetBtn.style.display = 'none';
     _svDetachDragHandlers();
     document.removeEventListener('keydown', _svBuildKey);
-    if (_svOpen) _bindParallax();
   }
   if (window.KWVillagers) KWVillagers.setPaused(_svBuildMode);   // villagers hide while building
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();   // the chip reads Build / Done
@@ -1316,6 +1344,7 @@ function _svToggleBuildMode(on) {
 }
 window._svToggleBuildMode = _svToggleBuildMode;
 window._svIsBuildMode = function() { return _svBuildMode; };
+window._svIsOpen = function() { return _svOpen; };
 
 // Esc: first closes an open panel, then leaves Build mode. Windows and
 // dialogs handle their own Escape (js/a11y.js claims it first).
@@ -1427,8 +1456,8 @@ function _svBeginDrag(slotId, clientX, clientY) {
 function _svOnDragMove(clientX, clientY) {
   if (!_svDragSlot) return;
   var pt = _svMouseToSlotPct(clientX, clientY);
-  var x  = Math.max(3, Math.min(95, pt.x - _svDragOffset.x));
-  var y  = Math.max(10, Math.min(93, pt.y - _svDragOffset.y));
+  var x  = Math.max(2, Math.min(98, pt.x - _svDragOffset.x));
+  var y  = Math.max(30, Math.min(97, pt.y - _svDragOffset.y));
   var el = document.getElementById('sv-slot-' + _svDragSlot);
   if (el) { el.style.left = x + '%'; el.style.top = y + '%'; }
   var target = _svDropTarget(_svDragSlot, x, y, _svPlotPositions());
@@ -1504,13 +1533,10 @@ function _svEndDrag() {
 }
 
 function _svMouseToSlotPct(clientX, clientY) {
-  var scene = document.getElementById('sv-scene');
-  if (!scene) return { x: 50, y: 50 };
-  var r = scene.getBoundingClientRect();
-  return {
-    x: ((clientX - r.left) / r.width  * 100 + 4) / 1.08,
-    y: ((clientY - r.top)  / r.height * 100 + 4) / 1.08,
-  };
+  var world = document.getElementById('sv-world');
+  if (!world) return { x: 50, y: 50 };
+  var r = world.getBoundingClientRect();
+  return { x: (clientX - r.left) / r.width * 100, y: (clientY - r.top) / r.height * 100 };
 }
 
 // ── Slot sizes ───────────────────────────────────────────────────────────────

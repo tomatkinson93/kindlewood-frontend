@@ -188,10 +188,10 @@ console.log('7. Props: the green, the wonder site, the signposts');
   check('7a. a Camp: both signposts and the village green', ids({ tier: 'camp', festivals: true }) === 'green,signpost-out,signpost-town');
   check('7b. the wonder site from City tier', ids({ tier: 'city', festivals: true }).includes('wonder-site') && !ids({ tier: 'town', festivals: true }).includes('wonder-site'));
   calls.length = 0; KH.openProp('signpost-out'); KH.openProp('signpost-town'); KH.openProp('green'); KH.openProp('wonder-site');
-  check('7c. signposts switch area; the green opens Festivals; the site opens Wonders',
-    JSON.stringify(calls) === JSON.stringify([['_svSwitchArea', 'outskirts'], ['_svSwitchArea', 'town'], ['KWTown.open', 'festival'], ['KWTown.open', 'wonders']]));
-  check('7d. the town\'s signpost stays clear of the desktop town card (left of 76 %); the other inside the left edge',
-    KH.PROPS.find(p => p.id === 'signpost-out').x <= 72 && KH.PROPS.find(p => p.id === 'signpost-town').x >= 5);
+  check('7c. signposts switch area (to the near end); the green opens Festivals; the site opens Wonders',
+    JSON.stringify(calls) === JSON.stringify([['_svSwitchArea', 'outskirts', false, 'start'], ['_svSwitchArea', 'town', false, 'end'], ['KWTown.open', 'festival'], ['KWTown.open', 'wonders']]));
+  check('7d. the signposts stand at the two ends of the walk: Town\'s right end, the Outskirts\' left end (and land you at the matching end)',
+    KH.PROPS.find(p => p.id === 'signpost-out').x >= 95 && KH.PROPS.find(p => p.id === 'signpost-town').x <= 5);
   check('7e. the header\'s Town / Outskirts tabs are gone (the signposts replace them)', !/sv-area-tab/.test(SVJ.slice(SVJ.indexOf('root.innerHTML ='), SVJ.indexOf("+ '<div class=\"sv-build-panel\""))));
 }
 
@@ -199,20 +199,31 @@ console.log('8. Art: the manifest and the placeholder (§2.6)');
 {
   const m = { tavern: { file: 'tavern.png', w: 300, h: 240, door: [140, 230] }, mill: { file: 'mill.png', w: 200, h: 160, native: true } };
   const t = KH.art('tavern', m), mill = KH.art('mill', m);
-  check('8a. an entry gives the image, its size and its door', t.url === '/assets/images/buildings/tavern.png' && t.door.x === 140 && t.door.y === 230 && !t.native);
+  check('8a. an entry gives the image (from scene_v2), its size and its door; native and smooth unless it says not', t.url === '/assets/images/scene_v2/buildings/tavern.png' && t.door.x === 140 && t.door.y === 230 && t.native && t.smooth);
   check('8b. no door given: the bottom centre', mill.door.x === 100 && mill.door.y === 160);
   check('8c. no entry: no image (the placeholder) and no door', KH.art('smithy', m) === null && KH.door('smithy', m) === null);
   const ph = KH.artHtml('smithy', { emoji: '⚒️', bodyColor: '#5a4a40', roofColor: '#3a2c24' }, 72, m);
   check('8d. the placeholder is a hut in the building\'s colours with its glyph on a hanging sign', /<svg class="kwh-hut"/.test(ph.html) && /#5a4a40/.test(ph.html) && /#3a2c24/.test(ph.html) && /class="kwh-sign"[^>]*>⚒️</.test(ph.html));
-  check('8e. native art is drawn at its own size (1×), older art at the slot\'s size', /width:200px/.test(KH.artHtml('mill', {}, 72, m).html) && /width:110px/.test(KH.artHtml('tavern', {}, 72, m).html));
-  const man = JSON.parse(read('assets/images/buildings/manifest.json'));
-  const bad = Object.entries(man).filter(([, e]) => {
-    const f = path.join(ROOT, 'assets/images/buildings', e.file);
-    if (!fs.existsSync(f)) return true;
-    const b = fs.readFileSync(f);
-    return b.readUInt32BE(16) !== e.w || b.readUInt32BE(20) !== e.h || !Array.isArray(e.door) || e.door[0] > e.w || e.door[1] > e.h;
-  });
-  check('8f. assets/images/buildings/manifest.json: every file exists, sizes match, doors inside the image', Object.keys(man).length >= 6 && !bad.length, bad.map(b => b[0]).join(' '));
+  check('8e. art is drawn at the manifest\'s size, the lit image on top (shown in the evening and at night)',
+    /class="kwh-art" style="width:200px;height:160px"/.test(KH.artHtml('mill', {}, 72, m).html) && !/kwh-lit/.test(KH.artHtml('mill', {}, 72, m).html)
+    && /kwh-day[\s\S]*kwh-lit/.test(KH.artHtml('tavern', {}, 72, { tavern: { file: 't.webp', lit: 't_lit.webp', w: 331, h: 320 } }).html));
+  // WebP sizes without a library: VP8X, VP8L (lossless) or VP8 (lossy).
+  const webpSize = buf => {
+    const t = buf.toString('ascii', 12, 16);
+    if (t === 'VP8X') return { w: 1 + buf.readUIntLE(24, 3), h: 1 + buf.readUIntLE(27, 3) };
+    if (t === 'VP8L') { const b = buf.readUInt32LE(21); return { w: 1 + (b & 0x3fff), h: 1 + ((b >> 14) & 0x3fff) }; }
+    if (t === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3fff, h: buf.readUInt16LE(28) & 0x3fff };
+    return null;
+  };
+  const dir2 = 'assets/images/scene_v2/buildings';
+  const man = JSON.parse(read(dir2 + '/manifest.v2.json'));
+  const bad = Object.entries(man).filter(([, e]) => [e.file, e.lit].filter(Boolean).some(f => {
+    const fp = path.join(ROOT, dir2, f);
+    if (!fs.existsSync(fp)) return true;
+    const z = webpSize(fs.readFileSync(fp)), sc = e.scale || 1;
+    return !z || Math.abs(z.w - e.w * sc) > 2 || Math.abs(z.h - e.h * sc) > 2 || !Array.isArray(e.door) || e.door[0] > e.w || e.door[1] > e.h;
+  }));
+  check('8f. scene_v2/buildings/manifest.v2.json: every file (and lit file) exists at scale × its size; doors inside', Object.keys(man).length >= 11 && !bad.length, bad.map(b => b[0]).join(' '));
   check('8g. SV_VISUALS no longer names images (one source: the manifest)', !/image:'\/assets\/images\/buildings/.test(SVJ));
 }
 
@@ -335,7 +346,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
   for (const area of ['town', 'outskirts']) for (let i = 0; i < 300; i++) { const p = C._groundPoint(area, rnd); if (!C._inPolygon(p.x, p.y, C.GROUND[area])) inside = false; }
   check('12l. every place on open ground they walk to lies on the ground (600 samples)', inside);
   check('12m. every named spot lies on the ground', ['town', 'outskirts'].every(a => C.SPOTS[a].every(s => C._inPolygon(s.x, s.y, C.GROUND[a]))));
-  check('12n. the ground is the meadow band, roughly y 66–94 %', ['town', 'outskirts'].every(a => C.GROUND[a].every(([x, y]) => x >= 0 && x <= 100 && y >= 66 && y <= 94)));
+  check('12n. the ground is the whole meadow below the horizon (25 %), less a margin', ['town', 'outskirts'].every(a => C.GROUND[a].every(([x, y]) => x >= 0 && x <= 100 && y >= 30 && y <= 97)) || ['town', 'outskirts'].every(a => C.GROUND[a].every(([x, y]) => x >= 0 && x <= 100 && y >= 66 && y <= 94)));
   const g = C._onGround('town', 60, 40);
   check('12o. a door up in the sky is brought down to the ground', C._inPolygon(g.x, g.y, C.GROUND.town) && C._onGround('town', 30, 85).y === 85);
   const art = { w: 300, h: 240, door: { x: 150, y: 230 } };
@@ -389,10 +400,49 @@ console.log('13. Behaviour (§3.5)');
   check('13l. indoors: fade at the door, stay 20–60 s (night: till morning), the building bounces', C.INDOORS_MS[0] === 20000 && C.INDOORS_MS[1] === 60000 && /kwh-bounce/.test(E) && /@keyframes kwh-bounce/.test(CSS) && /S\.phase === 'night' && !S\.owls\.has\(v\.id\)/.test(E));
   check('13m. a chat lasts 4–7 s with a bubble passed back and forth (dots or a tiny picture)', /CHAT_MS = \[4000, 7000\]/.test(E) && /SAY = \['…'/.test(E) && /\.kwv-say \{/.test(CSS));
   check('13n. children go indoors with their parent and come out after', /k\.child && k\.state !== 'indoors' && live\(k\) && parentsOf\(k\.c\)\.includes\(v\.id\)/.test(E) && /parentOf\(v\)\.state === 'indoors'/.test(E));
-  check('13o. evening and night: the tavern glows; no chats at night; the cast stops changing at night',
-    /kwv-night/.test(E) && /\.kwv-night \[data-kwh="tavern"\]/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night'\) rotate\(\)/.test(E));
+  check('13o. evening and night: buildings with a lit image glow; no chats at night; the cast stops changing at night',
+    /setAttribute\('data-phase', S\.phase\)/.test(E) && /\[data-phase="night"\] \.kwh-lit \{ opacity: 1; \}|\[data-phase="night"\] \.kwh-lit/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night'\) rotate\(\)/.test(E));
   check('13p. the time of day is the game clock (Dev Tools time included)', /global\.KWClock \? global\.KWClock\.phase\(\)\.phase/.test(E));
   check('13q. a chat gives up if the two never meet', /a\.until = now \+ 8000/.test(E) && /now >= v\.until\) endChat\(v, now\)/.test(E));
+}
+
+console.log('14. The new look (docs/ART_GUIDE.md)');
+{
+  const S2 = read('js/settlement-view.js'), CSS = read('css/home-scene.css'), HJ = read('js/home-scene.js'), E = read('js/villager-engine.js'), MAP = read('js/kwmap-core.js'), VJ = read('js/villagers.js');
+  const grab = (src, name) => { const i = src.indexOf('function ' + name + '('); let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}' && !--d) return src.slice(i, k + 1); } return ''; };
+  const bx = { Math }; vm.createContext(bx); vm.runInContext(grab(S2, '_svClampPan'), bx);
+  check('14a. the backdrop: a sky by code, mountains and trees that tile sideways, a meadow that tiles both ways', /backdrop\/mountains\.webp/.test(S2) && /backdrop\/trees\.webp/.test(S2) && /backdrop\/ground\.webp/.test(S2)
+    && /\.sv-bd-ground \{[^}]*background-repeat: repeat;/.test(CSS) && /\.sv-bd-trees \{[^}]*repeat-x/.test(CSS) && /data-phase="night"\] \.sv-scene \{ background: linear-gradient/.test(CSS)
+    && ['mountains', 'trees', 'ground'].every(k => fs.existsSync(path.join(ROOT, 'assets/images/scene_v2/backdrop', k + '.webp'))));
+  check('14b. the horizon at a quarter of the height; the tree line overlaps the meadow by 12 px; haze on the far strips (18 %, 25 %)',
+    /SV_HORIZON = 0\.25/.test(S2) && /\.sv-bd-ground \{[^}]*top: 25%/.test(CSS) && /top: calc\(25% \+ 12px - var\(--bd-h\)\)/.test(CSS) && /\.sv-bd-trees::after \{ opacity: 0\.18; \}/.test(CSS) && /\.sv-bd-mountains::after \{ opacity: 0\.25; \}/.test(CSS));
+  check('14c. no drift: nothing in the scene follows the mouse', !/_onParallaxMove|_tickParallax|_bindParallax/.test(S2) && !/SV_LAYER_DEFS/.test(S2));
+  check('14d. Town and the Outskirts pan: drag, sideways wheel, arrow keys, the edge of the screen', /SV_WORLD_W = 2600/.test(S2) && /addEventListener\('pointerdown'/.test(S2) && /addEventListener\('wheel'/.test(S2)
+    && /'ArrowLeft'/.test(S2) && /function _svEdgeWatch/.test(S2));
+  check('14e. a pan stays inside the world', bx._svClampPan(-50, 1400, 2600) === 0 && bx._svClampPan(5000, 1400, 2600) === 1200 && bx._svClampPan(300, 1400, 2600) === 300 && bx._svClampPan(300, 3000, 2600) === 0);
+  check('14f. a drag that pans never clicks the building it started on; in Build mode a building drag moves it instead', /if \(_svPanned\) \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}/.test(S2) && /_svBuildMode && slot && slot\.dataset\.slot && _svDraggable/.test(S2));
+  check('14g. the map leaves the arrow keys alone while Home shows', /window\._svIsOpen\(\)\) return;/.test(MAP));
+  check('14h. the far strips pan a little slower (the only depth), and only with the pan', /pan: 0\.45/.test(S2) && /pan: 0\.75/.test(S2) && /el\.dataset\.pan/.test(S2));
+  const slots = [...S2.matchAll(/\{ id:'([a-z-]+)',\s+area:'(town|outskirts)',\s+x:([\d.]+),\s+y:([\d.]+)/g)].map(m => ({ id: m[1], area: m[2], x: +m[3], y: +m[4] }));
+  check('14i. slots for a flat field: two rows, feet in the meadow (back row under the tree line)', slots.length === 18 && slots.every(q => q.y >= 50 && q.y <= 95 && q.x > 2 && q.x < 98)
+    && new Set(slots.map(q => q.y)).size === 2 && /\.sv-world \.sv-slot \{ transform: translate\(-50%, -100%\); \}/.test(CSS));
+  check('14j. the old hand-made layout is not carried over (new keys)', /'sv_slot_positions_v2'/.test(S2) && /'sv_slot_sizes_v2'/.test(S2));
+  check('14k. smooth art: buildings are never pixelated; only villagers are', !/kwh-native \{ image-rendering: pixelated/.test(CSS) && /image-rendering: pixelated/.test(VJ));
+  check('14l. shadows by code under buildings (92 % wide) and villagers', /\.kwh-art::before \{[^}]*left: 4%; right: 4%/.test(CSS) && /\.kwv-shadow \{/.test(CSS) && /kwv-shadow/.test(VJ));
+  const T = vm.runInContext('KWHome.NIGHT_TINTS', h);
+  check('14m. night: ×0.42, ×0.48, ×0.78; lit images ×0.72, ×0.72, ×0.92; the lit image fades in over 3 s', T['kwn-night'].join() === '0.42,0.48,0.78' && T['kwn-lit'].join() === '0.72,0.72,0.92'
+    && /\.kwh-lit \{ opacity: 0; transition: opacity 3s ease; \}/.test(CSS) && /data-phase="night"\] \.kwv-villager \{ filter: url\(#kwn-night\)|\.kwv-villager \{ filter: url\(#kwn-night\); \}/.test(CSS));
+  check('14n. villagers stand out: a 1 px dark outline and a slight lift, with the family look', /drop-shadow\(1px 0 0 #2a180c\) drop-shadow\(-1px 0 0 #2a180c\) drop-shadow\(0 1px 0 #2a180c\) drop-shadow\(0 -1px 0 #2a180c\) brightness\(1\.07\)/.test(CSS) && /--kwv-tint/.test(E));
+  const cm = { house_timber: { file: 'a.webp', lit: 'a_lit.webp', w: 219, h: 209, door: [92, 205] }, house_stone: { file: 'b.webp', w: 216, h: 208, door: [89, 204] }, house_thatch: { file: 'c.webp', lit: 'c_lit.webp', w: 212, h: 196, door: [89, 192] } };
+  const cl = KH.art('neighbourhood', cm);
+  check('14o. the Neighbourhood\'s door is a cluster of the house drawings until its own art exists; its door is the front house\'s',
+    cl && cl.cluster.length === 3 && Math.abs(cl.door.x - (62 + 89 * 0.62)) < 0.01 && /kwh-cluster/.test(KH.artHtml('neighbourhood', {}, 72, cm).html) && KH.art('neighbourhood', {}) === null);
+  check('14p. an empty Neighbourhood stays dark at night', /if \(!houseCount\) btn\.classList\.add\('kwh-dark'\)/.test(S2) && /\.kwh-dark \.kwh-lit \{ opacity: 0 !important; \}/.test(CSS));
+  check('14q. keys with no new art keep the placeholder (the painted scene\'s images are not mixed in)', /manifest\.v2\.json/.test(HJ) && !/'\/assets\/images\/buildings\/manifest\.json'/.test(HJ) && KH.PH_SIZE >= 150);
+  check('14r. KWCast.preview(phase) shows another time of day until cleared', /preview: p => \{ S\.hold = p \|\| null;/.test(E) && /S\.hold \|\| clockPhase\(\)/.test(E));
+  check('14s. villagers walk the whole meadow; their spots lie in the gaps between buildings', C2ok());
+  function C2ok() { const e2 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} }; e2.window = e2; vm.createContext(e2); vm.runInContext(E, e2);
+    const G = e2.KWCast.GROUND.town; return G.every(([, y]) => y >= 30) && e2.KWCast.SPOTS.town.every(q => e2.KWCast._inPolygon(q.x, q.y, G)); }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

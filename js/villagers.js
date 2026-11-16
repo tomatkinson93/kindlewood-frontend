@@ -184,6 +184,9 @@
     const sp = document.createElement('div');
     sp.className = 'kwv-sprite';
     el.appendChild(sp);
+    const sh = document.createElement('span');   // the shadow at their feet (docs/ART_GUIDE.md §4.5)
+    sh.className = 'kwv-shadow';
+    el.appendChild(sh);
     return el;
   }
 
@@ -195,6 +198,8 @@
     sp.style.backgroundSize = (s.frames * w) + 'px ' + (8 * h) + 'px';
     sp.style.backgroundPosition = (-frame * w) + 'px ' + (-s.row * h) + 'px';
     sp.classList.toggle('kwv-flip', !!s.flip);
+    const sh = el.querySelector('.kwv-shadow');
+    if (sh) { sh.style.left = Math.round(s.foot.x * scale) + 'px'; sh.style.top = Math.round(s.foot.y * scale) + 'px'; sh.style.transform = scale !== 1 ? 'scale(' + scale + ')' : ''; }
     el.style.transform = `translate3d(${Math.round(x - s.foot.x * scale)}px, ${Math.round(y - s.foot.y * scale)}px, 0)`;
   }
 
