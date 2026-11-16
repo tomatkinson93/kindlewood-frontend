@@ -283,7 +283,9 @@
     v.el.setAttribute('aria-label', nameLine(c) + '. Show choices');
     v.el.setAttribute('aria-haspopup', 'menu');
     const hit = doc.createElement('span'); hit.className = 'kwv-hit'; v.el.appendChild(hit);
-    v.el.addEventListener('click', e => { e.stopPropagation(); if (v.selected) deselect(true); else select(v, e.detail === 0); });
+    // Pointer selection is press-and-release (below, pressAt); this click is
+    // the keyboard's (Enter or Space: detail 0).
+    v.el.addEventListener('click', e => { e.stopPropagation(); if (e.detail !== 0) return; if (v.selected) deselect(true); else select(v, true); });
     if (emerging) { v.el.classList.add('kwv-gone'); requestFrame(() => v.el.classList.remove('kwv-gone')); }
     S.layer.appendChild(v.el);
     S.vs.set(v.id, v);
@@ -568,7 +570,7 @@
     const v = M.v;
     if (!v) return;
     const c = v.c, id = v.id;
-    v.held = true; v.heldFrom = performanceNow(); v.heldCheck = 0;
+    v.held = true; v.heldFrom = performanceNow(); v.heldCheck = performanceNow() + 300; v.heldBy = null;
     deselect(true);
     const call = (name, ...a) => (typeof global[name] === 'function' ? global[name](...a) : null);
     if (key === 'inspect') call('openCitizenProfile', id);
@@ -594,12 +596,22 @@
     const h = c.house_id != null && doc.querySelector('#sv-housing-modal [data-house="' + c.house_id + '"]');
     if (h) { h.scrollIntoView({ block: 'center' }); h.classList.add('kwv-flash'); }
   }
-  // Is a window from the menu still up?
-  function windowUp() {
-    if (global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen()) return true;
-    if (global.KWA11y && global.KWA11y.topmost && global.KWA11y.topmost()) return true;
+  // The window a menu button opened (the topmost one), and whether it is
+  // still open. A KWWindow (Families) is tracked by its id.
+  function openWindow() {
+    const W = global.KWWindow;
+    if (W && W.isOpen && W.isOpen('families')) return { kww: 'families' };
     const hm = doc.getElementById('sv-housing-modal');
-    return !!(hm && hm.classList.contains('open'));
+    if (hm && hm.classList.contains('open')) return { el: hm, cls: 'open' };
+    const top = global.KWA11y && global.KWA11y.topmost ? global.KWA11y.topmost() : null;
+    return top ? { el: top } : null;
+  }
+  function stillOpen(w) {
+    if (w.kww) return !!(global.KWWindow && global.KWWindow.isOpen(w.kww));
+    if (!w.el || !w.el.isConnected) return false;
+    if (w.cls) return w.el.classList.contains(w.cls);
+    const cs = global.getComputedStyle(w.el);
+    return cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0 && w.el.getBoundingClientRect().width > 0;
   }
   // The hit box: round the figure, from the sheet's foot point.
   function placeHit(v, s) {
@@ -607,26 +619,62 @@
     if (!hit) return;
     const sp = s || (V().spriteFor(V().meta, v.c.species || townSpecies(), 'idle', 's'));
     if (!sp) return;
-    const k = v.child ? 0.75 : 1;
-    hit.style.left = Math.round((sp.foot.x - 18) * k) + 'px';
-    hit.style.top = Math.round((sp.foot.y - 60) * k) + 'px';
-    hit.style.width = Math.round(36 * k) + 'px';
-    hit.style.height = Math.round(64 * k) + 'px';
+    // The whole figure, ears and tail included; roomier on touch screens.
+    const k = v.child ? 0.75 : 1, touch = coarse();
+    const w = touch ? 58 : 48, h = touch ? 82 : 70;
+    hit.style.left = Math.round((sp.foot.x - w / 2) * k) + 'px';
+    hit.style.top = Math.round((sp.foot.y - h + 6) * k) + 'px';
+    hit.style.width = Math.round(w * k) + 'px';
+    hit.style.height = Math.round(h * k) + 'px';
   }
-  // Click or tap elsewhere, or Esc, closes the menu.
+  const coarse = () => !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
+  // The villager under a point, even one standing just behind a building's
+  // transparent edge (its image box would otherwise take the press).
+  function villagerAt(x, y) {
+    if (!S.shown || S.paused || !doc.elementsFromPoint) return null;
+    for (const el of doc.elementsFromPoint(x, y)) {
+      if (el.classList && el.classList.contains('kwv-radial')) return null;
+      if (el.classList && el.classList.contains('kwv-hit')) { const b = el.closest('.kwv-cit'); const v = b && S.vs.get(Number(b.getAttribute('data-cid'))); if (v && live(v) && v.state !== 'indoors') return v; }
+    }
+    return null;
+  }
+  // Selecting by pointer: press on a villager (they stop while pressed) and
+  // let go within 10 px and a second. More movement is a pan. The click that
+  // follows is swallowed so the building behind doesn't open too.
+  const P = { v: null, x: 0, y: 0, t: 0, id: null, swallow: false };
+  function pressEnd(e, cancelled) {
+    const v = P.v;
+    if (!v || (e && e.pointerId !== P.id)) return;
+    P.v = null; v.pressed = false;
+    if (cancelled || !e) return;
+    if (Math.hypot(e.clientX - P.x, e.clientY - P.y) > 10 || performanceNow() - P.t > 1000) return;
+    const sc = doc.getElementById('sv-scene');
+    if (sc && sc.classList.contains('sv-panning')) return;   // it became a pan
+    P.swallow = true; setTimeout(() => { P.swallow = false; }, 400);
+    if (v.selected) deselect(true); else select(v, false);
+  }
+  // Press elsewhere (or Esc) closes the menu.
   if (doc) {
     doc.addEventListener('pointerdown', e => {
-      if (!M.v) return;
-      if (e.target.closest && (e.target.closest('.kwv-radial') || e.target.closest('.kwv-cit[data-cid="' + M.v.id + '"]'))) return;
-      deselect(true);
+      if (e.target.closest && e.target.closest('.kwv-radial')) return;
+      if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+      const v = villagerAt(e.clientX, e.clientY);
+      if (M.v && v !== M.v) deselect(true);
+      if (v) { P.v = v; P.x = e.clientX; P.y = e.clientY; P.t = performanceNow(); P.id = e.pointerId; v.pressed = true; }
     }, true);
-    doc.addEventListener('keydown', e => {
+    global.addEventListener('pointerup', e => pressEnd(e, false), true);
+    global.addEventListener('pointercancel', e => pressEnd(e, true), true);
+    doc.addEventListener('click', e => { if (P.swallow && !(e.target.closest && e.target.closest('.kwv-radial'))) { P.swallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
+    // Esc with the menu open closes it first: it is the topmost thing, so this
+    // listens before js/a11y.js (window, capture), unless a dialog is up.
+    global.addEventListener('keydown', e => {
       if (e.key !== 'Escape' || !M.v || e.defaultPrevented) return;
-      e.preventDefault();
+      if ((global.KWDialog && global.KWDialog.isOpen && global.KWDialog.isOpen()) || (global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen())) return;
+      e.preventDefault(); e.stopImmediatePropagation();
       const v = M.v;
       deselect(true);
       try { v.el.focus({ preventScroll: true }); } catch (_) {}
-    });
+    }, true);
   }
 
   // ── The loop ────────────────────────────────────────────────────────────
@@ -635,9 +683,16 @@
     v.t += dt;
     // Selected: stands facing the camera until the menu closes. Held: a window
     // opened from the menu is still up; they walk on once it closes.
-    if (v.selected) return;
+    if (v.selected || v.pressed) return;   // a finger or button is on them: they wait
     if (v.held) {
-      if (now - v.heldFrom > 1500 && now >= (v.heldCheck || 0)) { v.heldCheck = now + 500; if (!windowUp()) { v.held = false; idle(v, now, 400 + S.rand() * 800); } }
+      // Held by the window the button opened: found once it appears, released
+      // when it closes (or after 3 s if nothing opened; never past 10 minutes).
+      if (now >= (v.heldCheck || 0)) {
+        v.heldCheck = now + 400;
+        if (!v.heldBy) v.heldBy = openWindow();
+        const gone = v.heldBy ? !stillOpen(v.heldBy) : now - v.heldFrom > 3000;
+        if (gone || now - v.heldFrom > 600000) { v.held = false; v.heldBy = null; idle(v, now, 400 + S.rand() * 800); }
+      }
       return;
     }
     if (v.state === 'indoors') {
@@ -779,6 +834,7 @@
     get villagers() { return [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, state: v.state, dir: v.dir, child: v.child, partner: v.partner, say: v.say, inside: v.inside || null, selected: !!v.selected, held: !!v.held })); },
     get selected() { return M.v ? M.v.id : null; },
     select: id => { const v = S.vs.get(Number(id)); if (v) select(v, false); return !!v; },
+    _villagerAt: (x, y) => { const v = villagerAt(x, y); return v ? v.id : null; },
     deselect: () => deselect(true),
     SOUND, _nameLine: nameLine, _menuItems: menuItems, _arc: arc,
     GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT,

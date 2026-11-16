@@ -274,7 +274,20 @@
     const first = Number(get(FIRST_KEY)) || 0;
     return !first || now - first < 3 * DAY;
   }
-  function setNames(on) { store(NAMES_KEY, on ? 'on' : 'off'); applyNames(); fillProfile(); }
+  function setNames(on) {
+    store(NAMES_KEY, on ? 'on' : 'off'); applyNames(); fillProfile();
+    if (global.KWPlaces && global.KWPlaces.refreshTools) global.KWPlaces.refreshTools();   // the Names chip
+  }
+  // N toggles them while Home shows (not while typing or with a window up).
+  if (doc && doc.addEventListener) doc.addEventListener('keydown', e => {
+    if ((e.key !== 'n' && e.key !== 'N') || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    if (typeof global._svIsOpen !== 'function' || !global._svIsOpen()) return;
+    const t = e.target;
+    if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+    if ((global.KWWindow && global.KWWindow.isOpen()) || (global.KWDialog && global.KWDialog.isOpen()) || (global.KWA11y && global.KWA11y.topmost())) return;
+    e.preventDefault();
+    setNames(!namesOn());
+  });
   function applyNames() {
     const v = doc && doc.getElementById('settlement-view');
     if (v) v.classList.toggle('kwh-names', namesOn());

@@ -11,6 +11,7 @@
 (function (global) {
   'use strict';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const townSpecies = () => { const gd = global.gameData; return (gd && (gd.species || (gd.settlement && gd.settlement.species))) || 'Mice'; };
   const STAGE = { child: ['🍼', 'Child'], youth: ['🌱', 'Youth'], adult: ['', 'Adult'], elder: ['🦉', 'Elder'], deceased: ['🕯', 'Remembered'] };
   const KIND = { birth: '🍼', came_of_age: '🎓', partnership: '💕', death: '🕯', inheritance: '📜', settler: '🧳', quest: '📜', raid: '🛡', discovery: '💎', craft: '⚒', town: '🏡' };
 
@@ -61,9 +62,14 @@
     const person = m => {
       const [icon, label] = STAGE[m.stage] || ['', ''];
       const parents = m.parent_ids.map(id => byId.get(id)).filter(Boolean).map(p => p.name.split(' ')[0]);
-      return `<div class="kwf-person kwf-${esc(m.stage)}${m.outsider ? ' kwf-outsider' : ''}${m.id === data.family.head_id ? ' kwf-head' : ''}"${m.stage === 'deceased' ? ` data-action="memorial" data-id="${m.id}" role="button" tabindex="0"` : ''}>
+      // Their face from the villager sprite (js/villagers.js), smaller for a child.
+      const face = global.KWVillagers && global.KWVillagers.faceHtml
+        ? global.KWVillagers.faceHtml(m.species || townSpecies(), m.stage === 'child' ? 33 : 44, m.stage === 'deceased' ? 'kwf-face-gone' : '') : '';
+      return `<div class="kwf-person kwf-${esc(m.stage)}${m.outsider ? ' kwf-outsider' : ''}${m.id === data.family.head_id ? ' kwf-head' : ''}${face ? ' kwf-has-face' : ''}"${m.stage === 'deceased' ? ` data-action="memorial" data-id="${m.id}" role="button" tabindex="0"` : ''}>
+        ${face}<div class="kwf-ptext">
         <div class="kwf-pname">${icon ? icon + ' ' : ''}${esc(m.name)}${m.id === data.family.head_id ? ' <span class="kw-chip good">Head</span>' : ''}</div>
         <div class="kw-list-row-sub">${m.stage === 'deceased' ? `died at ${m.age}` : `${label}, ${m.age}`}${m.outsider ? ' · married in' : ''}${parents.length ? ` · child of ${esc(parents.join(' & '))}` : ''}</div>
+        </div>
       </div>`;
     };
     // Order each generation so partners sit together.
