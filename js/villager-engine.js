@@ -174,15 +174,58 @@
       if (ctx.owl) return outdoors();   // the two or three still out stay out
       return ctx.home ? door(ctx.home) : ctx.doors.length ? door(ctx.doors[Math.floor(rand() * ctx.doors.length)]) : outdoors();
     }
-    if (ctx.phase === 'dusk') {
-      if (ctx.tavern && r < 0.3) return door(ctx.tavern);
-      if (ctx.home && r < 0.45) return door(ctx.home);
+    if (ctx.phase === 'dusk') {   // the evening: the tavern fills up
+      if (ctx.tavern && r < 0.5) return door(ctx.tavern);
+      if (ctx.home && r < 0.65) return door(ctx.home);
       return outdoors();
     }
     // Morning sends workers to their buildings; by day now and then.
     if (ctx.work && r < (ctx.phase === 'dawn' ? 0.4 : 0.1)) return door(ctx.work);
     if (ctx.doors.length && r < (ctx.phase === 'dawn' ? 0.45 : 0.14)) return door(ctx.doors[Math.floor(rand() * ctx.doors.length)]);
     return outdoors();
+  }
+
+  // ── The working day (§3.5a), pure ──────────────────────────────────────
+  // Someone whose job has a building here spends most of the day inside it:
+  // in during the morning (10:00–11:00 game time), out in the evening
+  // (22:24–23:00), with two or three breaks adding up to about a quarter of
+  // it, each in its own part of the day so different villagers break at
+  // different times. From a seed fixed to the villager and the game day, so
+  // a reload shows the same day. Hours are the game clock's (UTC).
+  // → { start, end, breaks: [[from, to], …] }.
+  function routine(id, day) {
+    const r = seeded(((Number(id) || 0) * 2654435761 ^ (Number(day) || 0) * 40503) >>> 0);
+    r(); r();
+    const start = 10 + r(), end = 22.4 + r() * 0.6, len = end - start;
+    const n = r() < 0.5 ? 2 : 3, seg = len / n, total = len * (0.22 + r() * 0.06);
+    const breaks = [];
+    for (let i = 0; i < n; i++) {
+      const b = total / n * (0.8 + r() * 0.4);
+      const from = start + seg * i + 0.15 + r() * (seg - b - 0.3);
+      breaks.push([from, from + b]);
+    }
+    return { start, end, breaks };
+  }
+  // At work at this hour: inside the day and not on a break. Pure.
+  const atWork = (rt, hour) => hour >= rt.start && hour < rt.end && !rt.breaks.some(([a, b]) => hour >= a && hour < b);
+  // Keep the town from looking empty: by day at least `min` villagers out
+  // whenever that many are present. Who comes out first: those inside on an
+  // errand (children, elders, the idle, anyone visiting), then workers, the
+  // one inside longest first (an extra break). vs: [{ id, inside, worker,
+  // since }]. → ids to bring out. Pure.
+  function callOut(vs, min) {
+    if (vs.length < min) return [];   // a town with fewer present: no rule
+    const need = min - vs.filter(v => !v.inside).length;
+    if (need <= 0) return [];
+    const visitors = vs.filter(v => v.inside && !v.worker).sort((a, b) => a.since - b.since || a.id - b.id);
+    const workers = vs.filter(v => v.inside && v.worker).sort((a, b) => a.since - b.since || a.id - b.id);
+    return visitors.concat(workers).slice(0, need).map(v => v.id);
+  }
+  const MIN_OUT = { desktop: 4, phone: 3 };
+  // How long a stay indoors lasts: the evening at the tavern is a long one.
+  function stayMs(key, phase, rand) {
+    if (key === 'tavern' && phase === 'dusk') return 90000 + rand() * 150000;
+    return INDOORS_MS[0] + rand() * (INDOORS_MS[1] - INDOORS_MS[0]);
   }
 
   // Who may stay out at night: up to NIGHT_OUT grown-ups, the same ones all
@@ -313,6 +356,24 @@
   }
   const depth = footY => Math.max(1, Math.min(1000, Math.round(footY / (H() || 1) * 1000)));
   const doorOf = key => S.doors.find(d => d.key === key) || null;
+  // The game clock: its day number and hour (a held time of day for a look
+  // stands at that phase's middle).
+  const HOLD_HOUR = { dawn: 10, day: 16, dusk: 23.6, night: 4 };
+  function gameClock() {
+    if (S.clock) return S.clock();
+    const ms = global.KWClock && global.KWClock.now ? global.KWClock.now() : Date.now();
+    const day = Math.floor(ms / 86400000);
+    return { day, hour: S.hold && HOLD_HOUR[S.hold] != null ? HOLD_HOUR[S.hold] : (ms % 86400000) / 3600000 };
+  }
+  // Their job's building, when it stands in this area; grown-ups only.
+  const workKey = v => (!v.child && !isElder(v.c) && doorOf(ROLE_BUILDING[v.c.role])) ? ROLE_BUILDING[v.c.role] : null;
+  // At work right now (their routine, and not on an extra break).
+  function working(v, now) {
+    if (!workKey(v) || (v.breakUntil && now < v.breakUntil)) return false;
+    const c = gameClock();
+    if (!v.rt || v.rtDay !== c.day) { v.rt = routine(v.id, c.day); v.rtDay = c.day; }
+    return atWork(v.rt, c.hour);
+  }
 
   // ── Villagers ───────────────────────────────────────────────────────────
   function make(c, at, emerging) {
@@ -356,9 +417,14 @@
   function errand(v, now) {
     const owls = S.owls.size ? S.owls : nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
     const home = S.area === 'town' ? doorOf('neighbourhood') : nearestDoor(v.x, v.y, S.exits);
-    const ctx = { phase: S.phase, work: doorOf(ROLE_BUILDING[v.c.role]), tavern: doorOf('tavern'), home, doors: S.doors,
+    // Their working day (§3.5a): at work, they go to it; on a break or off
+    // work, they do what everyone does.
+    if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
+    const ctx = { phase: S.phase, work: workKey(v) ? null : doorOf(ROLE_BUILDING[v.c.role]), tavern: doorOf('tavern'), home, doors: S.doors,
       spots: (SPOTS[S.area] || []).map(px).concat(S.propSpots || []), ground: () => px(groundPoint(S.area, S.rand)), owl: owls.has(v.id) };
-    const g = chooseErrand(ctx, S.rand);
+    let g = chooseErrand(ctx, S.rand);
+    // By day, don't go in if that would leave too few outside.
+    if (g.kind === 'door' && (S.phase === 'day' || S.phase === 'dawn') && [...S.vs.values()].filter(live).length >= minOut() && outsideCount() <= minOut()) g = { kind: 'ground', ...px(groundPoint(S.area, S.rand)) };
     // Never stop on top of anyone: a door fans out, anywhere else spreads.
     const others = othersOf(v);
     walkTo(v, g.kind === 'door' ? doorSpot(g, others) : spreadPoint(g, others, { ok: onMeadow }), g.kind === 'door' ? g.key : null);
@@ -390,13 +456,28 @@
   // Indoors: fade at the door, stay 20–60 s (at night, until morning), come
   // out and go on. The building gives a little bounce as someone goes in.
   function goIndoors(v, now, key) {
-    v.state = 'indoors'; v.inside = key;
-    v.until = now + INDOORS_MS[0] + S.rand() * (INDOORS_MS[1] - INDOORS_MS[0]);
+    v.state = 'indoors'; v.inside = key; v.inSince = now;
+    v.until = now + stayMs(key, S.phase, S.rand);   // at work, they stay while working (step)
     v.el.classList.add('kwv-gone');
     const d = doorOf(key) || S.exits.find(e => e.key === key);
     if (d && d.btn) { d.btn.classList.remove('kwh-bounce'); void d.btn.offsetWidth; d.btn.classList.add('kwh-bounce'); }
     // Children walking with this parent go in with them.
     for (const k of S.vs.values()) if (k.child && k.state !== 'indoors' && live(k) && parentsOf(k.c).includes(v.id)) walkTo(k, { x: v.x, y: v.y }, key);
+  }
+  // By day at least 4 out (3 on a phone) whenever that many are present:
+  // visitors come out first, then a worker takes an extra break (4–8 min).
+  const minOut = () => (isPhone() ? MIN_OUT.phone : MIN_OUT.desktop);
+  const outsideCount = () => [...S.vs.values()].filter(v => live(v) && v.state !== 'indoors').length;
+  function keepSomeOut(now) {
+    if (S.phase !== 'day' && S.phase !== 'dawn') return;
+    const list = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held)
+      .map(v => ({ id: v.id, inside: v.state === 'indoors', worker: v.state === 'indoors' && !!workKey(v) && v.inside === workKey(v), since: v.inSince || 0, v }));
+    for (const id of callOut(list, minOut())) {
+      const v = S.vs.get(id);
+      if (!v || v.state !== 'indoors') continue;
+      if (workKey(v) && v.inside === workKey(v)) v.breakUntil = now + 240000 + S.rand() * 240000;
+      comeOut(v, now);
+    }
   }
   // Why someone is in a building, for Who's here: they work there, live
   // there, or are visiting.
@@ -507,8 +588,11 @@
       const door = S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
       const at = first || !door ? px(groundPoint(S.area, S.rand)) : { x: door.x, y: door.y };
       const v = make(c, at, !first);
-      // On opening, some start indoors (most of them at night).
-      if (first && door && !v.child && S.rand() < (S.phase === 'night' ? 0.85 : 0.2)) { v.x = door.x; v.y = door.y; goIndoors(v, now, door.key); v.until = now + S.rand() * INDOORS_MS[1]; }
+      // On opening, someone at work is in their building; some others start
+      // indoors (most of them at night).
+      const wk = workKey(v), wd = wk && doorOf(wk);
+      if (first && wd && working(v, now)) { v.x = wd.x; v.y = wd.y; goIndoors(v, now, wk); }
+      else if (first && door && !v.child && S.rand() < (S.phase === 'night' ? 0.85 : 0.2)) { v.x = door.x; v.y = door.y; goIndoors(v, now, door.key); v.until = now + S.rand() * INDOORS_MS[1]; }
     }
     S.sig = signature(all);
     markMoments();
@@ -879,6 +963,11 @@
       return;
     }
     if (v.state === 'indoors') {
+      // At work: in while working, out when the break or the day comes.
+      if (workKey(v) && v.inside === workKey(v)) {
+        if (working(v, now)) return;
+        if (S.phase !== 'night') { comeOut(v, now); return; }
+      }
       // Night keeps people in until morning (staggered); otherwise their time is up.
       const nightIn = S.phase === 'night' && !S.owls.has(v.id);
       // Kept in overnight: come out over the next 20 s in the morning, not all at once.
@@ -963,6 +1052,7 @@
     if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
+    if ((S.outT = (S.outT || 0) + dt) > 2000) { S.outT = 0; keepSomeOut(now); }
     S.size = { w: S.layer.clientWidth, h: S.layer.clientHeight };
     try { for (const v of S.vs.values()) { step(v, dt, now); draw(v, false); } } finally { S.size = null; }
     S.ms = S.ms * 0.95 + (performanceNow() - t0) * 0.05;   // the loop's own cost (target: under 2 ms)
@@ -1030,7 +1120,8 @@
     deselect: () => deselect(true),
     SOUND, _nameLine: nameLine, _menuItems: menuItems, _arc: arc, _assignMoments: assignMoments, _clearSpot: clearSpot,
     get marked() { return [...S.vs.values()].filter(v => v.moment).map(v => ({ id: v.id, moment: v.moment.id, state: v.state })); },
-    GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT,
+    GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT, MIN_OUT,
+    _routine: routine, _atWork: atWork, _callOut: callOut, _stayMs: stayMs, _setClock: f => { S.clock = f || null; },
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
     _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP,

@@ -731,5 +731,68 @@ console.log('22. A building\'s radial menu');
     && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
 }
 
+// ── 23. Villagers keep a working day (seeded; js/villager-engine.js) ──
+console.log('23. Villagers keep a working day (seeded)');
+{
+  const e6 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e6.window = e6; vm.createContext(e6); vm.runInContext(read('js/villager-engine.js'), e6);
+  const C6 = e6.KWCast, E = read('js/villager-engine.js');
+  // (a) Inside for most of the working day; breaks of about a quarter, two or three, apart.
+  let okA = true, shares = [];
+  for (let id = 1; id <= 60; id++) for (let day = 20400; day < 20403; day++) {
+    const rt = C6._routine(id, day);
+    let on = 0, n = 0;
+    for (let h = rt.start; h < rt.end; h += 0.05) { n++; if (C6._atWork(rt, h)) on++; }
+    shares.push(on / n);
+    const br = rt.breaks;
+    if (br.length < 2 || br.length > 3 || rt.start < 10 || rt.start > 11 || rt.end < 22.4 || rt.end > 23) okA = false;
+    for (let i = 0; i < br.length; i++) { if (br[i][0] < rt.start || br[i][1] > rt.end || br[i][1] <= br[i][0]) okA = false; if (i && br[i][0] < br[i - 1][1]) okA = false; }
+  }
+  check('23a. a worker is inside for most of the working day: breaks take about a quarter (60 villagers × 3 days)',
+    okA && Math.min(...shares) >= 0.65 && Math.max(...shares) <= 0.82 && JSON.stringify(C6._routine(7, 20400)) === JSON.stringify(C6._routine(7, 20400)) && JSON.stringify(C6._routine(7, 20400)) !== JSON.stringify(C6._routine(7, 20401)));
+  // (b) Staggered: at no hour of the working day are most workers on a break at once.
+  let worst = 0;
+  for (let h = 11.5; h < 22.3; h += 0.25) {
+    let off = 0;
+    for (let id = 1; id <= 40; id++) { const rt = C6._routine(id, 20400); if (h >= rt.start && h < rt.end && !C6._atWork(rt, h)) off++; }
+    worst = Math.max(worst, off / 40);
+  }
+  const firsts = Array.from({ length: 40 }, (_, i) => C6._routine(i + 1, 20400).breaks[0][0]);
+  check('23b. breaks are staggered: never more than half of 40 workers on a break at once; their first breaks spread over more than two hours',
+    worst <= 0.5 && Math.max(...firsts) - Math.min(...firsts) > 2);
+  // (c) The minimum outside.
+  const vs = (inside, workers) => Array.from({ length: 6 }, (_, i) => ({ id: i + 1, inside: i < inside, worker: i < workers, since: 10 - i }));
+  check('23c. by day at least 4 out on desktop and 3 on a phone whenever that many are present: visitors (children, elders, the idle) come out first, then the worker inside longest',
+    C6.MIN_OUT.desktop === 4 && C6.MIN_OUT.phone === 3
+    && C6._callOut(vs(6, 6), 4).length === 4 && C6._callOut(vs(6, 3), 4).slice(0, 3).join() === '6,5,4' && C6._callOut(vs(2, 2), 4).length === 0
+    && C6._callOut(vs(4, 4), 3).length === 1 && C6._callOut(vs(3, 3).slice(0, 3), 4).length === 0
+    && /if \(workKey\(v\) && v\.inside === workKey\(v\)\) v\.breakUntil = now \+ 240000/.test(E) && /outsideCount\(\) <= minOut\(\)/.test(E));
+  // (d) The tavern in the evening against midday: a small seeded simulation of 8 villagers for two hours.
+  const doors = ['tavern', 'smithy', 'market', 'library', 'granary'].map((k, i) => ({ key: k, x: i * 100, y: 0 }));
+  const occupancy = phase => {
+    const rand = C6._seeded(phase === 'dusk' ? 11 : 12); let total = 0, samples = 0;
+    const vsim = Array.from({ length: 8 }, () => ({ until: 0, inside: null }));
+    for (let t = 0; t < 7200000; t += 5000) {
+      for (const v of vsim) if (t >= v.until) {
+        if (v.inside) { v.inside = null; v.until = t + 15000; continue; }   // out, a walk and a pause
+        const g = C6._chooseErrand({ phase, work: null, tavern: doors[0], home: { key: 'neighbourhood', x: 0, y: 0 }, doors, spots: [], ground: () => ({ x: 0, y: 0 }), owl: false }, rand);
+        if (g.kind === 'door') { v.inside = g.key; v.until = t + 15000 + C6._stayMs(g.key, phase, rand); } else v.until = t + 15000 + 6500;
+      }
+      total += vsim.filter(v => v.inside === 'tavern').length; samples++;
+    }
+    return total / samples;
+  };
+  const eve = occupancy('dusk'), mid = occupancy('day');
+  check('23d. the tavern holds more villagers in the evening than at midday (and an evening there is a long one)', eve > mid * 3 && eve > 1.5 && C6._stayMs('tavern', 'dusk', () => 0) >= 90000);
+  const owls = C6._nightOwls([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  let home = 0;
+  for (let id = 1; id <= 10; id++) { const g = C6._chooseErrand({ phase: 'night', work: null, tavern: doors[0], home: { key: 'neighbourhood', x: 0, y: 0 }, doors, spots: [], ground: () => ({ x: 0, y: 0 }), owl: owls.has(id) }, C6._seeded(id)); if (g.kind === 'door' && g.key === 'neighbourhood') home++; }
+  check('23e. night sends most home; a few stay out', home === 7 && owls.size === 3);
+  check('23f. Who\'s here is the engine\'s own list of who is inside; workers on shift start inside on opening; nobody appears or vanishes in the open; outskirts workers keep their day there',
+    /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(first && wd && working\(v, now\)\) \{ v\.x = wd\.x; v\.y = wd\.y; goIndoors\(v, now, wk\); \}/.test(E)
+    && /if \(working\(v, now\)\) \{ const d = doorOf\(workKey\(v\)\); walkTo\(v, doorSpot\(d, othersOf\(v\)\), d\.key\); return; \}/.test(E) && /const b = ROLE_BUILDING\[c\.role\];\s*return \(b && builtArea\(b\)\) \|\| 'town';/.test(E));
+  check('23g. it stays cosmetic: the engine sends nothing to the server', !/apiFetch|fetch\(/.test(E));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
