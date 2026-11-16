@@ -363,7 +363,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
     && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
   check('12v. children are drawn at 0.75×; each family has its own gentle look', /v\.child \? 0\.75 : 1/.test(E) && /TINTS\[Math\.abs\(Number\(c\.family_id\)/.test(E));
   check('12w. leaving town: walk to the nearest door and fade; arriving: out of a door; nobody pops up except when Home opens',
-    /function leave\(v\)/.test(E) && /nearestDoor\(v\.x, v\.y\)/.test(E) && /make\(c, at, !first\)/.test(E));
+    /function leave\(v, why = 'town'\)/.test(E) && /nearestDoor\(v\.x, v\.y\)/.test(E) && /make\(c, at, !first\)/.test(E));
   check('12x. a picture only: the engine never calls the server', !/apiFetch|fetch\(/.test(E));
   check('12y. loaded after js/villagers.js; the scene\'s hooks reach it', H.indexOf('/js/villager-engine.js?v=') > H.indexOf('/js/villagers.js?v=') && /cast\(\)\.sceneShown\(T\.layer\)/.test(VJ) && /cast\(\)\.setPaused\(T\.paused\)/.test(VJ));
   check('12z. the loop measures its own cost per frame (the phone pass targets under 2 ms)', /S\.ms = S\.ms \* 0\.95/.test(E) && /get frameMs\(\)/.test(E));
@@ -474,6 +474,7 @@ console.log('15. Selecting a villager: the radial menu (§3.6)');
   check('15q. a press-and-release selects, even if they walk a little meanwhile (they stop while pressed); more than 10 px is a pan',
     /v\.pressed = true/.test(E) && /> 10 \|\| performanceNow\(\) - P\.t > 1000\) return;/.test(E) && /sv-panning'\)\) return;/.test(E) && /P\.swallow = true/.test(E));
   check('15r. a villager just behind a building\'s transparent edge is still the one picked', /function villagerAt\(x, y\)/.test(E) && /doc\.elementsFromPoint\(x, y\)/.test(E));
+  check('15t. a press on a window, panel or card over the scene never picks a villager underneath', /if \(!all\.length \|\| !all\[0\]\.closest \|\| !all\[0\]\.closest\('#sv-scene'\)\) return null;/.test(E));
   check('15s. the hit box covers the whole figure (48 × 70), roomier on touch (58 × 82)', /const w = touch \? 58 : 48, h = touch \? 82 : 70;/.test(E));
   check('15p. the menu\'s buttons take clicks (the layers they sit in do not)', /\.kwv-rb \{\s*pointer-events: auto;/.test(CSS));
   check('15m. it fans out in 150 ms; not under reduced motion; 48 px on touch', /transition: transform 150ms/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwv-rb \{ transition: none; \}/.test(CSS) && /pointer: coarse\) \{\s*#settlement-view \.kwv-rb \{ width: 48px; height: 48px/.test(CSS));
@@ -500,6 +501,44 @@ console.log('16. Phones and comfort (step 8), names, faces');
   check('16g. no sheet data yet: no face (and no error)', fv.KWVillagers.faceHtml('Mice') === '');
   check('16h. the family tree shows each villager\'s face (smaller for a child, grey for the dead), facing the camera from their idle sheet',
     /KWVillagers\.faceHtml\(m\.species \|\| townSpecies\(\), m\.stage === 'child' \? 33 : 44/.test(FJ) && /kwf-face-gone/.test(FJ) && /\.kwf-face-gone \{ filter: grayscale\(1\)/.test(CSS) && /\.kwv-face \{[^}]*image-rendering: pixelated/.test(CSS));
+}
+
+console.log('17. Villagers\' name plates; nobody unclickable');
+{
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  check('17a. each villager has a name plate (their first name) under their feet', /tag\.className = 'kwv-tag'/.test(E) && /split\(' '\)\[0\]/.test(E) && /tag\.style\.top = Math\.round\(\(sp\.foot\.y \+ 5\) \* k\)/.test(E));
+  check('17b. shown with Names on (the chip, N), during the touch peek, or on hover and focus; hidden while selected',
+    /#settlement-view\.kwh-names \.kwv-tag, #settlement-view\.kwh-peek \.kwv-tag/.test(CSS) && /\.kwv-cit:hover \.kwv-tag/.test(CSS) && /\.kwv-selected \.kwv-tag \{ display: none !important; \}/.test(CSS));
+  check('17c. someone walking into a building (the cast changing) can still be picked: they stop and stay', /v && v\.state !== 'gone' && v\.state !== 'indoors'\) return v;/.test(E)
+    && /if \(v\.state === 'leave'\) v\.state = 'idle';/.test(E) && /leave\(out\[Math\.floor\(S\.rand\(\) \* out\.length\)\], 'rotate'\)/.test(E));
+  check('17d. someone leaving town (a quest, a death) who is picked on the way goes on after the menu closes', /if \(v\.leaveWhy === 'town' && !v\.held\) leave\(v, 'town'\)/.test(E));
+}
+
+console.log('18. Moment markers (§3.7)');
+{
+  const e4 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e4.window = e4; vm.createContext(e4); vm.runInContext(read('js/villager-engine.js'), e4);
+  const C4 = e4.KWCast, E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  const cast = [{ id: 1, out: true, age: 30 }, { id: 2, out: true, age: 64, elder: true }, { id: 3, out: true, age: 40 }, { id: 4, out: true, child: true, age: 5 }];
+  const asg = ms => [...C4._assignMoments(ms, cast).entries()].map(([id, m]) => id + ':' + m.id).join(',');
+  check('18a. a moment is carried by its first citizen who is out', asg([{ id: 10, subject: { citizen_ids: [9, 3, 1] } }]) === '3:10');
+  check('18b. one marker per moment, one moment per villager', asg([{ id: 10, subject: { citizen_ids: [3, 1] } }, { id: 11, subject: { citizen_ids: [3] } }]) === '3:10'
+    && asg([{ id: 10, subject: { citizen_ids: [3] } }, { id: 11, subject: { citizen_ids: [3, 1] } }]) === '3:10,1:11');
+  check('18c. a town-wide question (the season\'s) goes to a messenger: an elder first, else the oldest grown-up', asg([{ id: 12, source: 'year', subject: { citizen_ids: [] } }]) === '2:12'
+    && [...C4._assignMoments([{ id: 12, source: 'year', subject: { citizen_ids: [] } }], cast.filter(c => !c.elder)).keys()].join() === '3');
+  check('18d. an outpost\'s, a village envoy\'s or a settler\'s moment has nobody in town: no marker', asg([{ id: 13, source: 'outpost', subject: { outpost_id: 5 } }, { id: 14, source: 'village', subject: { citizen_ids: [], npc_id: 2 } }]) === '');
+  check('18e. moment subjects are always in the cast (pickCast puts them first)', /for \(const id of opts\.momentIds \|\| \[\]\)/.test(E) && /momentIds: momentIds\(\)/.test(E));
+  check('18f. they come outdoors and stand at a clear spot near the middle of the view, facing the camera, with a bobbing "!"',
+    /if \(v\.state === 'indoors'\) comeOut\(v, now\);/.test(E) && /function momentSpot\(v\)/.test(E) && /v\.state = 'waiting'; v\.dir = 's';/.test(E)
+    && /\.kwv-mark \{/.test(CSS) && /@keyframes kwv-mark-bob/.test(CSS) && /prefers-reduced-motion: reduce\) \{ #settlement-view \.kwv-mark \{ animation: none; \}/.test(CSS));
+  const blocks = [{ l: 900, r: 1300, t: 300, b: 750 }, { l: 1400, r: 1800, t: 300, b: 750 }];   // two front-row buildings, feet at 750
+  const sp1 = C4._clearSpot(1100, { w: 2600, h: 800, blocks }), sp2 = C4._clearSpot(1100, { w: 2600, h: 800, blocks, taken: [sp1] });
+  check('18j. the spot is clear: never behind a building that stands in front, near the middle of the view', sp1.y === 0.74 * 800 && !(sp1.x + 24 > 900 && sp1.x - 24 < 1300) && Math.abs(sp1.x - 1100) < 300);
+  check('18k. a second one waiting stands apart from the first', Math.abs(sp2.x - sp1.x) >= 60);
+  check('18l. with the lane blocked all along, the open meadow at the front', C4._clearSpot(1300, { w: 2600, h: 800, blocks: [{ l: 0, r: 2600, t: 300, b: 750 }] }).y === 0.965 * 800);
+  check('18g. clicking them opens the moment in the dialogue box instead of the radial menu', /if \(v\.moment && global\.KWMoments && global\.KWMoments\.open\) \{[\s\S]{0,120}global\.KWMoments\.open\(v\.moment\.id\);\s*return;/.test(E));
+  check('18h. the marker follows the moment: answered, it goes and they walk on; checked every second', /S\.markT = 0; markMoments\(\);/.test(E) && /if \(el\) el\.remove\(\);/.test(E));
+  check('18i. their label says so, for screen readers', /' has something to ask: '/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
