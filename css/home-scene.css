@@ -153,7 +153,15 @@
    or focused building (1010) and a building being dragged (1020), all under
    the overlay; the backdrop strips sit below at negative z. */
 #settlement-view .sv-world > .sv-layer { inset: 0; width: 100%; height: 100%; z-index: auto; will-change: auto; }
-#settlement-view .sv-scene { cursor: grab; touch-action: pan-y; }
+/* The scene is a native horizontal scroller (js/settlement-view.js): a finger
+   flings it with the browser's own momentum, a vertical swipe still scrolls the
+   page or the sheet, and an overscroll never turns into "back". No scrollbar. */
+#settlement-view .sv-scene { cursor: grab; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+#settlement-view .sv-scene::-webkit-scrollbar { display: none; }
+#settlement-view .sv-track { position: relative; height: 100%; overflow: hidden; }
+/* Build mode: a finger on a building drags the building, not the view. */
+#settlement-view .sv-scene.sv-build-mode .sv-slot { touch-action: none; }
 #settlement-view .sv-scene.sv-panning, #settlement-view .sv-scene.sv-panning * { cursor: grabbing !important; }
 
 /* The backdrop: the horizon at 25 % of the height. The strips reach far to the

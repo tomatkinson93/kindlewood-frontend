@@ -423,6 +423,13 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
   check('14e. a pan stays inside the world', bx._svClampPan(-50, 1400, 2600) === 0 && bx._svClampPan(5000, 1400, 2600) === 1200 && bx._svClampPan(300, 1400, 2600) === 300 && bx._svClampPan(300, 3000, 2600) === 0);
   check('14f. a drag that pans never clicks the building it started on; in Build mode a building drag moves it instead', /if \(_svPanned\) \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}/.test(S2) && /_svBuildMode && slot && slot\.dataset\.slot && _svDraggable/.test(S2));
   check('14g. the map leaves the arrow keys alone while Home shows', /window\._svIsOpen\(\)\) return;/.test(MAP));
+  check('14h2. the scene pans as a native horizontal scroller: momentum from the browser, vertical swipes left to the page, no overscroll "back", the track sized to the pan limit',
+    /\.sv-scene \{ cursor: grab; overflow-x: auto; overflow-y: hidden; touch-action: pan-x pan-y; overscroll-behavior-x: contain;/.test(CSS) && /class="sv-track" id="sv-track"/.test(S2)
+    && /tr\.style\.width = Math\.round\(SV_WORLD_W \* _svScale \+ _svRightInset\(\)\)/.test(S2) && /sc\.addEventListener\('scroll', _svOnScroll, \{ passive: true \}\)/.test(S2));
+  check('14h3. the mouse drags from anywhere (a building or a villager too): 1:1, pointer captured; under 8 px a click, over it a pan that opens nothing; touch is left to the browser; keys and the edge still pan',
+    /var _SV_PAN_PX = 8;/.test(S2) && /if \(e\.pointerType !== 'mouse' \|\| e\.button !== 0\) return;/.test(S2) && /sc\.setPointerCapture\(e\.pointerId\)/.test(S2)
+    && /sc\.scrollLeft = press\.start - dx;/.test(S2) && /if \(_svPanned\) \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}/.test(S2) && /_svPanBy\(e\.key === 'ArrowLeft' \? -240 : 240, true\)/.test(S2) && /function _svEdgeTick/.test(S2)
+    && /\.sv-build-mode \.sv-slot \{ touch-action: none; \}/.test(CSS));
   check('14h. the far strips pan a little slower (the only depth), and only with the pan', /pan: 0\.45/.test(S2) && /pan: 0\.75/.test(S2) && /el\.dataset\.pan/.test(S2));
   const slots = [...S2.matchAll(/\{ id:'([a-z-]+)',\s+area:'(town|outskirts)',\s+x:([\d.]+),\s+y:([\d.]+)/g)].map(m => ({ id: m[1], area: m[2], x: +m[3], y: +m[4] }));
   check('14i. slots for a flat field: two rows, feet in the meadow (back row under the tree line)', slots.length === 18 && slots.every(q => q.y >= 50 && q.y <= 95 && q.x > 2 && q.x < 98)
