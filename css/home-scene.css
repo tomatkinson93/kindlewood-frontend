@@ -86,8 +86,17 @@
   #settlement-view .sv-building.kwh-btn:hover, #settlement-view .sv-building.kwh-btn:focus-visible { transform: none; }
 }
 
-/* Props are hidden while editing the layout. */
-#settlement-view .sv-prop-slot[hidden] { display: none; }
+/* Build mode (§2.3): empty plots only show while building; the plot a
+   dragged building would land on glows. */
+#settlement-view .sv-slot[hidden] { display: none; }
+#settlement-view .sv-scene.sv-build-mode .sv-slot.sv-drop-target .sv-slot-ring,
+#settlement-view .sv-scene.sv-build-mode .sv-slot.sv-drop-target .kwh-btn {
+  filter: drop-shadow(0 0 12px rgba(120, 220, 140, 0.9));
+}
+#settlement-view .sv-scene.sv-build-mode .sv-slot.sv-dragging { z-index: 999; cursor: grabbing; }
+#settlement-view .sv-scene.sv-build-mode .sv-slot:not([data-slot="town-neighbourhood"]) .sv-building.kwh-btn { cursor: grab; }
+/* The Build chip while Build mode is on. */
+.kwp-tool.on { background: rgba(90, 160, 100, 0.35); border-color: rgba(150, 220, 160, 0.7); color: #e6ffe9; }
 
 /* The profile menu's list of the town's screens. */
 #pm-town:empty { display: none; }

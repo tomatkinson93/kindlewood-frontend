@@ -44,7 +44,10 @@
     home: [
       // Phones have no room for the town card beside the scene: a chip opens it.
       { key: 'town',     label: 'Town',     glyph: '🏡', run: () => global.KWContext && global.KWContext.openTownWindow(), phone: true },
-      { key: 'build',    label: 'Build',    glyph: '🏗', run: () => { call('switchTab', 'buildings'); if (isPhone() && global.KWShell) global.KWShell.openPanel(); else if (global.KWContext) global.KWContext.open(); } },
+      // Build mode in the scene (docs/HOME_SCENE.md §2.3): plots show, buildings
+      // move and open their manage panel. It reads "Done" while on.
+      { key: 'build',    label: 'Build',    glyph: '🏗', onLabel: 'Done', onGlyph: '✓', on: () => fn('_svIsBuildMode') && global._svIsBuildMode(),
+        run: () => { if (!svOpen()) call('openSettlementView'); call('_svToggleBuildMode'); } },
       // The rest are the buildings themselves now (docs/HOME_SCENE.md §2,
       // js/home-scene.js), and a plain list in the profile menu.
     ],
@@ -109,7 +112,11 @@
   }
   function toolsHtml(key) {
     return (TOOLS[key] || []).filter(t => (!t.unlock || t.unlock()) && (!t.phone || isPhone()))
-      .map(t => `<button type="button" class="kwp-tool" data-tool="${t.key}"><span aria-hidden="true">${t.glyph}</span> ${esc(t.label)}</button>`).join('');
+      .map(t => {
+        const on = !!(t.on && t.on());
+        return `<button type="button" class="kwp-tool${on ? ' on' : ''}" data-tool="${t.key}"${t.on ? ` aria-pressed="${on}"` : ''}>`
+          + `<span aria-hidden="true">${on && t.onGlyph ? t.onGlyph : t.glyph}</span> ${esc(on && t.onLabel ? t.onLabel : t.label)}</button>`;
+      }).join('');
   }
   function mark() {
     doc.querySelectorAll('[data-place]').forEach(b => {
@@ -354,5 +361,10 @@
     if (_started) setHash(key, true);
   }
 
-  global.KWPlaces = { go, start, seen, reset, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
+  // Re-draws the chips (a chip's label can follow state: Build / Done).
+  function refreshTools() {
+    const tools = doc.getElementById('kw-place-tools');
+    if (tools) tools.innerHTML = toolsHtml(_current);
+  }
+  global.KWPlaces = { go, start, seen, reset, refreshTools, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

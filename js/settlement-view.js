@@ -148,11 +148,6 @@ const _SV_POS_KEY = 'sv_slot_positions';
 function _svGetPositions() {
   try { return JSON.parse(localStorage.getItem(_SV_POS_KEY) || '{}'); } catch(e) { return {}; }
 }
-function _svSavePos(slotId, x, y) {
-  var p = _svGetPositions();
-  p[slotId] = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
-  localStorage.setItem(_SV_POS_KEY, JSON.stringify(p));
-}
 function _applySlotPositions() {
   var p = _svGetPositions();
   SV_SLOTS.forEach(function(sl) {
@@ -191,7 +186,7 @@ let _svRafId   = null;
 let _svCommBarHandler = null;
 let _svStylesInjected = false;
 let _svDOMBuilt       = false;
-let _svEditMode       = false;
+let _svBuildMode       = false;
 let _svDragSlot       = null;
 let _svDragValid      = true;
 let _svDragOrigPos    = null;
@@ -200,10 +195,6 @@ let _svDragMoveHandler      = null;
 let _svDragEndHandler       = null;
 let _svDragTouchMoveHandler = null;
 let _svDragTouchEndHandler  = null;
-let _svResizeSlot        = null;
-let _svResizeStartY      = 0;
-let _svResizeOrigSize    = _SV_SIZE_DEFAULT;
-let _svCurrentResizeSize = _SV_SIZE_DEFAULT;
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 function _injectSvStyles() {
@@ -357,39 +348,18 @@ function _injectSvStyles() {
 .sv-occ-desc  { font-size: 12px; color: rgba(200,180,140,0.72); line-height: 1.5; margin-bottom: 14px; }
 .sv-occ-flavor{ font-size: 11px; color: rgba(180,160,120,0.55); font-style: italic; text-align: center; margin-top: 12px; line-height: 1.4; }
 
-.sv-edit-btn {
-  background: rgba(40,60,100,0.52); border: 1px solid rgba(100,150,220,0.35);
-  color: rgba(140,180,240,0.75); padding: 5px 14px; border-radius: 20px;
-  font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.22s;
-}
-.sv-edit-btn:hover { background: rgba(60,90,150,0.62); border-color: rgba(140,190,255,0.55); color: #a8ceff; }
-.sv-edit-btn.sv-edit-active { background: rgba(60,110,200,0.38); border-color: rgba(160,200,255,0.7); color: #c0d8ff; font-weight: 700; }
 .sv-edit-reset-btn {
   font-size: 11px; background: rgba(80,30,20,0.38); border: 1px solid rgba(200,80,60,0.35);
   color: rgba(220,110,90,0.82); padding: 4px 11px; border-radius: 16px;
   cursor: pointer; font-family: inherit; transition: all 0.2s;
 }
 .sv-edit-reset-btn:hover { background: rgba(120,40,30,0.48); color: #e87060; }
-.sv-scene.sv-editing .sv-slot { cursor: grab; }
+/* Build mode: buildings show a grab cursor (css/home-scene.css). */
 .sv-slot.sv-dragging { cursor: grabbing !important; z-index: 999 !important; transition: none !important; }
 .sv-slot.sv-dragging .sv-building,
 .sv-slot.sv-dragging .sv-slot-empty { filter: drop-shadow(0 8px 28px rgba(100,180,255,0.55)) brightness(1.18); }
 .sv-slot.sv-drag-bad .sv-building,
 .sv-slot.sv-drag-bad .sv-slot-empty { filter: drop-shadow(0 8px 24px rgba(255,80,60,0.7)) brightness(0.95); }
-.sv-slot-resize {
-  position: absolute; top: 100%; left: 50%;
-  transform: translateX(-50%);
-  margin-top: 5px; width: 32px; height: 10px;
-  background: rgba(100,160,255,0.28); border: 1px solid rgba(100,160,255,0.5);
-  border-radius: 5px; cursor: ns-resize;
-  display: flex; align-items: center; justify-content: center;
-  pointer-events: auto; transition: background 0.2s;
-}
-.sv-slot-resize:hover { background: rgba(100,160,255,0.5); }
-.sv-slot-resize span { font-size: 7px; color: rgba(160,200,255,0.9); line-height: 1; pointer-events: none; }
-.sv-slot.sv-resizing { z-index: 998 !important; }
-.sv-slot.sv-resizing .sv-building,
-.sv-slot.sv-resizing .sv-slot-empty { filter: drop-shadow(0 4px 16px rgba(100,160,255,0.45)); }
 
 /* Neighbourhood slot — always rendered as a building, never empty-ring */
 .sv-neighbourhood-building .sv-building-struct { border: 2px solid rgba(255,200,100,0.25); }
@@ -572,9 +542,10 @@ function _ensureSvDOM() {
     + '<button class="sv-back-btn" id="sv-back-btn" onclick="closeSettlementView()">&#8592; The Land</button>'
     + '<span class="sv-header-title" id="sv-title">Settlement</span>'
     // Town ↔ Outskirts: signposts in the scene (js/home-scene.js PROPS).
+    // Build mode (the Build chip, top left) replaces Edit (§2.3). An old
+    // hand-made layout can still be put back from here while building.
     + '<div style="display:flex;align-items:center;gap:8px">'
-    + '<button class="sv-edit-btn" id="sv-edit-btn" onclick="_svToggleEditMode()">&#9998; Edit</button>'
-    + '<button class="sv-edit-reset-btn" id="sv-edit-reset-btn" style="display:none" onclick="_svResetLayout()">&#8635; Reset</button>'
+    + '<button class="sv-edit-reset-btn" id="sv-edit-reset-btn" style="display:none" onclick="_svResetLayout()">&#8635; Reset layout</button>'
     + '</div></div>'
     + '<div class="sv-build-panel" id="sv-build-panel"></div>'
     + '<div class="sv-housing-modal" id="sv-housing-modal"></div>';
@@ -630,15 +601,23 @@ async function openSettlementView() {
   }
 
   await _svLoad();
+  // A town with nothing built yet starts with the plots showing (§2.3).
+  if (!_svBuildMode && _svNothingBuilt()) _svToggleBuildMode(true);
 }
 window.openSettlementView = openSettlementView;
 
-// Opens the settlement view on the plot for `buildingId` with its build panel
-// showing — the Market's "Build a Market" link uses this. The plot is the one
+function _svNothingBuilt() {
+  return !_svBuildings.some(function(b) { return b.currentLevel > 0 && b.id !== 'starter_house' && b.id !== 'housing'; });
+}
+
+// Opens the settlement view in Build mode on the plot for `buildingId` with
+// its build panel showing — the Market's "Build a Market" link and First
+// steps' "Show me" use this. The plot is the one
 // the building already sits in, else its default slot if free, else any free
 // slot in that area.
 async function openSettlementBuild(buildingId) {
   await openSettlementView();
+  _svToggleBuildMode(true);   // the plots show (§2.3); before the panel opens: the toggle closes panels
   var assign = _svGetAssignments();
   var home = SV_SLOTS.find(function(s) { return (s.accepts || []).includes(buildingId); });
   var slot = SV_SLOTS.find(function(s) { return assign[s.id] === buildingId; })
@@ -652,6 +631,7 @@ async function openSettlementBuild(buildingId) {
 window.openSettlementBuild = openSettlementBuild;
 
 function closeSettlementView() {
+  if (_svBuildMode) _svToggleBuildMode(false);
   _svOpen = false;
   if (window.KWVillagers) KWVillagers.sceneHidden();
   if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
@@ -731,14 +711,24 @@ function _renderScene() {
       var housingB   = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
       var houseCount = housingB ? housingB.currentLevel : 0;
       el.appendChild(_buildNeighbourhoodEl(slot, houseCount));
-      if (!_svEditMode) el.onclick = function() { _svOpenBuilding('neighbourhood'); };
+      el.hidden = false;
+      // In Build mode the Neighbourhood is where huts are built: its window.
+      el.onclick = function() { if (_svBuildMode) _openHousingModal(); else _svOpenBuilding('neighbourhood'); };
     } else {
       var occupant = _occupantFor(slot);
       if (occupant) {
         el.appendChild(_buildOccupiedEl(slot, occupant));
         // A click opens the building's screen (js/home-scene.js ROUTES), or
         // its panel when it has none.
-        if (!_svEditMode) (function(s, o) { el.onclick = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); }; })(slot, occupant);
+        el.hidden = false;
+        // Normally a click opens the building's screen (js/home-scene.js
+        // ROUTES), or its panel when it has none; in Build mode, always the
+        // manage panel (upgrade, demolish). A drag that just ended is no click.
+        (function(s, o) { el.onclick = function() {
+          if (_svJustDragged) return;
+          if (_svBuildMode) _openBuildPanel(s, o);
+          else _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); });
+        }; })(slot, occupant);
       } else {
         var areaBuildings = _svSlotBuildingIds();
         var taken = Object.values(_svGetAssignments());
@@ -752,16 +742,12 @@ function _renderScene() {
           return !b || !_svCanBuild(b);
         });
         el.appendChild(_buildEmptyEl(slot, anyAvail, allLocked));
-        if (!_svEditMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
+        // Empty plots are hidden outside Build mode (§2.3).
+        el.hidden = !_svBuildMode;
+        if (_svBuildMode && anyAvail) (function(s) { el.onclick = function() { _openBuildPanel(s, null); }; })(slot);
       }
     }
 
-    if (_svEditMode) {
-      var rh = document.createElement('div');
-      rh.className = 'sv-slot-resize';
-      rh.innerHTML = '<span>⇕</span>';
-      el.appendChild(rh);
-    }
   }
   _renderProps();
   _applySlotPositions();
@@ -784,7 +770,7 @@ function _renderProps() {
     if (!el) return;
     el.innerHTML = '';
     el.onclick = null;
-    el.hidden = shown.indexOf(p.id) < 0 || _svEditMode;
+    el.hidden = shown.indexOf(p.id) < 0 || (_svBuildMode && p.kind !== 'signpost');
     if (el.hidden) return;
     var size = p.kind === 'signpost' ? 60 : _SV_SIZE_DEFAULT;
     var btn = document.createElement('button');
@@ -1289,41 +1275,70 @@ function _unbindParallax() {
 }
 
 // ── Edit mode ─────────────────────────────────────────────────────────────────
-function _svToggleEditMode() {
-  _svEditMode = !_svEditMode;
+// ── Build mode (§2.3) ─────────────────────────────────────────────────────────
+// One mode for building and arranging: empty plots show ("Build here"), a
+// building opens its manage panel (upgrade, demolish) and can be dragged to
+// another plot (onto an empty one it moves, onto a building they swap), and
+// villagers are hidden. The Build chip turns it on and reads "Done" while on;
+// Done or Esc leave. `on` forces a state.
+var _svJustDragged = false;
+function _svToggleBuildMode(on) {
+  var want = typeof on === 'boolean' ? on : !_svBuildMode;
+  if (want === _svBuildMode) return _svBuildMode;
+  _svBuildMode = want;
   var scene    = document.getElementById('sv-scene');
-  var btn      = document.getElementById('sv-edit-btn');
   var resetBtn = document.getElementById('sv-edit-reset-btn');
-
-  if (_svEditMode) {
-    _closeBuildPanel();
+  _closeBuildPanel();
+  _closeHousingModal();
+  if (_svBuildMode) {
     _unbindParallax();
-    // Zero out parallax transforms so slots sit at their real positions
+    // Zero out parallax transforms so plots sit at their real positions
     document.querySelectorAll('#sv-scene .sv-env-layer').forEach(function(el) { el.style.transform = ''; });
     var tFg = document.getElementById('sv-layer-fg-town');
     var oFg = document.getElementById('sv-layer-fg-outskirts');
     if (tFg) tFg.style.transform = '';
     if (oFg) oFg.style.transform = '';
-    scene.classList.add('sv-editing');
-    if (btn) { btn.textContent = '✓ Done'; btn.classList.add('sv-edit-active'); }
-    if (resetBtn) resetBtn.style.display = '';
+    if (scene) scene.classList.add('sv-editing', 'sv-build-mode');
+    if (resetBtn) resetBtn.style.display = _svHasCustomLayout() ? '' : 'none';
     _svAttachDragHandlers();
+    document.addEventListener('keydown', _svBuildKey);
   } else {
-    scene.classList.remove('sv-editing');
-    if (btn) { btn.textContent = '❖ Edit'; btn.classList.remove('sv-edit-active'); }
+    if (scene) scene.classList.remove('sv-editing', 'sv-build-mode');
     if (resetBtn) resetBtn.style.display = 'none';
     _svDetachDragHandlers();
-    _bindParallax();
+    document.removeEventListener('keydown', _svBuildKey);
+    if (_svOpen) _bindParallax();
   }
-  if (window.KWVillagers) KWVillagers.setPaused(_svEditMode);   // villagers hide while editing
+  if (window.KWVillagers) KWVillagers.setPaused(_svBuildMode);   // villagers hide while building
+  if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();   // the chip reads Build / Done
   _renderScene();
+  return _svBuildMode;
 }
-window._svToggleEditMode = _svToggleEditMode;
+window._svToggleBuildMode = _svToggleBuildMode;
+window._svIsBuildMode = function() { return _svBuildMode; };
+
+// Esc: first closes an open panel, then leaves Build mode. Windows and
+// dialogs handle their own Escape (js/a11y.js claims it first).
+function _svBuildKey(e) {
+  if (e.key !== 'Escape' || e.defaultPrevented || !_svBuildMode) return;
+  if ((window.KWDialog && KWDialog.isOpen()) || (window.KWWindow && KWWindow.isOpen())) return;
+  var panel = document.getElementById('sv-build-panel'), hm = document.getElementById('sv-housing-modal');
+  e.preventDefault();
+  if (panel && panel.classList.contains('open')) { _closeBuildPanel(); return; }
+  if (hm && hm.classList.contains('open')) { _closeHousingModal(); return; }
+  _svToggleBuildMode(false);
+}
+
+function _svHasCustomLayout() {
+  return Object.keys(_svGetPositions()).length > 0 || Object.keys(_svGetSizes()).length > 0;
+}
 
 function _svResetLayout() {
-  if (!window.confirm('Reset all slot positions and sizes to default?')) return;
+  if (!window.confirm('Put every plot back where it started, at its usual size?')) return;
   localStorage.removeItem(_SV_POS_KEY);
   localStorage.removeItem(_SV_SIZE_KEY);
+  var resetBtn = document.getElementById('sv-edit-reset-btn');
+  if (resetBtn) resetBtn.style.display = 'none';
   _renderScene(); // re-render with defaults (also calls _applySlotPositions internally)
 }
 window._svResetLayout = _svResetLayout;
@@ -1347,96 +1362,132 @@ function _svDetachDragHandlers() {
   _svEndDrag();
 }
 
+// A press on a building may become a drag once it moves a few pixels; until
+// then it is a click (the manage panel). Empty plots and the Neighbourhood
+// don't move.
+var _SV_DRAG_PX = 6;
+var _svPress = null;
+function _svDraggable(slotId) {
+  var sl = SV_SLOTS.find(function(s) { return s.id === slotId; });
+  return !!(sl && !sl.type && _occupantFor(sl));
+}
+
 function _svOnSlotMouseDown(e) {
-  if (!_svEditMode) return;
-  var slotId = this.dataset.slot;
-  if (e.target.closest('.sv-slot-resize')) {
-    e.preventDefault(); e.stopPropagation();
-    _svBeginResize(slotId, e.clientY);
-    _svDragMoveHandler = function(ev) { _svOnResizeMove(ev.clientY); };
-    _svDragEndHandler  = function(ev) { _svOnResizeEnd(); };
-    document.addEventListener('mousemove', _svDragMoveHandler);
-    document.addEventListener('mouseup',   _svDragEndHandler);
-    return;
-  }
-  e.preventDefault();
-  _svBeginDrag(slotId, e.clientX, e.clientY);
-  _svDragMoveHandler = function(ev) { _svOnDragMove(ev.clientX, ev.clientY); };
-  _svDragEndHandler  = function(ev) { _svOnDragEnd(ev.clientX, ev.clientY); };
+  if (!_svBuildMode || e.button !== 0 || !_svDraggable(this.dataset.slot)) return;
+  _svPress = { slot: this.dataset.slot, x: e.clientX, y: e.clientY };
+  _svDragMoveHandler = function(ev) { _svOnPressMove(ev.clientX, ev.clientY, ev); };
+  _svDragEndHandler  = function(ev) { _svOnPressEnd(ev.clientX, ev.clientY); };
   document.addEventListener('mousemove', _svDragMoveHandler);
   document.addEventListener('mouseup',   _svDragEndHandler);
 }
 
 function _svOnSlotTouchStart(e) {
-  if (!_svEditMode) return;
-  var touch  = e.touches[0];
-  var slotId = this.dataset.slot;
-  if (e.target.closest('.sv-slot-resize')) {
-    e.preventDefault(); e.stopPropagation();
-    _svBeginResize(slotId, touch.clientY);
-    _svDragTouchMoveHandler = function(ev) { ev.preventDefault(); _svOnResizeMove(ev.touches[0].clientY); };
-    _svDragTouchEndHandler  = function() { _svOnResizeEnd(); };
-    document.addEventListener('touchmove', _svDragTouchMoveHandler, { passive: false });
-    document.addEventListener('touchend',  _svDragTouchEndHandler);
-    return;
-  }
-  e.preventDefault();
-  _svBeginDrag(slotId, touch.clientX, touch.clientY);
-  _svDragTouchMoveHandler = function(ev) {
-    ev.preventDefault();
-    var t = ev.touches[0];
-    _svOnDragMove(t.clientX, t.clientY);
-  };
-  _svDragTouchEndHandler = function(ev) {
-    var t = ev.changedTouches[0];
-    _svOnDragEnd(t.clientX, t.clientY);
-  };
+  if (!_svBuildMode || !_svDraggable(this.dataset.slot)) return;
+  var t = e.touches[0];
+  _svPress = { slot: this.dataset.slot, x: t.clientX, y: t.clientY };
+  _svDragTouchMoveHandler = function(ev) { var m = ev.touches[0]; _svOnPressMove(m.clientX, m.clientY, ev); };
+  _svDragTouchEndHandler  = function(ev) { var m = ev.changedTouches[0]; _svOnPressEnd(m.clientX, m.clientY); };
   document.addEventListener('touchmove', _svDragTouchMoveHandler, { passive: false });
   document.addEventListener('touchend',  _svDragTouchEndHandler);
 }
 
+function _svOnPressMove(clientX, clientY, ev) {
+  if (!_svPress) return;
+  if (!_svDragSlot) {
+    if (Math.abs(clientX - _svPress.x) < _SV_DRAG_PX && Math.abs(clientY - _svPress.y) < _SV_DRAG_PX) return;
+    _svBeginDrag(_svPress.slot, _svPress.x, _svPress.y);
+  }
+  if (ev && ev.cancelable) ev.preventDefault();   // no page scroll or text selection while dragging
+  _svOnDragMove(clientX, clientY);
+}
+
+function _svOnPressEnd(clientX, clientY) {
+  var dragged = !!_svDragSlot;
+  if (dragged) {
+    _svOnDragEnd(clientX, clientY);
+    // The click that follows a drag's mouseup must not open the panel.
+    _svJustDragged = true;
+    setTimeout(function() { _svJustDragged = false; }, 0);
+  } else _svEndDrag();
+}
+
+var _svDropSlot = null;
 function _svBeginDrag(slotId, clientX, clientY) {
   _svDragSlot  = slotId;
-  _svDragValid = true;
-  var p  = _svGetPositions();
-  var sl = SV_SLOTS.find(function(s) { return s.id === slotId; });
-  _svDragOrigPos = {
-    x: p[slotId] ? p[slotId].x : (sl ? sl.x : 50),
-    y: p[slotId] ? p[slotId].y : (sl ? sl.y : 50),
-  };
+  _svDropSlot  = null;
+  _closeBuildPanel();
+  var el = document.getElementById('sv-slot-' + slotId);
+  _svDragOrigPos = { x: parseFloat(el && el.style.left) || 0, y: parseFloat(el && el.style.top) || 0 };
   var pt = _svMouseToSlotPct(clientX, clientY);
   _svDragOffset = { x: pt.x - _svDragOrigPos.x, y: pt.y - _svDragOrigPos.y };
-  var el = document.getElementById('sv-slot-' + slotId);
   if (el) el.classList.add('sv-dragging');
 }
 
+// The building follows the pointer; the plot it would land on is marked.
 function _svOnDragMove(clientX, clientY) {
   if (!_svDragSlot) return;
   var pt = _svMouseToSlotPct(clientX, clientY);
   var x  = Math.max(3, Math.min(95, pt.x - _svDragOffset.x));
   var y  = Math.max(10, Math.min(93, pt.y - _svDragOffset.y));
-  _svDragValid = !_svHasOverlap(_svDragSlot, x, y);
   var el = document.getElementById('sv-slot-' + _svDragSlot);
-  if (el) {
-    el.style.left = x + '%';
-    el.style.top  = y + '%';
-    el.classList.toggle('sv-drag-bad', !_svDragValid);
+  if (el) { el.style.left = x + '%'; el.style.top = y + '%'; }
+  var target = _svDropTarget(_svDragSlot, x, y, _svPlotPositions());
+  if (target !== _svDropSlot) {
+    if (_svDropSlot) { var o = document.getElementById('sv-slot-' + _svDropSlot); if (o) o.classList.remove('sv-drop-target'); }
+    _svDropSlot = target;
+    if (target) { var n = document.getElementById('sv-slot-' + target); if (n) n.classList.add('sv-drop-target'); }
   }
+  if (el) el.classList.toggle('sv-drag-bad', !target);
+}
+
+// Where each plot stands now: { slotId: { x, y, area, fixed } }.
+function _svPlotPositions() {
+  var p = _svGetPositions(), out = {};
+  SV_SLOTS.forEach(function(sl) {
+    out[sl.id] = { x: p[sl.id] ? p[sl.id].x : sl.x, y: p[sl.id] ? p[sl.id].y : sl.y, area: sl.area, fixed: !!sl.type };
+  });
+  return out;
+}
+
+// The plot a building dragged to (x, y) would land on: the nearest other
+// plot in its area within 9 % (not the Neighbourhood), else null. Pure, for
+// the proofs (verify/scene_proofs.js).
+function _svDropTarget(fromId, x, y, plots) {
+  var from = plots[fromId];
+  if (!from) return null;
+  var best = null, bestD = 9;
+  Object.keys(plots).forEach(function(id) {
+    var q = plots[id];
+    if (id === fromId || q.fixed || q.area !== from.area) return;
+    var d = Math.sqrt(Math.pow(x - q.x, 2) + Math.pow(y - q.y, 2));
+    if (d < bestD) { bestD = d; best = id; }
+  });
+  return best;
+}
+
+// Moving a building: onto an empty plot it moves; onto a building they swap.
+// `assign` is the slot → building map; `occupant(slotId)` the building now
+// shown there. Returns the new map. Pure.
+function _svMoveAssignment(assign, fromId, toId, occupant) {
+  var a = Object.assign({}, assign);
+  var moving = occupant(fromId), there = occupant(toId);
+  if (!moving || fromId === toId) return a;
+  a[toId] = moving;
+  if (there) a[fromId] = there; else delete a[fromId];
+  return a;
 }
 
 function _svOnDragEnd(clientX, clientY) {
   if (!_svDragSlot) return;
-  var slotId = _svDragSlot;
-  var el = document.getElementById('sv-slot-' + slotId);
-  if (_svDragValid && el) {
-    var x = parseFloat(el.style.left);
-    var y = parseFloat(el.style.top);
-    _svSavePos(slotId, x, y);
-  } else if (el && _svDragOrigPos) {
-    el.style.left = _svDragOrigPos.x + '%';
-    el.style.top  = _svDragOrigPos.y + '%';
-  }
+  var fromId = _svDragSlot, toId = _svDropSlot;
+  var el = document.getElementById('sv-slot-' + fromId);
+  if (el && _svDragOrigPos) { el.style.left = _svDragOrigPos.x + '%'; el.style.top = _svDragOrigPos.y + '%'; }
   _svEndDrag();
+  if (!toId) return;
+  var occ = function(id) { var sl = SV_SLOTS.find(function(s) { return s.id === id; }); var b = sl && _occupantFor(sl); return b ? b.id : null; };
+  var next = _svMoveAssignment(_svGetAssignments(), fromId, toId, occ);
+  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(next));
+  _renderScene();
 }
 
 function _svEndDrag() {
@@ -1444,7 +1495,8 @@ function _svEndDrag() {
     var el = document.getElementById('sv-slot-' + _svDragSlot);
     if (el) { el.classList.remove('sv-dragging'); el.classList.remove('sv-drag-bad'); }
   }
-  _svDragSlot = null; _svDragValid = true; _svDragOrigPos = null; _svDragOffset = { x: 0, y: 0 };
+  if (_svDropSlot) { var d = document.getElementById('sv-slot-' + _svDropSlot); if (d) d.classList.remove('sv-drop-target'); }
+  _svDragSlot = null; _svDropSlot = null; _svPress = null; _svDragValid = true; _svDragOrigPos = null; _svDragOffset = { x: 0, y: 0 };
   if (_svDragMoveHandler)      { document.removeEventListener('mousemove', _svDragMoveHandler);      _svDragMoveHandler = null; }
   if (_svDragEndHandler)       { document.removeEventListener('mouseup',   _svDragEndHandler);        _svDragEndHandler = null; }
   if (_svDragTouchMoveHandler) { document.removeEventListener('touchmove', _svDragTouchMoveHandler); _svDragTouchMoveHandler = null; }
@@ -1461,67 +1513,6 @@ function _svMouseToSlotPct(clientX, clientY) {
   };
 }
 
-function _svHasOverlap(dragSlotId, x, y) {
-  var dragSl   = SV_SLOTS.find(function(s) { return s.id === dragSlotId; });
-  var dragArea = dragSl ? dragSl.area : null;
-  var p = _svGetPositions();
-  for (var i = 0; i < SV_SLOTS.length; i++) {
-    var sl = SV_SLOTS[i];
-    if (sl.id === dragSlotId) continue;
-    if (dragArea && sl.area !== dragArea) continue;
-    var sx   = p[sl.id] ? p[sl.id].x : sl.x;
-    var sy   = p[sl.id] ? p[sl.id].y : sl.y;
-    var dist = Math.sqrt(Math.pow(x - sx, 2) + Math.pow(y - sy, 2));
-    if (dist < 8) return true;
-  }
-  return false;
-}
-
-// ── Slot resizing ─────────────────────────────────────────────────────────────
-function _svBeginResize(slotId, clientY) {
-  _svResizeSlot     = slotId;
-  _svResizeStartY   = clientY;
-  _svResizeOrigSize = _svGetSlotSize(slotId);
-  _svCurrentResizeSize = _svResizeOrigSize;
-  var el = document.getElementById('sv-slot-' + slotId);
-  if (el) el.classList.add('sv-resizing');
-}
-
-function _svOnResizeMove(clientY) {
-  if (!_svResizeSlot) return;
-  // drag up (negative delta) = bigger; drag down = smaller
-  var delta   = _svResizeStartY - clientY;
-  var newSize = Math.max(_SV_SIZE_MIN, Math.min(_SV_SIZE_MAX, _svResizeOrigSize + delta * 0.6));
-  _svCurrentResizeSize = newSize;
-  _svApplySizeToSlot(_svResizeSlot, newSize);
-}
-
-function _svOnResizeEnd() {
-  if (!_svResizeSlot) return;
-  var finalSize = Math.round(_svCurrentResizeSize);
-  _svSaveSize(_svResizeSlot, finalSize);
-  var el = document.getElementById('sv-slot-' + _svResizeSlot);
-  if (el) el.classList.remove('sv-resizing');
-  _svResizeSlot        = null;
-  _svCurrentResizeSize = _SV_SIZE_DEFAULT;
-  _renderScene();
-}
-
-function _svApplySizeToSlot(slotId, size) {
-  var el = document.getElementById('sv-slot-' + slotId);
-  if (!el) return;
-  var ring = el.querySelector('.sv-slot-ring');
-  if (ring) {
-    ring.style.width  = size + 'px';
-    ring.style.height = size + 'px';
-    var plus = ring.querySelector('.sv-slot-plus');
-    if (plus) plus.style.fontSize = Math.round(size * 0.33) + 'px';
-  }
-  var img = el.querySelector('.sv-building-img');
-  if (img) img.style.width = Math.round(size * 1.53) + 'px';
-  var struct = el.querySelector('.sv-building-struct');
-  if (struct) {
-    struct.style.width  = Math.round(size * 0.72) + 'px';
-    struct.style.height = Math.round(size * 0.61) + 'px';
-  }
-}
+// ── Slot sizes ───────────────────────────────────────────────────────────────
+// Plots are no longer resized by hand (Build mode moves buildings between
+// plots); sizes saved earlier still apply until "Reset layout".

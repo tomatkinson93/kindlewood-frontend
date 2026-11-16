@@ -13,12 +13,13 @@
 
   // Where "Show me" takes you.
   const SHOW = {
-    build: () => global.openSettlementView && global.openSettlementView(),
+    // Build mode on Home, with the Lumber Camp's plot open (docs/HOME_SCENE.md §2.3).
+    build: () => global.openSettlementBuild && global.openSettlementBuild('lumber_camp'),
     citizens: () => global.openAllCitizens && global.openAllCitizens(),
     tavern: () => global.visitTavern && global.visitTavern(),
     map: () => { if (global.navGoMap) global.navGoMap(); if (global.closePanel) global.closePanel(); },
-    research: () => (global._hasBuilding && global._hasBuilding('library') && global.openLibrary) ? global.openLibrary() : global.openSettlementView && global.openSettlementView(),
-    market: () => (global._hasBuilding && global._hasBuilding('market') && global.openMarket) ? global.openMarket() : global.openSettlementView && global.openSettlementView(),
+    research: () => (global._hasBuilding && global._hasBuilding('library') && global.openLibrary) ? global.openLibrary() : global.openSettlementBuild && global.openSettlementBuild('library'),
+    market: () => (global._hasBuilding && global._hasBuilding('market') && global.openMarket) ? global.openMarket() : global.openSettlementBuild && global.openSettlementBuild('market'),
   };
 
   function cardHtml(d) {
