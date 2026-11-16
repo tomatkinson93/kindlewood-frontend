@@ -609,5 +609,65 @@ console.log('19. Villagers never stack (seeded)');
     /doorSpot\(g, others\) : spreadPoint\(g, others, \{ ok: onMeadow \}\)/.test(E) && /chatSpots\(a, b, othersOf\(a, b\)\)/.test(E) && /function followPoint\(parent, behind = 34\)/.test(E));
 }
 
+// ── 20. The ground: paths and props (js/home-ground.js; polish pass item 4) ──
+console.log('20. The ground: paths between the doors, and props');
+{
+  const g = { console, Math, document: null }; g.window = g; vm.createContext(g);
+  vm.runInContext(read('js/home-ground.js'), g);
+  const G = g.KWGround, GJ = read('js/home-ground.js'), E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  const H = 800, doors = [{ x: 300, y: 450 }, { x: 760, y: 452 }, { x: 1240, y: 448 }, { x: 520, y: 740 }, { x: 1000, y: 742 }], exits = [{ x: 2520, y: 744 }];
+  const segs = G.planPaths({ doors, exits, h: H });
+  const lanes = segs.filter(q => q.kind === 'lane'), joins = segs.filter(q => q.kind === 'join');
+  const laneAt = y => lanes.find(l => Math.abs(l.y1 - y) < 1);
+  check('20a. every door has a path down to its row\'s lane, just below it',
+    doors.every(d => segs.some(q => q.kind === 'door' && q.x1 === d.x && q.y1 === d.y && laneAt(q.y2) && q.y2 - d.y <= G.LANE_DROP + 4)) && lanes.length === 2);
+  check('20b. each lane runs from its first door to its last; the lanes are joined; the signpost is on the nearest lane',
+    lanes[0].x1 <= 300 && lanes[0].x2 >= 1240 && joins.length === 1 && joins[0].y1 === lanes[0].y1 && joins[0].y2 === lanes[1].y1
+    && segs.some(q => q.kind === 'exit' && q.x1 === 2520 && q.y2 === 744) && lanes[1].x2 >= 2520);
+  check('20c. no doors, no paths; a band about 28 px wide with a soft edge, under everything (z -1), redrawn when the doors move',
+    G.planPaths({ doors: [], exits, h: H }).length === 0 && G.PATH_W === 28 && /\.kwg-paths \{[^}]*z-index: -1;/.test(CSS) && /kwg-edge/.test(CSS)
+    && /G\.sync\(\{ layer: S\.layer/.test(E) && /if \(was && was\.key === key/.test(GJ) && /KWCast\.resurvey\(\)/.test(read('js/settlement-view.js')));
+  const B = 'x.webp', man = { props: {
+    tree: { kind: 'tree', file: B, w: 70, h: 80, foot: [35, 78] }, bush: { kind: 'bush', file: B, w: 40, h: 30 }, flower: { kind: 'flower', file: B, w: 16, h: 14 },
+    tuft: { kind: 'tuft', file: B, w: 14, h: 10 }, rock: { kind: 'rock', file: B, w: 24, h: 18 }, well: { kind: 'well', file: B, w: 60, h: 60 },
+    bench: { kind: 'bench', file: B, w: 46, h: 30 }, pond: { kind: 'pond', file: B, w: 120, h: 50 }, lantern: { kind: 'lantern', file: B, lit: 'l.webp', w: 24, h: 60 },
+    fence: { kind: 'fence', file: B, w: 50, h: 24 }, junk: { kind: 'spaceship', file: B, w: 9, h: 9 } } };
+  const plots = [300, 760, 1240, 1700, 2150].map(x => ({ x, y: 448 })).concat([520, 1000, 1480, 1960].map(x => ({ x, y: 740 })));
+  const blocks = [{ l: 200, r: 400, t: 260, b: 450 }];
+  const run = seed => G.scatter({ manifest: man, seed, w: 2600, h: H, area: 'town', segs, plots, blocks });
+  let clean = true, n = 0, kinds = {};
+  for (let seed = 1; seed <= 12; seed++) run(seed).forEach(p => {
+    n++; kinds[p.kind] = (kinds[p.kind] || 0) + 1;
+    const b = G.base(p);
+    const bad = [[b.l, b.b], [b.r, b.b], [p.x, b.b]].some(([x, y]) => G.onPath(segs, x, y))
+      || plots.some(q => { const o = G.plotBox(q); return b.l < o.r && b.r > o.l && b.t < o.b && b.b > o.t; })
+      || blocks.some(o => b.l < o.r && b.r > o.l && b.t < o.b && b.b > o.t) || b.t < H * 0.25;
+    if (bad) clean = false;
+  });
+  check('20d. props are never on a path, a plot or a building, and never in the sky (12 seeds)', clean && n > 300);
+  check('20e. every kind gets placed; an unknown kind is ignored', ['tree', 'bush', 'flower', 'tuft', 'rock', 'well', 'bench', 'pond', 'lantern', 'fence'].every(k => kinds[k] > 0) && !kinds.spaceship);
+  const a1 = JSON.stringify(run(7)), a2 = JSON.stringify(run(7)), a3 = JSON.stringify(run(8));
+  check('20f. the scatter comes from a seed fixed per town: the same town looks the same every visit, another town differs',
+    a1 === a2 && a1 !== a3 && /function townSeed\(area\)/.test(GJ) && G.hash('a|town') !== G.hash('b|town'));
+  const r7 = run(7);
+  const trees = r7.filter(p => p.kind === 'tree'), meadow = r7.filter(p => p.kind === 'flower' || p.kind === 'tuft');
+  check('20g. trees keep to the tree line and the edges; flowers and tufts spread thinly across the meadow',
+    trees.every(p => (p.y >= H * 0.25 && p.y <= H * 0.32) || p.x < 2600 * 0.04 || p.x > 2600 * 0.96)
+    && meadow.length > 20 && meadow.length < 70 && Math.max(...meadow.map(p => p.x)) - Math.min(...meadow.map(p => p.x)) > 1500);
+  const sp = G.spotsOf(r7), bl = G.blocksOf(r7);
+  check('20h. the well, benches and pond become named spots; trees, the well and the pond are places villagers don\'t stop',
+    sp.some(q => q.id === 'well') && sp.some(q => q.id === 'pond') && sp.some(q => /^bench/.test(q.id)) && bl.length === r7.filter(p => ['tree', 'well', 'pond'].includes(p.kind)).length
+    && /\.concat\(S\.propSpots \|\| \[\]\)/.test(E) && /const offLimits = q => \(S\.propBlocks/.test(E) && /S\.blocks\.push\(\.\.\.S\.propBlocks\)/.test(E));
+  check('20i. no well outside the town', !G.scatter({ manifest: man, seed: 7, w: 2600, h: H, area: 'outskirts', segs, plots, blocks }).some(p => p.kind === 'well'));
+  check('20j. lantern posts have a lit image that follows the evening and night like the buildings\' (and glows)',
+    r7.filter(p => p.kind === 'lantern').every(p => p.lit === 'l.webp') && /class="kwh-img kwh-lit"/.test(GJ) && /kwg-prop/.test(GJ));
+  check('20k. depth-sorted with buildings and villagers (z from the foot), and never clickable',
+    /z-index:\$\{depth\(p\.y, h\)\}/.test(GJ) && /\.kwg-prop \{[^}]*pointer-events: none;/.test(CSS));
+  const pm = JSON.parse(read('assets/images/scene_v2/props/manifest.json'));
+  check('20l. the layer ships empty: no props, no placeholders, until the art arrives',
+    pm.scale === 2 && Object.keys(pm.props).length === 0 && G.scatter({ manifest: pm, seed: 1, segs, plots }).length === 0 && G.scatter({ manifest: null }).length === 0
+    && /home-ground\.js\?v=/.test(read('index.html')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

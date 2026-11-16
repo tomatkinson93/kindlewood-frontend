@@ -1,0 +1,5 @@
+{
+  "note": "Home scene props (docs/ART_GUIDE.md §4b). Files at 2× (scale 2), drawn smooth at w × h; foot is the point that stands on the ground, in on-screen pixels. kind: tree, bush, fence, flower, tuft, rock, well, bench, pond, lantern (give a lantern a lit image too). Empty until the art arrives.",
+  "scale": 2,
+  "props": {}
+}

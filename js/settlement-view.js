@@ -154,7 +154,7 @@ function _applySlotPositions() {
     el.style.left = (p[sl.id] ? p[sl.id].x : sl.x) + '%';
     el.style.top  = (p[sl.id] ? p[sl.id].y : sl.y) + '%';
   });
-  if (!_svDragSlot) _svTabOrder();
+  if (!_svDragSlot) { _svTabOrder(); if (window.KWCast && KWCast.resurvey) KWCast.resurvey(); }   // paths follow the buildings
 }
 
 // Tab order follows the buildings left to right (§2.5): the slots are put
@@ -1339,7 +1339,7 @@ function _svBindPan() {
     _svPanBy(e.key === 'ArrowLeft' ? -240 : 240);
   });
   sc.addEventListener('mouseleave', function() { _svEdge.dir = 0; });
-  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); if (window.KWHome) KWHome.syncGlow(); } });
+  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); if (window.KWHome) KWHome.syncGlow(); if (window.KWCast && KWCast.resurvey) KWCast.resurvey(); } });
 }
 
 // Resting the mouse at the scene's left or right edge pans that way, after a

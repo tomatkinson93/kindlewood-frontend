@@ -173,6 +173,18 @@
 #settlement-view[data-phase="dusk"] { --kw-haze: #ffcd80; }
 #settlement-view[data-phase="night"] { --kw-haze: #3d4f8a; }
 
+/* The ground (js/home-ground.js): dirt paths drawn by code, under everything
+   but the backdrop (z -1, in the area's layer), a flat warm brown at low
+   contrast with a soft edge (a wider, fainter band under the core) until a
+   tiling texture arrives; then the props, depth-sorted like the buildings
+   and never clickable. */
+#settlement-view .kwg-paths { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; overflow: visible; }
+#settlement-view .kwg-paths path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+#settlement-view .kwg-paths .kwg-edge { stroke: rgba(150, 112, 62, 0.16); }
+#settlement-view .kwg-paths .kwg-core { stroke: rgba(150, 112, 62, 0.26); }
+#settlement-view .kwg-prop { position: absolute; display: block; pointer-events: none; user-select: none; }
+#settlement-view .kwg-prop > .kwh-img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
 /* A slot's position is the foot of what stands there. */
 #settlement-view .sv-world .sv-slot { transform: translate(-50%, -100%); }
 

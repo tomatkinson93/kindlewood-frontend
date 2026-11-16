@@ -303,6 +303,13 @@
       if (btn.classList.contains('kwh-prop-signpost')) S.exits.push(p);
       else if (!btn.classList.contains('kwh-prop')) S.doors.push(p);
     });
+    // The ground: paths between the doors, and the props (js/home-ground.js).
+    // Big props are places not to stop; the well, benches and pond are spots.
+    const G = global.KWGround;
+    const g = G ? G.sync({ layer: S.layer, area: S.area, doors: S.doors, exits: S.exits, blocks: S.blocks.slice(), w: W(), h: H() }) : null;
+    S.propBlocks = (g && g.blocks) || [];
+    S.propSpots = (g && g.spots) || [];
+    S.blocks.push(...S.propBlocks);
   }
   const depth = footY => Math.max(1, Math.min(1000, Math.round(footY / (H() || 1) * 1000)));
   const doorOf = key => S.doors.find(d => d.key === key) || null;
@@ -350,7 +357,7 @@
     const owls = S.owls.size ? S.owls : nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
     const home = S.area === 'town' ? doorOf('neighbourhood') : nearestDoor(v.x, v.y, S.exits);
     const ctx = { phase: S.phase, work: doorOf(ROLE_BUILDING[v.c.role]), tavern: doorOf('tavern'), home, doors: S.doors,
-      spots: (SPOTS[S.area] || []).map(px), ground: () => px(groundPoint(S.area, S.rand)), owl: owls.has(v.id) };
+      spots: (SPOTS[S.area] || []).map(px).concat(S.propSpots || []), ground: () => px(groundPoint(S.area, S.rand)), owl: owls.has(v.id) };
     const g = chooseErrand(ctx, S.rand);
     // Never stop on top of anyone: a door fans out, anywhere else spreads.
     const others = othersOf(v);
@@ -366,7 +373,10 @@
     }
     return out;
   }
-  const onMeadow = q => inPolygon(q.x / W() * 100, q.y / H() * 100, GROUND[S.area] || GROUND.town);
+  const onMeadow = q => inPolygon(q.x / W() * 100, q.y / H() * 100, GROUND[S.area] || GROUND.town) && !offLimits(q);
+  // Never stop on a big prop (a tree, the well, the pond): no path-finding,
+  // just somewhere else to stand.
+  const offLimits = q => (S.propBlocks || []).some(b => q.x > b.l && q.x < b.r && q.y > b.t && q.y < b.b);
   function walkTo(v, p, doorKey) { v.tx = p.x; v.ty = p.y; v.goal = doorKey ? { door: doorKey } : null; v.state = 'walk'; }
   function idle(v, now, ms) {
     v.state = 'idle'; v.goal = null;
@@ -1017,6 +1027,9 @@
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
     _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP,
     _seed: n => { S.rand = seeded(n); },
+    // The scene changed (a building built, moved or removed, a resize): look
+    // again at the doors, and redraw the paths and props.
+    resurvey: () => { if (S.layer && S.shown && S.layer.clientHeight) { survey(); syncGlow(); } },
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.
     preview: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); return S.phase; },
