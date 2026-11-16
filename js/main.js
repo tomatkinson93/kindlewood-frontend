@@ -46,6 +46,7 @@ function showLoadingScreen() {
   const play = document.getElementById('ls-play'); if (play) play.hidden = true;
   el.style.display = 'flex';
   el.style.opacity = '1';
+  if (window.KWMusic) KWMusic.loading();   // loading.mp3 (js/music.js)
   setLoadingProgress(Math.max(_lsPct(), 30), 'Entering the realm…');
 }
 
@@ -136,13 +137,14 @@ function lsReadyToPlay() {
   btn.hidden = false;
   try { btn.focus({ preventScroll: true }); } catch (e) { btn.focus(); }
   return new Promise(resolve => {
-    btn.onclick = () => { btn.onclick = null; btn.hidden = true; resolve(); };
+    btn.onclick = () => { btn.onclick = null; btn.hidden = true; if (window.KWMusic) KWMusic.startPlaying(); resolve(); };
   });
 }
 
 function hideLoadingScreen() {
   const el = document.getElementById('loading-screen');
   releaseHeldToasts();
+  if (window.KWMusic) KWMusic.loadingDone();
   if (!el) return;
   el.style.transition = 'opacity 0.6s ease';
   el.style.opacity = '0';

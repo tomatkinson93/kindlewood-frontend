@@ -676,5 +676,31 @@ console.log('20. The ground: paths between the doors, and props');
     && /home-ground\.js\?v=/.test(read('index.html')));
 }
 
+// ── 21. Music: the loading screen and Home (js/music.js) ──
+console.log('21. Music: the loading screen and Home');
+{
+  const g = { console, Math, setTimeout() { return 1; }, setInterval() { return 1; }, navigator: {} }; g.window = g; vm.createContext(g);
+  vm.runInContext(read('js/music.js'), g);
+  const MU = g.KWMusic, MJ = read('js/music.js'), MN = read('js/main.js'), AU = read('js/audio.js'), IX = read('index.html');
+  check('21a. the files: loading.mp3, home_day.mp3 and home_night.mp3 in assets/audio/music/',
+    MU.FILES.loading === '/assets/audio/music/loading.mp3' && MU.FILES.day === '/assets/audio/music/home_day.mp3' && MU.FILES.night === '/assets/audio/music/home_night.mp3');
+  const tg = o => JSON.stringify(MU.targets(o));
+  check('21b. loading music on the loading screen; Home\'s day or night track on Home; nothing of ours while other music plays or elsewhere',
+    tg({ scene: 'loading', homeTrack: 'day' }) === '{"loading":1,"day":0,"night":0}' && tg({ scene: 'home', homeTrack: 'night' }) === '{"loading":0,"day":0,"night":1}'
+    && tg({ scene: 'home', homeTrack: 'day', others: true }) === '{"loading":0,"day":0,"night":0}' && tg({ scene: null, homeTrack: 'day' }) === '{"loading":0,"day":0,"night":0}');
+  check('21c. Start playing fades the loading music out over 1.5 s while Home\'s fades in over 2 s; day and night cross-fade',
+    MU.FADE.out === 1500 && MU.FADE.in === 2000 && MU.FADE.xfade > 0 && /KWMusic\.startPlaying\(\)/.test(MN) && /KWMusic\.loading\(\)/.test(MN) && /KWMusic\.loadingDone\(\)/.test(MN)
+    && /attributeFilter: \['data-phase'\]/.test(MJ));
+  check('21d. a missing night track falls back to the day one; a missing file stays quiet',
+    /return night && !\(T\.night && T\.night\.dead\) \? 'night' : 'day';/.test(MJ) && /a\.addEventListener\('error', \(\) => \{\s*t\.dead = true;/.test(MJ));
+  check('21e. blocked until a press: silent, no error, and the first press or key starts it; paused while the tab is hidden; follows the music volume',
+    /if \(t\.blocked && !S\.gestured\) \{ t\.gain = 0; continue; \}/.test(MJ) && /doc\.addEventListener\('pointerdown', gesture, true\)/.test(MJ)
+    && /const audible = t\.gain > 0 && !hidden\(\);/.test(MJ) && /a\.volume = Math\.max\(0, Math\.min\(1, vol \* t\.gain\)\)/.test(MJ) && /'kw-music-volume', kick/.test(MJ));
+  check('21f. Home\'s music fades out when Home closes or other music plays; the ambient beds sit low under it; never on top of welcome.mp3',
+    /addEventListener\('kw:home', e => \{ if \(e\.detail && e\.detail\.open\) scene\('home'\); else if \(S\.scene === 'home'\) scene\(null\); \}\)/.test(MJ)
+    && /global\.KWMusic && global\.KWMusic\.playing\(\)\) \? AMB_DUCK : 1/.test(AU) && /otherMusic: _otherMusicPlaying/.test(AU)
+    && /if \(S\.scene === 'loading'\) pauseWelcome\(\);/.test(MJ) && /bg && !bg\.paused/.test(MJ) && /\/js\/music\.js\?v=/.test(IX));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
