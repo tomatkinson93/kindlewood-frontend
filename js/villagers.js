@@ -209,23 +209,35 @@
     return el;
   }
 
+  // Draws a villager. Called every frame, so it writes only what changed: the
+  // sheet and sizes when the animation or scale changes, the frame when it
+  // ticks over, the transform when the rounded position moves. Moving is a
+  // transform alone (no layout).
   function paint(el, s, frame, scale, x, y) {
     const sp = el.firstChild;
+    const c = el._kwp || (el._kwp = {});
     const w = s.w * scale, h = s.h * scale;
-    if (sp._url !== s.url) { sp.style.backgroundImage = `url("${s.url}")`; sp._url = s.url; }
-    sp.style.width = w + 'px'; sp.style.height = h + 'px';
-    sp.style.backgroundSize = (s.frames * w) + 'px ' + (8 * h) + 'px';
-    sp.style.backgroundPosition = (-frame * w) + 'px ' + (-s.row * h) + 'px';
-    sp.classList.toggle('kwv-flip', !!s.flip);
-    const sh = el.querySelector('.kwv-shadow');
-    if (sh) { sh.style.left = Math.round(s.foot.x * scale) + 'px'; sh.style.top = Math.round(s.foot.y * scale) + 'px'; sh.style.transform = scale !== 1 ? 'scale(' + scale + ')' : ''; }
-    el.style.transform = `translate3d(${Math.round(x - s.foot.x * scale)}px, ${Math.round(y - s.foot.y * scale)}px, 0)`;
+    const key = s.url + '|' + scale + '|' + s.row + '|' + !!s.flip;
+    if (c.key !== key) {
+      c.key = key; c.bp = null;
+      if (sp._url !== s.url) { sp.style.backgroundImage = `url("${s.url}")`; sp._url = s.url; }
+      sp.style.width = w + 'px'; sp.style.height = h + 'px';
+      sp.style.backgroundSize = (s.frames * w) + 'px ' + (8 * h) + 'px';
+      sp.classList.toggle('kwv-flip', !!s.flip);
+      const sh = el.querySelector('.kwv-shadow');
+      if (sh) sh.style.transform = `translate(${Math.round(s.foot.x * scale)}px, ${Math.round(s.foot.y * scale)}px)` + (scale !== 1 ? ` scale(${scale})` : '');
+    }
+    const bp = (-frame * w) + 'px ' + (-s.row * h) + 'px';
+    if (c.bp !== bp) { sp.style.backgroundPosition = bp; c.bp = bp; }
+    const tx = Math.round(x - s.foot.x * scale), ty = Math.round(y - s.foot.y * scale);
+    if (c.tx !== tx || c.ty !== ty) { el.style.transform = `translate3d(${tx}px, ${ty}px, 0)`; c.tx = tx; c.ty = ty; }
   }
 
   // ── The style test ──────────────────────────────────────────────────────
   const T = { on: false, layer: null, el: null, panel: null, raf: 0, paused: false, frozen: false, last: 0, dist: 0, idleLeft: 0, laps: 0, scale: 1, t: 0, shown: false };
   const LAP_IDLE_MS = 3000;
-  const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const RM = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;   // asked every frame: one query, kept
+  const reducedMotion = () => !!(RM && RM.matches);
 
   function readFlag() {
     let stored = null;

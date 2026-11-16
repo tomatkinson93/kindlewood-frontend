@@ -119,8 +119,23 @@
 
   function closeSheets() {
     var sb = sidebar(), ms = moreSheet();
-    if (sb) sb.classList.remove('kw-open');
+    if (sb) sb.classList.remove('kw-open', 'kw-collapsed');
     if (ms) ms.classList.remove('kw-open');
+  }
+
+  /* On Home the sheet starts collapsed to its handle, so Home opens on the
+     town; the player's last choice (pulled up or down) is remembered on this
+     device. Elsewhere it opens as before. */
+  var HOME_SHEET_KEY = 'kw-home-sheet';
+  function onHome() { return typeof window._svIsOpen === 'function' && window._svIsOpen(); }
+  function homeSheetPref() { try { return localStorage.getItem(HOME_SHEET_KEY) === 'open' ? 'open' : 'collapsed'; } catch (e) { return 'collapsed'; } }
+  function setHomeSheetPref(v) { try { localStorage.setItem(HOME_SHEET_KEY, v); } catch (e) { /* private mode */ } }
+  function syncGrab(sb) {
+    var g = sb && sb.querySelector('.kw-grab');
+    if (!g) return;
+    var collapsed = sb.classList.contains('kw-collapsed');
+    g.setAttribute('aria-label', collapsed ? 'Show the panel' : onHome() ? 'Lower the panel' : 'Close panel');
+    g.setAttribute('aria-expanded', String(!collapsed));
   }
 
   function openSidebarSheet() {
@@ -129,6 +144,18 @@
     var ms = moreSheet();
     if (ms) ms.classList.remove('kw-open');
     sb.classList.add('kw-open');
+    sb.classList.toggle('kw-collapsed', onHome() && homeSheetPref() !== 'open');
+    syncGrab(sb);
+  }
+  // The handle: on Home it pulls the sheet up or lets it down to the handle
+  // (and remembers which); elsewhere it closes the sheet.
+  function grabSheet() {
+    var sb = sidebar();
+    if (!sb) return;
+    if (sb.classList.contains('kw-collapsed')) { sb.classList.remove('kw-collapsed'); if (onHome()) setHomeSheetPref('open'); }
+    else if (onHome()) { sb.classList.add('kw-collapsed'); setHomeSheetPref('collapsed'); }
+    else { closeSheets(); setActiveTab('map'); }
+    syncGrab(sb);
   }
 
   function openMoreSheet() {
@@ -287,9 +314,9 @@
       grab.setAttribute('role', 'button');
       grab.setAttribute('tabindex', '0');
       grab.setAttribute('aria-label', 'Close panel');
-      grab.addEventListener('click', function () { closeSheets(); setActiveTab('map'); });
+      grab.addEventListener('click', grabSheet);
       grab.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeSheets(); setActiveTab('map'); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); grabSheet(); }
       });
       sb.insertBefore(grab, sb.firstChild);
     }

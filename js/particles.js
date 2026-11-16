@@ -203,7 +203,12 @@ kwWhenReady(() => {
   }
 
   let _last = performance.now();
+  // Only while the welcome screen shows (and the tab is in front): after
+  // signing in it is display:none, so check twice a second instead of drawing.
+  const welcome = document.getElementById('screen-welcome');
+  const onScreen = () => !document.hidden && (!welcome || welcome.classList.contains('active'));
   function tick(now) {
+    if (!onScreen()) { setTimeout(() => requestAnimationFrame(t => { _last = t; tick(t); }), 500); return; }
     const dt = Math.min(0.05, (now - _last) / 1000); // clamp long frames
     _last = now;
     const tSec = now / 1000;

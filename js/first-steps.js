@@ -24,7 +24,9 @@
 
   function cardHtml(d) {
     if (!d || d.dismissed || d.done >= d.total) return '';
-    const open = ls(OPEN_KEY) !== '0';
+    // Collapsed to its "Next:" line unless the player opened it (it is its own
+    // chip on Home now, and must not make the town card tall).
+    const open = ls(OPEN_KEY) === '1';
     const next = d.steps.find(s => !s.done);
     const rows = d.steps.map(s => `<li class="fs-step${s.done ? ' done' : ''}">
         <span class="fs-tick" aria-hidden="true">${s.done ? '✔' : s.icon}</span>

@@ -392,6 +392,7 @@
 
   function shouldRun() {
     return visible && !document.hidden
+      && !(typeof window._svIsOpen === 'function' && window._svIsOpen())   // under the Home scene
       && (settings.particles || fadingOutSince > 0)
       && !!currentSeasonId();
   }
@@ -476,6 +477,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) stopLoop(); else startLoop();
     });
+    window.addEventListener('kw:home', e => { if (e.detail && e.detail.open) stopLoop(); else startLoop(); });
 
     // Season flips mid-session: seasons.js re-renders the badge every 10s
     // and swaps the class; watch it so a paused loop wakes up when a season

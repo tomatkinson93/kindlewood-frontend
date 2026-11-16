@@ -18,6 +18,10 @@
 //  SW from SE and back). N or S with nothing to mirror borrows the nearest
 //  direction that exists. No dependencies: the GIF decoder and PNG encoder
 //  below are small and only need Node's zlib.
+//
+//  Every frame gets its 1 px dark outline (#2a180c) and a slight lift (×1.07)
+//  baked in here, so the scene draws villagers with no filter of their own
+//  (docs/HOME_SCENE.md §3.1, ART_GUIDE.md §4.7).
 // ══════════════════════════════════════════════════════════════════════════
 const fs = require('fs');
 const path = require('path');
@@ -199,6 +203,25 @@ function rowSources(have) {
   return out;
 }
 
+// The outline and lift (§4.7): every empty pixel next to a drawn one (left,
+// right, up or down) becomes OUTLINE; drawn pixels are lifted by LIFT. Returns
+// a new frame; the one passed in is left alone.
+const OUTLINE = [0x2a, 0x18, 0x0c], LIFT = 1.07;
+function outlineFrame(rgba, w, h) {
+  const out = new Uint8Array(rgba.length);
+  const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && rgba[(y * w + x) * 4 + 3] > 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (rgba[i + 3] > 0) {
+      for (let c = 0; c < 3; c++) out[i + c] = Math.min(255, Math.round(rgba[i + c] * LIFT));
+      out[i + 3] = rgba[i + 3];
+    } else if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1)) {
+      out[i] = OUTLINE[0]; out[i + 1] = OUTLINE[1]; out[i + 2] = OUTLINE[2]; out[i + 3] = 255;
+    }
+  }
+  return out;
+}
+
 // The foot point: bottom centre of everything drawn across the frames.
 function footPoint(frames, w, h) {
   let minX = w, maxX = -1, maxY = -1;
@@ -234,6 +257,7 @@ function packSpecies(gifs) {
       for (let col = 0; col < count; col++) {
         let f = g.frames[col % g.frames.length].rgba;
         if (src[d].flip) f = flipFrame(f, fw, fh);
+        f = outlineFrame(f, fw, fh);
         for (let y = 0; y < fh; y++) Buffer.from(f.buffer, f.byteOffset + y * fw * 4, fw * 4)
           .copy(Buffer.from(out.buffer), ((row * fh + y) * W + col * fw) * 4);
       }
@@ -277,5 +301,5 @@ function main(argv) {
   console.log('Wrote ' + path.relative(root, jsonPath));
 }
 
-module.exports = { DIRS, MIRROR, decodeGif, lzwDecode, encodePng, rowSources, footPoint, packSpecies, flipFrame };
+module.exports = { DIRS, MIRROR, OUTLINE, LIFT, decodeGif, lzwDecode, encodePng, rowSources, footPoint, packSpecies, flipFrame, outlineFrame };
 if (require.main === module) main(process.argv);

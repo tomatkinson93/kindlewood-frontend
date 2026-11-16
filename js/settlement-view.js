@@ -154,7 +154,7 @@ function _applySlotPositions() {
     el.style.left = (p[sl.id] ? p[sl.id].x : sl.x) + '%';
     el.style.top  = (p[sl.id] ? p[sl.id].y : sl.y) + '%';
   });
-  if (!_svDragSlot) _svTabOrder();
+  if (!_svDragSlot) { _svTabOrder(); if (window.KWCast && KWCast.resurvey) KWCast.resurvey(); }   // paths follow the buildings
 }
 
 // Tab order follows the buildings left to right (§2.5): the slots are put
@@ -339,7 +339,7 @@ function _injectSvStyles() {
 }
 .sv-edit-reset-btn:hover { background: rgba(120,40,30,0.48); color: #e87060; }
 /* Build mode: buildings show a grab cursor (css/home-scene.css). */
-.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 2000 !important; transition: none !important; }
+.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 1020 !important; transition: none !important; }
 .sv-slot.sv-dragging .sv-building,
 .sv-slot.sv-dragging .sv-slot-empty { filter: drop-shadow(0 8px 28px rgba(100,180,255,0.55)) brightness(1.18); }
 .sv-slot.sv-drag-bad .sv-building,
@@ -455,6 +455,7 @@ function _buildBackdrop() {
   if (!world) return;
   world.querySelectorAll('.sv-bd').forEach(function(el) { el.remove(); });
   var html = '';
+  html += '<div class="sv-bd sv-bd-sky"></div>';   // the sky, under the night overlay (css/home-scene.css)
   ['mountains', 'trees', 'ground'].forEach(function(k) {
     var d = SV_BACKDROP[k];
     html += '<div class="sv-bd sv-bd-' + k + '" data-pan="' + (d.pan || 1) + '" style="--bd-img:url(\'' + d.file + '\');--bd-w:' + d.w + 'px;--bd-h:' + d.h + 'px"></div>';
@@ -494,10 +495,12 @@ function _ensureSvDOM() {
   root.innerHTML =
     '<div class="sv-scene" id="sv-scene">'
     + '<div class="sv-world" id="sv-world" style="width:' + SV_WORLD_W + 'px">'
-    + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town" style="z-index:70">'
+    + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town">'
     + townSlots.map(anyHTML).join('') + '</div>'
-    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts" style="z-index:70">'
+    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts">'
     + outSlots.map(anyHTML).join('') + '</div>'
+    // Evening and night: one multiply over the world, the lit windows' glow above it (css/home-scene.css).
+    + '<div class="sv-night" aria-hidden="true"></div><div class="sv-glow" id="sv-glow" aria-hidden="true"></div>'
     + '</div></div>'
     + '<div class="sv-header">'
     // Back button: on desktop this view is dismissed by clicking the community
@@ -540,6 +543,7 @@ function _svRecalcTop() {
 async function openSettlementView() {
   _ensureSvDOM();
   _svOpen = true;
+  window.dispatchEvent(new CustomEvent('kw:home', { detail: { open: true } }));   // the map's loops pause under Home
   _svSelectedSlot = null;
 
   var root = document.getElementById('settlement-view');
@@ -599,6 +603,7 @@ window.openSettlementBuild = openSettlementBuild;
 function closeSettlementView() {
   if (_svBuildMode) _svToggleBuildMode(false);
   _svOpen = false;
+  window.dispatchEvent(new CustomEvent('kw:home', { detail: { open: false } }));
   if (window.KWVillagers) KWVillagers.sceneHidden();
   if (window.KWPlaces) KWPlaces.seen('land');   // back to the map: The Land
   _closeBuildPanel();
@@ -1236,7 +1241,12 @@ var _svPanBound = false;
 var _svEdge = { dir: 0, since: 0, raf: 0, last: 0 };
 
 function _svViewW() { var sc = document.getElementById('sv-scene'); return sc ? sc.clientWidth : 0; }
-function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svViewW()); }
+// The part of the view the town card covers on desktop (js/context.js): the
+// pan treats it as off screen, so the rightmost building can clear the card.
+function _svRightInset() { return window.KWContext && KWContext.rightInset ? KWContext.rightInset() : 0; }
+function _svSeenW() { return Math.max(0, _svViewW() - _svRightInset()); }
+function _svPanMax() { return Math.max(0, SV_WORLD_W * _svScale - _svSeenW()); }
+window._svPanRefit = function() { _svPanTo(_svPanX[_svActiveArea] || 0); };
 // Short screens (a phone on its side) draw the town smaller, in whole steps
 // (¾ or ½) so pixel art stays even (HOME_SCENE.md step 8). Pure.
 function _svScaleFor(sceneH) { return sceneH >= 600 ? 1 : sceneH >= 420 ? 0.75 : 0.5; }
@@ -1259,7 +1269,7 @@ function _svPanTo(x) {
   var world = document.getElementById('sv-world');
   if (!world) return;
   var max = _svPanMax();
-  var px = Math.round(_svClampPan(x, _svViewW(), SV_WORLD_W * _svScale));
+  var px = Math.round(_svClampPan(x, _svSeenW(), SV_WORLD_W * _svScale));
   _svPanX[_svActiveArea] = px;
   world.style.transform = 'translate3d(' + (-px) + 'px,0,0)' + (_svScale !== 1 ? ' scale(' + _svScale + ')' : '');
   // Far strips lag behind: shift them back by part of the pan (in world pixels).
@@ -1277,7 +1287,7 @@ function _svPanArea(area, where) {
   var x = _svPanX[area];
   if (where === 'start') x = 0;
   else if (where === 'end') x = SV_WORLD_W * _svScale;
-  else if (x == null) x = (SV_WORLD_W * _svScale - _svViewW()) / 2;
+  else if (x == null) x = (SV_WORLD_W * _svScale - _svSeenW()) / 2;
   _svPanTo(x);
 }
 
@@ -1329,7 +1339,7 @@ function _svBindPan() {
     _svPanBy(e.key === 'ArrowLeft' ? -240 : 240);
   });
   sc.addEventListener('mouseleave', function() { _svEdge.dir = 0; });
-  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); } });
+  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); if (window.KWHome) KWHome.syncGlow(); if (window.KWCast && KWCast.resurvey) KWCast.resurvey(); } });
 }
 
 // Resting the mouse at the scene's left or right edge pans that way, after a

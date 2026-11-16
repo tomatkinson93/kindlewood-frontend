@@ -20,7 +20,7 @@ const steps = [
 console.log('1. The card');
 {
   const h = F.cardHtml({ steps, done: 1, total: 3, dismissed: false });
-  check('1a. a collapsible card with a progress bar: 1/3', /<details class="fs-card" open/.test(h) && /fs-count">1\/3</.test(h) && /role="progressbar"[^>]*aria-valuenow="1"/.test(h) && /width:33%/.test(h));
+  check('1a. a collapsible card with a progress bar: 1/3 (collapsed to its Next line until opened)', /<details class="fs-card" ontoggle/.test(h) && !/<details[^>]* open/.test(h) && /fs-next">Next: /.test(h) && /fs-count">1\/3</.test(h) && /role="progressbar"[^>]*aria-valuenow="1"/.test(h) && /width:33%/.test(h));
   check('1b. done steps are ticked; open ones have a hint and Show me', /fs-step done[^]*✔[^]*Build a Lumber Camp/.test(h) && /data-fs-show="citizens">Show me/.test(h) && !/data-fs-show="build"/.test(h));
   check('1c. names the next step', /Next: 👷 Give a citizen a new job/.test(h));
   check('1d. text is escaped', !/<everything>/.test(F.cardHtml({ steps: steps.map(s => ({ ...s, done: false })), done: 0, total: 3 })));

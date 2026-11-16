@@ -214,9 +214,10 @@
     _wrap.style.display = 'flex';
   }
 
+  const underHome = () => typeof window !== 'undefined' && typeof window._svIsOpen === 'function' && window._svIsOpen();
   function tick() {
     _rafId = null;
-    if (!_visible || (typeof document !== 'undefined' && document.hidden)) return;
+    if (!_visible || (typeof document !== 'undefined' && document.hidden) || underHome()) return;
     const cam = KW.controller.camera || { q: 0, r: 0 };
     const s = sel();
     const selKey = s ? s.wq + ',' + s.wr : '';
@@ -228,7 +229,7 @@
     }
     _rafId = requestAnimationFrame(tick);
   }
-  function start() { if (_rafId === null && _visible && !(typeof document !== 'undefined' && document.hidden)) _rafId = requestAnimationFrame(tick); }
+  function start() { if (_rafId === null && _visible && !(typeof document !== 'undefined' && document.hidden) && !underHome()) _rafId = requestAnimationFrame(tick); }
   function stop() { if (_rafId !== null) { cancelAnimationFrame(_rafId); _rafId = null; } hide(); }
 
   function init() {
@@ -239,6 +240,7 @@
     } else { _visible = true; }
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else start(); });
+      window.addEventListener('kw:home', e => { if (e.detail && e.detail.open) stop(); else start(); });   // paused under Home
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTileDetail(); });
     }
     if (typeof window !== 'undefined') window.addEventListener('resize', () => { _lcq = NaN; });
