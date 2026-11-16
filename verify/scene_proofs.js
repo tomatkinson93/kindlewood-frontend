@@ -2,6 +2,7 @@
 // The living Home scene (docs/HOME_SCENE.md §5). Step 2, the style test:
 // the sprite packer (scripts/pack_sprites.js) and the villager helpers
 // (js/villagers.js). Step 3, buildings are the buttons (js/home-scene.js).
+// Step 4, Build mode (js/settlement-view.js).
 // Later steps add the cast, errands, chat and selection.
 //   node verify/scene_proofs.js
 const fs = require('fs'), path = require('path'), vm = require('vm'), zlib = require('zlib');
@@ -103,8 +104,8 @@ console.log('4. Turning it on');
     && V._flagFrom('', 'test') === 'test' && V._flagFrom('', null) === null);
   const J = read('js/villagers.js'), S = read('js/settlement-view.js'), H = read('index.html');
   check('4b. off by default: nothing shows for players who have not asked', /T\.on = readFlag\(\)/.test(J) && !/T = \{ on: true/.test(J));
-  check('4c. the scene tells it when it shows, hides and enters Build/Edit mode',
-    /KWVillagers\.sceneShown\(/.test(S) && /KWVillagers\.sceneHidden\(\)/.test(S) && /KWVillagers\.setPaused\(_svEditMode\)/.test(S));
+  check('4c. the scene tells it when it shows, hides and enters Build mode',
+    /KWVillagers\.sceneShown\(/.test(S) && /KWVillagers\.sceneHidden\(\)/.test(S) && /KWVillagers\.setPaused\(_svBuildMode\)/.test(S));
   check('4d. loaded by index.html after the scene', H.indexOf('/js/villagers.js?v=') > H.indexOf('/js/settlement-view.js?v='));
   check('4e. moves with transform only, pixelated, whole-number scale', /translate3d/.test(J) && /image-rendering: pixelated/.test(J) && /T\.scale = Number\(k\)/.test(J) && !/scale\s*=\s*0\.\d/.test(J));
   check('4f. stops when the tab is hidden; respects reduced motion', /visibilitychange/.test(J) && /prefers-reduced-motion/.test(J) && /document\.hidden/.test(J));
@@ -259,6 +260,35 @@ console.log('10. Names, buttons and the profile menu (§2.4, §2.5)');
   check('10f. Tab goes left to right; the hidden area is inert', /function _svTabOrder/.test(SVJ) && /\.inert = area/.test(SVJ));
   check('10g. a building click goes through KWHome.open', /_svOpenBuilding\(o\.id/.test(SVJ) && /KWHome\.open\(id, panel\)/.test(SVJ));
   check('10h. loaded: home-scene.js, its stylesheet, and the menu\'s #pm-town', /\/js\/home-scene\.js\?v=/.test(H) && /\/css\/home-scene\.css\?v=/.test(H) && /id="pm-town"/.test(H) && /KWHome\.fillProfile\(\)/.test(read('js/main.js')));
+}
+
+console.log('11. Build mode (§2.3)');
+{
+  const S = read('js/settlement-view.js'), PL = read('js/places.js');
+  const grab = name => { const i = S.indexOf('function ' + name + '('); let d = 0, j = S.indexOf('{', i); for (let k = j; k < S.length; k++) { if (S[k] === '{') d++; else if (S[k] === '}' && !--d) return S.slice(i, k + 1); } return ''; };
+  const b = { Math, Object }; vm.createContext(b);
+  vm.runInContext(grab('_svDropTarget') + '\n' + grab('_svMoveAssignment'), b);
+  const plots = { a: { x: 20, y: 70, area: 'town' }, b: { x: 40, y: 72, area: 'town' }, c: { x: 44, y: 74, area: 'town' }, n: { x: 60, y: 72, area: 'town', fixed: true },
+    o: { x: 41, y: 72, area: 'outskirts' } };
+  check('11a. a dragged building lands on the nearest plot in its area', b._svDropTarget('a', 41, 72, plots) === 'b' && b._svDropTarget('a', 44, 75, plots) === 'c');
+  check('11b. not on itself, the Neighbourhood, the other area, or open ground', b._svDropTarget('a', 21, 70, plots) === null && b._svDropTarget('a', 60, 72, plots) === null
+    && b._svDropTarget('a', 80, 40, plots) === null && b._svDropTarget('o', 40, 72, plots) === null);
+  const occ = m => id => m[id] || null;
+  const moved = b._svMoveAssignment({ a: 'farm' }, 'a', 'b', occ({ a: 'farm' }));
+  check('11c. onto an empty plot the building moves', moved.b === 'farm' && !('a' in moved));
+  const swapped = b._svMoveAssignment({ a: 'farm' }, 'a', 'b', occ({ a: 'farm', b: 'mine' }));
+  check('11d. onto a building, the two swap (a building shown by default is pinned where it goes)', swapped.a === 'mine' && swapped.b === 'farm');
+  check('11e. the map passed in is left alone', JSON.stringify(b._svMoveAssignment({ a: 'x' }, 'a', 'a', occ({ a: 'x' }))) === '{"a":"x"}');
+  check('11f. empty plots show only in Build mode', /el\.hidden = !_svBuildMode;/.test(S) && /\.sv-slot\[hidden\] \{ display: none; \}/.test(read('css/home-scene.css')));
+  check('11g. in Build mode a building opens its manage panel; otherwise its screen', /if \(_svBuildMode\) _openBuildPanel\(s, o\);\s*else _svOpenBuilding\(o\.id/.test(S));
+  check('11h. a drag that just ended does not also click', /if \(_svJustDragged\) return;/.test(S) && /_SV_DRAG_PX = 6/.test(S));
+  check('11i. Esc closes an open panel first, then leaves Build mode; windows keep their own Escape',
+    /function _svBuildKey/.test(S) && /KWWindow\.isOpen\(\)\)\) return;/.test(grab('_svBuildKey')) && /_closeBuildPanel\(\); return;/.test(grab('_svBuildKey')) && /_svToggleBuildMode\(false\)/.test(grab('_svBuildKey')));
+  check('11j. a town with nothing built opens in Build mode', /if \(!_svBuildMode && _svNothingBuilt\(\)\) _svToggleBuildMode\(true\)/.test(S));
+  check('11k. one Build button: the Edit button and resize handles are gone', !/sv-edit-btn/.test(S) && !/sv-slot-resize/.test(S) && !/_svBeginResize/.test(S));
+  check('11l. the Build chip turns it on and reads "Done" while on', /onLabel: 'Done'/.test(PL) && /_svToggleBuildMode/.test(PL) && /aria-pressed/.test(PL) && /KWPlaces\.refreshTools\(\)/.test(S));
+  check('11m. villagers hide and props (but the signposts) step aside while building', /KWVillagers\.setPaused\(_svBuildMode\)/.test(S) && /_svBuildMode && p\.kind !== 'signpost'/.test(S));
+  check('11n. leaving Home leaves Build mode', /function closeSettlementView\(\) \{\s*if \(_svBuildMode\) _svToggleBuildMode\(false\);/.test(S));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -51,7 +51,7 @@ console.log('3. Layout');
   check('3b. it leaves the game body (whose own layer kept it under the Home scene)', /sb\.parentNode !== screen\) screen\.appendChild\(sb\)/.test(J));
   check('3c. no sidebar tabs; the old map action bar goes (its buttons are chips)', /#sidebar \.sidebar-tabs \{ display: none; \}/.test(CSS) && /body\.kwp-on \.action-bar \{ display: none; \}/.test(CSS));
   check('3d. the tier card becomes a header strip; the 11-button grid goes', /if \(window\.KWPlaces\) \{\s*return '<div class="kwc-strip">/.test(MJ) && /window\.KWPlaces \? '<\/div>' : '<div class="sett-divider"><\/div>'/.test(MJ));
-  check('3e. Home has a Build chip: the build list opens in the panel (the sheet on phones)', /key: 'build',[^\n]*switchTab', 'buildings'/.test(P));
+  check('3e. Home has a Build chip: it turns the scene\'s Build mode on and off (HOME_SCENE.md §2.3)', /key: 'build'[\s\S]{0,300}_svToggleBuildMode/.test(P));
   check('3f. phones keep the bottom sheet, above the Home scene when open', /body\.kw-shell #screen-game \.sidebar\.kw-open \{ z-index: var\(--z-float\); \}/.test(CSS) && /!isPhone\(\) && !muted/.test(J));
   check('3g. context.js and context.css are loaded', /js\/context\.js/.test(H) && /css\/context\.css/.test(H));
 }
