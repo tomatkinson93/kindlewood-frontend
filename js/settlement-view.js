@@ -631,6 +631,7 @@ function _svSwitchArea(area, force, where) {
   if (area === _svActiveArea && !force) return;
   _svActiveArea = area;
   _closeBuildPanel();
+  if (window.KWBuildingMenu) KWBuildingMenu.close(false, true);
   var tl = document.getElementById('sv-layer-fg-town');
   var ol = document.getElementById('sv-layer-fg-outskirts');
   if (area === 'town') {
@@ -687,7 +688,13 @@ function _renderScene() {
       el.appendChild(_buildNeighbourhoodEl(slot, houseCount));
       el.hidden = false;
       // In Build mode the Neighbourhood is where huts are built: its window.
-      el.onclick = function() { if (_svBuildMode) _openHousingModal(); else _svOpenBuilding('neighbourhood'); };
+      // Otherwise its radial menu (js/building-menu.js): no Upgrade or
+      // Demolish (its huts are built and pulled down in its window).
+      el.onclick = function(ev) {
+        if (_svBuildMode) return _openHousingModal();
+        if (!window.KWBuildingMenu) return _svOpenBuilding('neighbourhood');
+        KWBuildingMenu.click(this, { key: 'neighbourhood', label: 'Neighbourhood', enter: function() { _svOpenBuilding('neighbourhood'); } }, ev);
+      };
     } else {
       var occupant = _occupantFor(slot);
       if (occupant) {
@@ -695,13 +702,18 @@ function _renderScene() {
         // A click opens the building's screen (js/home-scene.js ROUTES), or
         // its panel when it has none.
         el.hidden = false;
-        // Normally a click opens the building's screen (js/home-scene.js
-        // ROUTES), or its panel when it has none; in Build mode, always the
-        // manage panel (upgrade, demolish). A drag that just ended is no click.
-        (function(s, o) { el.onclick = function() {
+        // A click opens the building's radial menu (js/building-menu.js):
+        // Enter opens its screen (js/home-scene.js ROUTES), or its panel when
+        // it has none; Upgrade (not at the top level) and Demolish. In Build
+        // mode, the panel for moving it. A drag that just ended is no click.
+        (function(s, o) { el.onclick = function(ev) {
           if (_svJustDragged) return;
-          if (_svBuildMode) _openBuildPanel(s, o);
-          else _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); });
+          if (_svBuildMode) return _openBuildPanel(s, o);
+          var enter = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); };
+          if (!window.KWBuildingMenu) return enter();
+          KWBuildingMenu.click(this, { key: o.id, label: o.label, enter: enter,
+            upgrade: o.currentLevel < o.maxLevel ? function() { _openBuildPanel(s, o); } : null,
+            demolish: function() { _svDemolish(o.id); } }, ev);
         }; })(slot, occupant);
       } else {
         var areaBuildings = _svSlotBuildingIds();
@@ -725,6 +737,7 @@ function _renderScene() {
   }
   _renderProps();
   _applySlotPositions();
+  if (window.KWBuildingMenu) { KWBuildingMenu.close(false, true); KWBuildingMenu.apply(); }   // see-through ones stay so
 }
 
 // Opens what a building opens (js/home-scene.js), closing the panels first.
@@ -1080,6 +1093,7 @@ function _openBuildPanel(slot, occupant) {
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">★ MAX</span>'
         : occupant.nextLevelTierMet === false
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">🔒 Lv ' + (occupant.currentLevel + 1) + ' needs a ' + _svTierLabel(occupant.nextLevelTier) + '</span>'
+        : _svBuildMode ? ''   // Build mode places and moves; Upgrade is in the building's menu
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div><div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
@@ -1099,8 +1113,8 @@ function _openBuildPanel(slot, occupant) {
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
-      + _svMoveHtml(slot)
-      + '<button class="sv-bp-demolish-btn" onclick="_svDemolish(\'' + occupant.id + '\')">🔨 Demolish' + (refundStr ? ' — refunds ' + refundStr : '') + '</button>';
+      + _svMoveHtml(slot);   // Demolish is in the building's radial menu (js/building-menu.js)
+    void refundStr;
   } else {
     var areaIds = _svSlotBuildingIds();
     var taken = Object.values(_svGetAssignments()); // already placed in other slots

@@ -415,7 +415,7 @@
     if (layer) layer.querySelectorAll('.kwh-lit').forEach(lit => {
       const btn = lit.closest('.kwh-btn');
       if (btn) btn.classList.add('kwh-glows');
-      if (lit.closest('.kwh-dark')) return;
+      if (lit.closest('.kwh-dark') || lit.closest('.kwb-min')) return;   // dark, or see-through (js/building-menu.js)
       const day = lit.parentNode && lit.parentNode.querySelector('.kwh-day');
       if (!day || day.src === lit.src) return;
       const r = (lit.parentNode.getBoundingClientRect());

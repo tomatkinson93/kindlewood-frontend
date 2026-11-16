@@ -293,7 +293,7 @@ console.log('11. Build mode (§2.3)');
   check('11d. onto a building, the two swap (a building shown by default is pinned where it goes)', swapped.a === 'mine' && swapped.b === 'farm');
   check('11e. the map passed in is left alone', JSON.stringify(b._svMoveAssignment({ a: 'x' }, 'a', 'a', occ({ a: 'x' }))) === '{"a":"x"}');
   check('11f. empty plots show only in Build mode', /el\.hidden = !_svBuildMode;/.test(S) && /\.sv-slot\[hidden\] \{ display: none; \}/.test(read('css/home-scene.css')));
-  check('11g. in Build mode a building opens its manage panel; otherwise its screen', /if \(_svBuildMode\) _openBuildPanel\(s, o\);\s*else _svOpenBuilding\(o\.id/.test(S));
+  check('11g. in Build mode a building opens its panel for moving it; otherwise its radial menu, whose Enter opens its screen', /if \(_svBuildMode\) return _openBuildPanel\(s, o\);/.test(S) && /var enter = function\(\) \{ _svOpenBuilding\(o\.id/.test(S) && /KWBuildingMenu\.click\(this, \{ key: o\.id/.test(S));
   check('11h. a drag that just ended does not also click', /if \(_svJustDragged\) return;/.test(S) && /_SV_DRAG_PX = 6/.test(S));
   check('11i. Esc closes an open panel first, then leaves Build mode; windows keep their own Escape',
     /function _svBuildKey/.test(S) && /KWWindow\.isOpen\(\)\)\) return;/.test(grab('_svBuildKey')) && /_closeBuildPanel\(\); return;/.test(grab('_svBuildKey')) && /_svToggleBuildMode\(false\)/.test(grab('_svBuildKey')));
@@ -700,6 +700,35 @@ console.log('21. Music: the loading screen and Home');
     /addEventListener\('kw:home', e => \{ if \(e\.detail && e\.detail\.open\) scene\('home'\); else if \(S\.scene === 'home'\) scene\(null\); \}\)/.test(MJ)
     && /global\.KWMusic && global\.KWMusic\.playing\(\)\) \? AMB_DUCK : 1/.test(AU) && /otherMusic: _otherMusicPlaying/.test(AU)
     && /if \(S\.scene === 'loading'\) pauseWelcome\(\);/.test(MJ) && /bg && !bg\.paused/.test(MJ) && /\/js\/music\.js\?v=/.test(IX));
+}
+
+// ── 22. A building's radial menu (js/building-menu.js) ──
+console.log('22. A building\'s radial menu');
+{
+  const g = { console, Math, Date, setTimeout, document: null }; g.window = g; vm.createContext(g);
+  vm.runInContext(read('js/building-menu.js'), g);
+  const BM = g.KWBuildingMenu, BJ = read('js/building-menu.js'), CSS = read('css/home-scene.css'), E = read('js/villager-engine.js'), PL = read('js/places.js'), S = read('js/settlement-view.js');
+  const keys = o => BM.items(o).map(i => i.key).join();
+  check('22a. Enter first (and largest), then Minimise, Upgrade, Demolish and Who\'s here; what doesn\'t apply is left out',
+    keys({ enter: 1, upgrade: 1, demolish: 1 }) === 'enter,min,upgrade,demolish,who' && keys({ enter: 1, demolish: 1 }) === 'enter,min,demolish,who'
+    && keys({ enter: 1 }) === 'enter,min,who' && BM.items({ enter: 1 })[0].big === true && /\.kwv-rb\.kwb-enter \{ width: 62px; height: 62px;/.test(CSS));
+  check('22b. at the top level no Upgrade; the Neighbourhood has neither Upgrade nor Demolish; Build mode keeps placing and moving',
+    /upgrade: o\.currentLevel < o\.maxLevel \? function/.test(S) && /KWBuildingMenu\.click\(this, \{ key: 'neighbourhood', label: 'Neighbourhood', enter: function\(\) \{ _svOpenBuilding\('neighbourhood'\); \} \}, ev\)/.test(S)
+    && /_svBuildMode \? ''   \/\/ Build mode places and moves/.test(S) && !/sv-bp-demolish-btn" onclick/.test(S));
+  const r = BM.ring(4, 100);
+  check('22c. the others sit evenly round Enter, the first straight above', r.length === 4 && r[0].x === 0 && r[0].y === -100 && r[2].y === 100);
+  check('22d. a double click, or Enter twice, goes straight in; a keyboard opening focuses Enter',
+    BM.DOUBLE_MS >= 300 && BM.DOUBLE_MS <= 600 && /if \(now - M\.at < DOUBLE_MS\) \{ go\('enter'\); return; \}/.test(BJ) && /open\(slot, o, !!\(e && e\.detail === 0\)\)/.test(BJ) && /querySelector\('\.kwb-enter'\); if \(first\) first\.focus\(\)/.test(BJ));
+  check('22e. Minimise: see-through (30 %) and click-through, the nameplate stays and restores it; the sound both ways; until the player leaves Home',
+    /\.sv-slot\.kwb-min, #settlement-view \.sv-slot\.kwb-min \.kwh-btn \{ pointer-events: none; \}/.test(CSS) && /\.kwb-min \.kwh-art, #settlement-view \.sv-slot\.kwb-min \.kwh-bubble-host \{ opacity: 0\.3;/.test(CSS)
+    && /\.kwb-min \.kwh-plate \{ opacity: 1; pointer-events: auto;/.test(CSS) && /if \(minimised\.has\(o\.key\)\) \{ restore\(o\.key\); return; \}/.test(BJ)
+    && BM.SOUND.min === 'ui/minimize.wav' && /minimised\.clear\(\)/.test(BJ) && /lit\.closest\('\.kwb-min'\)/.test(read('js/home-scene.js')));
+  check('22f. Who\'s here lists exactly the villagers the scene has inside; a name brings them out with their menu',
+    /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(v\.state === 'indoors'\) comeOut\(v, performanceNow\(\)\);/.test(E)
+    && /C\.callOut\(id\)/.test(BJ) && /Nobody inside right now\./.test(BJ));
+  check('22g. one menu at a time; a See through toggle beside Names does every building; props keep their single click',
+    /global\.KWBuildingMenu\.close\(false, true\);   \/\/ one menu at a time/.test(E) && /C\.deselect\(\)/.test(BJ) && /key: 'seethrough'/.test(PL)
+    && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

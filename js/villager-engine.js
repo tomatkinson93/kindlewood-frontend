@@ -398,6 +398,13 @@
     // Children walking with this parent go in with them.
     for (const k of S.vs.values()) if (k.child && k.state !== 'indoors' && live(k) && parentsOf(k.c).includes(v.id)) walkTo(k, { x: v.x, y: v.y }, key);
   }
+  // Why someone is in a building, for Who's here: they work there, live
+  // there, or are visiting.
+  function insideWhy(v, key) {
+    if (key === 'neighbourhood') return 'at home';
+    const w = ROLE_BUILDING[v.c.role];
+    return w === key ? 'working' : 'visiting';
+  }
   function comeOut(v, now) {
     const d = doorOf(v.inside) || nearestDoor(v.x, v.y) || { x: v.x, y: v.y };
     v.x = d.x; v.y = d.y; v.inside = null;
@@ -575,6 +582,7 @@
     }
     // Someone walking into a building can still be picked: they stop.
     if (v.state === 'leave') v.state = 'idle';
+    if (global.KWBuildingMenu) global.KWBuildingMenu.close(false, true);   // one menu at a time
     if (M.v && M.v !== v) deselect(true, true);
     endChat(v, performanceNow());
     v.selected = true; v.held = false;
@@ -1030,6 +1038,20 @@
     // The scene changed (a building built, moved or removed, a resize): look
     // again at the doors, and redraw the paths and props.
     resurvey: () => { if (S.layer && S.shown && S.layer.clientHeight) { survey(); syncGlow(); } },
+    // Who the scene has inside a building right now (js/building-menu.js,
+    // Who's here): exactly the villagers whose state is indoors there.
+    inside: key => [...S.vs.values()].filter(v => v.state === 'indoors' && v.inside === key)
+      .map(v => ({ id: v.id, name: v.c.name || 'Villager', why: insideWhy(v, key) })),
+    // From Who's here: they step out of the door and their menu opens.
+    callOut: id => {
+      const v = S.vs.get(Number(id));
+      if (!v) return false;
+      if (v.state === 'indoors') comeOut(v, performanceNow());
+      draw(v, true);
+      requestFrame(() => select(v, false));
+      return true;
+    },
+    deselect: () => { if (M.v) deselect(true); },
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.
     preview: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); return S.phase; },

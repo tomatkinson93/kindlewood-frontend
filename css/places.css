@@ -113,6 +113,8 @@ body.kw-shell .kwp-orn { display: none; }
   box-shadow: var(--kw-shadow);
 }
 .kwp-tool:hover { border-color: var(--kw-gold-deep); color: var(--kw-gold); }
+/* Phones: a little tighter, so Home's four chips fit across 390 px. */
+body.kw-shell .kwp-tool { padding: var(--kw-s-1) var(--kw-s-2); }
 
 /* The scene's own header (Town / Outskirts, Edit) sits under the chips;
    its back button and title go: the places do that now. */

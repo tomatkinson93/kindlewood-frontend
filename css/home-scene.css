@@ -343,3 +343,29 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 }
 @keyframes kwv-mark-bob { 0%, 100% { transform: translate(-50%, -100%); } 50% { transform: translate(-50%, calc(-100% - 5px)); } }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwv-mark { animation: none; } }
+
+/* ── A building's radial menu (js/building-menu.js, HOME_SCENE.md §2.2a) ──
+   The villager menu's buttons, round the building's middle, with Enter in
+   the middle and largest. */
+#settlement-view .kwb-radial .kwv-rb.kwb-enter { width: 62px; height: 62px; margin: -31px 0 0 -31px; border-width: 3px; background: #ffe7a8; }
+#settlement-view .kwb-radial .kwv-rb.kwb-enter .kwv-rb-i { font-size: 26px; }
+#settlement-view .kwb-who {
+  position: absolute; z-index: 1600; transform: translateX(-50%); min-width: 180px; max-width: 260px; padding: 8px;
+  display: flex; flex-direction: column; gap: 4px; border-radius: 10px; border: 2px solid #b98a4a; background: #fff6df; color: #3a2414;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); font: 13px/1.3 system-ui, sans-serif;
+}
+#settlement-view .kwb-who-h { font-weight: 700; padding: 0 4px 2px; }
+#settlement-view .kwb-who-none { padding: 2px 4px; color: #6b4a2e; }
+#settlement-view .kwb-who-b {
+  display: flex; justify-content: space-between; gap: 10px; min-height: 36px; padding: 6px 8px; border-radius: 7px;
+  border: 1px solid rgba(185, 138, 74, 0.45); background: #fffaf0; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer;
+}
+#settlement-view .kwb-who-b span { font-weight: 400; color: #8a6440; }
+#settlement-view .kwb-who-b:hover, #settlement-view .kwb-who-b:focus-visible { background: #ffe7a8; outline: none; box-shadow: 0 0 0 2px rgba(255, 210, 122, 0.9); }
+#settlement-view[data-phase="night"] .kwb-who { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] .kwb-who { filter: url(#kwn-undo-dusk); }
+/* Minimised: see-through and click-through, its nameplate showing (a click
+   on it restores the building). Until the player leaves Home. */
+#settlement-view .sv-slot.kwb-min, #settlement-view .sv-slot.kwb-min .kwh-btn { pointer-events: none; }
+#settlement-view .sv-slot.kwb-min .kwh-art, #settlement-view .sv-slot.kwb-min .kwh-bubble-host { opacity: 0.3; transition: opacity 0.25s ease; }
+#settlement-view .sv-slot.kwb-min .kwh-plate { opacity: 1; pointer-events: auto; cursor: pointer; }
