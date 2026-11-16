@@ -357,10 +357,10 @@ console.log('12. The cast and walking (§3.2–3.4)');
   check('12s. speeds: adults 40, elders 30, children 55 px a second', C.SPEED.adult === 40 && C.SPEED.elder === 30 && C.SPEED.child === 55);
 
   const E = read('js/villager-engine.js'), VJ = read('js/villagers.js'), H = read('index.html');
-  check('12t. depth from the foot: villagers and buildings share one z-index scale', /el\.style\.zIndex = String\(depth\(v\.y\)\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
+  check('12t. depth from the foot: villagers and buildings share one z-index scale', /el\.style\.zIndex = String\(v\.selected \? 1400 : depth\(v\.y\)\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
   check('12u. one loop, transform only; it stops off Home, with the tab hidden, in Build mode, and stands still under reduced motion',
     /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\)/.test(E) && /visibilitychange/.test(E)
-    && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/style\.(left|top) =/.test(E));
+    && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
   check('12v. children are drawn at 0.75×; each family has its own gentle look', /v\.child \? 0\.75 : 1/.test(E) && /TINTS\[Math\.abs\(Number\(c\.family_id\)/.test(E));
   check('12w. leaving town: walk to the nearest door and fade; arriving: out of a door; nobody pops up except when Home opens',
     /function leave\(v\)/.test(E) && /nearestDoor\(v\.x, v\.y\)/.test(E) && /make\(c, at, !first\)/.test(E));
@@ -443,6 +443,39 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
   check('14s. villagers walk the whole meadow; their spots lie in the gaps between buildings', C2ok());
   function C2ok() { const e2 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} }; e2.window = e2; vm.createContext(e2); vm.runInContext(E, e2);
     const G = e2.KWCast.GROUND.town; return G.every(([, y]) => y >= 30) && e2.KWCast.SPOTS.town.every(q => e2.KWCast._inPolygon(q.x, q.y, G)); }
+}
+
+console.log('15. Selecting a villager: the radial menu (§3.6)');
+{
+  const e3 = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e3.window = e3; vm.createContext(e3); vm.runInContext(read('js/villager-engine.js'), e3);
+  const C3 = e3.KWCast, E = read('js/villager-engine.js'), CSS = read('css/home-scene.css'), S3 = read('js/settlement-view.js');
+  const label = k => ({ farmer: 'Farmer', smith: 'Blacksmith' }[k] || null);
+  check('15a. the line under them: "Poppy Brightburrow · farmer, 20"', C3._nameLine({ name: 'Poppy Brightburrow', role: 'farmer', stage: 'adult', age: 20.7 }, label) === 'Poppy Brightburrow · farmer, 20');
+  check('15b. children say child; youths their apprenticeship', C3._nameLine({ name: 'Kit', stage: 'child', age: 4 }, label) === 'Kit · child, 4'
+    && C3._nameLine({ name: 'Bean', stage: 'youth', age: 9, apprentice: { class_key: 'farmer' } }, label) === 'Bean · apprentice farmer, 9' && C3._nameLine({ name: 'Ash', stage: 'youth', age: 8 }, label) === 'Ash · youth, 8');
+  const keys = c => C3._menuItems(c).map(i => i.key).join();
+  check('15c. four buttons: Inspect, Family, Change work, House', keys({ stage: 'adult' }) === 'inspect,family,work,house' && keys({ stage: 'elder' }) === 'inspect,family,work,house');
+  check('15d. children have no Change work; youths have Apprenticeship in its place', keys({ stage: 'child' }) === 'inspect,family,house' && keys({ stage: 'youth' }) === 'inspect,family,apprentice,house');
+  const mid = C3._arc(4, { sx: 500, viewW: 1000 }), left = C3._arc(4, { sx: 40, viewW: 1000 }), right = C3._arc(4, { sx: 960, viewW: 1000 });
+  const avgX = p => p.reduce((a, q) => a + q.x, 0) / p.length;
+  check('15e. the arc is above the head, centred', mid.every(q => q.y < 0) && Math.abs(avgX(mid)) < 1);
+  check('15f. near an edge the arc turns to stay on screen', avgX(left) > 20 && avgX(right) < -20 && left.every(q => q.y < 10) && right.every(q => q.y < 10));
+  check('15g. buttons (and their labels, up to about 76 px) do not overlap', [mid, left, right].every(p => p.every((q, i) => i === 0 || Math.hypot(q.x - p[i - 1].x, q.y - p[i - 1].y) >= 60))
+    // labels are about 17 px tall, 6 px a letter plus padding, centred under each button: no two may overlap
+    && [mid, left, right].every(p => { const lw = ['Inspect', 'Family', 'Change work', 'House'].map(t => t.length * 6 + 12);
+      return p.every((q, i) => p.every((o, j) => j <= i || Math.abs(q.x - o.x) >= (lw[i] + lw[j]) / 2 || Math.abs(q.y - o.y) >= 20)); }));
+  check('15h. each villager is a real button with a label; a small hit box takes clicks', /makeFigure\(true\)/.test(E) && /setAttribute\('aria-label', nameLine\(c\)/.test(E) && /\.kwv-cit \.kwv-hit \{ position: absolute; pointer-events: auto/.test(CSS) && /\.kwv-cit \{[^}]*pointer-events: none/.test(CSS));
+  check('15i. selected: stands facing the camera, bright outline, a ring and their name; nobody chats with them', /if \(v\.selected\) return;/.test(E) && /\.kwv-selected \.kwv-sprite/.test(CSS) && /\.kwv-ring \{/.test(CSS) && /\.kwv-name \{/.test(CSS) && /selected: !!v\.selected \|\| !!v\.held/.test(E));
+  check('15j. click elsewhere, Esc, or a button deselects; a window from the menu holds them until it closes', /addEventListener\('pointerdown'[\s\S]{0,200}deselect\(true\)/.test(E) && /e\.key !== 'Escape' \|\| !M\.v/.test(E) && /v\.held = true;[\s\S]{0,80}deselect\(true\)/.test(E) && /if \(!windowUp\(\)\) \{ v\.held = false;/.test(E));
+  check('15k. the buttons: profile, family line, the job picker (or trade) in the profile, their home', /call\('openCitizenProfile', id\)/.test(E) && /KWFamilies\.open\(c\.family_id \? \{ family: c\.family_id \}/.test(E) && /focusInProfile\('\.cp-role-section \.cp-role-select'\)/.test(E) && /data-house="' \+ c\.house_id/.test(E) && /data-house="' \+ house\.id/.test(S3));
+  check('15l. keyboard: Enter opens it with the first button focused; arrows move between buttons; Tab reaches villagers after the buildings',
+    /select\(v, e\.detail === 0\)/.test(E) && /'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'/.test(E) && /:scope > \.kwv-villager, :scope > \.kwv-radial/.test(S3));
+  check('15p. the menu\'s buttons take clicks (the layers they sit in do not)', /\.kwv-rb \{\s*pointer-events: auto;/.test(CSS));
+  check('15m. it fans out in 150 ms; not under reduced motion; 48 px on touch', /transition: transform 150ms/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwv-rb \{ transition: none; \}/.test(CSS) && /pointer: coarse\) \{\s*#settlement-view \.kwv-rb \{ width: 48px; height: 48px/.test(CSS));
+  check('15n. a pop as the menu opens, another as it closes (the effects volume applies)', C3.SOUND.on === 'ui/pop_on.mp3' && C3.SOUND.off === 'ui/pop_off.mp3' && /global\.playSfx\(SOUND\[k\]\)/.test(E)
+    && ['pop_on.mp3', 'pop_off.mp3'].every(f => fs.existsSync(path.join(ROOT, 'assets/audio/ui', f)) && fs.statSync(path.join(ROOT, 'assets/audio/ui', f)).size < 40000));
+  check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{ closeMenu\(\);/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

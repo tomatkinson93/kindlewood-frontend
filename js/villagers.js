@@ -176,11 +176,12 @@
     document.head.appendChild(s);
   }
 
-  // One villager element: a box with a sprite inside.
-  function makeFigure() {
-    const el = document.createElement('div');
+  // One villager element: a box with a sprite inside. `button`: a real
+  // button (the town's villagers, step 7); otherwise a picture (the test).
+  function makeFigure(button) {
+    const el = document.createElement(button ? 'button' : 'div');
     el.className = 'kwv-villager';
-    el.setAttribute('aria-hidden', 'true');
+    if (button) el.type = 'button'; else el.setAttribute('aria-hidden', 'true');
     const sp = document.createElement('div');
     sp.className = 'kwv-sprite';
     el.appendChild(sp);

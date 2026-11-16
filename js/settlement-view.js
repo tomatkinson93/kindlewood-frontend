@@ -169,6 +169,8 @@ function _svTabOrder() {
     var sorted = slots.slice().sort(function(a, b) { return x(a) - x(b); });
     if (sorted.every(function(el, i) { return el === slots[i]; })) return;
     sorted.forEach(function(el) { layer.appendChild(el); });
+    // Villagers (and their menu) come after the buildings in the Tab order.
+    layer.querySelectorAll(':scope > .kwv-villager, :scope > .kwv-radial').forEach(function(el) { layer.appendChild(el); });
   });
 }
 
@@ -896,7 +898,7 @@ function _renderHousingModal(data) {
     html += '<div class="sv-hm-section-label">Homes</div>';
     for (var i = 0; i < houses.length; i++) {
       var house = houses[i];
-      html += '<div class="sv-hm-house">'
+      html += '<div class="sv-hm-house" data-house="' + house.id + '">'
         + '<div class="sv-hm-house-header">'
         + '<span class="sv-hm-house-name">🏡 ' + _svEsc(house.name) + '</span>'
         + '<span class="sv-hm-house-cap">' + house.residents.length + ' / ' + house.capacity + '</span>'

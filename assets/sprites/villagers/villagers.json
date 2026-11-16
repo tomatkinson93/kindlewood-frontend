@@ -23,16 +23,11 @@
         "idle": {
           "frames": 4,
           "ms": 200,
-          "mirrored": [],
-          "borrowed": [
+          "mirrored": [
             "sw",
-            "w",
-            "nw",
-            "n",
-            "ne",
-            "e",
-            "se"
+            "ne"
           ],
+          "borrowed": [],
           "file": "mouse_idle.png"
         },
         "walk": {
