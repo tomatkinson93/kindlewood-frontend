@@ -54,5 +54,18 @@ console.log('3. Live events, the away report, the page');
   check('3d. the outpost window shows each option\'s cost and the default', /x\.hint \? ` <span class="kwop-muted">· \$\{esc\(x\.hint\)\}/.test(read('js/outposts.js')) && /\(default\)/.test(read('js/outposts.js')));
 }
 
+console.log('4. What a moment changed shows at once; two devices stay in step');
+{
+  const ch = w.KWMoments._storeChanges;
+  check('4a. the top bar is read again after an answer (it otherwise waits for its five-minute sync), and what changed floats up from it',
+    /async function showEffects\(\)/.test(MJ) && /await global\.refreshResources\(\)/.test(MJ) && /global\._spawnFloater\(k, d\)/.test(MJ) && /showEffects\(\);\s*return \{ outcome: d\.outcome \};/.test(MJ));
+  check('4b. the change is the difference between the two readings, without the trickle of production',
+    JSON.stringify(ch({ food: 500.2, wealth: 80, timber: 40 }, { food: 350.9, wealth: 100, timber: 40.6 })) === '{"food":-149,"wealth":20}' && JSON.stringify(ch(null, { food: 1 })) === '{}');
+  check('4c. a moment answered on another device folds away here too, with a note and the same refresh; your own answer makes no toast',
+    /const mine = st\.answering === ev\.id;/.test(MJ) && /if \(mine \|\| !had\) return;/.test(MJ) && /ev\.auto === false \? 'Answered on another device' : 'Decided for you'/.test(MJ)
+    && /if \(st\.openId === ev\.id && global\.KWSay && global\.KWSay\.isOpen && global\.KWSay\.isOpen\(\)\) global\.KWSay\.close\(\);/.test(MJ));
+  check('4d. answering one already settled (the other device was first) says so and removes the card', /if \(res\.status === 404\) \{ st\.list = st\.list\.filter\(x => x\.id !== m\.id\); render\(\); \}/.test(MJ));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
