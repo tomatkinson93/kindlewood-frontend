@@ -63,7 +63,12 @@
     if (!layer) return;
     const lr = layer.getBoundingClientRect(), k = layer.clientWidth ? lr.width / layer.clientWidth : 1;
     const ar = art.getBoundingClientRect();
-    const cx = (ar.left + ar.width / 2 - lr.left) / k, cy = (ar.top + ar.height * 0.55 - lr.top) / k;
+    const cx = (ar.left + ar.width / 2 - lr.left) / k;
+    let cy = (ar.top + ar.height * 0.55 - lr.top) / k;
+    // Keep the lowest button clear of the bottom (the moment cards and the
+    // tab bar sit there on a phone).
+    const sc = doc.getElementById('sv-scene');
+    if (sc) { const floor = (sc.getBoundingClientRect().bottom - lr.top) / k - (isPhone() ? 150 : 60) - 104; cy = Math.min(cy, floor); }
     const list = items(o, insideOf(o.key).length);
     const pts = ring(list.length - 1, isPhone() ? 104 : 98);
     const m = doc.createElement('div');
@@ -139,6 +144,11 @@
     });
     M.el.parentNode.appendChild(box);
     M.who = box;
+    // No room below (the moment cards and tab bar sit low on a phone): above the ring instead.
+    const sc = doc.getElementById('sv-scene'), br = box.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : null;
+    if (sr && br.bottom > sr.bottom - (isPhone() ? 110 : 24)) {
+      box.style.top = (parseFloat(M.el.style.top) - (isPhone() ? 150 : 142) - box.offsetHeight) + 'px';
+    }
     const first = box.querySelector('button'); if (first && doc.activeElement && M.el.contains(doc.activeElement)) first.focus();
   }
 
