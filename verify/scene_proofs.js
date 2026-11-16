@@ -357,7 +357,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
   check('12s. speeds: adults 40, elders 30, children 55 px a second', C.SPEED.adult === 40 && C.SPEED.elder === 30 && C.SPEED.child === 55);
 
   const E = read('js/villager-engine.js'), VJ = read('js/villagers.js'), H = read('index.html');
-  check('12t. depth from the foot: villagers and buildings share one z-index scale', /el\.style\.zIndex = String\(v\.selected \? 1400 : depth\(v\.y\)\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
+  check('12t. depth from the foot: villagers and buildings share one z-index scale', /el\.style\.zIndex = String\(v\.selected \? 1005 : depth\(v\.y\)\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
   check('12u. one loop, transform only; it stops off Home, with the tab hidden, in Build mode, and stands still under reduced motion',
     /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\)/.test(E) && /visibilitychange/.test(E)
     && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
@@ -412,7 +412,7 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
   const grab = (src, name) => { const i = src.indexOf('function ' + name + '('); let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}' && !--d) return src.slice(i, k + 1); } return ''; };
   const bx = { Math }; vm.createContext(bx); vm.runInContext(grab(S2, '_svClampPan'), bx);
   check('14a. the backdrop: a sky by code, mountains and trees that tile sideways, a meadow that tiles both ways', /backdrop\/mountains\.webp/.test(S2) && /backdrop\/trees\.webp/.test(S2) && /backdrop\/ground\.webp/.test(S2)
-    && /\.sv-bd-ground \{[^}]*background-repeat: repeat;/.test(CSS) && /\.sv-bd-trees \{[^}]*repeat-x/.test(CSS) && /data-phase="night"\] \.sv-scene \{ background: linear-gradient/.test(CSS)
+    && /\.sv-bd-ground \{[^}]*background-repeat: repeat;/.test(CSS) && /\.sv-bd-trees \{[^}]*repeat-x/.test(CSS) && /data-phase="night"\] \.sv-bd-sky \{ background: linear-gradient/.test(CSS)
     && ['mountains', 'trees', 'ground'].every(k => fs.existsSync(path.join(ROOT, 'assets/images/scene_v2/backdrop', k + '.webp'))));
   check('14b. the horizon at a quarter of the height; the tree line overlaps the meadow by 12 px; haze on the far strips (18 %, 25 %)',
     /SV_HORIZON = 0\.25/.test(S2) && /\.sv-bd-ground \{[^}]*top: 25%/.test(CSS) && /top: calc\(25% \+ 12px - var\(--bd-h\)\)/.test(CSS) && /\.sv-bd-trees::after \{ opacity: 0\.18; \}/.test(CSS) && /\.sv-bd-mountains::after \{ opacity: 0\.25; \}/.test(CSS));
@@ -430,8 +430,20 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
   check('14k. smooth art: buildings are never pixelated; only villagers are', !/kwh-native \{ image-rendering: pixelated/.test(CSS) && /image-rendering: pixelated/.test(VJ));
   check('14l. shadows by code under buildings (92 % wide) and villagers', /\.kwh-art::before \{[^}]*left: 4%; right: 4%/.test(CSS) && /\.kwv-shadow \{/.test(CSS) && /kwv-shadow/.test(VJ));
   const T = vm.runInContext('KWHome.NIGHT_TINTS', h);
-  check('14m. night: ×0.42, ×0.48, ×0.78; lit images ×0.72, ×0.72, ×0.92; the lit image fades in over 3 s', T['kwn-night'].join() === '0.42,0.48,0.78' && T['kwn-lit'].join() === '0.72,0.72,0.92'
-    && /\.kwh-lit \{ opacity: 0; transition: opacity 3s ease; \}/.test(CSS) && /data-phase="night"\] \.kwv-villager \{ filter: url\(#kwn-night\)|\.kwv-villager \{ filter: url\(#kwn-night\); \}/.test(CSS));
+  const gp = vm.runInContext('KWHome._glowPixels', h);
+  const gout = gp([250, 220, 120, 255, 200, 190, 170, 255, 90, 60, 40, 0], [60, 40, 30, 255, 190, 180, 160, 255, 10, 10, 10, 0], new Array(12).fill(9));
+  check('14m. night is one multiply overlay over the world (×0.72, ×0.80, ×1.00; evening ×0.92, ×0.80, ×0.86), not a filter on each thing; the lit image fades in over 3 s',
+    T.night.join() === '0.72,0.8,1' && T.dusk.join() === '0.92,0.8,0.86'
+    && /\.sv-night \{[^}]*z-index: 1050;[^}]*mix-blend-mode: multiply;/.test(CSS) && /data-phase="night"\] \.sv-night \{ display: block; background: rgb\(184, 204, 255\); \}/.test(CSS)
+    && /class="sv-night"/.test(S2) && !/url\(#kwn-night\)/.test(CSS) && !/kwv-villager \{ filter/.test(CSS)
+    && /\.kwh-lit \{ opacity: 0; transition: opacity 3s ease; \}/.test(CSS));
+  check('14m2. lit windows glow above the overlay: the lit image minus the day image, in screen mode; unchanged pixels and empty ones add nothing',
+    gout.slice(0, 4).join() === '190,180,90,255' && gout.slice(4, 8).join() === '0,0,0,0' && gout.slice(8).join() === '0,0,0,0'
+    && /\.sv-glow \{[^}]*z-index: 1060;[^}]*mix-blend-mode: screen;/.test(CSS) && /H\.syncGlow\(\)/.test(E));
+  check('14m3. the sky is in the world, under the overlay; strips sit below the slots; labels undo the tint',
+    /sv-bd-sky/.test(S2) && /\.sv-bd-sky \{[^}]*z-index: -5;/.test(CSS) && /\.sv-bd-ground \{[^}]*z-index: -3;/.test(CSS)
+    && /\.sv-world > \.sv-layer \{[^}]*z-index: auto; will-change: auto;/.test(CSS) && !/z-index:70/.test(S2)
+    && /data-phase="night"\] :is\(\.kwh-plate[^)]*\) \{ filter: url\(#kwn-undo-night\); \}/.test(CSS));
   check('14n. villagers stand out: a 1 px dark outline and a slight lift, with the family look', /drop-shadow\(1px 0 0 #2a180c\) drop-shadow\(-1px 0 0 #2a180c\) drop-shadow\(0 1px 0 #2a180c\) drop-shadow\(0 -1px 0 #2a180c\) brightness\(1\.07\)/.test(CSS) && /--kwv-tint/.test(E));
   const cm = { house_timber: { file: 'a.webp', lit: 'a_lit.webp', w: 219, h: 209, door: [92, 205] }, house_stone: { file: 'b.webp', w: 216, h: 208, door: [89, 204] }, house_thatch: { file: 'c.webp', lit: 'c_lit.webp', w: 212, h: 196, door: [89, 192] } };
   const cl = KH.art('neighbourhood', cm);
@@ -492,7 +504,7 @@ console.log('16. Phones and comfort (step 8), names, faces');
   check('16b. the scaled world still pans to its edges and keeps the far strips in step', /SV_WORLD_W \* _svScale - _svSeenW\(\)/.test(S4) && /scale\(' \+ _svScale \+ '\)/.test(S4) && /px \/ _svScale \* k/.test(S4) && /transform-origin: 0 0/.test(CSS));
   check('16c. Build mode: "Move to…" buttons move a building without dragging (keyboard, switch, fiddly touch); focus follows it',
     /function _svMoveHtml\(slot\)/.test(S4) && /_svMoveHtml\(slot\)/.test(S4.slice(S4.indexOf('function _openBuildPanel'))) && /b\.focus\(/.test(grab(S4, '_svMoveTo')) && /min-height: 44px/.test(CSS));
-  check('16d. on touch, the build panel\'s buttons are at least 44 px; reduced motion switches the lit windows instead of fading', /pointer: coarse\) \{\s*#settlement-view \.sv-bp-build-btn/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwh-lit \{ transition: none; \}/.test(CSS));
+  check('16d. on touch, the build panel\'s buttons are at least 44 px; reduced motion switches the lit windows instead of fading', /pointer: coarse\) \{\s*#settlement-view \.sv-bp-build-btn/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwh-lit, #settlement-view \.sv-glow \{ transition: none; \}/.test(CSS));
   check('16e. a Names chip on Home toggles every nameplate (pressed while on); N does too; the profile menu\'s Show names is the same setting',
     /key: 'names'[\s\S]{0,200}on: \(\) => !!\(global\.KWHome && global\.KWHome\.namesOn\(\)\)/.test(PL) && /KWPlaces\.refreshTools\(\)/.test(grab(HJ, 'setNames')) && /e\.key !== 'n' && e\.key !== 'N'/.test(HJ));
   const fv = { console, document: { addEventListener() {}, hidden: false }, addEventListener() {}, location: { search: '' }, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, Math, setTimeout() {} };

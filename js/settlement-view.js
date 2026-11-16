@@ -339,7 +339,7 @@ function _injectSvStyles() {
 }
 .sv-edit-reset-btn:hover { background: rgba(120,40,30,0.48); color: #e87060; }
 /* Build mode: buildings show a grab cursor (css/home-scene.css). */
-.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 2000 !important; transition: none !important; }
+.sv-slot.sv-dragging { cursor: grabbing !important; z-index: 1020 !important; transition: none !important; }
 .sv-slot.sv-dragging .sv-building,
 .sv-slot.sv-dragging .sv-slot-empty { filter: drop-shadow(0 8px 28px rgba(100,180,255,0.55)) brightness(1.18); }
 .sv-slot.sv-drag-bad .sv-building,
@@ -455,6 +455,7 @@ function _buildBackdrop() {
   if (!world) return;
   world.querySelectorAll('.sv-bd').forEach(function(el) { el.remove(); });
   var html = '';
+  html += '<div class="sv-bd sv-bd-sky"></div>';   // the sky, under the night overlay (css/home-scene.css)
   ['mountains', 'trees', 'ground'].forEach(function(k) {
     var d = SV_BACKDROP[k];
     html += '<div class="sv-bd sv-bd-' + k + '" data-pan="' + (d.pan || 1) + '" style="--bd-img:url(\'' + d.file + '\');--bd-w:' + d.w + 'px;--bd-h:' + d.h + 'px"></div>';
@@ -494,10 +495,12 @@ function _ensureSvDOM() {
   root.innerHTML =
     '<div class="sv-scene" id="sv-scene">'
     + '<div class="sv-world" id="sv-world" style="width:' + SV_WORLD_W + 'px">'
-    + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town" style="z-index:70">'
+    + '<div class="sv-layer sv-fg-layer" id="sv-layer-fg-town">'
     + townSlots.map(anyHTML).join('') + '</div>'
-    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts" style="z-index:70">'
+    + '<div class="sv-layer sv-fg-layer sv-area-hidden" id="sv-layer-fg-outskirts">'
     + outSlots.map(anyHTML).join('') + '</div>'
+    // Evening and night: one multiply over the world, the lit windows' glow above it (css/home-scene.css).
+    + '<div class="sv-night" aria-hidden="true"></div><div class="sv-glow" id="sv-glow" aria-hidden="true"></div>'
     + '</div></div>'
     + '<div class="sv-header">'
     // Back button: on desktop this view is dismissed by clicking the community
@@ -1334,7 +1337,7 @@ function _svBindPan() {
     _svPanBy(e.key === 'ArrowLeft' ? -240 : 240);
   });
   sc.addEventListener('mouseleave', function() { _svEdge.dir = 0; });
-  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); } });
+  window.addEventListener('resize', function() { if (_svOpen) { _svFit(); _svPanTo(_svPanX[_svActiveArea] || 0); if (window.KWHome) KWHome.syncGlow(); } });
 }
 
 // Resting the mouse at the scene's left or right edge pans that way, after a

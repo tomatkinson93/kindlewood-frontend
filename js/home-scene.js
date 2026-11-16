@@ -349,19 +349,83 @@
   }
 
   // ── Night (docs/ART_GUIDE.md §4.6) ─────────────────────────────────────
-  // Colour-matrix filters the stylesheet points at: a blue-violet multiply for
-  // night (×0.42, ×0.48, ×0.78 on red, green, blue), a much lighter one for
-  // lit images, and halfway versions for the evening.
-  const TINTS = { 'kwn-night': [0.42, 0.48, 0.78], 'kwn-lit': [0.72, 0.72, 0.92], 'kwn-dusk': [0.78, 0.66, 0.78], 'kwn-dusk-lit': [0.9, 0.84, 0.9] };
+  // One multiply overlay tints the whole world (.sv-night, css/home-scene.css):
+  // ×0.72, ×0.80, ×1.00 on red, green and blue at night, ×0.92, ×0.80, ×0.86 in
+  // the evening. Labels take the inverse, so they read as they do by day.
+  const TINTS = { night: [0.72, 0.80, 1.0], dusk: [0.92, 0.80, 0.86] };
   function nightFilters() {
     if (!doc || !doc.body || doc.getElementById('kwn-filters')) return;
     const m = ([r, g, b]) => `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`;
+    const undo = t => t.map(x => +(1 / x).toFixed(4));
     const svg = '<svg id="kwn-filters" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>'
-      + Object.entries(TINTS).map(([id, t]) => `<filter id="${id}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${m(t)}"/></filter>`).join('')
+      + Object.entries(TINTS).map(([id, t]) => `<filter id="kwn-undo-${id}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${m(undo(t))}"/></filter>`).join('')
       + '</defs></svg>';
     doc.body.insertAdjacentHTML('beforeend', svg);
   }
   if (doc && doc.readyState !== 'loading') nightFilters(); else if (doc) doc.addEventListener('DOMContentLoaded', nightFilters);
+
+  // The lit windows' glow: what the lit image adds to the day image (pixels
+  // that changed by more than GLOW_MIN in all), drawn above the overlay in
+  // screen mode with a soft halo. Pure on pixel arrays; cached per image pair.
+  const GLOW_MIN = 48;
+  function glowPixels(lit, day, out) {
+    for (let i = 0; i < lit.length; i += 4) {
+      const r = lit[i] - day[i], g = lit[i + 1] - day[i + 1], b = lit[i + 2] - day[i + 2];
+      const on = lit[i + 3] > 0 && r + g + b > GLOW_MIN;
+      out[i] = on ? Math.max(0, r) : 0; out[i + 1] = on ? Math.max(0, g) : 0; out[i + 2] = on ? Math.max(0, b) : 0;
+      out[i + 3] = on ? 255 : 0;
+    }
+    return out;
+  }
+  const glows = {};   // "lit|day" → Promise<url or null>
+  function loadImg(url) {
+    return new Promise(res => { const im = new global.Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = url; });
+  }
+  function glowFor(litUrl, dayUrl) {
+    const key = litUrl + '|' + dayUrl;
+    if (glows[key]) return glows[key];
+    glows[key] = Promise.all([loadImg(litUrl), loadImg(dayUrl)]).then(([lit, day]) => {
+      if (!lit || !day || !doc) return null;
+      const w = lit.naturalWidth, h = lit.naturalHeight;
+      const cv = doc.createElement('canvas'); cv.width = w; cv.height = h;
+      const cx = cv.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(day, 0, 0, w, h); const d = cx.getImageData(0, 0, w, h);
+      cx.clearRect(0, 0, w, h); cx.drawImage(lit, 0, 0, w, h); const l = cx.getImageData(0, 0, w, h);
+      cx.putImageData(new global.ImageData(glowPixels(l.data, d.data, new Uint8ClampedArray(l.data.length)), w, h), 0, 0);
+      // A soft halo under the sharp glow (canvas filters are missing on some
+      // browsers; then the glow is just sharp).
+      const out = doc.createElement('canvas'); out.width = w; out.height = h;
+      const ox = out.getContext('2d');
+      if ('filter' in ox) { ox.filter = `blur(${Math.round(w / 60)}px)`; ox.globalAlpha = 0.9; ox.drawImage(cv, 0, 0); ox.filter = 'none'; ox.globalAlpha = 1; }
+      ox.globalCompositeOperation = 'lighter'; ox.drawImage(cv, 0, 0);
+      return new Promise(res => out.toBlob(b => res(b ? global.URL.createObjectURL(b) : null), 'image/png'));
+    }).catch(() => null);
+    return glows[key];
+  }
+  // Puts a glow over every lit image in the shown area, in world pixels.
+  // Called after the scene draws, on resize and when the phase changes.
+  let glowRun = 0;
+  function syncGlow() {
+    const box = doc && doc.getElementById('sv-glow'), world = doc && doc.getElementById('sv-world');
+    if (!box || !world) return;
+    const run = ++glowRun;
+    const layer = world.querySelector('.sv-fg-layer:not(.sv-area-hidden)');
+    const wr = world.getBoundingClientRect(), k = world.offsetWidth ? wr.width / world.offsetWidth : 1;
+    const want = [];
+    if (layer) layer.querySelectorAll('.kwh-lit').forEach(lit => {
+      const btn = lit.closest('.kwh-btn');
+      if (btn) btn.classList.add('kwh-glows');
+      if (lit.closest('.kwh-dark')) return;
+      const day = lit.parentNode && lit.parentNode.querySelector('.kwh-day');
+      if (!day || day.src === lit.src) return;
+      const r = (lit.parentNode.getBoundingClientRect());
+      want.push({ lit: lit.src, day: day.src, x: (r.left - wr.left) / k, y: (r.top - wr.top) / k, w: r.width / k, h: r.height / k });
+    });
+    Promise.all(want.map(g => glowFor(g.lit, g.day))).then(urls => {
+      if (run !== glowRun) return;
+      box.innerHTML = want.map((g, i) => urls[i] ? `<img src="${urls[i]}" alt="" draggable="false" style="left:${g.x.toFixed(1)}px;top:${g.y.toFixed(1)}px;width:${g.w.toFixed(1)}px;height:${g.h.toFixed(1)}px">` : '').join('');
+    });
+  }
 
   global.KWHome = {
     ROUTES, PROPS, route, open, props, openProp, sceneState,
@@ -369,6 +433,7 @@
     artHtml, propSvg, hutSvg, plateHtml, label, ART_BASE, PH_SIZE,
     note, bubble, bubbleHtml, clearBubble, redraw,
     namesOn, setNames, applyNames, homeShown, townList, fillProfile, nightFilters, NIGHT_TINTS: TINTS,
+    syncGlow, glowFor, _glowPixels: glowPixels, GLOW_MIN,
     _setManifest: m => { manifest = m || {}; },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

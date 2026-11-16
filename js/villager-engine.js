@@ -915,7 +915,7 @@
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
     V().paint(v.el, s, frame, v.child ? 0.75 : 1, v.x, v.y);
-    v.el.style.zIndex = String(v.selected ? 1400 : depth(v.y));
+    v.el.style.zIndex = String(v.selected ? 1005 : depth(v.y));   // under the night overlay (1050)
     if (!v.hitSet) { v.hitSet = true; placeHit(v, s); }
   }
   // Every couple of seconds, maybe one pair stops for a chat.
@@ -954,7 +954,11 @@
     if (!v) return;
     v.classList.toggle('kwv-night', S.phase === 'night' || S.phase === 'dusk');
     v.setAttribute('data-phase', S.phase);
+    syncGlow();
   }
+  // The lit windows' glow sits over the world, so it follows the buildings
+  // here: when the scene starts, the area changes or the phase turns.
+  function syncGlow() { const H = global.KWHome; if (H && H.syncGlow) requestFrame(() => H.syncGlow()); }
 
   function clear() { closeMenu(); for (const v of S.vs.values()) v.el.remove(); S.vs.clear(); }
   function start() {
@@ -968,6 +972,7 @@
       requestFrame(() => {
         if (!S.shown || S.paused) return;
         if (!S.vs.size) recast(true); else survey();
+        syncGlow();
         if (V().reducedMotion()) { for (const v of S.vs.values()) draw(v, true); return; }   // standing still
         if (!S.raf) { S.last = 0; S.raf = requestFrame(tick); }
       });
