@@ -300,3 +300,15 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 #settlement-view .kwv-cit:hover .kwv-tag, #settlement-view .kwv-cit:focus-visible .kwv-tag { display: block; }
 #settlement-view .kwv-selected .kwv-tag { display: none !important; }
 #settlement-view[data-phase="night"] .kwv-tag { filter: none; }
+
+/* A villager with a moment waiting (HOME_SCENE.md §3.7): a bobbing "!" over
+   their head. */
+#settlement-view .kwv-mark {
+  position: absolute; transform: translate(-50%, -100%); pointer-events: none;
+  min-width: 22px; height: 24px; padding: 0 6px; border-radius: 12px; text-align: center;
+  background: #ffd25a; color: #4a2a08; border: 2px solid #8a5214; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 10px rgba(255, 210, 90, 0.7);
+  font: 900 16px/20px system-ui, sans-serif; animation: kwv-mark-bob 1.2s ease-in-out infinite;
+}
+@keyframes kwv-mark-bob { 0%, 100% { transform: translate(-50%, -100%); } 50% { transform: translate(-50%, calc(-100% - 5px)); } }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwv-mark { animation: none; } }
+#settlement-view[data-phase="night"] .kwv-mark { filter: none; }

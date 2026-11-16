@@ -243,7 +243,7 @@
     if (!S.layer) return;
     const lr = S.layer.getBoundingClientRect();
     const sx = lr.width / (S.layer.clientWidth || 1), sy = lr.height / (S.layer.clientHeight || 1);   // parallax never scales; guard anyway
-    S.doors = []; S.exits = [];
+    S.doors = []; S.exits = []; S.blocks = [];
     S.layer.querySelectorAll(':scope > .sv-slot').forEach(slot => {
       if (slot.hidden) return;
       const btn = slot.querySelector('[data-kwh]');
@@ -255,6 +255,7 @@
       const foot = rect.top + rect.height;
       if (!slot.classList.contains('sv-dragging')) slot.style.zIndex = String(depth(foot));
       if (!btn) return;
+      S.blocks.push({ l: rect.left, r: rect.left + rect.width, t: rect.top, b: foot });   // what stands here (for a clear spot)
       const key = btn.getAttribute('data-kwh');
       const art = artEl && artEl.classList.contains('kwh-art') && global.KWHome ? global.KWHome.art(key) : artEl && artEl.classList.contains('kwh-hut') ? { hut: true } : null;
       const d = doorPoint(rect, art);
@@ -442,6 +443,7 @@
       if (first && door && !v.child && S.rand() < (S.phase === 'night' ? 0.85 : 0.2)) { v.x = door.x; v.y = door.y; goIndoors(v, now, door.key); v.until = now + S.rand() * INDOORS_MS[1]; }
     }
     S.sig = signature(all);
+    markMoments();
   }
   function signature(all) {
     return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '')).join(',') + '|' + momentIds().join(',');
@@ -503,6 +505,13 @@
 
   function select(v, byKeyboard) {
     if (v.state === 'gone' || v.state === 'indoors') return;
+    // Someone with a moment waiting opens it in the dialogue box instead (§3.7).
+    if (v.moment && global.KWMoments && global.KWMoments.open) {
+      if (M.v) deselect(true, true);
+      sound('on');
+      global.KWMoments.open(v.moment.id);
+      return;
+    }
     // Someone walking into a building can still be picked: they stop.
     if (v.state === 'leave') v.state = 'idle';
     if (M.v && M.v !== v) deselect(true, true);
@@ -638,13 +647,18 @@
     hit.style.height = Math.round(h * k) + 'px';
     const tag = v.el.querySelector('.kwv-tag');
     if (tag) { tag.style.left = Math.round(sp.foot.x * k) + 'px'; tag.style.top = Math.round((sp.foot.y + 5) * k) + 'px'; }
+    const mark = v.el.querySelector('.kwv-mark');
+    if (mark) { mark.style.left = Math.round(sp.foot.x * k) + 'px'; mark.style.top = Math.round((sp.foot.y - 66) * k) + 'px'; }
   }
   const coarse = () => !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
   // The villager under a point, even one standing just behind a building's
   // transparent edge (its image box would otherwise take the press).
   function villagerAt(x, y) {
     if (!S.shown || S.paused || !doc.elementsFromPoint) return null;
-    for (const el of doc.elementsFromPoint(x, y)) {
+    const all = doc.elementsFromPoint(x, y);
+    // Only a press on the scene itself: never through a window, panel or card over it.
+    if (!all.length || !all[0].closest || !all[0].closest('#sv-scene')) return null;
+    for (const el of all) {
       if (el.classList && el.classList.contains('kwv-radial')) return null;
       if (el.classList && el.classList.contains('kwv-hit')) { const b = el.closest('.kwv-cit'); const v = b && S.vs.get(Number(b.getAttribute('data-cid'))); if (v && v.state !== 'gone' && v.state !== 'indoors') return v; }
     }
@@ -689,6 +703,92 @@
     }, true);
   }
 
+  // ── Moment markers (§3.7, step 9) ───────────────────────────────────────
+  // Each open moment is carried by one villager in the scene: its first
+  // citizen who is out, or, for a town-wide question (the season's choices,
+  // which name nobody), a messenger: an elder if one is out, else the oldest
+  // grown-up. They come outdoors, walk to a clear spot near the middle of the
+  // view and stand facing the camera with a bobbing "!". Clicking them opens
+  // the moment. Moments about an outpost, a village's envoy or a settler on
+  // the road have nobody in town: they stay in the moment cards only.
+  const momentList = () => { try { return global.KWMoments ? global.KWMoments.list() : []; } catch (_) { return []; } };
+  // → Map(villagerId → moment). Pure: `cast` is [{ id, child, elder, age, out }].
+  function assignMoments(moments, cast) {
+    const out = new Map();
+    const avail = cast.filter(c => c.out);
+    const free = id => !out.has(id);
+    const messenger = () => {
+      const grown = avail.filter(c => !c.child && free(c.id));
+      grown.sort((a, b) => (b.elder - a.elder) || ((Number(b.age) || 0) - (Number(a.age) || 0)) || (a.id - b.id));
+      return grown[0] || null;
+    };
+    for (const m of moments || []) {
+      const subj = (m && m.subject) || {};
+      const ids = (subj.citizen_ids || []).map(Number);
+      let who = null;
+      if (ids.length) for (const id of ids) { const c = avail.find(x => x.id === id && free(x.id)); if (c) { who = c; break; } }   // the moment's own order: its main person first
+      else if (m.source === 'year') who = messenger();
+      if (who) out.set(who.id, m);
+    }
+    return out;
+  }
+  function markMoments() {
+    const cast = [...S.vs.values()].filter(v => v.state !== 'gone' && v.state !== 'leave').map(v => ({ id: v.id, child: v.child, elder: v.elder, age: v.c.age, out: true }));
+    const marks = assignMoments(momentList(), cast);
+    for (const v of S.vs.values()) {
+      const m = marks.get(v.id) || null;
+      if ((m && m.id) === (v.moment && v.moment.id)) continue;
+      v.moment = m; v.mSpot = null;
+      let el = v.el.querySelector('.kwv-mark');
+      if (m) {
+        if (!el) { el = doc.createElement('span'); el.className = 'kwv-mark'; el.setAttribute('aria-hidden', 'true'); el.textContent = '!'; v.el.appendChild(el); }
+        placeHit(v);
+        v.el.setAttribute('aria-label', (v.c.name || 'A villager') + ' has something to ask: ' + (m.title || 'a moment') + '. Open');
+        endChat(v, performanceNow());
+      } else {
+        if (el) el.remove();
+        v.el.setAttribute('aria-label', nameLine(v.c) + '. Show choices');
+        if (v.state === 'tomoment' || v.state === 'waiting') idle(v, performanceNow(), 500 + S.rand() * 1000);
+      }
+    }
+  }
+  // A clear spot near the middle of what the player is looking at: on the
+  // lane between the rows where no building stands in front of it, else on
+  // the open meadow along the front. Others waiting keep 60 px away.
+  function momentSpot(v) {
+    const sc = doc.getElementById('sv-scene');
+    const lr = S.layer.getBoundingClientRect(), sx = lr.width / (S.layer.clientWidth || 1);
+    const sr = sc ? sc.getBoundingClientRect() : lr;
+    const cx = (sr.left + sr.width / 2 - lr.left) / sx;
+    const taken = [...S.vs.values()].filter(o => o !== v && o.moment && o.mSpot).map(o => o.mSpot);
+    return clearSpot(cx, { w: W(), h: H(), blocks: S.blocks || [], taken, lane: 0.74, front: 0.965 });
+  }
+  // The nearest x to `cx` where a villager (48 × 64 px) on the lane is not
+  // behind a building that stands in front of it (its foot lower down), and
+  // not within 60 px of someone already waiting; else the front. Pure.
+  function clearSpot(cx, { w, h, blocks, taken = [], lane = 0.74, front = 0.965, step = 36, reach = 900 }) {
+    const free = (x, y) => !taken.some(t => Math.abs(t.x - x) < 60 && Math.abs(t.y - y) < 30);
+    const hidden = (x, y) => blocks.some(b => b.b > y && x + 24 > b.l && x - 24 < b.r && y - 64 < b.b && y > b.t);
+    for (const y of [lane * h, front * h]) {
+      for (let k = 0; k <= reach / step; k++) {
+        for (const x of k ? [cx + k * step, cx - k * step] : [cx]) {
+          if (x < w * 0.03 || x > w * 0.97) continue;
+          if (!hidden(x, y) && free(x, y)) return { x, y };
+        }
+      }
+    }
+    return { x: Math.max(w * 0.03, Math.min(w * 0.97, cx)), y: front * h };
+  }
+  function stepMoment(v, dt, now) {
+    if (v.state === 'indoors') comeOut(v, now);
+    if (!v.mSpot) { v.mSpot = momentSpot(v); v.tx = v.mSpot.x; v.ty = v.mSpot.y; v.state = 'tomoment'; }
+    if (v.state === 'waiting') return;
+    const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy), stepPx = v.speed * 1.15 * dt / 1000;
+    if (dist <= stepPx) { v.x = v.tx; v.y = v.ty; v.state = 'waiting'; v.dir = 's'; return; }
+    v.x += dx / dist * stepPx; v.y += dy / dist * stepPx;
+    v.dir = V().dirFromVector(dx, dy);
+  }
+
   // ── The loop ────────────────────────────────────────────────────────────
   function step(v, dt, now) {
     if (v.state === 'gone') return;
@@ -696,6 +796,7 @@
     // Selected: stands facing the camera until the menu closes. Held: a window
     // opened from the menu is still up; they walk on once it closes.
     if (v.selected || v.pressed) return;   // a finger or button is on them: they wait
+    if (v.moment && !v.held && v.state !== 'leave') { stepMoment(v, dt, now); return; }
     if (v.held) {
       // Held by the window the button opened: found once it appears, released
       // when it closes (or after 3 s if nothing opened; never past 10 minutes).
@@ -759,7 +860,7 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'follow', 'ahead', 'chase'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
@@ -788,6 +889,7 @@
     }
     if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night') rotate(); }
     if ((S.chatT += dt) > 2000) { S.chatT = 0; maybeChat(now); }
+    if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
     for (const v of S.vs.values()) { step(v, dt, now); draw(v, false); }
@@ -849,7 +951,8 @@
     _villagerAt: (x, y) => { const v = villagerAt(x, y); return v ? v.id : null; },
     _rotate: () => rotate(),   // tests: send one walking in now
     deselect: () => deselect(true),
-    SOUND, _nameLine: nameLine, _menuItems: menuItems, _arc: arc,
+    SOUND, _nameLine: nameLine, _menuItems: menuItems, _arc: arc, _assignMoments: assignMoments, _clearSpot: clearSpot,
+    get marked() { return [...S.vs.values()].filter(v => v.moment).map(v => ({ id: v.id, moment: v.moment.id, state: v.state })); },
     GROUND, SPOTS, CAP, ROLE_BUILDING, SPEED, CHAT_RANGE, CHAT_COOLDOWN, INDOORS_MS, NIGHT_OUT,
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
