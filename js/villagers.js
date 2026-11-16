@@ -2,10 +2,10 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  KWVillagers — pixel villagers in the Home scene (docs/HOME_SCENE.md §3).
 //
-//  Step 2 of the build order: the style test. One mouse walks a loop through
-//  all eight directions in the real scene, and stands idle after each lap,
-//  so the owner can judge pixel villagers against the backdrop. Nothing else
-//  yet: no cast, no errands, no clicks (steps 5–7).
+//  Sheets, drawing and the style test (build step 2). One mouse walks a loop
+//  through all eight directions in the real scene, and stands idle after
+//  each lap, so the owner can judge pixel villagers against the backdrop.
+//  The town's real villagers are js/villager-engine.js (step 5 on).
 //
 //  Turn it on with ?villagers=test in the address (remembered on this device;
 //  ?villagers=off turns it off), or KWVillagers.styleTest(true) in the console.
@@ -163,7 +163,8 @@
     const s = document.createElement('style');
     s.id = 'kwv-styles';
     s.textContent = `
-.kwv-villager { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; will-change: transform; }
+.kwv-villager { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; will-change: transform; transition: opacity 0.3s ease; }
+.kwv-villager.kwv-gone { opacity: 0; }
 .kwv-sprite { image-rendering: pixelated; image-rendering: crisp-edges; background-repeat: no-repeat; }
 .kwv-sprite.kwv-flip { transform: scaleX(-1); }
 .kwv-test-panel { position: absolute; left: 12px; bottom: 12px; z-index: 80; display: flex; gap: 6px; align-items: center;
@@ -257,6 +258,7 @@
     if (!s) return;
     const frame = reducedMotion() ? 0 : Math.floor(T.t / s.ms) % s.frames;
     paint(T.el, s, frame, T.scale, pos.x, pos.y);
+    T.el.style.zIndex = '1001';   // the test figure stays in front (depth is 1–1000)
     const label = T.panel && T.panel.querySelector('.kwv-test-dir');
     if (label) label.textContent = (idle ? 'idle, facing ' : 'walking ') + dir.toUpperCase() + (_meta.placeholder ? ' · placeholder art' : '');
   }
@@ -304,9 +306,11 @@
     return T.on;
   }
 
-  function sceneShown(layerEl) { T.layer = layerEl || T.layer; T.shown = true; sync(); }
-  function sceneHidden() { T.shown = false; sync(); }
-  function setPaused(p) { T.paused = !!p; sync(); }
+  // The scene's hooks also drive the town's real villagers (js/villager-engine.js).
+  const cast = () => window.KWCast;
+  function sceneShown(layerEl) { T.layer = layerEl || T.layer; T.shown = true; sync(); if (cast()) cast().sceneShown(T.layer); }
+  function sceneHidden() { T.shown = false; sync(); if (cast()) cast().sceneHidden(); }
+  function setPaused(p) { T.paused = !!p; sync(); if (cast()) cast().setPaused(T.paused); }
 
   document.addEventListener('visibilitychange', sync);
   window.addEventListener('resize', () => { if (running()) draw(); });
@@ -315,6 +319,8 @@
   window.KWVillagers = {
     load, styleTest, sceneShown, sceneHidden, setPaused,
     get meta() { return _meta; },
+    // For the engine: drawing and sheets.
+    spriteFor, paint, makeFigure, injectStyles, dirFromVector, SPEED, reducedMotion,
     _dirFromVector: dirFromVector, _spriteFor: spriteFor, _loopPath: loopPath, _along: along, _flagFrom: flagFrom,
     _speciesKey: speciesKey, DIRS,
   };

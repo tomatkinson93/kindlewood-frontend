@@ -93,7 +93,7 @@
 #settlement-view .sv-scene.sv-build-mode .sv-slot.sv-drop-target .kwh-btn {
   filter: drop-shadow(0 0 12px rgba(120, 220, 140, 0.9));
 }
-#settlement-view .sv-scene.sv-build-mode .sv-slot.sv-dragging { z-index: 999; cursor: grabbing; }
+#settlement-view .sv-scene.sv-build-mode .sv-slot.sv-dragging { z-index: 2000; cursor: grabbing; }
 #settlement-view .sv-scene.sv-build-mode .sv-slot:not([data-slot="town-neighbourhood"]) .sv-building.kwh-btn { cursor: grab; }
 /* The Build chip while Build mode is on. */
 .kwp-tool.on { background: rgba(90, 160, 100, 0.35); border-color: rgba(150, 220, 160, 0.7); color: #e6ffe9; }
@@ -104,3 +104,8 @@
   padding: 6px 14px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
   color: rgba(220, 190, 130, 0.6);
 }
+
+/* A building under the pointer or focus rises above the villagers, so its
+   nameplate is never hidden behind someone walking in front. */
+#settlement-view .sv-fg-layer > .sv-slot:hover,
+#settlement-view .sv-fg-layer > .sv-slot:focus-within { z-index: 1500 !important; }
