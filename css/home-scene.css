@@ -809,3 +809,26 @@ body.kw-shell #settlement-view .kwv-follow { top: 58px; }
 #settlement-view .kwv-asks .kwv-say { animation: kwcr-ring 2.4s ease-in-out infinite; transform-origin: 0 0; font-size: 14px; }
 @keyframes kwcr-ring { 0%, 70%, 100% { transform: translate(-50%, -100%) rotate(0deg); } 76% { transform: translate(-50%, -100%) rotate(-12deg); } 84% { transform: translate(-50%, -100%) rotate(10deg); } 92% { transform: translate(-50%, -100%) rotate(-6deg); } }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwv-asks .kwv-say { animation: none; } }
+
+/* ── Photo mode (js/photo.js; docs/HOME_SCENE.md F.10). ──────────────────── */
+/* The interface over the scene steps aside; the camera chip stays so there
+   is always a way out besides the bar's Done and Esc. */
+body.kw-photo #kw-moments, body.kw-photo #kw-town-card, body.kw-photo #settlement-view .sv-header,
+body.kw-photo #settlement-view .kwh-plate, body.kw-photo #settlement-view .kwh-bubble-host, body.kw-photo #settlement-view .kwv-tag,
+body.kw-photo #settlement-view .kwv-mark, body.kw-photo #settlement-view .kwv-say, body.kw-photo #settlement-view .kwv-radial, body.kw-photo #kwv-follow,
+body.kw-photo #settlement-view .kwl-thing, body.kw-photo #settlement-view .kwu-needs, body.kw-photo #settlement-view .kwv-float { display: none !important; }
+body.kw-photo #kw-place-tools > :not([data-tool="photo"]) { display: none !important; }
+body.kw-photo #settlement-view .sv-slot, body.kw-photo #settlement-view .kwv-villager { pointer-events: none; }   /* nothing opens while framing a picture; the view still pans */
+#settlement-view .kwph-bar { position: absolute; left: 50%; bottom: calc(12px + var(--kwph-under, 0px)); transform: translateX(-50%); z-index: 30; max-width: calc(100% - 24px - 2 * var(--kwph-side, 0px));
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 14px; padding: 8px 12px; border-radius: 14px;
+  background: rgba(36, 26, 16, 0.94); border: 1px solid #6b5536; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #f3e6c8; }
+#settlement-view .kwph-group { display: flex; align-items: center; gap: 4px; }
+#settlement-view .kwph-group > span { font-family: 'Cinzel', serif; font-size: 11.5px; letter-spacing: 0.06em; color: #d9b972; margin-right: 4px; }
+#settlement-view .kwph-bar button { min-height: 36px; min-width: 44px; padding: 0 10px; border-radius: 9px; border: 1px solid #5a4630; background: #3a2b1b; color: inherit; font: inherit; font-size: 12.5px; cursor: pointer; }
+#settlement-view .kwph-bar button:hover { background: #4a3824; }
+#settlement-view .kwph-bar button[aria-pressed="true"] { border-color: #ffe08a; background: #5a4424; box-shadow: 0 0 0 2px rgba(255, 224, 138, 0.3); }
+#settlement-view .kwph-bar .kwph-save { border-color: #b8923f; background: #6a4f1e; font-weight: 600; }
+#settlement-view .kwph-bar .kwph-save:hover { background: #7d5e24; }
+#settlement-view .kwph-bar button:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 700px) { #settlement-view .kwph-bar { left: calc(8px + var(--kwph-side, 0px)); right: calc(8px + var(--kwph-side, 0px)); transform: none; max-width: none; bottom: calc(8px + var(--kwph-under, 0px)); gap: 6px 8px; padding: 6px 8px; }
+  #settlement-view .kwph-group > span { display: none; } #settlement-view .kwph-bar button { padding: 0 7px; font-size: 12px; } }
