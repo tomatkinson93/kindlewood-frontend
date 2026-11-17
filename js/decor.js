@@ -211,6 +211,10 @@
       }).join('') + `</div>`
       + `<div class="kwd-pal-foot" role="status">${S.placing ? `Tap the ground to place it. Tap ${esc((S.data.kinds.find(k => k.key === S.placing) || {}).label || 'it')} again, or press Esc, to stop.` : esc(c ? c.line : '')}</div>`;
     if (bar.innerHTML !== html) bar.innerHTML = html;
+    // A build panel (a plot's choices, a building's panel) uses the same strip of the screen: the bar steps aside for it.
+    const panel = v.querySelector('#sv-build-panel.open');
+    bar.hidden = !!panel;
+    if (panel && S.placing) { S.placing = null; v.classList.remove('kwd-placing'); }
     // The view is a little bigger than the window on some screens: keep the bar inside what shows.
     const r = v.getBoundingClientRect(), under = Math.max(0, Math.round(r.bottom - global.innerHeight)), side = Math.max(0, Math.round(-r.left));
     bar.style.setProperty('--kwd-under', under + 'px'); bar.style.setProperty('--kwd-side', side + 'px');

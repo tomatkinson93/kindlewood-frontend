@@ -50,6 +50,7 @@ console.log('3. Build mode');
   check('3i. Esc stops placing and drops the pick', /e\.key === 'Escape' && \(S\.placing \|\| S\.picked != null\) && building\(\)/.test(J));
   check('3j. the bar stays inside the window where the view is bigger than it', /--kwd-under/.test(J) && /bottom: calc\(12px \+ var\(--kwd-under, 0px\)\)/.test(CSS));
   check('3k. buttons are big enough for a finger', /\.kwd-pal-btn \{[^}]*min-width: 78px; min-height: 64px/.test(CSS) && /\.kwd-pop button \{ min-height: 32px/.test(CSS));
+  check('3l. the bar steps aside while a build panel is open (they share the bottom of the screen)', /bar\.hidden = !!panel;/.test(J) && /\.kwd-palette\[hidden\] \{ display: none; \}/.test(CSS));
 }
 
 console.log('4. Charm');

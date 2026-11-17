@@ -1280,7 +1280,9 @@ function _svToggleBuildMode(on) {
     _svDetachDragHandlers();
     document.removeEventListener('keydown', _svBuildKey);
   }
-  document.body.classList.toggle('sv-building', _svBuildMode);   // phones: the moment cards step aside (css/mobile-shell.css)
+  // Phones: the moment cards step aside (css/mobile-shell.css). Not 'sv-building': that is every building button's own
+  // class, and its hover (grow 6%, lift 5px) then applied to the whole page whenever Build mode was on.
+  document.body.classList.toggle('sv-build-on', _svBuildMode);
   if (window.KWVillagers) KWVillagers.setPaused(_svBuildMode);   // villagers hide while building
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();   // the chip reads Build / Done
   _renderScene();

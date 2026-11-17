@@ -861,7 +861,7 @@ console.log('24. The Neighbourhood scene');
   check('24m. each area has its own width; the pan, the track and the far strips follow the area showing',
     /var SV_AREA_W = \{ town: SV_WORLD_W, outskirts: SV_WORLD_W, neighbourhood: SV_WORLD_W \};/.test(S) && /world\.style\.width = _svWorldW\(\) \+ 'px';/.test(S) && /typeof where === 'number'/.test(S));
   check('24n. on phones the moment cards step aside in Build mode (they covered the build panel and took its taps)',
-    /classList\.toggle\('sv-building', _svBuildMode\)/.test(S) && /body\.kw-shell\.sv-building #kw-moments \{ display: none; \}/.test(read('css/mobile-shell.css'))
+    /classList\.toggle\('sv-build-on', _svBuildMode\)/.test(S) && !/body\.classList\.toggle\('sv-building'/.test(S) && /body\.kw-shell\.sv-build-on #kw-moments \{ display: none; \}/.test(read('css/mobile-shell.css'))
     && /body\.kw-shell #settlement-view \.sv-build-panel \{ position: fixed; \}/.test(read('css/mobile-shell.css')));
 }
 

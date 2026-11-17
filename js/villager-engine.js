@@ -2037,6 +2037,8 @@
     playTalk, playPraise, TALK_MS,
     // A small sign rising from a point in the scene (js/lost.js).
     floatAt: (x, y, text, tone) => floater(x, y, text, tone),
+    // Someone the guide is pointing at stands still a moment, so they are easy to press (js/guide.js).
+    pause: (id, ms = 4000) => { const v = S.vs.get(Number(id)); if (!v || v.act || v.partner != null || !(v.state === 'walk' || v.state === 'idle')) return false; idle(v, performanceNow(), ms); return true; },
     // One free villager plays a script (js/decor.js: the lamplighter; js/crier.js).
     playScript, stopScript, scriptOn: id => !!scripted(id), scriptSay: (id, text) => { const v = scripted(id); if (v) setSay(v, text); return !!v; },
     // Builders (js/construction.js): where they are and what they do.

@@ -24,6 +24,11 @@
 
   function cardHtml(d) {
     if (!d || d.dismissed || d.done >= d.total) return '';
+    // While the guide's tour runs, its own chip says what to do; afterwards
+    // this list is the guide's "what next?" (docs/PHASE_3_ONBOARDING.md §6).
+    const G = global.KWGuide, gs = G ? G.state : null;
+    if (gs === 'active') return '';
+    const title = (gs === 'done' || gs === 'skipped') && G.view && G.view.elder ? `${esc(G.view.elder.name)}: what next?` : 'First steps';
     // Collapsed to its "Next:" line unless the player opened it (it is its own
     // chip on Home now, and must not make the town card tall).
     const open = ls(OPEN_KEY) === '1';
@@ -34,7 +39,7 @@
         ${s.done ? '<span class="fs-sr">Done</span>' : `<button type="button" class="fs-show" data-fs-show="${esc(s.show)}">Show me</button>`}
       </li>`).join('');
     return `<details class="fs-card"${open ? ' open' : ''} ontoggle="KWFirstSteps.toggled(this)">
-      <summary><span class="fs-title">🌱 First steps</span><span class="fs-count">${d.done}/${d.total}</span>
+      <summary><span class="fs-title">🌱 ${title}</span><span class="fs-count">${d.done}/${d.total}</span>
         <span class="fs-bar" role="progressbar" aria-label="First steps done" aria-valuemin="0" aria-valuemax="${d.total}" aria-valuenow="${d.done}"><span style="width:${Math.round(d.done / d.total * 100)}%"></span></span></summary>
       ${next ? `<div class="fs-next">Next: ${esc(next.icon)} ${esc(next.title)}</div>` : ''}
       <ol class="fs-list">${rows}</ol>

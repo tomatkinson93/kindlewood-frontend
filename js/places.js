@@ -36,6 +36,11 @@
     { key: 'clan',     label: 'The Clan', icon: 'clan' },
   ];
   const KEYS = PLACES.map(p => p.key);
+  // A town founded with the guide's tour sees The Road once it has a Tavern
+  // and The Clan once it has a Guild Hall (js/guide.js says which are open);
+  // every other town sees all five.
+  let _locked = {};
+  const locked = key => !!_locked[key];
 
   // What each place holds. `needs` hides an entry until it exists (a function
   // the page defines) or is unlocked (a building: _hasBuilding).
@@ -121,7 +126,7 @@
 
   // ── Rendering ───────────────────────────────────────────────────────────
   function barHtml() {
-    return PLACES.map((p, i) => `<button type="button" class="kwp-place" data-place="${p.key}" aria-keyshortcuts="${i + 1}" title="${esc(p.label)} (${i + 1})">`
+    return PLACES.map((p, i) => locked(p.key) ? '' : `<button type="button" class="kwp-place" data-place="${p.key}" aria-keyshortcuts="${i + 1}" title="${esc(p.label)} (${i + 1})">`
       + `${icon(p.icon)}<span class="kwp-label">${esc(p.label)}</span><span class="kwp-dot" aria-hidden="true"></span></button>`).join('');
   }
   function toolsHtml(key) {
@@ -261,8 +266,16 @@
       onClose: () => { mark(); setHash(_current, true); },
     });
   }
+  // Which places are not yet open to this town (js/guide.js). The bar is redrawn; a place being looked at stays.
+  function setLocked(map) {
+    const next = {}; for (const k of ['road', 'clan']) if (map && map[k]) next[k] = true;
+    if (JSON.stringify(next) === JSON.stringify(_locked)) return;
+    _locked = next;
+    const nav = doc.getElementById('kw-places');
+    if (nav) { nav.innerHTML = barHtml(); mark(); if (typeof syncDots === 'function') syncDots(); }
+  }
   function go(key, opts = {}) {
-    if (!KEYS.includes(key)) return;
+    if (!KEYS.includes(key) || locked(key)) return;
     const W = global.KWWindow;
     // Leaving a window place: close it first.
     ['place-road', 'place-clan'].forEach(id => { if (W && W.isOpen(id) && id !== 'place-' + key) W.close(id); });
@@ -384,5 +397,5 @@
     const tools = doc.getElementById('kw-place-tools');
     if (tools) tools.innerHTML = toolsHtml(_current);
   }
-  global.KWPlaces = { go, start, seen, reset, refreshTools, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
+  global.KWPlaces = { go, start, seen, reset, refreshTools, setLocked, locked, _started: () => _started, current: () => _current, shown: shownPlace, syncDots, PLACES, TOOLS, HUBS, _toolsHtml: toolsHtml, _barHtml: barHtml };
 })(typeof window !== 'undefined' ? window : globalThis);
