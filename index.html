@@ -124,7 +124,7 @@
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
   <link rel="stylesheet" href="/css/tokens.css?v=h5aa3c0f1">
-  <link rel="stylesheet" href="/css/main.css?v=hde47abb7">
+  <link rel="stylesheet" href="/css/main.css?v=h34349f23">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=h440c5c14">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=h94c765de">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=h603e58c0">
@@ -408,6 +408,8 @@
         </div>
       </div>
       <hr class="divider-line">
+      <label class="keep-in"><input type="checkbox" id="reg-keep" checked> Keep me signed in</label>
+      <div class="keep-hint">On a shared computer, untick this.</div>
       <button type="submit" class="btn-primary"><svg class="kw-sprig" viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M12 21 V4 M12 12 C9 12 7 10 6.5 7 M12 12 C15 12 17 10 17.5 7 M12 16.5 C10.2 16.5 8.7 15 8.2 13 M12 16.5 C13.8 16.5 15.3 15 15.8 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Begin Your Story</button>
       <div class="auth-switch">Already have a realm? <a onclick="showScreen('login')">Sign in here</a></div>
     </form>
@@ -444,6 +446,8 @@
           </button>
         </div>
       </div>
+      <label class="keep-in"><input type="checkbox" id="login-keep" checked> Keep me signed in</label>
+      <div class="keep-hint">On a shared computer, untick this: you are signed out when the browser closes, or after 15 minutes away.</div>
       <div class="forgot"><a href="#">Forgot password?</a></div>
       <button type="submit" class="btn-primary"><svg class="kw-sprig" viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden="true"><path d="M12 21 V4 M12 12 C9 12 7 10 6.5 7 M12 12 C15 12 17 10 17.5 7 M12 16.5 C10.2 16.5 8.7 15 8.2 13 M12 16.5 C13.8 16.5 15.3 15 15.8 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Enter the Woodland</button>
       <hr class="divider-line">
@@ -591,6 +595,14 @@
   // loadGame takes over from there (window.__kwLoadingOwned).
   (function () {
     var t = null;
+    // A sign-in without "Keep me signed in" (a shared computer) has ended if
+    // the browser was closed, or the page was closed for 15 minutes (js/session.js).
+    try {
+      if (localStorage.getItem('kw_session_only') === '1') {
+        var alive = document.cookie.indexOf('kw_alive=1') >= 0, seen = +localStorage.getItem('kw_session_seen') || 0;
+        if (!alive || !seen || Date.now() - seen > 15 * 60 * 1000) { localStorage.removeItem('kw_token'); localStorage.removeItem('kw_session_only'); localStorage.removeItem('kw_session_seen'); }
+      }
+    } catch (e) { /* private mode */ }
     try { t = localStorage.getItem('kw_token'); } catch (e) { /* private mode */ }
     if (!t || !window.KWLoad) return;
     var el = document.getElementById('loading-screen');
@@ -1012,7 +1024,8 @@
   <script defer src="/js/audio.js?v=h4da51adf"></script>
   <script defer src="/js/music.js?v=h8f50862f"></script>
   <script defer src="/js/settings-panel.js?v=h2c85832b"></script>
-  <script defer src="/js/main.js?v=hd755312c"></script>
+  <script defer src="/js/session.js?v=h74e5d482"></script>
+  <script defer src="/js/main.js?v=h9615e450"></script>
   <script defer src="/js/away-report.js?v=h3e412267"></script>
   <script defer src="/js/welcome-music-guard.js?v=h7ca91d4e"></script>
   <script defer src="/js/online.js?v=hfc9fb757"></script>

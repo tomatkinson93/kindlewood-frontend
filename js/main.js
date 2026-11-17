@@ -297,7 +297,7 @@ async function submitRegister() {
     const res = await apiFetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, remember: _keepSignedIn('reg-keep') }),
     });
 
     const data = await res.json();
@@ -308,6 +308,7 @@ async function submitRegister() {
     }
 
     if (data.token) setStoredToken(data.token);
+    if (window.KWSession) KWSession.remember(_keepSignedIn('reg-keep'));
 
     showMsg('reg-success', `Welcome, ${username}! Your realm awaits...`);
     setTimeout(() => loadGame(true), 700);
@@ -316,6 +317,9 @@ async function submitRegister() {
     showMsg('reg-error', 'Could not reach the server. Please try again.');
   }
 }
+
+// The "Keep me signed in" tick box (js/session.js); ticked when it isn't there.
+function _keepSignedIn(id) { const b = document.getElementById(id); return !b || b.checked; }
 
 async function submitLogin() {
   const email = document.getElementById('login-email').value.trim();
@@ -333,7 +337,7 @@ async function submitLogin() {
     const res = await apiFetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, remember: _keepSignedIn('login-keep') }),
     });
 
     const data = await res.json();
@@ -344,6 +348,7 @@ async function submitLogin() {
     }
 
     if (data.token) setStoredToken(data.token);
+    if (window.KWSession) KWSession.remember(_keepSignedIn('login-keep'));
 
     showMsg('login-success', `Welcome back, ${data.username}. Loading your realm...`);
     setTimeout(() => loadGame(true), 500);
@@ -361,6 +366,7 @@ async function logout() {
   }
 
   clearStoredToken();
+  if (window.KWSession) KWSession.forget();
   stopResourceTick();
   if (window.KWPlaces) KWPlaces.reset();   // the Home scene, windows and cards (js/places.js)
   gameData = null;
