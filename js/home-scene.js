@@ -178,7 +178,10 @@
     if (!e || !e.file) return null;
     const w = Number(e.w) || 0, h = Number(e.h) || 0;
     const door = Array.isArray(e.door) && e.door.length === 2 ? { x: Number(e.door[0]), y: Number(e.door[1]) } : { x: w / 2, y: h };
-    return { url: ART_BASE + e.file, lit: e.lit ? ART_BASE + e.lit : null, w, h, door, native: e.native !== false, smooth: e.smooth !== false };
+    // Where its smoke, forge fire and sawdust come from (js/home-ambient.js), in the picture's own pixels.
+    const pt = v => (Array.isArray(v) && v.length === 2 ? [Number(v[0]), Number(v[1])] : null);
+    return { url: ART_BASE + e.file, lit: e.lit ? ART_BASE + e.lit : null, w, h, door, native: e.native !== false, smooth: e.smooth !== false,
+      smoke: (Array.isArray(e.smoke) ? e.smoke : []).map(pt).filter(Boolean), fire: pt(e.fire), dust: pt(e.dust) };
   }
   // The door in the image's own pixels; the bottom centre when unknown.
   const door = (key, m = manifest) => { const a = art(key, m); return a ? a.door : null; };

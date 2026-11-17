@@ -549,6 +549,10 @@
     const town = S.mood || {};
     const gather = town.hungry && town.hungry !== 'ok' && S.rand() < 0.3 ? doorOf('granary') : v.c.house_id == null && !v.child && S.rand() < 0.5 ? doorOf('neighbourhood') : null;
     if (gather) { walkTo(v, spreadPoint({ x: gather.x + (S.rand() - 0.5) * 90, y: gather.y + 14 + S.rand() * 22 }, othersOf(v), { ok: onMeadow }), null); return; }
+    // Working buildings (Part F.7): around midday the Market draws a few more
+    // people to stand at its stalls.
+    const mk = S.phase === 'day' && !v.child ? doorOf('market') : null, hr = mk ? gameClock().hour : 0;
+    if (mk && hr >= 12.5 && hr < 15 && S.rand() < 0.28) { walkTo(v, spreadPoint({ x: mk.x + (S.rand() - 0.5) * 150, y: mk.y + 12 + S.rand() * 20 }, othersOf(v), { ok: onMeadow }), null); return; }
     // Upkeep (Part E.6): a builder with nothing to build walks a round of the
     // buildings and taps at each.
     if (isBuilder(v.c) && global.KWUpkeep && global.KWUpkeep.on && S.doors.length && S.phase !== 'night' && S.rand() < 0.6) {

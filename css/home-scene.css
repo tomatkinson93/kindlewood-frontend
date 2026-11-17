@@ -642,3 +642,38 @@ body.kw-shell #settlement-view .kwv-follow { top: 58px; }
 .kwu-chip.kwu-chip-short { border-color: #d98a4a; color: #ffd9a8; }
 #kwu-slot:empty, .kwc-upkeep:empty { display: none; }
 .kwc-upkeep { margin: var(--kw-s-2, 8px) 0; }
+
+/* ── Small life and working buildings (js/home-ambient.js; Part F.6, F.7) ── */
+#settlement-view .kwa { position: absolute; pointer-events: none; will-change: transform, opacity; }
+/* Chimney smoke: a soft puff that rises, drifts and fades (under the night
+   shade, so it darkens with the evening). */
+#settlement-view .kwa-smoke { width: 16px; height: 13px; margin: -7px 0 0 -8px; border-radius: 50%; background: radial-gradient(closest-side, rgba(244, 240, 232, 0.95), rgba(244, 240, 232, 0.55) 60%, rgba(244, 240, 232, 0)); animation: kwa-smoke 3.8s ease-out forwards; }
+@keyframes kwa-smoke { 0% { opacity: 0; transform: translate(0, 0) scale(0.5); } 15% { opacity: 0.9; } 100% { opacity: 0; transform: translate(calc(14px + var(--kwa-r, 0) * 18px), -64px) scale(2.4); } }
+/* The forge: a glow in the mouth while someone works it, and sparks. */
+#settlement-view .kwa-forge { position: absolute; width: 46px; height: 34px; margin: -17px 0 0 -23px; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(closest-side, rgba(255, 190, 90, 0.95), rgba(255, 120, 40, 0.55) 55%, rgba(255, 90, 20, 0)); animation: kwa-forge 1.3s ease-in-out infinite alternate; }
+@keyframes kwa-forge { 0% { opacity: 0.55; transform: scale(0.92); } 100% { opacity: 1; transform: scale(1.08); } }
+#settlement-view .kwa-spark { width: 3px; height: 3px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 4px #ff9a3a; animation: kwa-spark 0.9s ease-out forwards; }
+@keyframes kwa-spark { 0% { opacity: 1; transform: translate(0, 0); } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 22px), -26px); } }
+/* Sawdust from the Workshop. */
+#settlement-view .kwa-dust { width: 12px; height: 9px; margin: -4px 0 0 -6px; border-radius: 50%; background: radial-gradient(closest-side, rgba(232, 206, 160, 0.95), rgba(232, 206, 160, 0)); animation: kwa-dust 1.3s ease-out forwards; }
+@keyframes kwa-dust { 0% { opacity: 0.9; transform: translate(0, 0) scale(0.6); } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 14px), -18px) scale(1.9); } }
+/* The Tavern's windows flicker in the evening with someone in. */
+#settlement-view .kwa-flicker .kwh-lit { animation: kwa-flicker 2.7s steps(1, end) infinite; }
+@keyframes kwa-flicker { 0%, 100% { filter: brightness(1); } 22% { filter: brightness(0.93); } 41% { filter: brightness(1.05); } 63% { filter: brightness(0.96); } 80% { filter: brightness(1.03); } }
+/* Fireflies: above the night shade, so they glow. */
+#settlement-view .kwa-firefly { width: 4px; height: 4px; border-radius: 50%; background: #f6ffb0; box-shadow: 0 0 7px 2px rgba(214, 255, 120, 0.8); animation: kwa-firefly 6.5s ease-in-out forwards; }
+@keyframes kwa-firefly { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 1; } 35% { opacity: 0.25; transform: translate(calc(var(--kwa-r, 0) * 26px), -10px); } 55% { opacity: 1; transform: translate(calc(var(--kwa-r, 0) * 40px), 6px); } 80% { opacity: 0.4; } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 62px), -16px); } }
+/* Butterflies: two small wings that beat, on a wandering path. */
+#settlement-view .kwa-butterfly { width: 10px; height: 8px; margin: -4px 0 0 -5px; animation: kwa-flutter 8s ease-in-out forwards; }
+#settlement-view .kwa-butterfly::before, #settlement-view .kwa-butterfly::after { content: ''; position: absolute; top: 0; width: 5px; height: 8px; border-radius: 60% 60% 40% 40%; background: #ffd35c; border: 1px solid #7a4a12; box-sizing: border-box; animation: kwa-wing 0.28s ease-in-out infinite alternate; }
+#settlement-view .kwa-butterfly::before { left: 0; transform-origin: right center; }
+#settlement-view .kwa-butterfly::after { right: 0; transform-origin: left center; animation-name: kwa-wing-r; }
+@keyframes kwa-wing { from { transform: scaleX(1); } to { transform: scaleX(0.25); } }
+@keyframes kwa-wing-r { from { transform: scaleX(1); } to { transform: scaleX(0.25); } }
+@keyframes kwa-flutter { 0% { opacity: 0; transform: translate(0, 0); } 8% { opacity: 1; } 30% { transform: translate(calc(var(--kwa-r, 0) * 46px), -22px); } 55% { transform: translate(calc(var(--kwa-r, 0) * 20px + 34px), -8px); } 80% { transform: translate(calc(var(--kwa-r, 0) * 70px + 20px), -30px); } 92% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 90px + 40px), -44px); } }
+/* On the wind: an autumn leaf, or a seed in spring and summer. */
+#settlement-view .kwa-leaf { width: 9px; height: 6px; border-radius: 80% 10% 80% 10%; background: #d98a2b; border: 1px solid #6b3a12; box-sizing: border-box; animation: kwa-wind 9s linear forwards; }
+#settlement-view .kwa-seed { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 3px rgba(255, 255, 255, 0.8); animation: kwa-wind 11s linear forwards; }
+@keyframes kwa-wind { 0% { opacity: 0; transform: translate(0, 0) rotate(0deg); } 6% { opacity: 1; } 50% { transform: translate(620px, calc(40px + var(--kwa-r, 0) * 50px)) rotate(400deg); } 94% { opacity: 1; } 100% { opacity: 0; transform: translate(1240px, calc(20px + var(--kwa-r, 0) * 90px)) rotate(800deg); } }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwa, #settlement-view .kwa-forge { display: none; } #settlement-view .kwa-flicker .kwh-lit { animation: none; } }
