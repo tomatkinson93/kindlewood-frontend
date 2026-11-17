@@ -67,8 +67,9 @@
     const dflt = (m.options || []).find(o => o.key === m.fallback);
     return {
       icon: m.icon, speaker: m.speaker || 'Your town', title: m.title, text: m.text,
-      options: m.options, fallback: m.fallback,
-      note: dflt ? `If you don't decide (${left(m.expires_at)}): ${dflt.label.toLowerCase()}.` : '',
+      // An option marked `scene` is taken by doing it in the Home scene (js/scene-events.js), not here.
+      options: (m.options || []).filter(o => !o.scene), fallback: m.fallback,
+      note: [(m.options || []).some(o => o.scene) && global.KWSceneEvents ? global.KWSceneEvents.hint(m) : '', dflt ? `If you don't decide (${left(m.expires_at)}): ${dflt.label.toLowerCase()}.` : ''].filter(Boolean).join(' '),
     };
   }
 
@@ -98,27 +99,31 @@
     } catch (_) { /* offline */ }
   }
 
+  // Sends an answer (from the dialogue, or from the Home scene: js/scene-events.js).
+  // → { outcome } or { error }.
+  async function answer(id, key) {
+    const m = st.list.find(x => x.id === Number(id));
+    if (!m) return { error: 'That has already been settled.' };
+    st.answering = m.id;   // our own answer comes back as a live event too: no toast for it
+    setTimeout(() => { if (st.answering === m.id) st.answering = null; }, 15000);
+    const res = await global.apiFetch(`/api/moments/${m.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choice: key }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 404) { st.list = st.list.filter(x => x.id !== m.id); render(); }
+      return { error: d.error || 'That could not be done.' };
+    }
+    st.list = st.list.filter(x => x.id !== m.id);
+    render();
+    // What it changed shows at once: citizens, the outpost, the stores.
+    showEffects();
+    try { global.dispatchEvent(new global.CustomEvent('kw:moment-answered', { detail: { moment: m, choice: d.choice || key, outcome: d.outcome } })); } catch (_) { /* old browser */ }
+    return { outcome: d.outcome };
+  }
   async function open(id) {
     const m = st.list.find(x => x.id === Number(id));
     if (!m || !global.KWSay) return;
     st.openId = m.id;
-    await global.KWSay.ask(Object.assign(sayOptions(m), {
-      async choose(key) {
-        st.answering = m.id;   // our own answer comes back as a live event too: no toast for it
-        setTimeout(() => { if (st.answering === m.id) st.answering = null; }, 15000);
-        const res = await global.apiFetch(`/api/moments/${m.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choice: key }) });
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          if (res.status === 404) { st.list = st.list.filter(x => x.id !== m.id); render(); }
-          return { error: d.error || 'That could not be done.' };
-        }
-        st.list = st.list.filter(x => x.id !== m.id);
-        render();
-        // What it changed shows at once: citizens, the outpost, the stores.
-        showEffects();
-        return { outcome: d.outcome };
-      },
-    }));
+    await global.KWSay.ask(Object.assign(sayOptions(m), { choose: key => answer(m.id, key) }));
   }
 
   function onEvent(ev) {
@@ -156,5 +161,5 @@
 
   if (global.document && typeof global.kwWhenReady === 'function') global.kwWhenReady(() => { if (global.localStorage && global.localStorage.getItem('kw_token')) start(); });
 
-  global.KWMoments = { load, open, openFirst, onEvent, start, list: () => st.list.slice(), _stackHtml: stackHtml, _bellHtml: bellHtml, _sayOptions: sayOptions, _storeChanges: storeChanges };
+  global.KWMoments = { load, open, answer, openFirst, onEvent, start, list: () => st.list.slice(), _stackHtml: stackHtml, _bellHtml: bellHtml, _sayOptions: sayOptions, _storeChanges: storeChanges };
 })(typeof window !== 'undefined' ? window : globalThis);

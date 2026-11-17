@@ -294,7 +294,7 @@ console.log('11. Build mode (§2.3)');
   check('11d. onto a building, the two swap (a building shown by default is pinned where it goes)', swapped.a === 'mine' && swapped.b === 'farm');
   check('11e. the map passed in is left alone', JSON.stringify(b._svMoveAssignment({ a: 'x' }, 'a', 'a', occ({ a: 'x' }))) === '{"a":"x"}');
   check('11f. empty plots show only in Build mode', /el\.hidden = !_svBuildMode;/.test(S) && /\.sv-slot\[hidden\] \{ display: none; \}/.test(read('css/home-scene.css')));
-  check('11g. in Build mode a building opens its panel for moving it; otherwise its radial menu, whose Enter opens its screen', /if \(_svBuildMode\) return _openBuildPanel\(s, o\);/.test(S) && /var enter = function\(\) \{ _svOpenBuilding\(o\.id/.test(S) && /KWBuildingMenu\.click\(this, \{ key: o\.id/.test(S));
+  check('11g. in Build mode a building opens its panel for moving it; otherwise its radial menu, whose Enter opens its screen', /if \(_svBuildMode\) return _openBuildPanel\(s, o\);/.test(S) && /var enter = function\(\) \{[\s\S]{0,420}_svOpenBuilding\(o\.id/.test(S) && /KWBuildingMenu\.click\(this, \{ key: o\.id/.test(S));
   check('11h. a drag that just ended does not also click', /if \(_svJustDragged\) return;/.test(S) && /_SV_DRAG_PX = 6/.test(S));
   check('11i. Esc closes an open panel first, then leaves Build mode; windows keep their own Escape',
     /function _svBuildKey/.test(S) && /KWWindow\.isOpen\(\)\)\) return;/.test(grab('_svBuildKey')) && /_closeBuildPanel\(\); return;/.test(grab('_svBuildKey')) && /_svToggleBuildMode\(false\)/.test(grab('_svBuildKey')));
@@ -359,7 +359,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
   check('12s. speeds: adults 40, elders 30, children 55 px a second', C.SPEED.adult === 40 && C.SPEED.elder === 30 && C.SPEED.child === 55);
 
   const E = read('js/villager-engine.js'), VJ = read('js/villagers.js'), H = read('index.html');
-  check('12t. depth from the foot: villagers and buildings share one z-index scale', /const z = v\.selected \? 1005 : depth\(v\.y\);/.test(E) && /v\.el\.style\.zIndex = String\(z\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
+  check('12t. depth from the foot: villagers and buildings share one z-index scale', /const z = v\.selected \? 1005 : depth\(v\.y\);/.test(E) && /v\.el\.style\.zIndex = String\(z\)/.test(E) && /slot\.style\.zIndex = String\(depth\(flat \? rect\.top \+ 2 : foot\)\)/.test(E));
   check('12u. one loop, transform only; it stops off Home, with the tab hidden, in Build mode, and stands still under reduced motion',
     /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\)/.test(E) && /visibilitychange/.test(E)
     && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
@@ -749,9 +749,9 @@ console.log('22. A building\'s radial menu');
     && (() => { const r = wp({ cy: 380, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 522 && r.max === 278; })()
     && (() => { const r = wp({ cy: 620, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 60 && r.max === 418 && r.top + r.max <= 620 - 142; })()
     && /\.kwb-who \{ overflow-y: auto;/.test(CSS) && /box\.style\.maxHeight = place\.max \+ 'px';/.test(BJ));
-  check('22g. one menu at a time; a See through toggle beside Names does every building; props keep their single click',
+  check('22g. one menu at a time; a See through toggle beside Names does every building; a signpost keeps its single click',
     /global\.KWBuildingMenu\.close\(false, true\);   \/\/ one menu at a time/.test(E) && /C\.deselect\(\)/.test(BJ) && /key: 'seethrough'/.test(PL)
-    && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
+    && /if \(p\.kind === 'signpost' \|\| !window\.KWBuildingMenu\) return KWHome\.openProp\(p\.id\);/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
 }
 
 // ── 23. Villagers keep a working day (seeded; js/villager-engine.js) ──
@@ -849,7 +849,7 @@ console.log('24. The Neighbourhood scene');
     /post\(`\/\$\{n\.id\}\/houses`, \{ plot, style: S\.style \|\| 'thatch' \}\)/.test(NJ) && /if \(S\.picked && \(!h \|\| h\.id !== S\.picked\)\) return void moveTo\(plot\);/.test(NJ)
     && /post\(`\/houses\/\$\{id\}\/move`, \{ plot, neighbourhood_id: S\.hoodId \}\)/.test(NJ) && /KWHood\.buildModeChanged\(\)/.test(S) && /\.kwn-picked \.kwh-art/.test(CSS));
   check('24j. the cast is who lives there (and anyone with no bed); those at work are away, leaving and coming home by the signpost; home is their own door',
-    /return inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\);/.test(E)
+    /if \(inHood\(\)\) return livesHere\(c\) && !outAtWork\(c\) \? HOOD : null;/.test(E)
     && /if \(inHood\(\)\) return v\.c\.house_id != null \? doorOf\('house-' \+ v\.c\.house_id\) : null;/.test(E) && /\(inHood\(\) && \(\(why === 'rotate' && homeDoor\(v\)\) \|\| S\.exits\[0\]\)\)/.test(E)
     && /return c\.house_id == null \? true : n\.houses\.some\(h => h\.id === Number\(c\.house_id\)\);/.test(NJ) && /\(outAtWork\(c\) \? 'w' : ''\)/.test(E));
   check('24k. Who\'s here in a house: at home, or visiting',
@@ -958,7 +958,7 @@ console.log('28. Life events seen happening (§3.9)');
   const many = [5, 4, 3, 2, 1].map(i => ({ id: 20 + i, kind: 'birth', at: new Date(now - i * 1000) }));
   check('28l. more than three waiting: the newest are dropped first', C._lifeNews(many, 9, now).play.map(x => x.id).join() === '21,22,23' && C.LIFE.WAITING === 3);
   check('28m. one scene at a time; people in it join the cast for its length and are not recast away', /if \(S\.lifePlaying\) \{/.test(E) && /v = make\(byId\.get\(a\.id\), \{ x: d\.x, y: d\.y \}, true\); v\.guest = true;/.test(E) && /live\(v\) && !\(v\.act && !first\)/.test(E) && /if \(v\.guest\) \{ v\.guest = false; leave\(v, 'rotate'\); \}/.test(E));
-  check('28n. nobody busy with the player is pulled into a scene; picking an actor takes them out of it', /return !v \|\| !\(v\.selected \|\| v\.held \|\| v\.moment \|\| v\.talk\);/.test(E) && /if \(v\.act\) \{ v\.act = null; v\.guest = false;/.test(E));
+  check('28n. nobody busy with the player is pulled into a scene; picking an actor takes them out of it', /return !v \|\| !\(v\.selected \|\| v\.held \|\| v\.moment \|\| v\.talk\);/.test(E) && /if \(v\.act\) \{ if \(v\.act\.was\) v\.el\.setAttribute\('aria-label', v\.act\.was\); v\.act = null; v\.guest = false;/.test(E));
   const LS = read('js/life-scenes.js');
   check('28o. the chronicle is the event; a small reader hands its lines to the engine (which still never calls the server), and nothing is written; skipped under reduced motion (the loop does not run)',
     /apiFetch\('\/api\/families\/all\/chronicle'\)/.test(LS) && /KWCast\.offerLife\(d\.entries \|\| \[\]\)/.test(LS) && !/method:/.test(LS) && !/apiFetch|fetch\(/.test(E) && /global\.addEventListener\('kw:home'/.test(LS)
@@ -987,6 +987,79 @@ console.log('29. Town-wide events (§3.10)');
   check('29j. the town grows a tier: everyone out cheers once', /order\.indexOf\(tier\) > order\.indexOf\(S\.tierSeen\)/.test(E) && /setSay\(v, '⭐'\); hop\(v\);/.test(E));
   check('29k. no life scenes, emotes or chats while raiders are near', /townTick\(now\); if \(S\.event !== 'raid'\) lifeTick\(now\);/.test(E) && /if \(S\.event === 'raid'\) return;       \/\/ nobody stops to feel things/.test(E));
   check('29l. the scene knows of the raid (the town\'s data, readable at last)', /raid: \(s && s\.raid\) \|\| null/.test(HS));
+}
+
+console.log('30. The village green, and coming back from a full screen');
+{
+  const E = read('js/villager-engine.js'), S = read('js/settlement-view.js'), HS = read('js/home-scene.js'), BM = read('js/building-menu.js'), CSS = read('css/home-scene.css'), PL = read('js/places.js');
+  check('30a. the green is ground: its depth is its far edge, so anyone standing or dancing on it is in front of it', /const flat = btn && btn\.classList\.contains\('kwh-prop-green'\);/.test(E) && /depth\(flat \? rect\.top \+ 2 : foot\)/.test(E));
+  check('30b. and it does not rise over them when the pointer is on it', /\.sv-slot:not\(\.sv-has-site\):not\(\.kwn-building\):not\(#sv-prop-green\):hover/.test(CSS));
+  check('30c. the green and the Wonder site open a menu like any building (Enter in the middle); with no inside, no "Who\'s here"',
+    /KWBuildingMenu\.click\(this, \{ key: p\.id, label: p\.label, open: true, enter: function\(\) \{ KWHome\.openProp\(p\.id\); \} \}, ev\);/.test(S) && /if \(!o\.open\) out\.push\(\{ key: 'who'/.test(BM));
+  const w = { console, Date, setInterval() { return 1; }, clearInterval() {}, setTimeout() {}, document: { getElementById: () => null, addEventListener() {}, querySelector: () => null }, getComputedStyle: () => ({ display: 'none' }), addEventListener() {} };
+  w.window = w; vm.createContext(w); vm.runInContext(HS, w);
+  const K = w.KWHome, t0 = 1e6;
+  check('30d. the Tavern, the Market and Fishing are the full screens Home closes for', K.SCREENS.join() === 'tavern,fishing,market' && K.ROUTES.tavern.leave === 'tavern' && K.ROUTES.market.leave === 'market' && K.ROUTES.fishing_post.leave === 'fishing');
+  check('30e. a return ticket waits while its screen is open, and brings the player back when it has been open and is closed',
+    K._ticketStep({ seen: false, at: t0 }, true, t0 + 100) === 'wait' && K._ticketStep({ seen: true, at: t0 }, true, t0 + 9e5) === 'wait' && K._ticketStep({ seen: true, at: t0 }, false, t0 + 9e5) === 'back');
+  check('30f. a screen that never opened brings nobody back', K._ticketStep({ seen: false, at: t0 }, false, t0 + 1000) === 'wait' && K._ticketStep({ seen: false, at: t0 }, false, t0 + 6000) === 'drop');
+  check('30g. the ticket remembers the part of town and how far along, and Home opens again right there', /ticket = \{ screen, area: call\('_svActiveAreaName'\) \|\| 'town', x: sc \? sc\.scrollLeft : 0/.test(HS) && /call\('_svSwitchArea', t\.area, true\);[^\n]*sc\.scrollLeft = t\.x;/.test(HS));
+  check('30h. going somewhere else with the place bar tears it up (the player chose)', /global\.KWHome\.forgetReturn\(\);/.test(PL) && /const forgetReturn = \(\) => \{ ticket = null; \};/.test(HS));
+  check('30i. every way from Home to those screens takes a ticket (a building, its panel\'s buttons, the profile menu)', !/closeSettlementView\(\);openMarket/.test(S) && (S.match(/_svLeaveFor\(\\'market\\'\)/g) || []).length === 2
+    && /leaveFor\('tavern'\); call\('visitTavern'\)/.test(HS) && /leaveFor\('fishing'\); call\('visitFishingPost'\)/.test(HS) && /if \(r\.leave\) leaveFor\(r\.leave\);/.test(HS));
+}
+
+console.log('31. Who is in which part of town (§3.3, changed 2026-11-17)');
+{
+  const E = read('js/villager-engine.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast, L = Array.from({ length: 10 }, (_, i) => ({ id: 100 + i }));
+  check('31a. someone whose job is in the Outskirts is there while at work, and in Town the rest of the day (off work, on their breaks)',
+    /if \(a === 'town' \|\| \(S\.visitors && S\.visitors\.has\(Number\(c\.id\)\)\)\) return 'town';\s*return outAtWork\(c\) \? a : 'town';/.test(E));
+  let total = 0; for (let slot = 0; slot < 300; slot++) total += C._townVisitors(L, slot, 9, 0).length;
+  check('31b. and now and then on an errand to town: about one worker in four, for twenty minutes at a time', Math.abs(total / 3000 - 0.25) < 0.04 && C.VISIT.MS === 20 * 60000 && C.VISIT.SHARE === 0.25, (total / 3000).toFixed(3));
+  check('31c. by day Town is never left without its minimum of grown-ups: more are sent until it has them', C._townVisitors(L, 5, 0, 4).length >= 4 && C._townVisitors(L, 5, 3, 4).length >= 1 && C._townVisitors(L.slice(0, 2), 5, 0, 4).length === 2);
+  check('31d. the same stretch of the day shows the same people (a reload does not reshuffle); the next stretch shows others',
+    C._townVisitors(L, 5, 0, 4).join() === C._townVisitors(L, 5, 0, 4).join() && C._townVisitors(L, 5, 0, 4).join() !== C._townVisitors(L, 6, 0, 4).join());
+  check('31e. nobody is sent at night (the minimum is a daytime rule), and nobody is invented', C._townVisitors([], 5, 0, 4).length === 0 && /day \? minOut\(\) : 0/.test(E));
+  check('31f. the cast is looked at again when someone starts or stops work, or the errands change', /\(outAtWork\(c\) \? 'w' : ''\) \+ \(inHood\(\) \? ':' \+ \(c\.house_id \|\| ''\) : ''\)/.test(E) && /\[\.\.\.S\.visitors\]\.sort\(/.test(E));
+  check('31g. they come and go by the signpost, not out of thin air or a stranger\'s door', /v\.viaExit = !!c && living\(c\) && !awayOf\(c\) && !inHood\(\); leave\(v\);/.test(E) && /\(v\.viaExit && S\.exits\[0\]\) \|\| nearestDoor/.test(E) && /fromAfar \? S\.exits\[0\]/.test(E));
+  check('31h. Home\'s first cast is made again once its buildings are drawn (workplaces were not known before)', /performanceNow\(\) - S\.openedAt < 6000 && cits\(\)\.length && signature\(cits\(\)\) !== S\.sig\) recast\(true\);/.test(E));
+}
+
+console.log('32. What is on their mind, and Follow (Part F.3, F.4)');
+{
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null, getElementById: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast, now = 1e12, ago = h => new Date(now - h * 3600e3);
+  const c = { id: 7, house_id: 2, family_id: 3, life: { happiness: 55 } };
+  const T = (x, ctx) => C._thoughtOf(x, Object.assign({ now, hungry: 'ok' }, ctx));
+  check('32a. the most pressing first: no bed, then short food, then a moment waiting', T({ ...c, house_id: null }, { hungry: 'famine', moment: true }) === 'Has no bed of their own.' && T(c, { hungry: 'low', moment: true }) === 'Worried that food is running low.'
+    && T(c, { hungry: 'famine' }) === 'Hungry. The stores are empty.' && T(c, { moment: true }) === 'Has something to ask you.');
+  check('32b. then grief for a death in their family (not their own line, not another family\'s)', T(c, { recent: [{ kind: 'death', citizen_ids: [99], family_id: 3, at: ago(2) }] }) === 'Grieving a death in the family.'
+    && T(c, { recent: [{ kind: 'death', citizen_ids: [99], family_id: 8, at: ago(2) }] }) !== 'Grieving a death in the family.');
+  check('32c. a new partner, a new child (the parents, not the baby), a coming of age, something they built', T(c, { recent: [{ kind: 'partnership', citizen_ids: [7, 9], at: ago(1) }] }) === 'Newly partnered, and it shows.'
+    && T(c, { recent: [{ kind: 'birth', citizen_ids: [5, 7, 40], at: ago(1) }] }) === 'A new parent: tired and happy.' && T({ ...c, id: 40 }, { recent: [{ kind: 'birth', citizen_ids: [5, 7, 40], at: ago(1) }] }) !== 'A new parent: tired and happy.'
+    && T(c, { recent: [{ kind: 'town', text: 'The Library is finished, built by Ada.', citizen_ids: [7], at: ago(3) }] }) === 'Proud of what they have just built.');
+  check('32d. only what happened in the last day counts', T(c, { recent: [{ kind: 'partnership', citizen_ids: [7, 9], at: ago(30) }] }) !== 'Newly partnered, and it shows.');
+  check('32e. taking to their work or not, from a trait the player has already seen', T(c, { work: 'likes' }) === 'Loves the work.' && T(c, { work: 'dislikes' }) === 'Does not take to this work.' && /const seen = c\.revealed_hidden_traits \|\| \[\];/.test(E));
+  check('32f. something they like to talk about, once a chat has taught it (the same one all day)', /^Thinking about (fishing|music)\.$/.test(T(c, { likes: ['Fishing', 'Music'] })) && T(c, { likes: ['Fishing', 'Music'] }) === T(c, { likes: ['Fishing', 'Music'], now: now + 3600e3 }));
+  check('32g. else how the day feels: content, low, or the time of day; a child wants to play', T({ ...c, life: { happiness: 85 } }, {}) === 'Content with how things are.' && T({ ...c, life: { happiness: 20 } }, {}) === 'Feeling low.'
+    && T(c, { phase: 'night' }) === 'Ready for bed.' && T({ ...c, stage: 'child', house_id: null }, {}) === 'Wants to play.');
+  check('32h. one line, under their name', /th\.className = 'kwv-thought';\s*th\.textContent = thoughtFor\(v\);\s*tag\.appendChild\(th\);/.test(E) && /\.kwv-thought \{ display: block;/.test(CSS));
+  const rt = { start: 10.25, end: 22.5, breaks: [[12, 13], [17, 18.5]] };
+  const log = C._dayLog(rt, 17.5, 'Smithy');
+  check('32i. the card: their day so far from their routine', log.join('|') === '10:15  Went to work at the Smithy|12:00  Took a break|13:00  Back to work|17:00  On a break' && C._dayLog(rt, 9, 'Smithy').length === 0 && C._dayLog(rt, 15, null).length === 0
+    && C._dayLog(rt, 23, 'Smithy').pop() === '22:30  Finished work for the day');
+  check('32j. and what they do while watched, in words', C._seenLine('indoors', {}, { inside: 'the Tavern' }) === 'Went into the Tavern' && C._seenLine('chat', {}, { partner: 'Fenn' }) === 'Stopped to chat with Fenn' && C._seenLine('out', {}, { inside: 'the Tavern' }) === 'Came out of the Tavern' && C._seenLine('build', {}) === 'Hammering at the site');
+  check('32k. chats the player set up today are on the card', /A chat with \$\{[^}]+\} about \$\{global\.KWSocial\.topic\(ch\.topic\)\.label\.toLowerCase\(\)\}/.test(E));
+  check('32l. Follow is on the menu; the view keeps them centred and goes with them to another part of town', /key: 'follow', icon: '👣', label: 'Follow'/.test(E) && /sc\.scrollLeft \+= d \* Math\.min\(1, dt \/ 220\);/.test(E) && /global\._svSwitchArea\(t, false, t === 'outskirts' \? 'start' : 'end'\);/.test(E));
+  check('32m. the one being followed stays in the cast', /concat\(crew, F\.id != null \? \[F\.id\] : \[\]\)/.test(E) && /live\(v\) && v\.id !== F\.id && !v\.selected/.test(E));
+  check('32n. any pan by the player, Esc or the card\'s close button ends it; so does leaving Home', /addEventListener\('wheel'/.test(E) && /Math\.abs\(e\.clientX - downX\) > 12/.test(E) && /addEventListener\('touchmove'/.test(E) && /e\.key !== 'Escape' \|\| F\.id == null/.test(E)
+    && /data-kwv-unfollow/.test(E) && /if \(!\(e\.detail && e\.detail\.open\)\) stopFollow\(true\);/.test(E));
+  check('32o. the card is a live region with a close button a thumb can hit', /aria-live="polite"/.test(E) && /\.kwv-follow-x \{ width: 32px; height: 32px;/.test(CSS));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

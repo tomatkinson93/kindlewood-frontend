@@ -162,6 +162,25 @@
   const NIGHT_OUT = 3;   // at night most are indoors; two or three stay out
   const SAY = ['…', '…', '…', '🐟', '❤', '🌰', '♪'];
 
+  // One step toward (tx, ty), going round what stands in the way. `walls`:
+  // [{ l, r, t, b }] (the well, the pond, big scenery). A step that would
+  // land inside one slides along its side instead, by the shorter way round;
+  // someone already inside one (it was put down on top of them) walks out
+  // straight, and a target inside one is walked to as it is. Pure.
+  function stepRound(x, y, tx, ty, step, walls) {
+    const dx = tx - x, dy = ty - y, d = Math.hypot(dx, dy) || 1, nx = x + dx / d * step, ny = y + dy / d * step;
+    const inside = (w, px, py) => px > w.l && px < w.r && py > w.t && py < w.b;
+    const hit = (walls || []).find(w => inside(w, nx, ny) && !inside(w, x, y) && !inside(w, tx, ty));
+    if (!hit) return { x: nx, y: ny };
+    if (x <= hit.l || x >= hit.r) {   // coming at its side: go over or under
+      const under = Math.abs(hit.b - y) + Math.abs(hit.b - ty) <= Math.abs(hit.t - y) + Math.abs(hit.t - ty);
+      return { x, y: y + (under ? 1 : -1) * step };
+    }
+    const right = Math.abs(hit.r - x) + Math.abs(hit.r - tx) <= Math.abs(hit.l - x) + Math.abs(hit.l - tx);   // coming from above or below: go round an end
+    return { x: x + (right ? 1 : -1) * step, y };
+  }
+  const SIT_MS = [9000, 18000];   // how long someone sits at a bench
+
   // Where someone goes next. ctx: { phase, work (door or null), tavern, home,
   // doors: [door], spots: [{x,y}], ground() → {x,y}, owl (stays out at night) }.
   // → { kind: 'door' | 'spot' | 'ground', key?, x, y }.
@@ -169,7 +188,7 @@
   // are chosen sparingly by day (about a third of the cast inside at once).
   function chooseErrand(ctx, rand) {
     const door = d => ({ kind: 'door', key: d.key, x: d.x, y: d.y });
-    const spot = () => { const s = ctx.spots[Math.floor(rand() * ctx.spots.length)]; return { kind: 'spot', x: s.x, y: s.y }; };
+    const spot = () => { const s = ctx.spots[Math.floor(rand() * ctx.spots.length)]; return { kind: 'spot', x: s.x, y: s.y, ...(s.rest ? { rest: true } : {}) }; };
     const outdoors = () => (ctx.spots.length && rand() < 0.4 ? spot() : { kind: 'ground', ...ctx.ground() });
     const r = rand();
     if (ctx.phase === 'night') {
@@ -348,7 +367,10 @@
       const box = (artEl || slot).getBoundingClientRect();
       const rect = { left: (box.left - lr.left) / sx, top: (box.top - lr.top) / sy, width: box.width / sx, height: box.height / sy };
       const foot = rect.top + rect.height;
-      if (!slot.classList.contains('sv-dragging')) slot.style.zIndex = String(depth(foot));
+      // The village green is ground: anyone standing or dancing on it is in
+      // front of it (its depth is its far edge, not its near one).
+      const flat = btn && btn.classList.contains('kwh-prop-green');
+      if (!slot.classList.contains('sv-dragging')) slot.style.zIndex = String(depth(flat ? rect.top + 2 : foot));
       if (!btn) return;
       S.blocks.push({ l: rect.left, r: rect.left + rect.width, t: rect.top, b: foot });   // what stands here (for a clear spot)
       const key = btn.getAttribute('data-kwh');
@@ -368,6 +390,12 @@
     const g = G ? G.sync({ layer: S.layer, area: S.area, doors: S.doors, exits: S.exits, blocks: S.blocks.slice(), w: W(), h: H() }) : null;
     S.propBlocks = (g && g.blocks) || [];
     S.propSpots = (g && g.spots) || [];
+    // What the player has placed (js/decor.js): benches and flower beds are
+    // places to stop, the well and the pond too, and those two are walked round.
+    let d = null;
+    try { d = global.KWDecor && global.KWDecor.sceneParts ? global.KWDecor.sceneParts(S.area, W(), H()) : null; } catch (_) { d = null; }
+    if (d) { S.propSpots = S.propSpots.concat(d.spots); S.propBlocks = S.propBlocks.concat(d.blocks); }
+    S.walls = S.propBlocks.slice();   // big things on the ground: nobody walks through them
     S.blocks.push(...S.propBlocks);
   }
   const depth = footY => Math.max(1, Math.min(1000, Math.round(footY / (H() || 1) * 1000)));
@@ -428,8 +456,41 @@
   const areaFor = c => {
     const sa = isBuilder(c) ? siteArea() : null;
     if (sa) return sa === S.area ? sa : sa === HOOD || inHood() ? null : sa;
-    return inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea);
+    if (inHood()) return livesHere(c) && !outAtWork(c) ? HOOD : null;
+    // Someone whose job is in another part of town (a forager's hut in the
+    // Outskirts) is there while they are at work, and in Town the rest of
+    // the day: off work, on their breaks, and on an errand to town.
+    const a = areaOf(c, builtArea);
+    if (a === 'town' || (S.visitors && S.visitors.has(Number(c.id)))) return 'town';
+    return outAtWork(c) ? a : 'town';
   };
+  // Outskirts workers who are in Town for this stretch of the day (20
+  // minutes): each has about a one in four chance of an errand there, and by
+  // day more are sent until Town has its minimum of grown-ups. Seeded by the
+  // villager and the stretch, so a reload shows the same town. `list`: [{ id }]
+  // at work elsewhere; `inTown`: grown-ups already in Town. → ids. Pure.
+  const VISIT = { MS: 20 * 60000, SHARE: 0.25 };
+  function townVisitors(list, slot, inTown, min) {
+    const rank = id => { const r = seeded(((Number(id) || 0) * 2654435761 ^ (Number(slot) || 0) * 40503) >>> 0); r(); r(); return r(); };
+    const ranked = list.map(c => ({ id: Number(c.id), r: rank(c.id) })).sort((x, y) => x.r - y.r || x.id - y.id);
+    const out = ranked.filter(x => x.r < VISIT.SHARE).map(x => x.id);
+    for (const x of ranked) { if (inTown + out.length >= min) break; if (!out.includes(x.id)) out.push(x.id); }
+    return out;
+  }
+  function visitorsNow() {
+    const out = new Set();
+    if (inHood()) return out;
+    const working = [];
+    let inTown = 0;
+    for (const c of cits()) {
+      if (!living(c) || awayOf(c) || isChild(c)) continue;
+      if (isBuilder(c) && siteArea()) continue;
+      if (areaOf(c, builtArea) !== 'town' && outAtWork(c)) working.push({ id: c.id }); else inTown++;
+    }
+    const day = S.phase === 'day' || S.phase === 'dawn';
+    for (const id of townVisitors(working, Math.floor(clockMs() / VISIT.MS), inTown, day ? minOut() : 0)) out.add(id);
+    return out;
+  }
   // Their own front door: their house in the Neighbourhood, the
   // Neighbourhood's door in Town, the way back to town from the Outskirts.
   function homeDoor(v) {
@@ -513,6 +574,18 @@
     const town = S.mood || {};
     const gather = town.hungry && town.hungry !== 'ok' && S.rand() < 0.3 ? doorOf('granary') : v.c.house_id == null && !v.child && S.rand() < 0.5 ? doorOf('neighbourhood') : null;
     if (gather) { walkTo(v, spreadPoint({ x: gather.x + (S.rand() - 0.5) * 90, y: gather.y + 14 + S.rand() * 22 }, othersOf(v), { ok: onMeadow }), null); return; }
+    // Working buildings (Part F.7): around midday the Market draws a few more
+    // people to stand at its stalls.
+    const mk = S.phase === 'day' && !v.child ? doorOf('market') : null, hr = mk ? gameClock().hour : 0;
+    if (mk && hr >= 12.5 && hr < 15 && S.rand() < 0.28) { walkTo(v, spreadPoint({ x: mk.x + (S.rand() - 0.5) * 150, y: mk.y + 12 + S.rand() * 20 }, othersOf(v), { ok: onMeadow }), null); return; }
+    // Upkeep (Part E.6): a builder with nothing to build walks a round of the
+    // buildings and taps at each.
+    if (isBuilder(v.c) && global.KWUpkeep && global.KWUpkeep.on && S.doors.length && S.phase !== 'night' && S.rand() < 0.6) {
+      const d = S.doors[Math.floor(S.rand() * S.doors.length)];
+      walkTo(v, spreadPoint({ x: d.x + (S.rand() < 0.5 ? -34 : 34), y: d.y + 10 }, othersOf(v), { ok: onMeadow }), null);
+      v.state = 'totend'; v.siteX = d.x;
+      return;
+    }
     // Their working day (§3.5a): at work, they go to it; on a break or off
     // work, they do what everyone does.
     if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
@@ -524,6 +597,7 @@
     // Never stop on top of anyone: a door fans out, anywhere else spreads.
     const others = othersOf(v);
     walkTo(v, g.kind === 'door' ? doorSpot(g, others) : spreadPoint(g, others, { ok: onMeadow }), g.kind === 'door' ? g.key : null);
+    v.rest = !!g.rest;   // a bench: they stay a while when they get there
   }
   // Everyone else's position, and their target while they walk.
   function othersOf(...not) {
@@ -542,7 +616,7 @@
   function walkTo(v, p, doorKey) { v.tx = p.x; v.ty = p.y; v.goal = doorKey ? { door: doorKey } : null; v.state = 'walk'; }
   function idle(v, now, ms) {
     v.state = 'idle'; v.goal = null;
-    v.until = now + (ms != null ? ms : (IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0])) * (lowMood(v) ? MOOD.LOW_IDLE : 1));
+    v.until = now + (ms != null ? ms : (IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0])) * (lowMood(v) ? MOOD.LOW_IDLE : 1) * (inTheWet() ? WET.IDLE : 1));
     // Face the camera, or the nearest villager close by.
     let near = null, d = 150;
     for (const o of S.vs.values()) if (o !== v && live(o) && o.state !== 'indoors') { const k = Math.hypot(o.x - v.x, o.y - v.y); if (k < d) { d = k; near = o; } }
@@ -604,7 +678,8 @@
     endChat(v, performanceNow());
     // Out of the Neighbourhood: by the signpost back to town.
     // (When the cast is only changing, they go indoors at their own house.)
-    const d = (inHood() && ((why === 'rotate' && homeDoor(v)) || S.exits[0])) || nearestDoor(v.x, v.y);
+    const d = (inHood() && ((why === 'rotate' && homeDoor(v)) || S.exits[0])) || (v.viaExit && S.exits[0]) || nearestDoor(v.x, v.y);
+    v.viaExit = false;
     if (v.state === 'indoors') { drop(v); return; }
     v.state = 'leave';
     if (d) { v.tx = d.x; v.ty = d.y; } else { v.tx = v.x; v.ty = v.y; }
@@ -716,6 +791,9 @@
   const EMOTES = {
     happy: ['😊', '🎵', '❤️'], low: ['☹️', '🌧️'], hungry: ['🥣'], homeless: ['🏠❓'], festival: ['🎵', '🏮'], plain: ['…'],
   };
+  // Rain and snow (js/home-weather.js): villagers hurry and stand about less.
+  const WET = { SPEED: 1.25, IDLE: 0.5 };
+  const inTheWet = () => { try { return !!(global.KWWeather && global.KWWeather.wet()); } catch (_) { return false; } };
   const MOOD = { HIGH: 70, LOW: 40, AT_ONCE: 2, EVERY_MS: 60000, SHOW_MS: [2000, 3000], LOW_SPEED: 0.8, LOW_IDLE: 1.5, LOW_CHAT: 0.4 };
   const happinessOf = c => { const h = c && c.life && c.life.happiness; return Number.isFinite(Number(h)) && h != null ? Number(h) : null; };
   // The town, as far as mood goes. `scene`: KWHome.sceneState(). Pure.
@@ -883,7 +961,8 @@
     S.lifePlaying = { id: entry.id, kind: entry.kind, until: now + Math.min(58000, longest + 3000) };
   }
   function endAct(v, now) {
-    v.act = null; setSay(v, null); v.el.classList.remove('kwv-gone');
+    if (v.act && v.act.was) v.el.setAttribute('aria-label', v.act.was);
+    v.act = null; setSay(v, null); v.el.classList.remove('kwv-gone', 'kwv-asks');
     if (v.guest) { v.guest = false; leave(v, 'rotate'); } else idle(v, now, 500 + S.rand() * 1200);
   }
   // One actor's part: walk, say, wait, hop, step indoors and out.
@@ -895,6 +974,7 @@
       if (!st) { endAct(v, now); return false; }
       if ('say' in st) setSay(v, st.say);
       if (st.hop) hop(v);
+      if (st.run) { try { st.run(); } catch (_) { /* the scene moved on */ } }
       if (st.inside) v.el.classList.add('kwv-gone');
       a.until = now + (st.wait || st.inside || 0);
       if (st.to) { v.tx = st.to.x; v.ty = st.to.y; }
@@ -914,6 +994,219 @@
       return;
     }
     if (now >= a.until) { if (st.inside) v.el.classList.remove('kwv-gone'); next(); }
+  }
+
+  // A script for one villager who is out and free (the lamplighter, the
+  // crier, a bucket chain): `steps` as in a life scene, plus `run`, a
+  // function called as that step begins, and `door: key` (with dx, dy) for
+  // "walk to that building's door". `prefer(c)`: who suits it best.
+  // `opts.onClick`: a click on them does this instead of opening their menu
+  // (`opts.label` names it for screen readers). → their id, or null when
+  // nobody is free or a door it needs is not there.
+  function playScript(id, steps, prefer, opts = {}) {
+    if (!S.shown || S.paused || !S.layer) return null;
+    const now = performanceNow(), list = [];
+    for (const st of steps) {
+      if (!st.door) { list.push(st); continue; }
+      const d = doorOf(st.door);
+      if (!d) return null;
+      list.push({ ...st, door: undefined, to: { x: d.x + (st.dx || 0), y: d.y + (st.dy || 0) } });
+    }
+    const free = [...S.vs.values()].filter(v => live(v) && !v.child && !v.act && !v.selected && !v.held && !v.moment && !v.talk && v.partner == null && v.state !== 'indoors' && F.id !== v.id);
+    if (!free.length) return null;
+    const v = (prefer && free.find(x => prefer(x.c))) || free[0];
+    endChat(v, now); v.emote = null;
+    v.act = { scene: 'script:' + id, steps: list, i: -1, onClick: opts.onClick || null };
+    v.state = 'act'; v.goal = null;
+    if (opts.onClick) { v.el.classList.add('kwv-asks'); if (opts.label) { v.act.was = v.el.getAttribute('aria-label'); v.el.setAttribute('aria-label', opts.label); } }
+    return v.id;
+  }
+  const scripted = id => [...S.vs.values()].find(v => v.act && v.act.scene === 'script:' + id) || null;
+  function stopScript(id) { const v = scripted(id); if (v) endAct(v, performanceNow()); return !!v; }
+
+  // ── What is on their mind (Part F.3) ────────────────────────────────────
+  // One line under a selected villager's name, from what the game already
+  // knows, the most pressing first: no bed, short food, a moment waiting,
+  // grief, a new partner or child, pride in something just built, taking to
+  // their work or not (a trait the player has already seen), something they
+  // like to talk about (learned through chats), else how the day feels.
+  // `ctx`: { hungry, moment, recent: [{ kind, citizen_ids, family_id, at }],
+  // now, likes: [labels], work: 'likes' | 'dislikes' | null, phase }. Pure.
+  const DAY_MS = 86400000;
+  function thoughtOf(c, ctx = {}) {
+    const id = Number(c.id), now = ctx.now || 0;
+    const recent = (ctx.recent || []).filter(e => e && now - new Date(e.at).getTime() < DAY_MS);
+    const mine = e => (e.citizen_ids || []).map(Number).includes(id);
+    const child = c.stage === 'child' || (!c.stage && c.life_stage === 'child');
+    if (c.house_id == null && !child) return 'Has no bed of their own.';
+    if (ctx.hungry === 'famine') return 'Hungry. The stores are empty.';
+    if (ctx.hungry === 'low') return 'Worried that food is running low.';
+    if (ctx.moment) return 'Has something to ask you.';
+    if (ctx.lost) return ctx.lost;   // has lost something today (js/lost.js)
+    if (recent.some(e => e.kind === 'death' && !mine(e) && c.family_id != null && e.family_id === c.family_id)) return 'Grieving a death in the family.';
+    if (recent.some(e => e.kind === 'partnership' && mine(e))) return 'Newly partnered, and it shows.';
+    if (recent.some(e => e.kind === 'birth' && mine(e) && (e.citizen_ids || []).map(Number).indexOf(id) < 2)) return 'A new parent: tired and happy.';
+    if (recent.some(e => e.kind === 'came_of_age' && mine(e))) return 'Grown up at last, and proud of it.';
+    if (recent.some(e => e.kind === 'town' && mine(e) && /finished|now level/.test(e.text || ''))) return 'Proud of what they have just built.';
+    if (child) return 'Wants to play.';
+    if (ctx.work === 'likes') return 'Loves the work.';
+    if (ctx.work === 'dislikes') return 'Does not take to this work.';
+    const likes = ctx.likes || [];
+    if (likes.length) return `Thinking about ${String(likes[(id + Math.floor(now / DAY_MS)) % likes.length]).toLowerCase()}.`;
+    const h = happinessOf(c);
+    if (h != null && h >= MOOD.HIGH) return 'Content with how things are.';
+    if (h != null && h < MOOD.LOW) return 'Feeling low.';
+    return { dawn: 'Glad of the morning.', day: 'Getting on with the day.', dusk: 'Looking forward to the evening.', night: 'Ready for bed.' }[ctx.phase] || 'Getting on with the day.';
+  }
+  function thoughtFor(v) {
+    const c = v.c, scene = sceneNow(), fam = scene.famine && scene.famine.state;
+    let work = null, likes = [];
+    try {
+      const d = global.KWCareers && global.KWCareers.defs && global.KWCareers.defs();
+      const seen = c.revealed_hidden_traits || [];
+      if (d && d.traits && seen.some(t => d.traits.aptitudes[t] && (d.traits.aptitudes[t].classes || []).includes(c.role))) work = 'likes';
+      else if (d && d.traits && seen.some(t => d.traits.aversions[t] && (d.traits.aversions[t].classes || []).includes(c.role))) work = 'dislikes';
+    } catch (_) { /* not loaded */ }
+    try { const k = global.KWSocial && global.KWSocial.data && global.KWSocial.data.known[c.id]; likes = k ? (k.likes || []).map(t => global.KWSocial.topic(t).label) : []; } catch (_) { /* not loaded */ }
+    const recent = global.KWLifeScenes && global.KWLifeScenes.recent ? global.KWLifeScenes.recent() : [];
+    let lost = null;
+    try { lost = global.KWLost && global.KWLost.hintFor ? global.KWLost.hintFor(c.id) : null; } catch (_) { /* not loaded */ }
+    try { if (!lost && global.KWSceneEvents && global.KWSceneEvents.thoughtFor) lost = global.KWSceneEvents.thoughtFor(c.id); } catch (_) { /* not loaded */ }
+    return thoughtOf(c, { hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', moment: !!v.moment, lost, recent, now: clockMs(), likes, work, phase: S.phase });
+  }
+
+  // ── Follow (Part F.4) ───────────────────────────────────────────────────
+  // The view keeps one villager centred as they walk, and goes with them to
+  // another part of town. A small card lists what they have done today (from
+  // their routine and the chats the player set up) and what they do while
+  // watched. Any pan by the player, Esc or the card's close button ends it.
+  const F = { id: null, name: '', lines: [], last: null, k: 1, kAt: 0 };
+  const hhmm = h => { const m = Math.round(h * 60); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+  // Their day so far, from the routine. `rt`: routine(id, day); `hour`: now;
+  // `work`: their workplace's name, or null (no working day). Pure.
+  function dayLog(rt, hour, work) {
+    const out = [];
+    if (!work || hour < rt.start) return out;
+    out.push(`${hhmm(rt.start)}  Went to work at the ${work}`);
+    for (const [a, b] of rt.breaks) {
+      if (hour >= a) out.push(`${hhmm(a)}  ${hour < b ? 'On a break' : 'Took a break'}`);
+      if (hour >= b && b < rt.end) out.push(`${hhmm(b)}  Back to work`);
+    }
+    if (hour >= rt.end) out.push(`${hhmm(rt.end)}  Finished work for the day`);
+    return out;
+  }
+  // What a change of state looks like in words (while watched). Pure.
+  function seenLine(state, v, names = {}) {
+    if (state === 'indoors') return `Went into ${names.inside || 'a building'}`;
+    if (state === 'chat') return `Stopped to chat${names.partner ? ' with ' + names.partner : ''}`;
+    if (state === 'build') return 'Hammering at the site';
+    if (state === 'dance') return 'Dancing on the green';
+    if (state === 'cheer') return 'Cheering';
+    if (state === 'act') return 'Part of something happening in town';
+    if (state === 'out') return `Came out${names.inside ? ' of ' + names.inside : ''}`;
+    return null;
+  }
+  const placeName = key => {
+    if (!key) return null;
+    if (key === 'neighbourhood' || key.indexOf('house-') === 0) return 'home';
+    const d = doorOf(key); const lab = d && d.btn && d.btn.getAttribute('aria-label');
+    return lab ? 'the ' + lab.split(/[:.(,]/)[0].trim() : 'a building';
+  };
+  function whereIs(c) {
+    if (isBuilder(c) && siteArea()) return siteArea();
+    const a = areaOf(c, builtArea);
+    return a !== 'town' && outAtWork(c) && !(S.visitors && S.visitors.has(Number(c.id))) ? a : 'town';
+  }
+  function follow(id) {
+    const c = cits().find(x => Number(x.id) === Number(id));
+    if (!c) return false;
+    stopFollow(true);
+    F.id = Number(id); F.name = String(c.name || 'Villager').split(' ')[0]; F.last = null;
+    const k = gameClock(), wk = ROLE_BUILDING[c.role], wd = wk && builtArea(wk) && !isChild(c) && !isElder(c);
+    let work = null;
+    if (wd) { const el = doc.querySelector('#settlement-view .sv-fg-layer [data-kwh="' + wk + '"]'); work = el ? (el.getAttribute('aria-label') || wk).split(/[:.(,]/)[0].trim() : wk; }
+    F.lines = dayLog(routine(F.id, k.day), k.hour, work);
+    if (S.visitors && S.visitors.has(F.id)) F.lines.push('On an errand in town');
+    try {
+      const S2 = global.KWSocial && global.KWSocial.data;
+      for (const ch of (S2 && S2.chats_today) || []) {
+        if (ch.speaker_id !== F.id && ch.listener_id !== F.id) continue;
+        const o = cits().find(x => Number(x.id) === (ch.speaker_id === F.id ? ch.listener_id : ch.speaker_id));
+        F.lines.push(`A chat with ${String((o && o.name) || 'someone').split(' ')[0]} about ${global.KWSocial.topic(ch.topic).label.toLowerCase()} (${ch.got_along ? 'it went well' : 'it went badly'})`);
+      }
+    } catch (_) { /* not loaded */ }
+    followCard();
+    return true;
+  }
+  function stopFollow(quiet) {
+    if (F.id == null) return;
+    F.id = null;
+    const el = doc.getElementById('kwv-follow');
+    if (el) el.remove();
+    void quiet;
+  }
+  function followNote(line) { if (!line || F.lines[F.lines.length - 1] === line) return; F.lines.push(line); followCard(); }
+  function followCard() {
+    const host = doc.getElementById('settlement-view');
+    if (!host || F.id == null) return;
+    let el = doc.getElementById('kwv-follow');
+    if (!el) {
+      el = doc.createElement('aside');
+      el.id = 'kwv-follow'; el.className = 'kwv-follow'; el.setAttribute('aria-label', 'Following a villager');
+      el.addEventListener('click', e => { if (e.target.closest('[data-kwv-unfollow]')) stopFollow(); });
+      host.appendChild(el);
+    }
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const lines = F.lines.slice(-6);
+    el.innerHTML = `<div class="kwv-follow-h"><span aria-hidden="true">👣</span> <b>Following ${esc(F.name)}</b><button type="button" class="kwv-follow-x" data-kwv-unfollow aria-label="Stop following">×</button></div>`
+      + (lines.length ? `<ol class="kwv-follow-l" aria-live="polite">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ol>` : '<p class="kwv-follow-n">Nothing to tell yet today.</p>');
+  }
+  // Each frame: keep them centred; say what they do; go with them.
+  function followStep(dt, now) {
+    if (F.id == null) return;
+    const c = cits().find(x => Number(x.id) === F.id);
+    if (!c || !living(c) || awayOf(c)) { stopFollow(); return; }
+    const v = S.vs.get(F.id);
+    if (!v || !live(v)) {
+      // Not in this part of town any more: go where they went.
+      if (v && v.state === 'leave') return;   // still walking out
+      const t = inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : whereIs(c)) : whereIs(c);
+      if (t && t !== S.area && now - (F.movedAt || 0) > 1500) {
+        F.movedAt = now;
+        followNote(t === 'outskirts' ? 'Walked out to the Outskirts' : t === 'town' ? 'Walked back to town' : 'Went home');
+        if (typeof global._svSwitchArea === 'function') global._svSwitchArea(t, false, t === 'outskirts' ? 'start' : 'end');
+      }
+      return;
+    }
+    // Words for what they do.
+    const st = v.state === 'indoors' ? 'indoors' : ['chat', 'build', 'dance', 'cheer', 'act'].includes(v.state) ? v.state : 'out';
+    if (st !== F.last) {
+      const p = v.partner != null ? S.vs.get(v.partner) : null;
+      const line = st === 'out' ? (F.last === 'indoors' ? seenLine('out', v, { inside: F.inside }) : null) : seenLine(st, v, { inside: placeName(v.inside), partner: p ? String(p.c.name || '').split(' ')[0] : null });
+      if (st === 'indoors') F.inside = placeName(v.inside);
+      F.last = st;
+      followNote(line);
+    }
+    // Centred, gently.
+    const sc = doc.getElementById('sv-scene'), world = doc.getElementById('sv-world');
+    if (!sc || !world) return;
+    if (now - F.kAt > 1000) { F.kAt = now; F.k = world.offsetWidth ? world.getBoundingClientRect().width / world.offsetWidth : 1; }
+    const want = v.x * F.k - sc.clientWidth / 2, d = want - sc.scrollLeft;
+    if (Math.abs(d) > 1) sc.scrollLeft += d * Math.min(1, dt / 220);
+  }
+  if (doc) {
+    // The player takes the view back: a wheel, a drag, a swipe, or Esc.
+    let downX = null;
+    doc.addEventListener('wheel', e => { if (F.id != null && e.target.closest && e.target.closest('#sv-scene')) stopFollow(); }, { passive: true, capture: true });
+    doc.addEventListener('pointerdown', e => { downX = F.id != null && e.target.closest && e.target.closest('#sv-scene') ? e.clientX : null; }, { passive: true, capture: true });
+    doc.addEventListener('pointermove', e => { if (downX != null && F.id != null && e.buttons && Math.abs(e.clientX - downX) > 12) { downX = null; stopFollow(); } }, { passive: true, capture: true });
+    doc.addEventListener('touchmove', e => { if (F.id != null && e.target.closest && e.target.closest('#sv-scene')) stopFollow(); }, { passive: true, capture: true });
+    doc.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || F.id == null || M.v) return;
+      if ((global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen()) || (global.KWDialog && global.KWDialog.isOpen && global.KWDialog.isOpen())) return;
+      stopFollow();
+    });
+    if (global.addEventListener) global.addEventListener('kw:home', e => { if (!(e.detail && e.detail.open)) stopFollow(true); });
   }
 
   // ── Town-wide events (§3.10) ────────────────────────────────────────────
@@ -1084,13 +1377,17 @@
     S.phase = S.hold || clockPhase();
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const all = cits();
+    S.visitors = visitorsNow();
     // Builders with a site in this part of town are always in the cast (up to 4).
     const crew = siteArea() === S.area ? all.filter(c => living(c) && isBuilder(c) && !awayOf(c)).slice(0, BUILDERS_SHOWN).map(c => Number(c.id)) : [];
-    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew), rand: S.rand });
+    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew, F.id != null ? [F.id] : []), rand: S.rand });
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
-      if (!want.includes(v.id) && live(v) && !(v.act && !first)) { if (first) { v.el.remove(); S.vs.delete(v.id); } else leave(v); }   // someone in a scene stays for it
+      if (!want.includes(v.id) && live(v) && !(v.act && !first)) {   // someone in a scene stays for it
+        if (first) { v.el.remove(); S.vs.delete(v.id); }
+        else { v.viaExit = !!c && living(c) && !awayOf(c) && !inHood(); leave(v); }   // off to another part of town: by the signpost
+      }
       else if (c) v.c = c;
     }
     const present = () => [...S.vs.values()].filter(live).length;
@@ -1102,7 +1399,9 @@
       // In the Neighbourhood people start at (or in) their own house, and
       // arrive later from town by the signpost.
       const own = inHood() && c.house_id != null ? doorOf('house-' + c.house_id) : null;
-      const door = inHood() ? (first ? own : S.exits[0] || own) : S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
+      // Someone arriving from the other part of town comes by the signpost.
+      const fromAfar = !first && !inHood() && S.exits[0] && (S.area !== 'town' || areaOf(c, builtArea) !== 'town');
+      const door = inHood() ? (first ? own : S.exits[0] || own) : fromAfar ? S.exits[0] : S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
       const at = first || !door ? px(groundPoint(S.area, S.rand)) : { x: door.x, y: door.y };
       const v = make(c, at, !first);
       // On opening, someone at work is in their building; some others start
@@ -1116,15 +1415,17 @@
   }
   function signature(all) {
     // (In the Neighbourhood, also who is out at work and who lives where.)
-    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',')
-      + '|' + (siteArea() || '');   // the builders go where the first site is
+    S.visitors = visitorsNow();
+    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (outAtWork(c) ? 'w' : '') + (inHood() ? ':' + (c.house_id || '') : '')).join(',') + '|' + momentIds().join(',')
+      + '|' + (siteArea() || '')    // the builders go where the first site is
+      + '|' + [...S.visitors].sort((x, y) => x - y).join(',');   // who is on an errand to town
   }
   // Now and then one walks into a building and someone else comes out.
   function rotate() {
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const pool = cits().filter(c => living(c) && !awayOf(c) && areaFor(c) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
     const moments = momentIds().map(Number);
-    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.talk && !v.child && !moments.includes(v.id)
+    const out = [...S.vs.values()].filter(v => live(v) && v.id !== F.id && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.talk && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
     leave(out[Math.floor(S.rand() * out.length)], 'rotate');
@@ -1169,6 +1470,7 @@
     if (youth) items.push({ key: 'apprentice', icon: '🎓', label: 'Apprenticeship' });
     else if (!child) items.push({ key: 'work', icon: '🛠️', label: 'Change work' });
     items.push({ key: 'house', icon: '🏡', label: 'House' });
+    if (social) items.push({ key: 'follow', icon: '👣', label: 'Follow' });   // (with the newer buttons, where the engine's page has them)
     return items;
   }
   // Where the buttons go: an arc of `n` around `centre` degrees (−90 is
@@ -1204,9 +1506,11 @@
       global.KWMoments.open(v.moment.id);
       return;
     }
+    // Someone with a part to play that answers a click (the town crier).
+    if (v.act && v.act.onClick) { if (M.v) deselect(true, true); sound('on'); try { v.act.onClick(v.id); } catch (_) { /* their window failed to open */ } return; }
     // Someone walking into a building can still be picked: they stop.
     if (v.state === 'leave') v.state = 'idle';
-    if (v.act) { v.act = null; v.guest = false; v.el.classList.remove('kwv-gone'); setSay(v, null); }   // picked out of a scene
+    if (v.act) { if (v.act.was) v.el.setAttribute('aria-label', v.act.was); v.act = null; v.guest = false; v.el.classList.remove('kwv-gone', 'kwv-asks'); setSay(v, null); }   // picked out of a scene
     if (global.KWBuildingMenu) global.KWBuildingMenu.close(false, true);   // one menu at a time
     if (M.v && M.v !== v) deselect(true, true);
     endChat(v, performanceNow());
@@ -1217,6 +1521,10 @@
     let tag = v.el.querySelector('.kwv-name');
     if (!tag) { tag = doc.createElement('span'); tag.className = 'kwv-name'; v.el.appendChild(tag); }
     tag.textContent = nameLine(v.c);
+    const th = doc.createElement('span');   // what is on their mind (Part F.3)
+    th.className = 'kwv-thought';
+    th.textContent = thoughtFor(v);
+    tag.appendChild(th);
     const ring = v.el.querySelector('.kwv-ring') || v.el.appendChild(Object.assign(doc.createElement('span'), { className: 'kwv-ring' }));
     placeHit(v); void ring;
     draw(v, false);
@@ -1290,6 +1598,7 @@
     if (!v) return;
     const c = v.c, id = v.id;
     if (key === 'praise') { deselect(true); if (global.KWSocial) global.KWSocial.praise(id); return; }   // no window: they carry on
+    if (key === 'follow') { deselect(true); follow(id); return; }
     v.held = true; v.heldFrom = performanceNow(); v.heldCheck = performanceNow() + 300; v.heldBy = null;
     deselect(true);
     const call = (name, ...a) => (typeof global[name] === 'function' ? global[name](...a) : null);
@@ -1514,6 +1823,7 @@
     if (v.state === 'indoors' && buildSpot(v)) { comeOut(v, now); return; }   // there is building to do
     if (v.state === 'build' || v.state === 'cheer') { buildStep(v, now); return; }
     if (v.state === 'dance') { danceStep(v, now); return; }
+    if (v.state === 'tend') { if (now >= v.until) { setSay(v, null); idle(v, now, 800 + S.rand() * 1500); } else setSay(v, (now - v.hamFrom) % 1500 < 850 ? '🔨' : null); return; }
     if (v.guarding && S.event !== 'raid') { v.guarding = false; if (v.say === '🛡️') setSay(v, null); }
     // During a raid nobody but the guards comes back out.
     if (v.state === 'indoors' && S.event === 'raid') { if (isGuard(v.c)) comeOut(v, now); return; }
@@ -1556,12 +1866,13 @@
     if (v.state === 'idle' || (v.child && v.state === 'idle')) return;
     const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy);
     if (v.state === 'tochat' && v.talk && now >= v.until) { endChat(v, now); return; }   // never got there
-    const stepPx = v.speed * (v.talk ? 1.8 : v.run ? TOWN.RUN : v.state === 'chase' || v.state === 'ahead' || v.state === 'toring' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * dt / 1000;
+    const stepPx = v.speed * (v.talk ? 1.8 : v.run ? TOWN.RUN : v.state === 'chase' || v.state === 'ahead' || v.state === 'toring' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * (inTheWet() ? WET.SPEED : 1) * dt / 1000;
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }
       if (v.state === 'toring') { v.state = 'dance'; v.until = now + TOWN.DANCE_MS[0] + S.rand() * (TOWN.DANCE_MS[1] - TOWN.DANCE_MS[0]); v.danceFrom = now - S.rand() * 3000; v.danceSay = S.rand() < 0.5 ? '🎵' : '🏮'; return; }
       if (v.guarding && S.event === 'raid') { idle(v, now, 6000); v.dir = 's'; setSay(v, '🛡️'); return; }
+      if (v.state === 'totend') { v.state = 'tend'; v.until = now + 4000 + S.rand() * 3500; v.hamFrom = now; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tosite') { v.state = 'build'; v.until = now + BUILD_MS[0] + S.rand() * (BUILD_MS[1] - BUILD_MS[0]); v.hamFrom = now; v.puffAt = now + 600; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tochat') {
         const p = S.vs.get(v.partner);
@@ -1572,16 +1883,18 @@
       }
       if (v.goal && v.goal.door) { goIndoors(v, now, v.goal.door); return; }
       if (v.child) { v.state = v.state === 'ahead' ? 'ahead' : 'idle'; v.until = Math.max(v.until, now + 300); return; }
+      if (v.rest && v.state === 'walk') { v.rest = false; idle(v, now, SIT_MS[0] + S.rand() * (SIT_MS[1] - SIT_MS[0])); v.dir = 's'; return; }   // sitting a while at a bench
       idle(v, now);
       return;
     }
-    v.x += dx / dist * stepPx; v.y += dy / dist * stepPx;
-    v.dir = V().dirFromVector(dx, dy);
+    const to = stepRound(v.x, v.y, v.tx, v.ty, stepPx, S.walls || []);
+    v.dir = V().dirFromVector(to.x - v.x, to.y - v.y);
+    v.x = to.x; v.y = to.y;
   }
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'toring', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'totend', 'toring', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
@@ -1621,6 +1934,7 @@
     if ((S.outT = (S.outT || 0) + dt) > 2000) { S.outT = 0; keepSomeOut(now); }
     S.size = { w: S.layer.clientWidth, h: S.layer.clientHeight };
     try { for (const v of S.vs.values()) { step(v, dt, now); draw(v, false); } } finally { S.size = null; }
+    followStep(dt, now);
     S.ms = S.ms * 0.95 + (performanceNow() - t0) * 0.05;   // the loop's own cost (target: under 2 ms)
     S.raf = requestFrame(tick);
   }
@@ -1664,7 +1978,7 @@
 
   function sceneShown(layer) {
     const area = layer && /^sv-layer-fg-/.test(layer.id) && GROUND[layer.id.slice(12)] ? layer.id.slice(12) : 'town';
-    if (layer !== S.layer || area !== S.area) { clear(); S.layer = layer; S.area = area; }
+    if (layer !== S.layer || area !== S.area) { clear(); S.layer = layer; S.area = area; S.openedAt = performanceNow(); }
     S.shown = true;
     start();
   }
@@ -1694,11 +2008,17 @@
     _routine: routine, _atWork: atWork, _callOut: callOut, _stayMs: stayMs, _setClock: f => { S.clock = f || null; },
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
-    _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP,
+    _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP, _stepRound: stepRound, SIT_MS,
     _seed: n => { S.rand = seeded(n); },
     // The scene changed (a building built, moved or removed, a resize): look
     // again at the doors, and redraw the paths and props.
-    resurvey: () => { if (S.layer && S.shown && S.layer.clientHeight) { survey(); syncGlow(); } },
+    // (Home's first cast is made before its buildings are drawn, so nobody's
+    // workplace is known yet: once they are, the cast is made again at once.)
+    resurvey: () => {
+      if (!(S.layer && S.shown && S.layer.clientHeight)) return;
+      survey(); syncGlow();
+      if (S.openedAt && performanceNow() - S.openedAt < 6000 && cits().length && signature(cits()) !== S.sig) recast(true);
+    },
     // Who the scene has inside a building right now (js/building-menu.js,
     // Who's here): exactly the villagers whose state is indoors there.
     inside: key => [...S.vs.values()].filter(v => v.state === 'indoors' && v.inside === key)
@@ -1715,7 +2035,15 @@
     deselect: () => { if (M.v) deselect(true); },
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
+    // A small sign rising from a point in the scene (js/lost.js).
+    floatAt: (x, y, text, tone) => floater(x, y, text, tone),
+    // One free villager plays a script (js/decor.js: the lamplighter; js/crier.js).
+    playScript, stopScript, scriptOn: id => !!scripted(id), scriptSay: (id, text) => { const v = scripted(id); if (v) setSay(v, text); return !!v; },
     // Builders (js/construction.js): where they are and what they do.
+    // What is on their mind, and Follow (Part F.3, F.4).
+    _thoughtOf: thoughtOf, _dayLog: dayLog, _seenLine: seenLine, follow, stopFollow: () => stopFollow(), get following() { return F.id; }, get followLines() { return F.lines.slice(); },
+    // Who is in which part of town.
+    VISIT, _townVisitors: townVisitors, get visitors() { return [...(S.visitors || [])]; },
     // Town-wide events (§3.10).
     TOWN, _townEvent: townEvent, _ringSpot: ringSpot, get event() { return S.event || null; },
     // Life events (§3.9).

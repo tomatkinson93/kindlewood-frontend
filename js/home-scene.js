@@ -25,7 +25,52 @@
   const fn = name => typeof global[name] === 'function';
   const call = (name, ...a) => { if (fn(name)) return global[name](...a); };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const leaveScene = () => call('closeSettlementView');
+  // ── Leaving for a full screen, and coming back ─────────────────────────
+  // The Tavern, the Market and Fishing are full screens that sit over the
+  // Land, so Home closes for them. A return ticket remembers where the player
+  // stood (which part of town, and how far along); when the screen is closed
+  // Home opens again right there. Going somewhere else with the place bar
+  // (js/places.js) tears the ticket up: the player chose where to go.
+  const SCREENS = {
+    tavern:  () => shownEl('tavern-overlay'),
+    fishing: () => shownEl('fishing-overlay'),
+    market:  () => { const m = doc.getElementById('market-panel'); return !!(m && m.classList.contains('open')); },
+  };
+  const shownEl = id => { const e = doc.getElementById(id); return !!(e && global.getComputedStyle(e).display !== 'none'); };
+  let ticket = null, watching = null;
+  // What to do with a ticket now. `open`: its screen is showing. Pure.
+  // → 'wait' (not opened yet, or still open), 'back' (it was open and is
+  // closed: go back), 'drop' (it never opened).
+  function ticketStep(t, open, now) {
+    if (open) return 'wait';
+    if (t.seen) return 'back';
+    return now - t.at > 5000 ? 'drop' : 'wait';
+  }
+  function leaveFor(screen) {
+    const sc = doc.getElementById('sv-scene');
+    if (fn('_svIsOpen') && global._svIsOpen() && SCREENS[screen]) ticket = { screen, area: call('_svActiveAreaName') || 'town', x: sc ? sc.scrollLeft : 0, seen: false, at: Date.now() };
+    call('closeSettlementView');
+    if (ticket && !watching) watching = setInterval(watch, 250);
+  }
+  function watch() {
+    if (!ticket) { clearInterval(watching); watching = null; return; }
+    const open = SCREENS[ticket.screen]();
+    if (open) ticket.seen = true;
+    const what = ticketStep(ticket, open, Date.now());
+    if (what === 'drop') ticket = null;
+    else if (what === 'back') comeBack();
+  }
+  async function comeBack() {
+    const t = ticket;
+    ticket = null;
+    if (!t) return;
+    if (global.KWPlaces && global.KWPlaces.go) global.KWPlaces.go('home'); else await call('openSettlementView');
+    // Where they stood: the same part of town, the same place along it.
+    const put = () => { call('_svSwitchArea', t.area, true); const sc = doc.getElementById('sv-scene'); if (sc) sc.scrollLeft = t.x; };
+    put(); setTimeout(put, 60); setTimeout(put, 400);   // (the scene sizes itself as it opens)
+  }
+  const forgetReturn = () => { ticket = null; };
+  const leaveScene = leaveFor;
 
   // ── What a building opens (§2.2) ───────────────────────────────────────
   // `opens` is the nameplate's second line and the end of the aria-label.
@@ -34,8 +79,8 @@
   const craft = station => ({ opens: 'Craft here', run: () => call('openCrafting', station) });
   const ROUTES = {
     granary:       { opens: 'Open the Stores',      run: () => call('openInventoryModal') },
-    tavern:        { opens: 'Visit the tavern',     run: () => call('visitTavern'), leave: true },
-    market:        { opens: 'Open the market',      run: () => call('openMarket'), leave: true },
+    tavern:        { opens: 'Visit the tavern',     run: () => call('visitTavern'), leave: 'tavern' },
+    market:        { opens: 'Open the market',      run: () => call('openMarket'), leave: 'market' },
     library:       { opens: 'Open Research',        run: () => call('openLibrary') },
     workshop:      craft('workshop'),
     smithy:        craft('smithy'),
@@ -43,7 +88,7 @@
     smelter:       craft('smelter'),
     guild_hall:    { opens: 'Upgrade the town',     run: () => call('openTierUpgradeModal') },
     neighbourhood: { opens: 'Walk to the homes',    run: () => (global.KWHood ? global.KWHood.open() : null) },
-    fishing_post:  { opens: 'Go fishing',           run: () => call('visitFishingPost'), leave: true },
+    fishing_post:  { opens: 'Go fishing',           run: () => call('visitFishingPost'), leave: 'fishing' },
   };
   const PANEL = { opens: 'Workers and upgrades', panel: true };
   const route = id => ROUTES[id] || PANEL;
@@ -54,7 +99,7 @@
     const r = route(id);
     clearBubble(id);
     if (r.panel) { if (panel) panel(); return 'panel'; }
-    if (r.leave) leaveScene();
+    if (r.leave) leaveFor(r.leave);   // a full screen: Home closes, and opens again here when it does
     try { r.run(); } catch (e) { console.error('[home]', e); }
     return id;
   }
@@ -133,7 +178,10 @@
     if (!e || !e.file) return null;
     const w = Number(e.w) || 0, h = Number(e.h) || 0;
     const door = Array.isArray(e.door) && e.door.length === 2 ? { x: Number(e.door[0]), y: Number(e.door[1]) } : { x: w / 2, y: h };
-    return { url: ART_BASE + e.file, lit: e.lit ? ART_BASE + e.lit : null, w, h, door, native: e.native !== false, smooth: e.smooth !== false };
+    // Where its smoke, forge fire and sawdust come from (js/home-ambient.js), in the picture's own pixels.
+    const pt = v => (Array.isArray(v) && v.length === 2 ? [Number(v[0]), Number(v[1])] : null);
+    return { url: ART_BASE + e.file, lit: e.lit ? ART_BASE + e.lit : null, w, h, door, native: e.native !== false, smooth: e.smooth !== false,
+      smoke: (Array.isArray(e.smoke) ? e.smoke : []).map(pt).filter(Boolean), fire: pt(e.fire), dust: pt(e.dust) };
   }
   // The door in the image's own pixels; the bottom centre when unknown.
   const door = (key, m = manifest) => { const a = art(key, m); return a ? a.door : null; };
@@ -330,8 +378,8 @@
     return [
       { key: 'stores',   label: '🎒 Stores',          run: () => call('openInventoryModal') },
       { key: 'upgrade',  label: '⬆️ Upgrade the town', run: () => call('openTierUpgradeModal') },
-      { key: 'tavern',   label: '🍺 Tavern',           run: () => { leaveScene(); call('visitTavern'); } },
-      { key: 'fishing',  label: '🎣 Fishing',          run: () => { leaveScene(); call('visitFishingPost'); } },
+      { key: 'tavern',   label: '🍺 Tavern',           run: () => { leaveFor('tavern'); call('visitTavern'); } },
+      { key: 'fishing',  label: '🎣 Fishing',          run: () => { leaveFor('fishing'); call('visitFishingPost'); } },
       { key: 'research', label: '📚 Research',         run: () => call('openLibrary'), unlock: () => has('library') },
       { key: 'crafting', label: '🔨 Crafting',         run: () => call('openCraftingAny'), unlock: () => has('craft:any') },
       { key: 'festival', label: '🎉 Festival',         run: () => global.KWTown && global.KWTown.open('festival'), unlock: () => !!global.KWTown },
@@ -440,6 +488,7 @@
 
   global.KWHome = {
     ROUTES, PROPS, route, open, props, openProp, sceneState,
+    leaveFor, forgetReturn, _ticketStep: ticketStep, _ticket: () => ticket, SCREENS: Object.keys(SCREENS),
     loadManifest, art, door, get manifest() { return manifest; },
     artHtml, propSvg, propArt, hutSvg, plateHtml, label, ART_BASE, PH_SIZE,
     note, bubble, bubbleHtml, clearBubble, redraw,

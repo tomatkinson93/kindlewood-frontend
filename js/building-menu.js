@@ -30,7 +30,10 @@
     const out = [{ key: 'enter', icon: '🚪', label: 'Enter', big: true }, { key: 'min', icon: '👁', label: 'Minimise' }];
     if (o.upgrade) out.push({ key: 'upgrade', icon: '⬆', label: 'Upgrade' });
     if (o.demolish) out.push({ key: 'demolish', icon: '🔨', label: 'Demolish' });
-    out.push({ key: 'who', icon: '👥', label: "Who's here" + (inside ? ' (' + inside + ')' : '') });
+    // A place with no inside (the village green, the Wonder site) has nobody in it.
+    if (!o.open) out.push({ key: 'who', icon: '👥', label: "Who's here" + (inside ? ' (' + inside + ')' : '') });
+    // A building's own extras (the Guild Hall: today's news). [{ key, icon, label, run }]
+    for (const x of o.extra || []) if (x && x.key && x.run) out.push({ key: 'x-' + x.key, icon: x.icon || '•', label: x.label || x.key });
     return out;
   }
   // Where the buttons round Enter go: evenly round a circle from the top.
@@ -130,6 +133,7 @@
     else if (what === 'upgrade') o.upgrade && o.upgrade();
     else if (what === 'demolish') o.demolish && o.demolish();
     else if (what === 'min') minimise(o.key, slot);
+    else if (what.indexOf('x-') === 0) { const x = (o.extra || []).find(e => e && 'x-' + e.key === what); if (x) x.run(); }
   }
 
   // ── Who's here ──────────────────────────────────────────────────────────

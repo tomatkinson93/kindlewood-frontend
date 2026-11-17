@@ -18,6 +18,7 @@
       const r = await global.apiFetch('/api/families/all/chronicle');
       if (!r.ok) return 0;
       const d = await r.json();
+      S.recent = (d.entries || []).slice(0, 40);   // what has happened lately (a villager's thought reads it)
       return global.KWCast.offerLife(d.entries || []);
     } catch (_) { return 0; } finally { S.busy = false; }
   }
@@ -27,5 +28,5 @@
     if (S.home) { setTimeout(read, 1500); S.timer = setInterval(read, POLL_MS); }
   }
   if (global.addEventListener) global.addEventListener('kw:home', e => home(!!(e.detail && e.detail.open)));
-  global.KWLifeScenes = { read, POLL_MS, _home: home, _state: S };
+  global.KWLifeScenes = { read, POLL_MS, recent: () => S.recent || [], _home: home, _state: S };
 })(typeof window !== 'undefined' ? window : globalThis);

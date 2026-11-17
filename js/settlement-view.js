@@ -630,6 +630,9 @@ function _svSwitchArea(area, force, where) {
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();
 }
 window._svSwitchArea = _svSwitchArea;
+// Leaving Home for a full screen (the Market from a building's panel): Home
+// opens again where the player stood when that screen is closed.
+window._svLeaveFor = function(screen) { if (window.KWHome && KWHome.leaveFor) KWHome.leaveFor(screen); else closeSettlementView(); };
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 async function _svLoad() {
@@ -701,11 +704,17 @@ function _renderScene() {
         (function(s, o) { el.onclick = function(ev) {
           if (_svJustDragged) return;
           if (_svBuildMode) return _openBuildPanel(s, o);
-          var enter = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); };
+          var enter = function() {
+            // Broken (js/upkeep.js): no screen behind it until it is mended; its panel has Repair now.
+            if (o.state === 'broken') { if (typeof showToastNotification === 'function') showToastNotification('🏚️ The ' + o.label + ' is broken and gives nothing until a builder mends it.', 'default'); return _openBuildPanel(s, o); }
+            _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); });
+          };
           if (!window.KWBuildingMenu) return enter();
           KWBuildingMenu.click(this, { key: o.id, label: o.label, enter: enter,
             upgrade: o.currentLevel < o.maxLevel && !o.site ? function() { _openBuildPanel(s, o); } : null,
-            demolish: function() { _svDemolish(o.id); } }, ev);
+            demolish: function() { _svDemolish(o.id); },
+            // The Guild Hall: today's news at any hour (js/crier.js).
+            extra: o.id === 'guild_hall' && window.KWCrier ? [{ key: 'news', icon: '📜', label: "Today's news", run: function() { KWCrier.open(); } }] : null }, ev);
         }; })(slot, occupant);
       } else {
         var areaBuildings = _svSlotBuildingIds();
@@ -761,7 +770,12 @@ function _renderProps() {
       + (p.kind === 'signpost' ? '<span class="kwh-sign-text" aria-hidden="true">' + _svEsc(p.label) + '</span>' : '')
       + KWHome.plateHtml(p.label, p.opens);
     el.appendChild(btn);
-    el.onclick = function() { KWHome.openProp(p.id); };
+    // A signpost is walked through at once. A place (the village green, the
+    // Wonder site) has a menu like any building: Enter in the middle.
+    el.onclick = function(ev) {
+      if (p.kind === 'signpost' || !window.KWBuildingMenu) return KWHome.openProp(p.id);
+      KWBuildingMenu.click(this, { key: p.id, label: p.label, open: true, enter: function() { KWHome.openProp(p.id); } }, ev);
+    };
   });
 }
 
@@ -821,6 +835,12 @@ function _buildOccupiedEl(slot, building) {
   var vis = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
   var btn = _svBuildingButton(building.id, building.label, vis, _svGetSlotSize(slot.id),
     building.currentLevel > 1 ? 'Lv ' + building.currentLevel : '');
+  // Upkeep (js/upkeep.js): worn and broken looks are drawn over the picture.
+  if (building.state && window.KWUpkeep) {
+    var look = KWUpkeep.lookOf(building.state);
+    if (look) btn.classList.add(look);
+    if (building.state === 'broken') btn.insertAdjacentHTML('beforeend', '<span class="kwu-needs">' + (building.repair ? '🛠️ Being mended' : '🏚️ Needs repair') + '</span>');
+  }
   // Being upgraded: it keeps working; a small sign says how far along.
   if (building.site && window.KWBuild) {
     btn.classList.add('kwbt-upgrading');
@@ -920,13 +940,14 @@ function _openBuildPanel(slot, occupant) {
         : _svBuildMode || occupant.site ? ''   // Build mode places and moves; Upgrade is in the building's menu; one upgrade at a time
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div>' + (!isMax && !_svBuildMode && !occupant.site && window.KWBuild ? KWBuild.noteHtml(occupant.work) : '')
+      + (window.KWUpkeep && occupant.currentLevel > 0 ? KWUpkeep.healthHtml({ on: KWUpkeep.on || !!occupant.state, health: occupant.health, state: occupant.state, repair: !!occupant.repair }, 'data-kwu-repair="' + occupant.id + '"') : '')
       + '<div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
       + (occupant.id === 'guild_hall' && typeof openClanPanel === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openClanPanel()">🛡️ Open Clan</button>'
         : '')
       + (occupant.id === 'market' && typeof openMarket === 'function'
-        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket()">⚖️ Open Market</button>'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();_svLeaveFor(\'market\');openMarket()">⚖️ Open Market</button>'
         : '')
       + (['smithy', 'jeweller', 'workshop', 'smelter'].includes(occupant.id) && typeof openCrafting === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
@@ -936,7 +957,7 @@ function _openBuildPanel(slot, occupant) {
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openLibrary()">📚 Open the Library</button>'
         : '')
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
-        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();_svLeaveFor(\'market\');openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
       + _svMoveHtml(slot);   // Demolish is in the building's radial menu (js/building-menu.js)
     void refundStr;
@@ -1035,6 +1056,8 @@ async function _svBuild(buildingId) {
   await _svLoad();
 }
 window._svBuild = _svBuild;
+// Upkeep changed (something wore, broke or was mended): the scene follows.
+window.addEventListener('kw:upkeep', function() { if (_svOpen && !_svDragSlot) _svLoad(); });
 // The builders' queue changed (ordered on another device, finished, cancelled): the scene follows.
 window.addEventListener('kw:build', function() { if (_svOpen && !_svDragSlot) _svLoad(); });
 
@@ -1262,6 +1285,7 @@ function _svToggleBuildMode(on) {
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();   // the chip reads Build / Done
   _renderScene();
   if (window.KWHood) KWHood.buildModeChanged();
+  if (window.KWDecor) KWDecor.buildModeChanged();   // the Decorate bar (js/decor.js)
   return _svBuildMode;
 }
 window._svToggleBuildMode = _svToggleBuildMode;

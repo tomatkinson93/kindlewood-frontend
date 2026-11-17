@@ -105,8 +105,9 @@
 
 /* A building under the pointer or focus rises above the villagers, so its
    nameplate is never hidden behind someone walking in front. */
-#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):hover,
-#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):focus-within { z-index: 1010 !important; }
+#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):not(#sv-prop-green):hover,
+#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):not(#sv-prop-green):focus-within { z-index: 1010 !important; }
+/* (Nor the village green: it is ground, and people dance on it.) */
 /* (Not a construction site: its plate is above it, and the builders stand in front.) */
 
 /* Villagers' behaviour (js/villager-engine.js, §3.5). */
@@ -578,3 +579,336 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 #settlement-view .kwv-hop .kwv-sprite { animation: kwv-hop 0.6s ease-out 1; }
 @keyframes kwv-hop { 0%, 100% { translate: 0 0; } 35% { translate: 0 -10px; } 60% { translate: 0 0; } 78% { translate: 0 -4px; } }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwv-hop .kwv-sprite { animation: none; } }
+/* What is on a selected villager's mind: one line under their name (Part F.3). */
+#settlement-view .kwv-thought { display: block; font-weight: 500; font-style: italic; color: #e6d7b4; text-align: center; }
+/* Follow (Part F.4): the small card of their day. */
+#settlement-view .kwv-follow {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1700; width: min(340px, calc(100% - 24px)); pointer-events: auto;
+  padding: 8px 12px 10px; border-radius: 10px; background: rgba(24, 16, 9, 0.92); border: 1px solid rgba(220, 180, 100, 0.55); color: #f0e4c8;
+  font: 500 12.5px/1.45 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+body.kw-shell #settlement-view .kwv-follow { top: 58px; }
+#settlement-view .kwv-follow-h { display: flex; align-items: center; gap: 6px; color: #ffe9a8; font-size: 13.5px; }
+#settlement-view .kwv-follow-h b { flex: 1; }
+#settlement-view .kwv-follow-x { width: 32px; height: 32px; margin: -4px -6px -4px 0; border: 0; border-radius: 6px; background: none; color: #ffe9a8; font-size: 20px; line-height: 1; cursor: pointer; }
+#settlement-view .kwv-follow-x:hover, #settlement-view .kwv-follow-x:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
+#settlement-view .kwv-follow-l { list-style: none; margin: 6px 0 0; padding: 0; }
+#settlement-view .kwv-follow-l li { padding: 1px 0; font-variant-numeric: tabular-nums; }
+#settlement-view .kwv-follow-l li:last-child { color: #fff3cf; font-weight: 600; }
+#settlement-view .kwv-follow-n { margin: 6px 0 0; color: #cdbf9c; }
+
+/* ── Upkeep (js/upkeep.js; docs/HOME_SCENE.md Part E) ───────────────────── */
+/* Worn and broken looks are drawn over a building's own picture by code
+   (cracks and weeds; boards and a dulled picture), so no new art is needed
+   per building. The owner may add proper worn art later. */
+#settlement-view .kwu-worn .kwh-art, #settlement-view .kwu-broken .kwh-art { position: relative; }
+#settlement-view .kwu-worn .kwh-art::after, #settlement-view .kwu-broken .kwh-art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background-repeat: no-repeat; background-position: center 62%; background-size: 78% auto;
+}
+#settlement-view .kwu-worn .kwh-art { filter: saturate(0.82); }
+#settlement-view .kwu-worn .kwh-art::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cg fill='none' stroke='%232b1a0c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.8'%3E%3Cpath d='M38 18l10 14-7 10 9 13'/%3E%3Cpath d='M150 30l-8 12 9 9-6 12'/%3E%3Cpath d='M96 6l5 10-6 8'/%3E%3C/g%3E%3Cg fill='%237d5a2c' stroke='%232b1a0c' stroke-width='2'%3E%3Crect x='112' y='14' width='26' height='15' rx='2' transform='rotate(-9 125 21)'/%3E%3C/g%3E%3Cg fill='none' stroke='%234f7a2a' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M22 118c0-10-4-14-8-18M24 118c1-8 5-12 9-14M172 118c0-9 4-13 8-17M168 118c-1-7-5-10-8-12'/%3E%3C/g%3E%3C/svg%3E");
+}
+#settlement-view .kwu-broken .kwh-art { filter: grayscale(0.7) brightness(0.72); }
+#settlement-view .kwu-broken .kwh-art::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cg fill='%23a8773f' stroke='%232b1a0c' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='40' y='52' width='120' height='14' rx='2' transform='rotate(-14 100 59)'/%3E%3Crect x='40' y='52' width='120' height='14' rx='2' transform='rotate(13 100 59)'/%3E%3C/g%3E%3Cg fill='%232b1a0c'%3E%3Ccircle cx='52' cy='70' r='2.5'/%3E%3Ccircle cx='148' cy='48' r='2.5'/%3E%3Ccircle cx='52' cy='48' r='2.5'/%3E%3Ccircle cx='148' cy='70' r='2.5'/%3E%3C/g%3E%3Cg fill='none' stroke='%232b1a0c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.85'%3E%3Cpath d='M30 10l12 16-8 12 10 14'/%3E%3Cpath d='M166 14l-9 14 10 10-7 13'/%3E%3C/g%3E%3C/svg%3E");
+  filter: none;
+}
+/* (Under reduced transparency or forced colours the words still say it.) */
+#settlement-view .kwu-needs {
+  position: absolute; left: 50%; top: 4px; transform: translateX(-50%); z-index: 3; pointer-events: none; white-space: nowrap;
+  padding: 1px 8px; border-radius: 10px; background: #fff1e0; border: 2px solid #b0562a; color: #6b2a10; font: 700 11.5px/1.4 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+#settlement-view[data-phase="night"] .kwu-needs { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] .kwu-needs { filter: url(#kwn-undo-dusk); }
+/* The condition line in a building's panel and a home's window. */
+.kwu-health { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(220, 180, 100, 0.3); color: #eadfc6; font-size: 12.5px; }
+.kwu-health-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.kwu-bar { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.kwu-bar > i { display: block; height: 100%; border-radius: 4px; background: #7fbf6a; }
+.kwu-is-worn .kwu-bar > i { background: #e0a94a; }
+.kwu-is-broken { border-color: rgba(214, 110, 70, 0.7); }
+.kwu-is-broken .kwu-bar > i { background: #d66e46; }
+.kwu-health-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.kwu-repair { min-height: 40px; padding: 6px 14px; border-radius: 8px; cursor: pointer; font: 600 13px/1.2 system-ui, sans-serif; border: 1px solid #b98a4a; background: #fff6df; color: #3a2414; }
+.kwu-repair:hover:not(:disabled), .kwu-repair:focus-visible { background: #ffe7a8; outline: none; }
+.kwu-repair:disabled { opacity: 0.5; cursor: default; }
+.kwu-hint, .kwu-inhand { font-size: 11.5px; color: #cdbf9c; }
+/* The line by the town card. */
+.kwu-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; padding: 5px 12px; text-align: left;
+  border-radius: var(--kw-radius, 8px); border: 1px solid var(--kw-line-2, rgba(232, 200, 140, 0.4)); background: var(--kw-panel, #2a1f14); color: var(--kw-cream, #f0e4c8); font-size: var(--kw-fs-2, 13px);
+}
+.kwu-chip.kwu-chip-short { border-color: #d98a4a; color: #ffd9a8; }
+#kwu-slot:empty, .kwc-upkeep:empty { display: none; }
+.kwc-upkeep { margin: var(--kw-s-2, 8px) 0; }
+
+/* ── Small life and working buildings (js/home-ambient.js; Part F.6, F.7) ── */
+#settlement-view .kwa { position: absolute; pointer-events: none; will-change: transform, opacity; }
+/* Chimney smoke: a soft puff that rises, drifts and fades (under the night
+   shade, so it darkens with the evening). */
+#settlement-view .kwa-smoke { width: 16px; height: 13px; margin: -7px 0 0 -8px; border-radius: 50%; background: radial-gradient(closest-side, rgba(244, 240, 232, 0.95), rgba(244, 240, 232, 0.55) 60%, rgba(244, 240, 232, 0)); animation: kwa-smoke 3.8s ease-out forwards; }
+@keyframes kwa-smoke { 0% { opacity: 0; transform: translate(0, 0) scale(0.5); } 15% { opacity: 0.9; } 100% { opacity: 0; transform: translate(calc(14px + var(--kwa-r, 0) * 18px), -64px) scale(2.4); } }
+/* The forge: a glow in the mouth while someone works it, and sparks. */
+#settlement-view .kwa-forge { position: absolute; width: 46px; height: 34px; margin: -17px 0 0 -23px; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(closest-side, rgba(255, 190, 90, 0.95), rgba(255, 120, 40, 0.55) 55%, rgba(255, 90, 20, 0)); animation: kwa-forge 1.3s ease-in-out infinite alternate; }
+@keyframes kwa-forge { 0% { opacity: 0.55; transform: scale(0.92); } 100% { opacity: 1; transform: scale(1.08); } }
+#settlement-view .kwa-spark { width: 3px; height: 3px; border-radius: 50%; background: #ffd27a; box-shadow: 0 0 4px #ff9a3a; animation: kwa-spark 0.9s ease-out forwards; }
+@keyframes kwa-spark { 0% { opacity: 1; transform: translate(0, 0); } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 22px), -26px); } }
+/* Sawdust from the Workshop. */
+#settlement-view .kwa-dust { width: 12px; height: 9px; margin: -4px 0 0 -6px; border-radius: 50%; background: radial-gradient(closest-side, rgba(232, 206, 160, 0.95), rgba(232, 206, 160, 0)); animation: kwa-dust 1.3s ease-out forwards; }
+@keyframes kwa-dust { 0% { opacity: 0.9; transform: translate(0, 0) scale(0.6); } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 14px), -18px) scale(1.9); } }
+/* The Tavern's windows flicker in the evening with someone in. */
+#settlement-view .kwa-flicker .kwh-lit { animation: kwa-flicker 2.7s steps(1, end) infinite; }
+@keyframes kwa-flicker { 0%, 100% { filter: brightness(1); } 22% { filter: brightness(0.93); } 41% { filter: brightness(1.05); } 63% { filter: brightness(0.96); } 80% { filter: brightness(1.03); } }
+/* Fireflies: above the night shade, so they glow. */
+#settlement-view .kwa-firefly { width: 4px; height: 4px; border-radius: 50%; background: #f6ffb0; box-shadow: 0 0 7px 2px rgba(214, 255, 120, 0.8); animation: kwa-firefly 6.5s ease-in-out forwards; }
+@keyframes kwa-firefly { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 1; } 35% { opacity: 0.25; transform: translate(calc(var(--kwa-r, 0) * 26px), -10px); } 55% { opacity: 1; transform: translate(calc(var(--kwa-r, 0) * 40px), 6px); } 80% { opacity: 0.4; } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 62px), -16px); } }
+/* Butterflies: two small wings that beat, on a wandering path. */
+#settlement-view .kwa-butterfly { width: 10px; height: 8px; margin: -4px 0 0 -5px; animation: kwa-flutter 8s ease-in-out forwards; }
+#settlement-view .kwa-butterfly::before, #settlement-view .kwa-butterfly::after { content: ''; position: absolute; top: 0; width: 5px; height: 8px; border-radius: 60% 60% 40% 40%; background: #ffd35c; border: 1px solid #7a4a12; box-sizing: border-box; animation: kwa-wing 0.28s ease-in-out infinite alternate; }
+#settlement-view .kwa-butterfly::before { left: 0; transform-origin: right center; }
+#settlement-view .kwa-butterfly::after { right: 0; transform-origin: left center; animation-name: kwa-wing-r; }
+@keyframes kwa-wing { from { transform: scaleX(1); } to { transform: scaleX(0.25); } }
+@keyframes kwa-wing-r { from { transform: scaleX(1); } to { transform: scaleX(0.25); } }
+@keyframes kwa-flutter { 0% { opacity: 0; transform: translate(0, 0); } 8% { opacity: 1; } 30% { transform: translate(calc(var(--kwa-r, 0) * 46px), -22px); } 55% { transform: translate(calc(var(--kwa-r, 0) * 20px + 34px), -8px); } 80% { transform: translate(calc(var(--kwa-r, 0) * 70px + 20px), -30px); } 92% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--kwa-r, 0) * 90px + 40px), -44px); } }
+/* On the wind: an autumn leaf, or a seed in spring and summer. */
+#settlement-view .kwa-leaf { width: 9px; height: 6px; border-radius: 80% 10% 80% 10%; background: #d98a2b; border: 1px solid #6b3a12; box-sizing: border-box; animation: kwa-wind 9s linear forwards; }
+#settlement-view .kwa-seed { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 3px rgba(255, 255, 255, 0.8); animation: kwa-wind 11s linear forwards; }
+@keyframes kwa-wind { 0% { opacity: 0; transform: translate(0, 0) rotate(0deg); } 6% { opacity: 1; } 50% { transform: translate(620px, calc(40px + var(--kwa-r, 0) * 50px)) rotate(400deg); } 94% { opacity: 1; } 100% { opacity: 0; transform: translate(1240px, calc(20px + var(--kwa-r, 0) * 90px)) rotate(800deg); } }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwa, #settlement-view .kwa-forge { display: none; } #settlement-view .kwa-flicker .kwh-lit { animation: none; } }
+
+/* ── Weather (js/home-weather.js; docs/HOME_SCENE.md F.5). Looks only. ───── */
+/* Clouds: drawn by code until clouds.png arrives (ART_GUIDE §8 F). They sit
+   over the sky and behind the mountains, and drift the world's width. */
+#settlement-view .kww-clouds { position: absolute; left: 0; top: 0; width: 0; height: 100%; z-index: -5; pointer-events: none; }
+#settlement-view .kww-cloud { position: absolute; left: -340px; width: 150px; height: 34px; border-radius: 40px; background: #fff; opacity: 0.92;
+  box-shadow: inset 0 -9px 0 rgba(176, 200, 226, 0.75); transform: translateX(0) scale(var(--kww-s, 1)); animation: kww-drift 400s linear infinite; will-change: transform; }
+#settlement-view .kww-cloud::before, #settlement-view .kww-cloud::after { content: ''; position: absolute; background: #fff; border-radius: 50%; }
+#settlement-view .kww-cloud::before { left: 22px; top: -22px; width: 58px; height: 52px; }
+#settlement-view .kww-cloud::after { left: 66px; top: -34px; width: 66px; height: 62px; }
+#settlement-view .kww-cloud-2 { width: 210px; height: 28px; }
+#settlement-view .kww-cloud-2::before { left: 40px; top: -14px; width: 70px; height: 40px; }
+#settlement-view .kww-cloud-2::after { left: 96px; top: -20px; width: 80px; height: 46px; }
+#settlement-view .kww-cloud-3 { width: 96px; height: 26px; }
+#settlement-view .kww-cloud-3::before { left: 12px; top: -14px; width: 40px; height: 36px; }
+#settlement-view .kww-cloud-3::after { left: 40px; top: -22px; width: 44px; height: 42px; }
+#settlement-view .kww-cloud-4::before { left: 10px; top: -30px; width: 70px; height: 62px; }
+#settlement-view .kww-cloud-4::after { left: 70px; top: -20px; width: 60px; height: 50px; }
+@keyframes kww-drift { from { transform: translateX(0) scale(var(--kww-s, 1)); } to { transform: translateX(var(--kww-w, 3000px)) scale(var(--kww-s, 1)); } }
+#settlement-view[data-weather="cloudy"] .kww-cloud, #settlement-view[data-weather="snow"] .kww-cloud { filter: brightness(0.93); }
+#settlement-view[data-weather="rain"] .kww-cloud { filter: brightness(0.8); }
+#settlement-view.kww-still .kww-cloud { animation-play-state: paused; }
+/* A grey or wet day: a plain wash over the world, under the night's multiply
+   (1050). Not a blend mode: a second blended layer over the whole world costs
+   far more than it shows. */
+#settlement-view .kww-tint { position: absolute; left: -1600px; right: -1000px; top: 0; bottom: 0; z-index: 1049; pointer-events: none; background: rgb(96, 110, 134); opacity: 0; transition: opacity 3s linear; }
+#settlement-view[data-weather="cloudy"] .kww-tint { opacity: 0.12; }
+#settlement-view[data-weather="rain"] .kww-tint { opacity: 0.26; }
+#settlement-view[data-weather="snow"] .kww-tint { background: rgb(150, 164, 190); opacity: 0.12; }
+/* Snow lying: a dusting over the meadow (above the paths, under everything
+   that stands), and a white cap on each roof, cut to the picture's outline. */
+#settlement-view .kww-ground { position: absolute; left: -1600px; right: -1000px; top: 21%; bottom: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 4s linear;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0, rgba(250, 252, 255, 0.5) 7%, rgba(250, 252, 255, 0.5) 100%); }
+#settlement-view.kww-lying .kww-ground { opacity: 1; }
+#settlement-view .kww-cap { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 4s linear; }
+#settlement-view.kww-lying .kww-cap { opacity: 1; }
+#settlement-view .kwu-broken .kww-cap { filter: brightness(0.8); }
+/* Puddles: flat on the ground, behind everything that stands. */
+#settlement-view .kww-puddle { position: absolute; width: 64px; height: 18px; margin: -9px 0 0 -32px; border-radius: 50%; z-index: 0; pointer-events: none; transform: scale(var(--kww-s, 1));
+  background: radial-gradient(closest-side, rgba(196, 222, 244, 0.85), rgba(150, 190, 226, 0.7) 70%, rgba(120, 160, 200, 0)); box-shadow: inset 0 -2px 0 rgba(90, 120, 160, 0.25); }
+/* Rain and snow fall over the view, not the world: two sheets, each a tile
+   that slides by exactly its own size. Under the header and the cards. */
+#settlement-view .kww-fall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; contain: strict; }
+#settlement-view .kww-sheet { position: absolute; left: -240px; top: -240px; right: -240px; bottom: -240px; will-change: transform; }
+#settlement-view[data-weather="rain"] .kww-sheet { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg stroke='%23dbeaff' stroke-width='1.6' stroke-linecap='round' opacity='.75'%3E%3Cpath d='M20 4l-5 20M64 30l-5 20M102 12l-5 20M38 66l-5 20M86 78l-5 20M8 92l-5 20'/%3E%3C/g%3E%3C/svg%3E"); animation: kww-rain 0.55s linear infinite; }
+#settlement-view[data-weather="rain"] .kww-far { background-size: 84px 84px; opacity: 0.55; animation-duration: 0.75s; animation-name: kww-rain-far; }
+@keyframes kww-rain { from { transform: translate(0, 0); } to { transform: translate(-30px, 120px); } }
+@keyframes kww-rain-far { from { transform: translate(0, 0); } to { transform: translate(-21px, 84px); } }
+#settlement-view[data-weather="snow"] .kww-sheet { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='18' cy='22' r='2.6'/%3E%3Ccircle cx='70' cy='8' r='1.8'/%3E%3Ccircle cx='124' cy='40' r='2.8'/%3E%3Ccircle cx='44' cy='84' r='2'/%3E%3Ccircle cx='98' cy='104' r='2.4'/%3E%3Ccircle cx='146' cy='132' r='1.8'/%3E%3Ccircle cx='10' cy='140' r='2.2'/%3E%3C/g%3E%3C/svg%3E"); animation: kww-snow 7s linear infinite; }
+#settlement-view[data-weather="snow"] .kww-far { background-size: 104px 104px; opacity: 0.7; animation-duration: 11s; animation-name: kww-snow-far; }
+@keyframes kww-snow { from { transform: translate(0, 0); } to { transform: translate(40px, 160px); } }
+@keyframes kww-snow-far { from { transform: translate(0, 0); } to { transform: translate(-26px, 104px); } }
+/* Blossom on the wind in spring (js/home-ambient.js). */
+#settlement-view .kwa-blossom { width: 6px; height: 5px; border-radius: 70% 30% 70% 30%; background: #ffc6dc; box-shadow: 0 0 2px rgba(255, 150, 190, 0.7); animation: kwa-wind 10s linear forwards; }
+@media (max-width: 700px) { #settlement-view .kww-far { display: none; } }   /* one sheet is enough on a phone */
+@media (prefers-reduced-motion: reduce) { #settlement-view .kww-cloud { animation-play-state: paused; } #settlement-view .kww-fall { display: none; } }
+
+/* ── A lost thing each day (js/lost.js; docs/HOME_SCENE.md F.8). ─────────── */
+/* Small on purpose: something to spot. It sorts by depth like everything
+   that stands, and a glint crosses it every few seconds. */
+#settlement-view .kwl-thing { position: absolute; pointer-events: auto; width: 44px; height: 44px; margin: -34px 0 0 -22px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: end center; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwl-icon { font-size: 20px; line-height: 1; filter: drop-shadow(0 1px 0 #3b2a1a) drop-shadow(0 0 1px #3b2a1a); transform-origin: 50% 100%; animation: kwl-rock 3.6s ease-in-out infinite; }
+#settlement-view .kwl-glint { position: absolute; left: 50%; bottom: 14px; width: 9px; height: 9px; margin-left: 3px; pointer-events: none; opacity: 0; animation: kwl-glint 3.6s ease-in-out infinite;
+  background: radial-gradient(closest-side, #fff, rgba(255, 255, 255, 0)); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+#settlement-view .kwl-thing:hover .kwl-icon, #settlement-view .kwl-thing:focus-visible .kwl-icon { transform: scale(1.25); animation: none; }
+#settlement-view .kwl-thing:focus-visible { outline: 2px solid #ffe08a; outline-offset: -8px; border-radius: 50%; }
+@keyframes kwl-rock { 0%, 86%, 100% { transform: rotate(0deg); } 90% { transform: rotate(-9deg); } 95% { transform: rotate(7deg); } }
+@keyframes kwl-glint { 0%, 70%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); } 80% { opacity: 1; transform: scale(1.3) rotate(40deg); } 90% { opacity: 0; transform: scale(0.6) rotate(80deg); } }
+#settlement-view .sv-scene.sv-build-mode .kwl-thing { display: none; }   /* Build mode: nothing to trip over */
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwl-icon, #settlement-view .kwl-glint { animation: none; } #settlement-view .kwl-glint { opacity: 0.8; } }
+
+/* ── Decorating and charm (js/decor.js; docs/HOME_SCENE.md F.9). ─────────── */
+/* What the player has placed: its foot at (left, top), sorted by depth with
+   everything that stands. Not clickable outside Build mode. */
+#settlement-view .kwd-item { position: absolute; display: block; margin: 0; padding: 0; border: 0; background: none; transform: translate(-50%, -100%); pointer-events: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwd-item > svg, #settlement-view .kwd-item > img { display: block; position: absolute; left: 0; top: 0; overflow: visible; }
+#settlement-view .kwd-item.kwd-picture > img { image-rendering: auto; }
+#settlement-view .kwd-item .kwd-lit-img { opacity: 0; transition: opacity 0.6s linear; }
+#settlement-view .kwd-item.kwd-lit .kwd-lit-img { opacity: 1; }
+/* A lit lantern: warm glass, and a glow that sits over the night's tint. */
+#settlement-view .kwd-glass { transition: fill 0.5s linear; }
+#settlement-view .kwd-lit .kwd-glass { fill: #ffd76a; }
+#settlement-view .kwd-glow { position: absolute; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.7s linear; z-index: 1061;
+  transform: translate(var(--kwd-dx, 0), var(--kwd-dy, 0));
+  background: radial-gradient(closest-side, rgba(255, 214, 120, 0.9), rgba(255, 180, 80, 0.35) 45%, rgba(255, 160, 60, 0)); mix-blend-mode: screen; }   /* over the night overlay (1050) and the windows' glow (1060) */
+#settlement-view .kwd-glow.kwd-on { opacity: 1; animation: kwd-flame 2.6s ease-in-out infinite alternate; }
+@keyframes kwd-flame { from { transform: translate(var(--kwd-dx, 0), var(--kwd-dy, 0)) scale(0.94); } to { transform: translate(var(--kwd-dx, 0), var(--kwd-dy, 0)) scale(1.06); } }
+/* Build mode: they take presses, show a dashed ring, and can be dragged. */
+#settlement-view .sv-scene.sv-build-mode button.kwd-item { pointer-events: auto; cursor: grab; touch-action: none; }
+#settlement-view .sv-scene.sv-build-mode button.kwd-item::before { content: ''; position: absolute; inset: -5px; border: 2px dashed rgba(255, 240, 190, 0.75); border-radius: 10px; }
+#settlement-view .sv-scene.sv-build-mode button.kwd-item:hover::before, #settlement-view .sv-scene.sv-build-mode button.kwd-item:focus-visible::before { border-style: solid; border-color: #ffe08a; }
+#settlement-view button.kwd-item.kwd-picked::before { border-style: solid !important; border-color: #ffe08a !important; background: rgba(255, 224, 138, 0.18); }
+#settlement-view button.kwd-item.kwd-dragging { cursor: grabbing; z-index: 1020 !important; opacity: 0.9; }
+#settlement-view button.kwd-item:focus { outline: none; }
+#settlement-view .kwd-pop { position: absolute; z-index: 1600; transform: translate(-50%, calc(-100% - var(--kwd-h, 40px) - 12px)); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 10px; border-radius: 10px; pointer-events: auto;
+  background: #2a1f14; color: #f3e6c8; border: 1px solid #6b5536; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); font-size: 12px; white-space: nowrap; }
+#settlement-view .kwd-pop button { min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #a8543f; background: #5a2a20; color: #ffe1d6; font: inherit; cursor: pointer; }
+#settlement-view .kwd-pop button:hover { background: #733629; }
+/* The Decorate bar: along the bottom of the scene in Build mode. */
+#settlement-view .kwd-palette { position: absolute; left: 50%; bottom: calc(12px + var(--kwd-under, 0px)); transform: translateX(-50%); z-index: 30; max-width: calc(100% - 24px - 2 * var(--kwd-side, 0px)); padding: 8px 10px 6px; border-radius: 14px;
+  background: rgba(36, 26, 16, 0.94); border: 1px solid #6b5536; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #f3e6c8; }
+#settlement-view .kwd-pal-row { display: flex; align-items: stretch; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+#settlement-view .kwd-pal-title { align-self: center; padding: 0 6px 0 2px; font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.06em; color: #d9b972; white-space: nowrap; }
+#settlement-view .kwd-pal-btn { flex: 0 0 auto; min-width: 78px; min-height: 64px; padding: 4px 8px; display: grid; grid-template-rows: 34px auto auto; justify-items: center; align-items: center; gap: 0;
+  border-radius: 10px; border: 1px solid #5a4630; background: #3a2b1b; color: inherit; font: inherit; cursor: pointer; }
+#settlement-view .kwd-pal-btn:hover { background: #4a3824; }
+#settlement-view .kwd-pal-btn.kwd-on { border-color: #ffe08a; background: #5a4424; box-shadow: 0 0 0 2px rgba(255, 224, 138, 0.35); }
+#settlement-view .kwd-pal-btn[aria-disabled="true"] { opacity: 0.5; }
+#settlement-view .kwd-pal-art { height: 34px; display: grid; place-items: center; }
+#settlement-view .kwd-pal-art > svg, #settlement-view .kwd-pal-art > img { max-height: 32px; width: auto; height: auto; max-width: 56px; }
+#settlement-view .kwd-pal-btn b { font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+#settlement-view .kwd-pal-btn small { font-size: 10.5px; color: #c9b58c; white-space: nowrap; }
+#settlement-view .kwd-pal-foot { margin-top: 5px; font-size: 11.5px; color: #d8c8a4; text-align: center; min-height: 15px; }
+#settlement-view.kwd-placing .sv-scene { cursor: crosshair; }
+.kwd-charm { white-space: nowrap; }
+@media (max-width: 700px) { #settlement-view .kwd-palette { left: calc(8px + var(--kwd-side, 0px)); right: calc(8px + var(--kwd-side, 0px)); transform: none; max-width: none; bottom: calc(8px + var(--kwd-under, 0px)); } #settlement-view .kwd-pal-title { display: none; } }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwd-glow.kwd-on { animation: none; } }
+
+/* ── The town crier (js/crier.js; docs/HOME_SCENE.md F.11). ──────────────── */
+.kwcr { display: grid; gap: 2px; }
+.kwcr-h { margin: 12px 0 4px; font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 0.06em; color: #8a6a2a; border-bottom: 1px solid rgba(138, 106, 42, 0.3); padding-bottom: 3px; }
+.kwcr-h:first-child { margin-top: 0; }
+.kwcr-today, .kwcr-line { margin: 3px 0; line-height: 1.45; }
+.kwcr-line { position: relative; padding-left: 14px; }
+.kwcr-dot { position: absolute; left: 0; top: 0.55em; width: 8px; height: 8px; border-radius: 50%; background: #c2452f; }
+.kwcr-fresh { font-weight: 600; }
+.kwcr-when { font-size: 0.85em; opacity: 0.65; white-space: nowrap; font-weight: 400; }
+.kwcr-none { margin: 3px 0; opacity: 0.75; font-style: italic; }
+/* The crier answers a click: a slow ring of the bell. */
+#settlement-view .kwv-asks .kwv-say { animation: kwcr-ring 2.4s ease-in-out infinite; transform-origin: 0 0; font-size: 14px; }
+@keyframes kwcr-ring { 0%, 70%, 100% { transform: translate(-50%, -100%) rotate(0deg); } 76% { transform: translate(-50%, -100%) rotate(-12deg); } 84% { transform: translate(-50%, -100%) rotate(10deg); } 92% { transform: translate(-50%, -100%) rotate(-6deg); } }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwv-asks .kwv-say { animation: none; } }
+
+/* ── Photo mode (js/photo.js; docs/HOME_SCENE.md F.10). ──────────────────── */
+/* The interface over the scene steps aside; the camera chip stays so there
+   is always a way out besides the bar's Done and Esc. */
+body.kw-photo #kw-moments, body.kw-photo #kw-town-card, body.kw-photo #settlement-view .sv-header,
+body.kw-photo:not(.kw-photo-names) #settlement-view .kwh-plate, body.kw-photo #settlement-view .kwh-bubble-host, body.kw-photo:not(.kw-photo-names) #settlement-view .kwv-tag,
+body.kw-photo #settlement-view .kwv-mark, body.kw-photo #settlement-view .kwv-say, body.kw-photo #settlement-view .kwv-radial, body.kw-photo #kwv-follow,
+body.kw-photo #settlement-view .kwl-thing, body.kw-photo #settlement-view .kwu-needs, body.kw-photo #settlement-view .kwv-float { display: none !important; }
+body.kw-photo #kw-place-tools > :not([data-tool="photo"]) { display: none !important; }
+body.kw-photo #settlement-view .sv-slot, body.kw-photo #settlement-view .kwv-villager { pointer-events: none; }   /* nothing opens while framing a picture; the view still pans */
+#settlement-view .kwph-bar { position: absolute; left: 50%; bottom: calc(12px + var(--kwph-under, 0px)); transform: translateX(-50%); z-index: 30; max-width: calc(100% - 24px - 2 * var(--kwph-side, 0px));
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 14px; padding: 8px 12px; border-radius: 14px;
+  background: rgba(36, 26, 16, 0.94); border: 1px solid #6b5536; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); color: #f3e6c8; }
+#settlement-view .kwph-group { display: flex; align-items: center; gap: 4px; }
+#settlement-view .kwph-group > span { font-family: 'Cinzel', serif; font-size: 11.5px; letter-spacing: 0.06em; color: #d9b972; margin-right: 4px; }
+#settlement-view .kwph-bar button { min-height: 36px; min-width: 44px; padding: 0 10px; border-radius: 9px; border: 1px solid #5a4630; background: #3a2b1b; color: inherit; font: inherit; font-size: 12.5px; cursor: pointer; }
+#settlement-view .kwph-bar button:hover { background: #4a3824; }
+#settlement-view .kwph-bar button[aria-pressed="true"] { border-color: #ffe08a; background: #5a4424; box-shadow: 0 0 0 2px rgba(255, 224, 138, 0.3); }
+#settlement-view .kwph-bar .kwph-save { border-color: #b8923f; background: #6a4f1e; font-weight: 600; }
+#settlement-view .kwph-bar .kwph-save:hover { background: #7d5e24; }
+#settlement-view .kwph-bar button:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 700px) { #settlement-view .kwph-bar { left: calc(8px + var(--kwph-side, 0px)); right: calc(8px + var(--kwph-side, 0px)); transform: none; max-width: none; bottom: calc(8px + var(--kwph-under, 0px)); gap: 6px 8px; padding: 6px 8px; }
+  #settlement-view .kwph-group > span { display: none; } #settlement-view .kwph-bar button { padding: 0 7px; font-size: 12px; } }
+
+/* ── A visiting merchant (js/merchant.js; docs/HOME_SCENE.md F.13). ──────── */
+#settlement-view .kwm-cart { position: absolute; display: block; margin: 0; padding: 0; border: 0; background: none; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwm-cart > svg, #settlement-view .kwm-cart > img { display: block; position: absolute; left: 0; top: 0; overflow: visible; transition: transform 0.15s ease, filter 0.15s ease; transform-origin: 50% 100%; }
+#settlement-view .kwm-cart:hover > svg, #settlement-view .kwm-cart:hover > img, #settlement-view .kwm-cart:focus-visible > svg, #settlement-view .kwm-cart:focus-visible > img { transform: scale(1.04); filter: brightness(1.08); }
+#settlement-view .kwm-cart:focus { outline: none; }
+#settlement-view .kwm-cart:focus-visible { outline: 2px solid #ffe08a; outline-offset: 3px; border-radius: 8px; }
+#settlement-view .kwm-plate { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 4px); padding: 2px 8px; border-radius: 7px; background: rgba(36, 26, 16, 0.92); color: #f3e6c8; border: 1px solid #6b5536;
+  font: 600 11.5px/1.3 'Cormorant Garamond', Georgia, serif; white-space: nowrap; }
+#settlement-view .kwm-badge { position: absolute; right: -6px; top: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center; background: #c2452f; color: #fff; border: 2px solid #fff3d6;
+  font: 700 11px/1 system-ui, sans-serif; animation: kwm-bob 2.2s ease-in-out infinite; }
+#settlement-view .kwm-done .kwm-badge { background: #4d7a3a; animation: none; }
+@keyframes kwm-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+#settlement-view[data-phase="night"] :is(.kwm-plate, .kwm-badge) { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] :is(.kwm-plate, .kwm-badge) { filter: url(#kwn-undo-dusk); }
+#settlement-view .sv-scene.sv-build-mode .kwm-cart { pointer-events: none; opacity: 0.6; }
+body.kw-photo #settlement-view .kwm-plate, body.kw-photo #settlement-view .kwm-badge, body.kw-photo #settlement-view .kwh-plate-opens { display: none !important; }
+body.kw-photo #settlement-view .kwm-cart { pointer-events: none; }
+.kwm { display: grid; gap: 8px; }
+.kwm-intro, .kwm-none { margin: 0 0 4px; opacity: 0.85; }
+.kwm-trade { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(138, 106, 42, 0.35); background: rgba(138, 106, 42, 0.08); }
+.kwm-trade.kwm-taken { opacity: 0.55; }
+.kwm-sides { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.kwm-give, .kwm-get { display: grid; font-weight: 600; }
+.kwm-give small, .kwm-get small { font-weight: 400; font-size: 0.8em; opacity: 0.7; }
+.kwm-arrow { font-size: 1.3em; opacity: 0.6; }
+.kwm-btn { flex: 0 0 auto; min-width: 84px; min-height: 40px; padding: 0 14px; border-radius: 9px; border: 1px solid #b8923f; background: #6a4f1e; color: #fff3d6; font: inherit; font-weight: 600; cursor: pointer; }
+.kwm-btn:hover:not(:disabled) { background: #7d5e24; }
+.kwm-btn:disabled { background: transparent; color: inherit; border-color: rgba(138, 106, 42, 0.4); opacity: 0.75; cursor: default; font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwm-badge { animation: none; } }
+
+/* ── Events in the scene (js/scene-events.js; docs/HOME_SCENE.md F.12). ──── */
+#settlement-view .kwe { position: absolute; margin: 0; padding: 0; border: 0; background: none; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwe:focus { outline: none; }
+#settlement-view .kwe:focus-visible { outline: 2px solid #ffe08a; outline-offset: 2px; border-radius: 8px; }
+/* A fire: flames along the roof, smoke above, an alarm to press. Over the building's own picture. */
+#settlement-view .kwe-fire { left: 50%; top: 4%; width: 84px; height: 84px; margin-left: -42px; z-index: 3; transition: opacity 1.2s linear; }
+#settlement-view .kwe-flames { position: absolute; left: 7px; bottom: 6px; transform-origin: 50% 100%; animation: kwe-flicker 0.5s ease-in-out infinite alternate; overflow: visible; }
+#settlement-view .kwe-f1, #settlement-view .kwe-f3 { transform-origin: 50% 100%; transform-box: fill-box; animation: kwe-lick 0.7s ease-in-out infinite alternate; }
+#settlement-view .kwe-f3 { animation-duration: 0.55s; }
+@keyframes kwe-flicker { from { transform: scale(1, 0.94); } to { transform: scale(1.04, 1.06); } }
+@keyframes kwe-lick { from { transform: scaleY(0.82); } to { transform: scaleY(1.12); } }
+#settlement-view .kwe-smoke { position: absolute; left: 30px; bottom: 52px; width: 24px; height: 20px; border-radius: 50%; background: radial-gradient(closest-side, rgba(70, 64, 60, 0.9), rgba(70, 64, 60, 0)); animation: kwe-smoke 2.6s ease-out infinite; opacity: 0; }
+#settlement-view .kwe-smoke-2 { animation-delay: 0.9s; left: 20px; }
+#settlement-view .kwe-smoke-3 { animation-delay: 1.7s; left: 40px; }
+@keyframes kwe-smoke { 0% { opacity: 0; transform: translate(0, 0) scale(0.6); } 15% { opacity: 0.9; } 100% { opacity: 0; transform: translate(26px, -90px) scale(3); } }
+#settlement-view .kwe-alarm { position: absolute; right: -8px; top: 18px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #fff3d6; border: 2px solid #c2452f; font-size: 16px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4); animation: kwe-alarm 0.9s ease-in-out infinite; }
+@keyframes kwe-alarm { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+#settlement-view .kwe-fire.kwe-dying { opacity: 0; pointer-events: none; transition-duration: 5s; }
+#settlement-view .kwe-fire.kwe-dying .kwe-alarm { display: none; }
+#settlement-view[data-phase="night"] .kwe-alarm { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] .kwe-alarm { filter: url(#kwn-undo-dusk); }
+/* A lost child: a bush with eyes in it. Small on purpose. */
+#settlement-view .kwe-child { width: 54px; height: 40px; transform: translate(-50%, -100%); }
+#settlement-view .kwe-child svg { display: block; overflow: visible; }
+#settlement-view .kwe-eyes { transform-origin: 50% 68%; transform-box: view-box; animation: kwe-blink 4.2s linear infinite; }
+@keyframes kwe-blink { 0%, 44%, 50%, 92%, 100% { transform: scaleY(1); } 47%, 96% { transform: scaleY(0.1); } }
+#settlement-view .kwe-child:hover svg, #settlement-view .kwe-child:focus-visible svg { transform: scale(1.1); transform-origin: 50% 100%; }
+/* A runaway cart: up and down the lane until it is stopped. */
+#settlement-view .kwe-cart { width: 66px; height: 46px; transform: translate(0, -100%); pointer-events: none; }   /* the cart itself takes the click, wherever it has rolled to */
+#settlement-view .kwe-roll { display: block; padding: 10px; margin: -10px; pointer-events: auto; animation: kwe-run 9s ease-in-out infinite alternate; will-change: transform; }
+@keyframes kwe-run { from { transform: translateX(0); } to { transform: translateX(var(--kwe-run, 600px)); } }
+#settlement-view .kwe-wheel { transform-origin: 22px 34px; animation: kwe-spin 0.9s linear infinite; }
+#settlement-view .kwe-wheel-2 { transform-origin: 44px 34px; }
+@keyframes kwe-spin { to { transform: rotate(360deg); } }
+#settlement-view .sv-scene.sv-build-mode .kwe { display: none; }
+body.kw-photo #settlement-view .kwe-alarm { display: none !important; }
+body.kw-photo #settlement-view .kwe { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwe-flames, #settlement-view .kwe-f1, #settlement-view .kwe-f3, #settlement-view .kwe-alarm, #settlement-view .kwe-eyes, #settlement-view .kwe-roll, #settlement-view .kwe-wheel { animation: none; }
+  #settlement-view .kwe-smoke { animation: none; opacity: 0.7; transform: translate(8px, -30px) scale(1.8); } }
+
+/* Pictures in place of code drawings, once their art is in the props manifest (js/home-ground.js picture()). */
+#settlement-view .kwl-pic { display: block; transform-origin: 50% 100%; animation: kwl-rock 3.6s ease-in-out infinite; }
+#settlement-view .kwl-pic > img { display: block; max-width: 34px; height: auto !important; width: auto !important; max-height: 30px; }
+#settlement-view .kwl-thing:hover .kwl-pic, #settlement-view .kwl-thing:focus-visible .kwl-pic { transform: scale(1.25); animation: none; }
+#settlement-view .kww-puddle-pic { background: none; box-shadow: none; border-radius: 0; }
+#settlement-view .kww-puddle-pic > img { display: block; }
+#settlement-view .kwe > img, #settlement-view .kwe-roll > img { display: block; }
+#settlement-view .kwe-fire > img.kwe-flames { position: absolute; left: 50%; bottom: 6px; margin-left: 0; transform-origin: 50% 100%; max-width: 84px; height: auto !important; translate: -50% 0; }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwl-pic { animation: none; } }

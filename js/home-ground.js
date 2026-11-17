@@ -110,8 +110,9 @@
 
   // manifest: { props: { key: { file, w, h, foot: [x, y], kind, lit? } } }.
   // → [{ key, kind, x, y (the foot), w, h, file, lit, fx, fy }].
-  function scatter({ manifest, seed = 1, w = 2600, h = 600, area = 'town', segs = [], plots = [], blocks = [] } = {}) {
-    const defs = Object.entries((manifest && manifest.props) || {}).filter(([, d]) => d && KINDS[d.kind] && d.w > 0 && d.h > 0);
+  // `skip`: kinds the player has placed themselves (js/decor.js): none of those is scattered.
+  function scatter({ manifest, seed = 1, w = 2600, h = 600, area = 'town', segs = [], plots = [], blocks = [], skip = [] } = {}) {
+    const defs = Object.entries((manifest && manifest.props) || {}).filter(([key, d]) => d && KINDS[d.kind] && d.w > 0 && d.h > 0 && !skip.includes(d.kind) && key.indexOf('decor_') !== 0);
     if (!defs.length) return [];
     const rand = seeded(seed);
     const R = (a, b) => a + rand() * (b - a);
@@ -225,11 +226,12 @@
     if (!layer || !doc) return { spots: [], blocks: [] };
     const plots = [...layer.querySelectorAll(':scope > .sv-slot')].filter(s => !s.hidden && !s.querySelector('.kwh-prop'))
       .map(s => ({ x: parseFloat(s.style.left) / 100 * w, y: parseFloat(s.style.top) / 100 * h })).filter(q => isFinite(q.x) && isFinite(q.y));
-    const key = [w, h, area, manifest ? 1 : 0, ...doors.map(d => d.x.toFixed(0) + ',' + d.y.toFixed(0)), ...exits.map(d => d.x.toFixed(0) + ',' + d.y.toFixed(0)), ...plots.map(q => q.x.toFixed(0) + ',' + q.y.toFixed(0))].join('|');
+    const skip = global.KWDecor && global.KWDecor.placedKinds ? global.KWDecor.placedKinds() : [];
+    const key = [w, h, area, manifest ? 1 : 0, skip.join('+'), ...doors.map(d => d.x.toFixed(0) + ',' + d.y.toFixed(0)), ...exits.map(d => d.x.toFixed(0) + ',' + d.y.toFixed(0)), ...plots.map(q => q.x.toFixed(0) + ',' + q.y.toFixed(0))].join('|');
     const was = last.get(layer);
     if (was && was.key === key && layer.querySelector(':scope > .kwg-paths')) return was;   // (a re-render empties the layer)
     const segs = planPaths({ doors, exits, h });
-    const props = scatter({ manifest, seed: townSeed(area), w, h, area, segs, plots, blocks });
+    const props = scatter({ manifest, seed: townSeed(area), w, h, area, segs, plots, blocks, skip });
     layer.querySelectorAll(':scope > .kwg-paths, :scope > .kwg-prop').forEach(el => el.remove());
     layer.insertAdjacentHTML('afterbegin', pathsSvg(segs, w, h) + props.map(p => propHtml(p, h)).join(''));
     const out = { key, segs, props, spots: spotsOf(props), blocks: blocksOf(props) };
@@ -238,8 +240,18 @@
     return out;
   }
 
+  // A picture from the props manifest by its key, for the things code draws
+  // itself until their art arrives (a lost ribbon, the merchant's cart, a
+  // puddle…): → { w, h, html } or null. An entry needs `file`, `w` and `h`
+  // (on-screen pixels); one with no `kind` is never scattered as scenery.
+  function picture(key, cls) {
+    const m = manifest && manifest.props && manifest.props[key];
+    if (!m || !m.file || !(m.w > 0) || !(m.h > 0)) return null;
+    return { w: m.w, h: m.h, html: `<img src="${BASE + esc(m.file)}" class="kwh-img kwh-day${cls ? ' ' + esc(cls) : ''}" alt="" draggable="false" style="width:${m.w}px;height:${m.h}px">` };
+  }
+
   global.KWGround = {
-    KINDS, PATH_W, LANE_DROP, BASE, sync, loadManifest,
+    KINDS, PATH_W, LANE_DROP, BASE, sync, loadManifest, picture,
     planPaths, scatter, spotsOf, blocksOf, onPath, segDist, base, plotBox, seeded, hash, pathD,
     get manifest() { return manifest; }, _setManifest: m => { manifest = m; },
   };

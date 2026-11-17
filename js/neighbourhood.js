@@ -119,9 +119,10 @@
     const H = global.KWHome;
     const a = H ? H.artHtml('house_' + h.style, { emoji: '🏡' }, 170) : { html: '🏡' };
     const empty = !h.residents.length;
-    return `<button type="button" class="sv-building kwh-btn kwn-house${a.native ? ' kwh-native-art' : ''}${empty ? ' kwh-dark' : ''}${S.picked === h.id ? ' kwn-picked' : ''}" `
+    const look = global.KWUpkeep && h.condition ? global.KWUpkeep.lookOf(h.condition) : '';   // worn or broken (js/upkeep.js)
+    return `<button type="button" class="sv-building kwh-btn kwn-house${a.native ? ' kwh-native-art' : ''}${empty ? ' kwh-dark' : ''}${S.picked === h.id ? ' kwn-picked' : ''}${look ? ' ' + look : ''}" `
       + `data-kwh="house-${h.id}" data-kwh-art="house_${esc(h.style)}" aria-label="${esc(h.display)}, ${bedsLine(h)}. ${building() ? 'Move or pull down' : 'Show choices'}">`
-      + '<span class="kwh-bubble-host"></span>' + a.html
+      + '<span class="kwh-bubble-host"></span>' + a.html + (h.condition === 'broken' ? '<span class="kwu-needs">🏚️ Needs repair</span>' : '')
       + (H ? H.plateHtml(h.display, building() ? 'Move or pull down' : whoLine(h), bedsLine(h)) : '') + '</button>';
   }
   // A home being built: the site on its plot, with a bar and an estimate.
@@ -273,7 +274,9 @@
         const others = [];
         for (const n of S.data.neighbourhoods) for (const o of n.houses) if (o.id !== h.id) for (const c of o.residents) others.push({ c, from: o.display });
         const role = c => (c.life_stage === 'child' ? 'child' : String(c.role || 'villager').replace(/_/g, ' '));
-        body.innerHTML = '<h3 class="kwn-h">Who lives here</h3>'
+        body.innerHTML = (global.KWUpkeep && h.condition ? global.KWUpkeep.healthHtml({ on: true, home: true, health: h.health, state: h.condition, repair: !!(global.KWBuild && global.KWBuild.sites().some(x => x.kind === 'repair' && x.target_id === h.id)) }, `data-kwu-repair-house="${h.id}"`)
+            + (h.condition === 'broken' ? '<p class="kwn-hint">A broken home keeps its beds. The family in it is a little less happy until it is mended.</p>' : '') : '')
+          + '<h3 class="kwn-h">Who lives here</h3>'
           + (h.residents.length ? '<ul class="kwn-list">' + h.residents.map(c => `<li><button type="button" class="kwn-who" data-action="who" data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(role(c))}</span></button>`
               + `<button type="button" class="kwn-small" data-action="out" data-id="${c.id}" aria-label="Move ${esc(c.name)} out">Move out</button></li>`).join('') + '</ul>'
             : '<p class="kwn-none">Nobody yet.</p>')
@@ -337,6 +340,7 @@
     doc.addEventListener('click', e => { if (showing()) { onClick(e); onPanel(e); } });
     // The builders' queue changed (a home ordered elsewhere, or finished): look again.
     global.addEventListener('kw:build', () => { if (showing() && S.data) reload(false); });
+    global.addEventListener('kw:upkeep', () => { if (showing() && S.data) reload(false); });
     // Esc in Build mode puts a picked-up house down first.
     global.addEventListener('keydown', e => {
       if (e.key !== 'Escape' || !showing() || (!S.picked && S.placing == null)) return;

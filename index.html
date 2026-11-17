@@ -153,7 +153,7 @@
   <link rel="stylesheet" href="/css/first-steps.css?v=h05c0fe7a">
   <link rel="stylesheet" href="/css/modal-sizes.css?v=he7de3129">
   <link rel="stylesheet" href="/css/places.css?v=h379133cc"><!-- the five places; after mobile-shell.css -->
-  <link rel="stylesheet" href="/css/home-scene.css?v=he46c42b9"><!-- the Home scene: buildings are the buttons -->
+  <link rel="stylesheet" href="/css/home-scene.css?v=hcb5db2f7"><!-- the Home scene: buildings are the buttons -->
   <link rel="stylesheet" href="/css/context.css?v=h2f16fbe5"><!-- the context panel and the town card -->
   <link rel="stylesheet" href="/css/news.css?v=h9f48e0ed"><!-- the News window (the bell) -->
   <link rel="stylesheet" href="/css/hud.css?v=h891388c3"><!-- the top bar and the map's controls -->
@@ -958,13 +958,13 @@
   <script defer src="/js/window.js?v=h199528b3"></script>
   <script defer src="/js/life.js?v=he5496c45"></script>
   <script defer src="/js/families.js?v=hb9287b84"></script>
-  <script defer src="/js/places.js?v=hf605fd78"></script>
-  <script defer src="/js/context.js?v=h8b54987f"></script>
+  <script defer src="/js/places.js?v=h28f5fe01"></script>
+  <script defer src="/js/context.js?v=hc2b076c0"></script>
   <script defer src="/js/news.js?v=h0410c42e"></script>
   <script defer src="/js/hud.js?v=ha3d269db"></script>
-  <script defer src="/js/dev-tools.js?v=hf9d1e37c"></script>
+  <script defer src="/js/dev-tools.js?v=ha3325923"></script>
   <script defer src="/js/say.js?v=h44722f0b"></script>
-  <script defer src="/js/moments.js?v=h895b0e35"></script>
+  <script defer src="/js/moments.js?v=h0f187aca"></script>
   <script defer src="/js/journeys.js?v=hb8da9974"></script>
   <script defer src="/js/outposts.js?v=h6b2d1451"></script>
   <script defer src="/js/first-steps.js?v=hc54da18c"></script>
@@ -1024,7 +1024,7 @@
   <script defer src="/js/audio.js?v=h4da51adf"></script>
   <script defer src="/js/music.js?v=h8f50862f"></script>
   <script defer src="/js/settings-panel.js?v=h2c85832b"></script>
-  <script defer src="/js/session.js?v=h2f40f1c5"></script>
+  <script defer src="/js/session.js?v=he9e2a513"></script>
   <script defer src="/js/main.js?v=hb73de2ee"></script>
   <script defer src="/js/away-report.js?v=h3e412267"></script>
   <script defer src="/js/welcome-music-guard.js?v=h7ca91d4e"></script>
@@ -1062,7 +1062,7 @@
   <script defer src="/js/chat-hub.js?v=h03e36586"></script>
   <script defer src="/js/market.js?v=hdd03cc59"></script>
   <script defer src="/js/travel.js?v=h359f5b30"></script>
-  <script defer src="/js/realtime.js?v=h74e3846b"></script>
+  <script defer src="/js/realtime.js?v=h2aadd4a3"></script>
   <!-- Mobile game shell — bottom tab bar, More sheet, floating map controls.
        Loads last so every entry point it wires to already exists. -->
   <script defer src="/js/mobile-shell.js?v=h258f1d6c"></script>
@@ -1495,16 +1495,25 @@
     </div>
   </div>
 
-    <script defer src="/js/settlement-view.js?v=h2d38a9e2"></script>
-    <script defer src="/js/home-scene.js?v=hf8c35c39"></script>
-    <script defer src="/js/neighbourhood.js?v=h34215fb4"></script>
+    <script defer src="/js/settlement-view.js?v=h5c563c54"></script>
+    <script defer src="/js/home-scene.js?v=h00af4f3b"></script>
+    <script defer src="/js/neighbourhood.js?v=h832b7213"></script>
     <script defer src="/js/social.js?v=hb847a43e"></script>
     <script defer src="/js/construction.js?v=h00e98a87"></script>
-    <script defer src="/js/building-menu.js?v=h1d49f177"></script>
-    <script defer src="/js/home-ground.js?v=hba9fdeaf"></script>
+    <script defer src="/js/upkeep.js?v=h61598e22"></script>
+    <script defer src="/js/building-menu.js?v=hd11bcdd5"></script>
+    <script defer src="/js/home-ground.js?v=h25984c9e"></script>
     <script defer src="/js/villagers.js?v=h4afbc0a0"></script>
-    <script defer src="/js/villager-engine.js?v=hae10ba2e"></script>
-    <script defer src="/js/life-scenes.js?v=hbdcf46cc"></script>
+    <script defer src="/js/villager-engine.js?v=h7ea6176a"></script>
+    <script defer src="/js/life-scenes.js?v=hbc46eaf8"></script>
+    <script defer src="/js/home-ambient.js?v=hb97239fe"></script>
+    <script defer src="/js/home-weather.js?v=h2abe04ae"></script>
+    <script defer src="/js/lost.js?v=hce4daa4d"></script>
+    <script defer src="/js/decor.js?v=had08d90d"></script>
+    <script defer src="/js/crier.js?v=hddac9336"></script>
+    <script defer src="/js/photo.js?v=h56b4a947"></script>
+    <script defer src="/js/merchant.js?v=hea40258a"></script>
+    <script defer src="/js/scene-events.js?v=h3652dfae"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

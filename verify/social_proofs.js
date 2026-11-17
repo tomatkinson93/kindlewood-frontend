@@ -24,7 +24,7 @@ console.log('1. The buttons');
   const keys = (c, s) => C._menuItems(c, s).map(i => i.key).join();
   const fresh = { talked: false, praised: false, praiseLeft: 3, ready: true };
   check('1a. Talk to… and Praise join the menu after Inspect, for grown-ups, youths and children',
-    keys({ stage: 'adult' }, fresh) === 'inspect,talk,praise,family,work,house' && keys({ stage: 'child' }, fresh) === 'inspect,talk,praise,family,house' && keys({ stage: 'youth' }, fresh) === 'inspect,talk,praise,family,apprentice,house');
+    keys({ stage: 'adult' }, fresh) === 'inspect,talk,praise,family,work,house,follow' && keys({ stage: 'child' }, fresh) === 'inspect,talk,praise,family,house,follow' && keys({ stage: 'youth' }, fresh) === 'inspect,talk,praise,family,apprentice,house,follow');
   check('1b. without the day\'s state (the script did not load) the menu is as it was', keys({ stage: 'adult' }) === 'inspect,family,work,house');
   const item = (s, k) => C._menuItems({ stage: 'adult' }, s).find(i => i.key === k);
   check('1c. Praise says how many are left', item(fresh, 'praise').label === 'Praise (3)' && !item(fresh, 'praise').off && !item(fresh, 'talk').off);
@@ -33,6 +33,9 @@ console.log('1. The buttons');
   check('1e. none left for the town: Praise is greyed for everyone', item({ ...fresh, praiseLeft: 0 }, 'praise').off && item({ ...fresh, praiseLeft: 0 }, 'praise').label === 'No praise left');
   check('1f. a greyed button says why and when it comes back, and the menu stays open',
     /aria-disabled="true"/.test(E) && /if \(b\.getAttribute\('aria-disabled'\) === 'true'\) \{[\s\S]{0,260}KWSocial\.why\(/.test(E) && /\.kwv-rb\.kwv-rb-off \{/.test(CSS));
+  const seven = C._arc(7, { sx: 500, viewW: 1000 }), sevenEdge = C._arc(7, { sx: 40, viewW: 390 });
+  const gap7 = p => Math.min(...p.slice(1).map((q, i) => Math.hypot(q.x - p[i].x, q.y - p[i].y)));
+  check('1g0. seven buttons (with Follow) still sit apart and on screen', gap7(seven) >= 70 && Math.abs(seven.reduce((a, q) => a + q.x, 0)) < 8 && gap7(sevenEdge) >= 52 && sevenEdge.every(q => 40 + q.x >= 24), `${Math.round(gap7(seven))} px, at an edge ${Math.round(gap7(sevenEdge))} px`);
   const six = C._arc(6, { sx: 500, viewW: 1000 }), four = C._arc(4, { sx: 500, viewW: 1000 });
   const gap = p => Math.min(...p.slice(1).map((q, i) => Math.hypot(q.x - p[i].x, q.y - p[i].y)));
   check('1g. six buttons take a wider, larger arc: at least 70 px apart, still centred', gap(six) >= 70 && Math.abs(six.reduce((a, q) => a + q.x, 0)) < 6 && gap(four) >= 70, `six ${Math.round(gap(six))} px, four ${Math.round(gap(four))} px`);

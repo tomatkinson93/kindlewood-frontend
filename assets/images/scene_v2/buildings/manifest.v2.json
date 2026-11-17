@@ -10,7 +10,13 @@
     "smooth": true,
     "scale": 2,
     "file": "tavern.webp",
-    "lit": "tavern_lit.webp"
+    "lit": "tavern_lit.webp",
+    "smoke": [
+      [
+        292,
+        14
+      ]
+    ]
   },
   "granary": {
     "w": 346,
@@ -61,7 +67,17 @@
     "smooth": true,
     "scale": 2,
     "file": "smithy.webp",
-    "lit": "smithy_lit.webp"
+    "lit": "smithy_lit.webp",
+    "smoke": [
+      [
+        262,
+        14
+      ]
+    ],
+    "fire": [
+      300,
+      204
+    ]
   },
   "workshop": {
     "w": 392,
@@ -73,7 +89,17 @@
     "native": true,
     "smooth": true,
     "scale": 2,
-    "file": "workshop.webp"
+    "file": "workshop.webp",
+    "smoke": [
+      [
+        84,
+        18
+      ]
+    ],
+    "dust": [
+      268,
+      196
+    ]
   },
   "guild_hall": {
     "w": 452,
@@ -99,7 +125,13 @@
     "smooth": true,
     "scale": 2,
     "file": "house_thatch.webp",
-    "lit": "house_thatch_lit.webp"
+    "lit": "house_thatch_lit.webp",
+    "smoke": [
+      [
+        45,
+        10
+      ]
+    ]
   },
   "house_timber": {
     "w": 219,
@@ -112,7 +144,13 @@
     "smooth": true,
     "scale": 2,
     "file": "house_timber.webp",
-    "lit": "house_timber_lit.webp"
+    "lit": "house_timber_lit.webp",
+    "smoke": [
+      [
+        48,
+        12
+      ]
+    ]
   },
   "house_stone": {
     "w": 216,
@@ -125,7 +163,13 @@
     "smooth": true,
     "scale": 2,
     "file": "house_stone.webp",
-    "lit": "house_stone_lit.webp"
+    "lit": "house_stone_lit.webp",
+    "smoke": [
+      [
+        48,
+        12
+      ]
+    ]
   },
   "house_burrow": {
     "w": 239,
@@ -138,7 +182,13 @@
     "smooth": true,
     "scale": 2,
     "lit": "house_burrow_lit.webp",
-    "file": "house_burrow.webp"
+    "file": "house_burrow.webp",
+    "smoke": [
+      [
+        60,
+        12
+      ]
+    ]
   },
   "jeweller": {
     "w": 286,
@@ -151,7 +201,13 @@
     "smooth": true,
     "scale": 2,
     "file": "jeweller.webp",
-    "lit": "jeweller_lit.webp"
+    "lit": "jeweller_lit.webp",
+    "smoke": [
+      [
+        72,
+        34
+      ]
+    ]
   },
   "neighbourhood": {
     "w": 440,
@@ -165,7 +221,21 @@
     "scale": 2,
     "file": "neighbourhood.webp",
     "lit": "neighbourhood_lit.webp",
-    "note": "the Neighbourhood's door in Town; the door is its arch"
+    "note": "the Neighbourhood's door in Town; the door is its arch",
+    "smoke": [
+      [
+        62,
+        62
+      ],
+      [
+        262,
+        22
+      ],
+      [
+        362,
+        44
+      ]
+    ]
   },
   "village_green": {
     "w": 320,

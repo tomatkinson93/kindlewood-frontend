@@ -58,6 +58,10 @@
       // (js/building-menu.js); until the player leaves Home. Pressed while on.
       { key: 'seethrough', label: 'See through', glyph: '👁', unlock: () => !inHood(), on: () => !!(global.KWBuildingMenu && global.KWBuildingMenu.allMin()),
         run: () => { if (global.KWBuildingMenu) global.KWBuildingMenu.toggleAll(); } },
+      // Photo mode (js/photo.js): the interface steps aside, and the view can
+      // be saved as a picture. Pressed while on.
+      { key: 'photo',    label: 'Photo',    glyph: '📷', unlock: () => !!global.KWPhoto, on: () => !!(global.KWPhoto && global.KWPhoto.on),
+        run: () => { if (!svOpen()) call('openSettlementView'); if (global.KWPhoto) global.KWPhoto.toggle(); } },
       // The rest are the buildings themselves now (docs/HOME_SCENE.md §2,
       // js/home-scene.js), and a plain list in the profile menu.
     ],
@@ -226,6 +230,9 @@
     // choice of the player's, so it mustn't open the panel (js/context.js).
     const quiet = fn => (global.KWContext ? global.KWContext.mute(fn) : fn());
     if (global.KWContext) global.KWContext.close();
+    // The player chose where to go: a full screen opened from Home (the
+    // Tavern, the Market, Fishing) no longer brings them back to it.
+    if (global.KWHome && global.KWHome.forgetReturn) global.KWHome.forgetReturn();
     if (key === 'home') {
       quiet(() => call('navGoMap'));    // closes the tavern, fishing and the community modal
       if (!svOpen()) call('openSettlementView');

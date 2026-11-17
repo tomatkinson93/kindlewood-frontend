@@ -58,7 +58,7 @@ console.log('4. What a moment changed shows at once; two devices stay in step');
 {
   const ch = w.KWMoments._storeChanges;
   check('4a. the top bar is read again after an answer (it otherwise waits for its five-minute sync), and what changed floats up from it',
-    /async function showEffects\(\)/.test(MJ) && /await global\.refreshResources\(\)/.test(MJ) && /global\._spawnFloater\(k, d\)/.test(MJ) && /showEffects\(\);\s*return \{ outcome: d\.outcome \};/.test(MJ));
+    /async function showEffects\(\)/.test(MJ) && /await global\.refreshResources\(\)/.test(MJ) && /global\._spawnFloater\(k, d\)/.test(MJ) && /showEffects\(\);[\s\S]{0,260}return \{ outcome: d\.outcome \};/.test(MJ));
   check('4b. the change is the difference between the two readings, without the trickle of production',
     JSON.stringify(ch({ food: 500.2, wealth: 80, timber: 40 }, { food: 350.9, wealth: 100, timber: 40.6 })) === '{"food":-149,"wealth":20}' && JSON.stringify(ch(null, { food: 1 })) === '{}');
   check('4c. a moment answered on another device folds away here too, with a note and the same refresh; your own answer makes no toast',
