@@ -129,12 +129,19 @@
     if (!L) return;
     const have = L.querySelectorAll(':scope > .kww-puddle');
     if (!on) { have.forEach(p => p.remove()); return; }
-    if (have.length || !L.clientWidth) return;
+    const pics = !!(global.KWGround && global.KWGround.picture && global.KWGround.picture('puddle_1'));
+    if (have.length && have[0].classList.contains('kww-puddle-pic') !== pics) { have.forEach(p => p.remove()); }   // the pictures have arrived since they were drawn
+    else if (have.length) return;
+    if (!L.clientWidth) return;
     const C = global.KWCast, area = global._svActiveAreaName ? global._svActiveAreaName() : 'town', w = town();
+    const G = global.KWGround, have3 = G && G.picture ? ['puddle_1', 'puddle_2', 'puddle_3'].map(k => G.picture(k)).filter(Boolean) : [];   // whichever of the three pictures exist
     const rand = seeded(((w && w.day) || 1) * 31 + area.length * 7);
     for (let i = 0; i < PUDDLES; i++) {
       const g = C && C._groundPoint ? C._groundPoint(area, rand) : { x: rand() * 100, y: 62 + rand() * 34 };
-      const p = el('kww-puddle', 'span');
+      // Its picture, when the art is in (props manifest: puddle_1, puddle_2, puddle_3); else an oval drawn by code.
+      const pic = have3.length ? have3[i % have3.length] : null;
+      const p = el('kww-puddle' + (pic ? ' kww-puddle-pic' : ''), 'span');
+      if (pic) { p.innerHTML = pic.html; p.style.width = pic.w + 'px'; p.style.height = pic.h + 'px'; p.style.margin = `${-pic.h / 2}px 0 0 ${-pic.w / 2}px`; }
       p.style.left = g.x.toFixed(2) + '%'; p.style.top = g.y.toFixed(2) + '%';
       p.style.setProperty('--kww-s', (0.7 + rand() * 0.9).toFixed(2));
       L.appendChild(p);

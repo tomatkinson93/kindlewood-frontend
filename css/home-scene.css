@@ -902,3 +902,13 @@ body.kw-photo #settlement-view .kwe-alarm { display: none !important; }
 body.kw-photo #settlement-view .kwe { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwe-flames, #settlement-view .kwe-f1, #settlement-view .kwe-f3, #settlement-view .kwe-alarm, #settlement-view .kwe-eyes, #settlement-view .kwe-roll, #settlement-view .kwe-wheel { animation: none; }
   #settlement-view .kwe-smoke { animation: none; opacity: 0.7; transform: translate(8px, -30px) scale(1.8); } }
+
+/* Pictures in place of code drawings, once their art is in the props manifest (js/home-ground.js picture()). */
+#settlement-view .kwl-pic { display: block; transform-origin: 50% 100%; animation: kwl-rock 3.6s ease-in-out infinite; }
+#settlement-view .kwl-pic > img { display: block; max-width: 34px; height: auto !important; width: auto !important; max-height: 30px; }
+#settlement-view .kwl-thing:hover .kwl-pic, #settlement-view .kwl-thing:focus-visible .kwl-pic { transform: scale(1.25); animation: none; }
+#settlement-view .kww-puddle-pic { background: none; box-shadow: none; border-radius: 0; }
+#settlement-view .kww-puddle-pic > img { display: block; }
+#settlement-view .kwe > img, #settlement-view .kwe-roll > img { display: block; }
+#settlement-view .kwe-fire > img.kwe-flames { position: absolute; left: 50%; bottom: 6px; margin-left: 0; transform-origin: 50% 100%; max-width: 84px; height: auto !important; translate: -50% 0; }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwl-pic { animation: none; } }

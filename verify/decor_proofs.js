@@ -34,6 +34,7 @@ console.log('2. Drawing');
   check('2e. redrawn only when something changed, and never under the player\'s finger', /if \(!force && mark && mark\.getAttribute\('data-sig'\) === key\) return;/.test(J) && /if \(S\.drag\) return;/.test(J));
   check('2f. the automatic scenery of a kind steps aside once the player has placed their own', K._placedScatter([{ kind: 'bench' }, { kind: 'bench' }, { kind: 'well' }, { kind: 'flower_bed' }]).join() === 'bench,well' && /!skip\.includes\(d\.kind\)/.test(G) && /global\.KWDecor\.placedKinds\(\)/.test(G) && /skip\.join\('\+'\)/.test(G));
   check('2g. meadow flowers are not scenery a flower bed replaces', !K._placedScatter([{ kind: 'flower_bed' }]).length);
+  check('2h. one way to ask the props manifest for a picture; an entry with no kind is never scattered as scenery', /function picture\(key, cls\)/.test(G) && /if \(!m \|\| !m\.file \|\| !\(m\.w > 0\) \|\| !\(m\.h > 0\)\) return null;/.test(G) && /d && KINDS\[d\.kind\]/.test(G));
 }
 
 console.log('3. Build mode');

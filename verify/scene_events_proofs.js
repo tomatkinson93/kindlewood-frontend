@@ -64,6 +64,7 @@ console.log('5. Kept small');
   check('5c. hidden in Build mode; photo mode keeps the fire and drops the alarm', /\.sv-build-mode \.kwe \{ display: none; \}/.test(CSS) && /body\.kw-photo #settlement-view \.kwe-alarm \{ display: none !important; \}/.test(CSS));
   check('5d. nothing is drawn while Home is closed or the tab is hidden', /if \(homeOpen\(\) && !doc\.hidden\) paint\(\);/.test(J));
   check('5e. the engine still never calls the server', !/apiFetch|fetch\(/.test(E.replace(/\/\/[^\n]*/g, '')));
+  check('5g. each drawing gives way to its picture once the art is in the props manifest (event_fire, event_bush, event_cart)', /pictureOr\('event_fire', FLAMES, 'kwe-flames'\)/.test(J) && /pictureOr\('event_bush', BUSH\)/.test(J) && /pictureOr\('event_cart', CART\)/.test(J) && /hasPic\('event_cart'\)/.test(J));
   check('5f. the script is on the page', /\/js\/scene-events\.js\?v=h[0-9a-f]+/.test(H));
 }
 

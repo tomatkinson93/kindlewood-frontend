@@ -40,6 +40,11 @@
     + `<g class="kwe-wheel"><circle cx="22" cy="34" r="9" fill="#7a5a3a" ${o}/><path d="M22 25v18M13 34h18" fill="none" stroke="${INK}" stroke-width="1.6"/></g>`
     + `<g class="kwe-wheel kwe-wheel-2"><circle cx="44" cy="34" r="9" fill="#7a5a3a" ${o}/><path d="M44 25v18M35 34h18" fill="none" stroke="${INK}" stroke-width="1.6"/></g></svg>`;
 
+  // The drawing, or its picture once the art is in the props manifest
+  // (docs/ART_GUIDE.md §8, batch R: event_fire, event_bush, event_cart).
+  const hasPic = key => !!(global.KWGround && global.KWGround.picture && global.KWGround.picture(key));
+  const pictureOr = (key, drawing, cls) => { const p = global.KWGround && global.KWGround.picture ? global.KWGround.picture(key, cls) : null; return p ? p.html : drawing; };
+
   // ── Rules (pure) ────────────────────────────────────────────────────────
   // The moments the scene shows. `list`: KWMoments.list().
   const sceneMoments = list => (list || []).filter(m => m && m.subject && ['fire', 'lost_child', 'cart'].includes(m.subject.scene));
@@ -95,6 +100,7 @@
   }
   function button(cls, m, label, html, style) {
     const b = doc.createElement('button');
+    if (/<img /.test(html)) b.setAttribute('data-pic', '1');
     b.type = 'button'; b.className = 'kwe ' + cls; b.setAttribute('data-kwe', String(m.id)); b.setAttribute('aria-label', label);
     if (style) b.style.cssText = style;
     b.innerHTML = html;
@@ -114,23 +120,29 @@
         const art = L.querySelector(`:scope > .sv-slot:not([hidden]) .sv-building[data-kwh="${m.subject.building}"] .kwh-art`);
         if (!art) continue;
         keep.add(id);
-        if (art.querySelector(`:scope > .kwe-fire[data-kwe="${id}"]`)) continue;
-        const b = button('kwe-fire', m, `Fire at the ${m.subject.building.replace(/_/g, ' ')}! Choose what to do`, FLAMES + '<i class="kwe-smoke"></i><i class="kwe-smoke kwe-smoke-2"></i><i class="kwe-smoke kwe-smoke-3"></i><span class="kwe-alarm" aria-hidden="true">🔥</span>');
+        const was = art.querySelector(`:scope > .kwe-fire[data-kwe="${id}"]`);
+        if (was && (was.getAttribute('data-pic') === '1') === hasPic('event_fire')) continue;
+        if (was) was.remove();   // its picture has arrived since it was drawn
+        const b = button('kwe-fire', m, `Fire at the ${m.subject.building.replace(/_/g, ' ')}! Choose what to do`, pictureOr('event_fire', FLAMES, 'kwe-flames') + '<i class="kwe-smoke"></i><i class="kwe-smoke kwe-smoke-2"></i><i class="kwe-smoke kwe-smoke-3"></i><span class="kwe-alarm" aria-hidden="true">🔥</span>');
         b.addEventListener('click', e => { e.stopPropagation(); if (global.KWMoments) global.KWMoments.open(m.id); });   // clickChoice('fire') is null: the choices are in the dialogue
         art.appendChild(b);
       } else if (sc === 'lost_child' && LO && LO._placeOf && C && C._groundPoint) {
         if (LO._areaOf(m.subject.seed) !== area) continue;
         keep.add(id);
-        if (L.querySelector(`:scope > .kwe-child[data-kwe="${id}"]`)) continue;
+        const was = L.querySelector(`:scope > .kwe-child[data-kwe="${id}"]`);
+        if (was && (was.getAttribute('data-pic') === '1') === hasPic('event_bush')) continue;
+        if (was) was.remove();
         const p = hidingPlace(m.subject.seed, LO._placeOf, (a, r) => C._groundPoint(a, r), (a, pt) => covered(L, pt));
-        const b = button('kwe-child', m, 'Something is hiding in this bush. Look', BUSH, `left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%;z-index:${Math.max(1, Math.round(p.y * 10))}`);
+        const b = button('kwe-child', m, 'Something is hiding in this bush. Look', pictureOr('event_bush', BUSH), `left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%;z-index:${Math.max(1, Math.round(p.y * 10))}`);
         b.addEventListener('click', e => { e.stopPropagation(); answer(m, clickChoice(sc), { x: b.offsetLeft, y: b.offsetTop }); });
         L.appendChild(b);
       } else if (sc === 'cart' && area === 'town') {
         keep.add(id);
-        if (L.querySelector(`:scope > .kwe-cart[data-kwe="${id}"]`)) continue;
+        const was = L.querySelector(`:scope > .kwe-cart[data-kwe="${id}"]`);
+        if (was && (was.getAttribute('data-pic') === '1') === hasPic('event_cart')) continue;
+        if (was) was.remove();
         const y = 78 + (Number(m.subject.seed) % 9);
-        const b = button('kwe-cart', m, 'A runaway cart! Stop it', `<span class="kwe-roll">${CART}</span>`, `left:${18 + (Number(m.subject.seed) % 37)}%;top:${y}%;z-index:${Math.round(y * 10)};--kwe-run:${Math.max(220, Math.min(460, Math.round(L.clientWidth * 0.18)))}px`);   // a short run, slow enough to catch
+        const b = button('kwe-cart', m, 'A runaway cart! Stop it', `<span class="kwe-roll">${pictureOr('event_cart', CART)}</span>`, `left:${18 + (Number(m.subject.seed) % 37)}%;top:${y}%;z-index:${Math.round(y * 10)};--kwe-run:${Math.max(220, Math.min(460, Math.round(L.clientWidth * 0.18)))}px`);   // a short run, slow enough to catch
         b.addEventListener('click', e => { e.stopPropagation(); const r = b.querySelector('.kwe-roll').getBoundingClientRect(), lr = L.getBoundingClientRect(), k = lr.width / (L.clientWidth || lr.width); answer(m, clickChoice(sc), { x: (r.left - lr.left) / k + 30, y: b.offsetTop }); });
         L.appendChild(b);
       }

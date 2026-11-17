@@ -37,6 +37,7 @@ console.log('2. What is drawn');
   check('2f. clouds sit over the sky and behind the mountains', /\.kww-clouds \{[^}]*z-index: -5/.test(CSS) && /\.sv-bd-mountains \{[^}]*z-index: -4/.test(CSS));
   check('2g. rain and snow are over the view, not the world, and take no clicks', /view\.insertBefore\(fall, sc \? sc\.nextSibling : null\)/.test(J) && /\.kww-fall \{[^}]*pointer-events: none/.test(CSS));
   check('2h. puddles are placed from the day\'s seed, so they stay put and every device agrees', /seeded\(\(\(w && w\.day\) \|\| 1\) \* 31 \+ area\.length \* 7\)/.test(J) && /\.kww-puddle \{[^}]*z-index: 0/.test(CSS));
+  check('2i. a puddle is its picture once the art is in the props manifest (puddle_1 to puddle_3), and is redrawn when the picture arrives', /\['puddle_1', 'puddle_2', 'puddle_3'\]\.map\(k => G\.picture\(k\)\)\.filter\(Boolean\)/.test(J) && /have\[0\]\.classList\.contains\('kww-puddle-pic'\) !== pics/.test(J));
 }
 
 console.log('3. Snow caps');

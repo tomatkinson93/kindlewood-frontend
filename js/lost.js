@@ -9,7 +9,9 @@
 //
 //  This file reads the day's thing (GET /api/lost), draws it where its seed
 //  says (the same place on every device), sends the find, and tells the
-//  owner's thought line where to look. Nothing is decided here.
+//  owner's thought line where to look. Nothing is decided here. The thing is
+//  an emoji until its picture is in the props manifest (docs/ART_GUIDE.md §8,
+//  batch M: lost_basket, lost_ribbon, lost_purse, lost_toy).
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -113,7 +115,8 @@
     if (!t || t.found || !L || !L.clientHeight || !(C && C._groundPoint)) { if (old) old.remove(); return; }
     const area = activeArea();
     if (areaOf(t.seed) !== area) { if (old) old.remove(); return; }
-    if (old && old.parentNode === L && old.getAttribute('data-id') === String(t.id)) return;
+    const hasPic = !!(global.KWGround && global.KWGround.picture && global.KWGround.picture('lost_' + t.kind));
+    if (old && old.parentNode === L && old.getAttribute('data-id') === String(t.id) && !!old.querySelector('.kwl-pic') === hasPic) return;   // (its picture may arrive after it was drawn)
     if (old) old.remove();
     const p = placeOf(t.seed, (a, r) => C._groundPoint(a, r), (a, pt) => covered(L, pt));
     const b = doc.createElement('button');
@@ -122,7 +125,9 @@
     b.title = `${t.label[0].toUpperCase() + t.label.slice(1)}: someone has lost this`;
     b.style.left = p.x.toFixed(2) + '%'; b.style.top = p.y.toFixed(2) + '%';
     b.style.zIndex = String(Math.max(1, Math.round(p.y * 10)));
-    b.innerHTML = `<span class="kwl-icon" aria-hidden="true">${t.icon}</span><i class="kwl-glint" aria-hidden="true"></i>`;
+    // Its picture, when the art is in (props manifest: lost_basket, lost_ribbon, lost_purse, lost_toy); else the emoji.
+    const pic = global.KWGround && global.KWGround.picture ? global.KWGround.picture('lost_' + t.kind) : null;
+    b.innerHTML = (pic ? `<span class="kwl-pic" aria-hidden="true">${pic.html}</span>` : `<span class="kwl-icon" aria-hidden="true">${t.icon}</span>`) + '<i class="kwl-glint" aria-hidden="true"></i>';
     b.addEventListener('click', e => { e.stopPropagation(); giveBack(); });
     L.appendChild(b);
   }

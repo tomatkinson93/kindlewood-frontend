@@ -60,6 +60,7 @@ console.log('4. In the scene');
   check('4d. the owner cheers when it comes back, if they are in the scene', /C\.playPraise\(t\.owner_id, t\.reward\.happiness\)/.test(J) && /floatAt: \(x, y, text, tone\) => floater\(x, y, text, tone\)/.test(E));
   const frames = CSS.match(/@keyframes kwl-[a-z-]+ \{[^\n]*/g) || [];
   check('4e. only transform and opacity move; reduced motion stills it', frames.length === 2 && !frames.some(k => /(left|top|width|height|margin):/.test(k)) && /prefers-reduced-motion: reduce\) \{ #settlement-view \.kwl-icon, #settlement-view \.kwl-glint \{ animation: none; \}/.test(CSS));
+  check('4g. it is its picture once the art is in the props manifest (lost_<kind>), and is redrawn when the picture arrives', /global\.KWGround\.picture\('lost_' \+ t\.kind\)/.test(J) && /!!old\.querySelector\('\.kwl-pic'\) === hasPic/.test(J));
   check('4f. the script is on the page', /\/js\/lost\.js\?v=h[0-9a-f]+/.test(H));
 }
 

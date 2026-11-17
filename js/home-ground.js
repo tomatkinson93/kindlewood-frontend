@@ -240,8 +240,18 @@
     return out;
   }
 
+  // A picture from the props manifest by its key, for the things code draws
+  // itself until their art arrives (a lost ribbon, the merchant's cart, a
+  // puddle…): → { w, h, html } or null. An entry needs `file`, `w` and `h`
+  // (on-screen pixels); one with no `kind` is never scattered as scenery.
+  function picture(key, cls) {
+    const m = manifest && manifest.props && manifest.props[key];
+    if (!m || !m.file || !(m.w > 0) || !(m.h > 0)) return null;
+    return { w: m.w, h: m.h, html: `<img src="${BASE + esc(m.file)}" class="kwh-img kwh-day${cls ? ' ' + esc(cls) : ''}" alt="" draggable="false" style="width:${m.w}px;height:${m.h}px">` };
+  }
+
   global.KWGround = {
-    KINDS, PATH_W, LANE_DROP, BASE, sync, loadManifest,
+    KINDS, PATH_W, LANE_DROP, BASE, sync, loadManifest, picture,
     planPaths, scatter, spotsOf, blocksOf, onPath, segDist, base, plotBox, seeded, hash, pathD,
     get manifest() { return manifest; }, _setManifest: m => { manifest = m; },
   };
