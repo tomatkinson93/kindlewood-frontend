@@ -849,7 +849,7 @@ console.log('24. The Neighbourhood scene');
     /post\(`\/\$\{n\.id\}\/houses`, \{ plot, style: S\.style \|\| 'thatch' \}\)/.test(NJ) && /if \(S\.picked && \(!h \|\| h\.id !== S\.picked\)\) return void moveTo\(plot\);/.test(NJ)
     && /post\(`\/houses\/\$\{id\}\/move`, \{ plot, neighbourhood_id: S\.hoodId \}\)/.test(NJ) && /KWHood\.buildModeChanged\(\)/.test(S) && /\.kwn-picked \.kwh-art/.test(CSS));
   check('24j. the cast is who lives there (and anyone with no bed); those at work are away, leaving and coming home by the signpost; home is their own door',
-    /return inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\);/.test(E)
+    /if \(inHood\(\)\) return livesHere\(c\) && !outAtWork\(c\) \? HOOD : null;/.test(E)
     && /if \(inHood\(\)\) return v\.c\.house_id != null \? doorOf\('house-' \+ v\.c\.house_id\) : null;/.test(E) && /\(inHood\(\) && \(\(why === 'rotate' && homeDoor\(v\)\) \|\| S\.exits\[0\]\)\)/.test(E)
     && /return c\.house_id == null \? true : n\.houses\.some\(h => h\.id === Number\(c\.house_id\)\);/.test(NJ) && /\(outAtWork\(c\) \? 'w' : ''\)/.test(E));
   check('24k. Who\'s here in a house: at home, or visiting',
@@ -1007,6 +1007,25 @@ console.log('30. The village green, and coming back from a full screen');
   check('30h. going somewhere else with the place bar tears it up (the player chose)', /global\.KWHome\.forgetReturn\(\);/.test(PL) && /const forgetReturn = \(\) => \{ ticket = null; \};/.test(HS));
   check('30i. every way from Home to those screens takes a ticket (a building, its panel\'s buttons, the profile menu)', !/closeSettlementView\(\);openMarket/.test(S) && (S.match(/_svLeaveFor\(\\'market\\'\)/g) || []).length === 2
     && /leaveFor\('tavern'\); call\('visitTavern'\)/.test(HS) && /leaveFor\('fishing'\); call\('visitFishingPost'\)/.test(HS) && /if \(r\.leave\) leaveFor\(r\.leave\);/.test(HS));
+}
+
+console.log('31. Who is in which part of town (§3.3, changed 2026-11-17)');
+{
+  const E = read('js/villager-engine.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast, L = Array.from({ length: 10 }, (_, i) => ({ id: 100 + i }));
+  check('31a. someone whose job is in the Outskirts is there while at work, and in Town the rest of the day (off work, on their breaks)',
+    /if \(a === 'town' \|\| \(S\.visitors && S\.visitors\.has\(Number\(c\.id\)\)\)\) return 'town';\s*return outAtWork\(c\) \? a : 'town';/.test(E));
+  let total = 0; for (let slot = 0; slot < 300; slot++) total += C._townVisitors(L, slot, 9, 0).length;
+  check('31b. and now and then on an errand to town: about one worker in four, for twenty minutes at a time', Math.abs(total / 3000 - 0.25) < 0.04 && C.VISIT.MS === 20 * 60000 && C.VISIT.SHARE === 0.25, (total / 3000).toFixed(3));
+  check('31c. by day Town is never left without its minimum of grown-ups: more are sent until it has them', C._townVisitors(L, 5, 0, 4).length >= 4 && C._townVisitors(L, 5, 3, 4).length >= 1 && C._townVisitors(L.slice(0, 2), 5, 0, 4).length === 2);
+  check('31d. the same stretch of the day shows the same people (a reload does not reshuffle); the next stretch shows others',
+    C._townVisitors(L, 5, 0, 4).join() === C._townVisitors(L, 5, 0, 4).join() && C._townVisitors(L, 5, 0, 4).join() !== C._townVisitors(L, 6, 0, 4).join());
+  check('31e. nobody is sent at night (the minimum is a daytime rule), and nobody is invented', C._townVisitors([], 5, 0, 4).length === 0 && /day \? minOut\(\) : 0/.test(E));
+  check('31f. the cast is looked at again when someone starts or stops work, or the errands change', /\(outAtWork\(c\) \? 'w' : ''\) \+ \(inHood\(\) \? ':' \+ \(c\.house_id \|\| ''\) : ''\)/.test(E) && /\[\.\.\.S\.visitors\]\.sort\(/.test(E));
+  check('31g. they come and go by the signpost, not out of thin air or a stranger\'s door', /v\.viaExit = !!c && living\(c\) && !awayOf\(c\) && !inHood\(\); leave\(v\);/.test(E) && /\(v\.viaExit && S\.exits\[0\]\) \|\| nearestDoor/.test(E) && /fromAfar \? S\.exits\[0\]/.test(E));
+  check('31h. Home\'s first cast is made again once its buildings are drawn (workplaces were not known before)', /performanceNow\(\) - S\.openedAt < 6000 && cits\(\)\.length && signature\(cits\(\)\) !== S\.sig\) recast\(true\);/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

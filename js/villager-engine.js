@@ -431,8 +431,41 @@
   const areaFor = c => {
     const sa = isBuilder(c) ? siteArea() : null;
     if (sa) return sa === S.area ? sa : sa === HOOD || inHood() ? null : sa;
-    return inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea);
+    if (inHood()) return livesHere(c) && !outAtWork(c) ? HOOD : null;
+    // Someone whose job is in another part of town (a forager's hut in the
+    // Outskirts) is there while they are at work, and in Town the rest of
+    // the day: off work, on their breaks, and on an errand to town.
+    const a = areaOf(c, builtArea);
+    if (a === 'town' || (S.visitors && S.visitors.has(Number(c.id)))) return 'town';
+    return outAtWork(c) ? a : 'town';
   };
+  // Outskirts workers who are in Town for this stretch of the day (20
+  // minutes): each has about a one in four chance of an errand there, and by
+  // day more are sent until Town has its minimum of grown-ups. Seeded by the
+  // villager and the stretch, so a reload shows the same town. `list`: [{ id }]
+  // at work elsewhere; `inTown`: grown-ups already in Town. → ids. Pure.
+  const VISIT = { MS: 20 * 60000, SHARE: 0.25 };
+  function townVisitors(list, slot, inTown, min) {
+    const rank = id => { const r = seeded(((Number(id) || 0) * 2654435761 ^ (Number(slot) || 0) * 40503) >>> 0); r(); r(); return r(); };
+    const ranked = list.map(c => ({ id: Number(c.id), r: rank(c.id) })).sort((x, y) => x.r - y.r || x.id - y.id);
+    const out = ranked.filter(x => x.r < VISIT.SHARE).map(x => x.id);
+    for (const x of ranked) { if (inTown + out.length >= min) break; if (!out.includes(x.id)) out.push(x.id); }
+    return out;
+  }
+  function visitorsNow() {
+    const out = new Set();
+    if (inHood()) return out;
+    const working = [];
+    let inTown = 0;
+    for (const c of cits()) {
+      if (!living(c) || awayOf(c) || isChild(c)) continue;
+      if (isBuilder(c) && siteArea()) continue;
+      if (areaOf(c, builtArea) !== 'town' && outAtWork(c)) working.push({ id: c.id }); else inTown++;
+    }
+    const day = S.phase === 'day' || S.phase === 'dawn';
+    for (const id of townVisitors(working, Math.floor(clockMs() / VISIT.MS), inTown, day ? minOut() : 0)) out.add(id);
+    return out;
+  }
   // Their own front door: their house in the Neighbourhood, the
   // Neighbourhood's door in Town, the way back to town from the Outskirts.
   function homeDoor(v) {
@@ -607,7 +640,8 @@
     endChat(v, performanceNow());
     // Out of the Neighbourhood: by the signpost back to town.
     // (When the cast is only changing, they go indoors at their own house.)
-    const d = (inHood() && ((why === 'rotate' && homeDoor(v)) || S.exits[0])) || nearestDoor(v.x, v.y);
+    const d = (inHood() && ((why === 'rotate' && homeDoor(v)) || S.exits[0])) || (v.viaExit && S.exits[0]) || nearestDoor(v.x, v.y);
+    v.viaExit = false;
     if (v.state === 'indoors') { drop(v); return; }
     v.state = 'leave';
     if (d) { v.tx = d.x; v.ty = d.y; } else { v.tx = v.x; v.ty = v.y; }
@@ -1087,13 +1121,17 @@
     S.phase = S.hold || clockPhase();
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const all = cits();
+    S.visitors = visitorsNow();
     // Builders with a site in this part of town are always in the cast (up to 4).
     const crew = siteArea() === S.area ? all.filter(c => living(c) && isBuilder(c) && !awayOf(c)).slice(0, BUILDERS_SHOWN).map(c => Number(c.id)) : [];
     const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew), rand: S.rand });
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
-      if (!want.includes(v.id) && live(v) && !(v.act && !first)) { if (first) { v.el.remove(); S.vs.delete(v.id); } else leave(v); }   // someone in a scene stays for it
+      if (!want.includes(v.id) && live(v) && !(v.act && !first)) {   // someone in a scene stays for it
+        if (first) { v.el.remove(); S.vs.delete(v.id); }
+        else { v.viaExit = !!c && living(c) && !awayOf(c) && !inHood(); leave(v); }   // off to another part of town: by the signpost
+      }
       else if (c) v.c = c;
     }
     const present = () => [...S.vs.values()].filter(live).length;
@@ -1105,7 +1143,9 @@
       // In the Neighbourhood people start at (or in) their own house, and
       // arrive later from town by the signpost.
       const own = inHood() && c.house_id != null ? doorOf('house-' + c.house_id) : null;
-      const door = inHood() ? (first ? own : S.exits[0] || own) : S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
+      // Someone arriving from the other part of town comes by the signpost.
+      const fromAfar = !first && !inHood() && S.exits[0] && (S.area !== 'town' || areaOf(c, builtArea) !== 'town');
+      const door = inHood() ? (first ? own : S.exits[0] || own) : fromAfar ? S.exits[0] : S.doors.length ? S.doors[Math.floor(S.rand() * S.doors.length)] : null;
       const at = first || !door ? px(groundPoint(S.area, S.rand)) : { x: door.x, y: door.y };
       const v = make(c, at, !first);
       // On opening, someone at work is in their building; some others start
@@ -1119,8 +1159,10 @@
   }
   function signature(all) {
     // (In the Neighbourhood, also who is out at work and who lives where.)
-    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',')
-      + '|' + (siteArea() || '');   // the builders go where the first site is
+    S.visitors = visitorsNow();
+    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (outAtWork(c) ? 'w' : '') + (inHood() ? ':' + (c.house_id || '') : '')).join(',') + '|' + momentIds().join(',')
+      + '|' + (siteArea() || '')    // the builders go where the first site is
+      + '|' + [...S.visitors].sort((x, y) => x - y).join(',');   // who is on an errand to town
   }
   // Now and then one walks into a building and someone else comes out.
   function rotate() {
@@ -1667,7 +1709,7 @@
 
   function sceneShown(layer) {
     const area = layer && /^sv-layer-fg-/.test(layer.id) && GROUND[layer.id.slice(12)] ? layer.id.slice(12) : 'town';
-    if (layer !== S.layer || area !== S.area) { clear(); S.layer = layer; S.area = area; }
+    if (layer !== S.layer || area !== S.area) { clear(); S.layer = layer; S.area = area; S.openedAt = performanceNow(); }
     S.shown = true;
     start();
   }
@@ -1701,7 +1743,13 @@
     _seed: n => { S.rand = seeded(n); },
     // The scene changed (a building built, moved or removed, a resize): look
     // again at the doors, and redraw the paths and props.
-    resurvey: () => { if (S.layer && S.shown && S.layer.clientHeight) { survey(); syncGlow(); } },
+    // (Home's first cast is made before its buildings are drawn, so nobody's
+    // workplace is known yet: once they are, the cast is made again at once.)
+    resurvey: () => {
+      if (!(S.layer && S.shown && S.layer.clientHeight)) return;
+      survey(); syncGlow();
+      if (S.openedAt && performanceNow() - S.openedAt < 6000 && cits().length && signature(cits()) !== S.sig) recast(true);
+    },
     // Who the scene has inside a building right now (js/building-menu.js,
     // Who's here): exactly the villagers whose state is indoors there.
     inside: key => [...S.vs.values()].filter(v => v.state === 'indoors' && v.inside === key)
@@ -1719,6 +1767,8 @@
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
     // Builders (js/construction.js): where they are and what they do.
+    // Who is in which part of town.
+    VISIT, _townVisitors: townVisitors, get visitors() { return [...(S.visitors || [])]; },
     // Town-wide events (§3.10).
     TOWN, _townEvent: townEvent, _ringSpot: ringSpot, get event() { return S.event || null; },
     // Life events (§3.9).
