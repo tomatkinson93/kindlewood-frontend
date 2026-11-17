@@ -548,13 +548,96 @@
     S.cool[pairKey(a.id, b.id)] = now;
   }
   function chatting(a, b, now) {
-    const len = CHAT_MS[0] + S.rand() * (CHAT_MS[1] - CHAT_MS[0]);
+    const len = a.talk ? TALK_MS : CHAT_MS[0] + S.rand() * (CHAT_MS[1] - CHAT_MS[0]);
     for (const [x, y] of [[a, b], [b, a]]) { x.state = 'chat'; x.until = now + len; x.dir = V().dirFromVector(y.x - x.x, 0) || 'e'; }
     a.sayFrom = now; a.leads = true; b.leads = false;
+    if (a.talk) { const sp = a.talk.speaker === a.id ? a : b, li = sp === a ? b : a; sp.leads = true; li.leads = false; sp.sayFrom = now; }
   }
   function endChat(v, now) {
     const p = v.partner != null ? S.vs.get(v.partner) : null;
-    for (const x of [v, p]) if (x) { x.partner = null; setSay(x, null); if (x.state === 'chat' || x.state === 'tochat' || x.state === 'waitchat') idle(x, now, 500 + S.rand() * 1500); }
+    if (v.talk) talkResult(v.talk);   // cut short (someone was picked, or they never met): the result still shows
+    for (const x of [v, p]) if (x) { x.partner = null; x.talk = null; setSay(x, null); if (x.state === 'chat' || x.state === 'tochat' || x.state === 'waitchat') idle(x, now, 500 + S.rand() * 1500); }
+  }
+  // ── A chat the player set up, and praise (js/social.js; Part F) ─────────
+  // The server has already decided how it went; this plays it out. The
+  // speaker hurries over to the listener (who waits, and steps out if they
+  // were indoors), the topic's picture goes up in a bubble, the listener
+  // answers, and a heart with the bond gained, or a storm cloud with the bond
+  // lost, floats up between them. `done` is called once it has shown.
+  // → false when it cannot be played here (the scene is not showing, or the
+  // speaker is not in it): the caller tells it in words instead.
+  const TALK_MS = 3800, TALK_WAIT = 45000;
+  const FELT = { likes: '😊', dull: '😴', fine: '🙂' };
+  function playTalk(o, done) {
+    if (!S.shown || S.paused || !S.layer) return false;
+    const a = S.vs.get(Number(o.speaker)), b = S.vs.get(Number(o.listener));
+    const usable = x => x && x.state !== 'gone' && x.state !== 'leave' && !x.moment;
+    if (!usable(a)) return false;
+    const now = performanceNow();
+    const t = { speaker: a.id, listener: usable(b) ? b.id : null, icon: o.icon || '💬', good: !!o.good, delta: Number(o.delta) || 0, speakerFelt: o.speakerFelt, listenerFelt: o.listenerFelt, done, shown: false };
+    for (const x of [a, t.listener != null ? b : null]) {
+      if (!x) continue;
+      if (M.v === x) deselect(true, true);
+      endChat(x, now);
+      if (x.state === 'indoors') comeOut(x, now);
+      x.held = false; x.heldBy = null; x.goal = null;
+    }
+    if (t.listener == null) {
+      // The listener is somewhere else (another part of town, or indoors out
+      // of the scene): the speaker says it where they stand.
+      a.talk = t; a.state = 'solo'; a.until = now + 1500; a.dir = 's'; setSay(a, t.icon);
+      return true;
+    }
+    a.partner = b.id; b.partner = a.id; a.talk = b.talk = t;
+    const side = a.x <= b.x ? -1 : 1;
+    const behind = (x, y) => (S.blocks || []).some(k => k.b > y && x + 24 > k.l && x - 24 < k.r && y - 64 < k.b && y > k.t);
+    let pa = { x: b.x + side * CHAT_GAP, y: b.y }, pb = null;
+    if (behind(b.x, b.y) || behind(pa.x, pa.y)) {
+      // The listener stands behind a building: they meet at the nearest spot in the open.
+      const spot = clearSpot(b.x, { w: W(), h: H(), blocks: S.blocks || [] });
+      pa = { x: spot.x + side * CHAT_GAP / 2, y: spot.y }; pb = { x: spot.x - side * CHAT_GAP / 2, y: spot.y };
+    }
+    walkTo(a, pa, null); a.state = 'tochat'; a.until = now + TALK_WAIT;
+    if (pb) { walkTo(b, pb, null); b.state = 'tochat'; }
+    else { b.state = 'waitchat'; b.tx = b.x; b.ty = b.y; b.dir = V().dirFromVector(a.x - b.x, 0) || 'w'; }
+    b.until = now + TALK_WAIT;
+    return true;
+  }
+  // The heart or the storm cloud, once; then the caller's line.
+  function talkResult(t) {
+    if (t.shown) return;
+    t.shown = true;
+    const a = S.vs.get(t.speaker), b = t.listener != null ? S.vs.get(t.listener) : null;
+    const at = a && b ? { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) } : a || b;
+    const n = Math.abs(t.delta);
+    if (at) floater(at.x, at.y - 74, t.good ? `💗${n ? ' +' + n : ''}` : `🌩️${n ? ' −' + n : ''}`, t.good ? 'good' : 'bad');
+    if (typeof t.done === 'function') { try { t.done(); } catch (_) { /* told elsewhere */ } }
+  }
+  // The scripted part of a chat: topic, answer, how it ended.
+  function talkStep(v, p, now) {
+    const t = v.talk, e = now - v.sayFrom;
+    const li = S.vs.get(t.listener) || p, sp = S.vs.get(t.speaker) || v;
+    if (e < 1300) { setSay(sp, t.icon); setSay(li, null); }
+    else if (e < 2500) { setSay(sp, null); setSay(li, FELT[t.listenerFelt] || '…'); }
+    else { talkResult(t); setSay(sp, t.good ? '😄' : '😕'); setSay(li, t.good ? '😄' : '😒'); }
+  }
+  // Praise: a happy bubble and "+2" floating up. → false when they are not in the scene.
+  function playPraise(id, amount) {
+    const v = S.vs.get(Number(id));
+    if (!S.shown || S.paused || !v || v.state === 'gone' || v.state === 'indoors') return false;
+    floater(v.x, v.y - 74, `👏 +${Number(amount) || 2}`, 'good');
+    if (!v.partner && !v.talk) { setSay(v, '😊'); setTimeout(() => { if (v.say === '😊') setSay(v, null); }, 1600); }
+    return true;
+  }
+  // A small sign that rises from a point in the scene and fades.
+  function floater(x, y, text, tone) {
+    if (!S.layer) return;
+    const f = doc.createElement('span');
+    f.className = 'kwv-float' + (tone ? ' kwv-float-' + tone : '');
+    f.textContent = text;
+    f.style.left = Math.round(x) + 'px'; f.style.top = Math.round(y) + 'px';
+    S.layer.appendChild(f);
+    setTimeout(() => f.remove(), 2200);
   }
   function setSay(v, text) {
     if (v.say === text) return;
@@ -633,7 +716,7 @@
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const pool = cits().filter(c => living(c) && !awayOf(c) && areaFor(c) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
     const moments = momentIds().map(Number);
-    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.child && !moments.includes(v.id)
+    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.talk && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
     leave(out[Math.floor(S.rand() * out.length)], 'rotate');
@@ -664,24 +747,44 @@
     return (c.name || 'Villager') + ' · ' + what + (age != null ? ', ' + age : '');
   }
   // The menu's buttons for someone. Children have no Change work; youths
-  // have Apprenticeship in its place. Pure.
-  function menuItems(c) {
+  // have Apprenticeship in its place. `social` (js/social.js, today's state
+  // for them) adds Talk to… and Praise, greyed (`off`) once used. Pure.
+  function menuItems(c, social) {
     const youth = c.stage === 'youth', child = !youth && (c.stage === 'child' || (!c.stage && c.life_stage === 'child'));
-    const items = [{ key: 'inspect', icon: '🔍', label: 'Inspect' }, { key: 'family', icon: '👪', label: 'Family' }];
+    const items = [{ key: 'inspect', icon: '🔍', label: 'Inspect' }];
+    if (social) {
+      items.push({ key: 'talk', icon: '💬', label: social.talked ? 'Chatted today' : 'Talk to…', off: !!social.talked });
+      const none = social.ready && !social.praised && social.praiseLeft <= 0;
+      items.push({ key: 'praise', icon: '👏', label: social.praised ? 'Praised today' : none ? 'No praise left' : social.ready ? `Praise (${social.praiseLeft})` : 'Praise', off: !!social.praised || none });
+    }
+    items.push({ key: 'family', icon: '👪', label: 'Family' });
     if (youth) items.push({ key: 'apprentice', icon: '🎓', label: 'Apprenticeship' });
-    else if (!child) items.push({ key: 'work', icon: '🛠', label: 'Change work' });
+    else if (!child) items.push({ key: 'work', icon: '🛠️', label: 'Change work' });
     items.push({ key: 'house', icon: '🏡', label: 'House' });
     return items;
   }
   // Where the buttons go: an arc of `n` around `centre` degrees (−90 is
   // straight up; screen y grows downward), turned toward the middle when the
   // villager stands near the left or right edge of the view. Pure.
+  // Five or six buttons take a wider, larger arc so their labels stay apart.
   function arc(n, { radius = 96, spread = 150, sx = 500, viewW = 1000, edge = 130 } = {}) {
-    const atEdge = sx < edge || sx > viewW - edge;
+    const atEdge = sx < edge || sx > viewW - edge, many = n > 4;
+    if (many) { radius += (n - 4) * 9; spread = 150 + (n - 4) * 30; }
+    const at = (deg) => { const r = deg * Math.PI / 180; return { x: Math.round(Math.cos(r) * radius), y: Math.round(Math.sin(r) * radius) }; };
+    if (many && atEdge) {
+      // Worked out for the left edge, mirrored for the right: the arc starts
+      // no further toward the edge than there is room for a button, and runs
+      // over the head and down the inner side.
+      const room = Math.max(0, (sx < edge ? sx : viewW - sx) - 26);
+      const limit = room >= radius ? -180 : -Math.acos(-room / radius) * 180 / Math.PI;
+      const from = Math.max(-35 - 85, limit), to = Math.min(from + 170, 75);
+      const pts = Array.from({ length: n }, (_, i) => at(from + (to - from) * i / (n - 1)));
+      return sx < edge ? pts : pts.map(q => ({ x: -q.x, y: q.y })).reverse();
+    }
     const centre = sx < edge ? -60 : sx > viewW - edge ? -120 : -90;
     if (atEdge) spread = Math.min(spread, 115);   // turned, and narrower, so it stays above the head
     const step = n > 1 ? spread / (n - 1) : 0, start = centre - spread / 2 * (n > 1 ? 1 : 0);
-    return Array.from({ length: n }, (_, i) => { const a = (start + step * i) * Math.PI / 180; return { x: Math.round(Math.cos(a) * radius), y: Math.round(Math.sin(a) * radius) }; });
+    return Array.from({ length: n }, (_, i) => at(start + step * i));
   }
 
   function select(v, byKeyboard) {
@@ -729,7 +832,7 @@
   function openMenu(v, byKeyboard) {
     closeMenu();
     M.v = v;
-    const items = menuItems(v.c);
+    const items = menuItems(v.c, global.KWSocial ? global.KWSocial.forMenu(v.id) : null);
     const sc = doc.getElementById('sv-scene');
     const vr = v.el.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : { left: 0, width: 1000 };
     const pts = arc(items.length, { sx: vr.left + vr.width / 2 - sr.left, viewW: sr.width, radius: isPhone() ? 100 : 96 });
@@ -740,12 +843,18 @@
     const head = (v.child ? 0.75 : 1) * 62;   // the figure is about 62 px tall
     m.style.left = Math.round(v.x) + 'px';
     m.style.top = Math.round(v.y - head) + 'px';
-    m.innerHTML = items.map((it, i) => `<button type="button" class="kwv-rb" role="menuitem" data-kwv-act="${it.key}" style="--rx:${pts[i].x}px;--ry:${pts[i].y}px">`
+    m.innerHTML = items.map((it, i) => `<button type="button" class="kwv-rb${it.off ? ' kwv-rb-off' : ''}" role="menuitem" data-kwv-act="${it.key}"${it.off ? ' aria-disabled="true"' : ''} style="--rx:${pts[i].x}px;--ry:${pts[i].y}px">`
       + `<span class="kwv-rb-i" aria-hidden="true">${it.icon}</span><span class="kwv-rb-l">${it.label}</span></button>`).join('');
     m.addEventListener('click', e => {
       e.stopPropagation();
       const b = e.target.closest('[data-kwv-act]');
-      if (b) choose(b.getAttribute('data-kwv-act'));
+      if (!b) return;
+      // Greyed (used today): it says why and when it comes back; the menu stays.
+      if (b.getAttribute('aria-disabled') === 'true') {
+        if (global.KWSocial && typeof global.showToastNotification === 'function') global.showToastNotification(global.KWSocial.why(b.getAttribute('data-kwv-act'), v.id), 'default');
+        return;
+      }
+      choose(b.getAttribute('data-kwv-act'));
     });
     m.addEventListener('keydown', e => {
       const bs = [...m.querySelectorAll('.kwv-rb')], i = bs.indexOf(doc.activeElement);
@@ -771,6 +880,7 @@
     const v = M.v;
     if (!v) return;
     const c = v.c, id = v.id;
+    if (key === 'praise') { deselect(true); if (global.KWSocial) global.KWSocial.praise(id); return; }   // no window: they carry on
     v.held = true; v.heldFrom = performanceNow(); v.heldCheck = performanceNow() + 300; v.heldBy = null;
     deselect(true);
     const call = (name, ...a) => (typeof global[name] === 'function' ? global[name](...a) : null);
@@ -778,6 +888,7 @@
     else if (key === 'family') { if (global.KWFamilies) global.KWFamilies.open(c.family_id ? { family: c.family_id } : {}); }
     else if (key === 'work' || key === 'apprentice') { call('openCitizenProfile', id); focusInProfile('.cp-role-section .cp-role-select'); }   // the job picker, or a youth's trade
     else if (key === 'house') openHome(c);
+    else if (key === 'talk') { if (global.KWSocial) global.KWSocial.openTalk(id); }
   }
   // The job picker (or the apprenticeship) is in the citizen's profile: open
   // it there, scrolled to and focused.
@@ -800,6 +911,7 @@
     const W = global.KWWindow;
     if (W && W.isOpen && W.isOpen('families')) return { kww: 'families' };
     if (W && W.isOpen && W.isOpen('house')) return { kww: 'house' };
+    if (W && W.isOpen && W.isOpen('talk')) return { kww: 'talk' };
     const top = global.KWA11y && global.KWA11y.topmost ? global.KWA11y.topmost() : null;
     return top ? { el: top } : null;
   }
@@ -959,6 +1071,7 @@
     return { x: Math.max(w * 0.03, Math.min(w * 0.97, cx)), y: front * h };
   }
   function stepMoment(v, dt, now) {
+    if (v.talk) endChat(v, now);   // a moment came up mid-chat: its result shows now
     if (v.state === 'indoors') comeOut(v, now);
     if (!v.mSpot) { v.mSpot = momentSpot(v); v.tx = v.mSpot.x; v.ty = v.mSpot.y; v.state = 'tomoment'; }
     if (v.state === 'waiting') return;
@@ -1001,7 +1114,8 @@
       if (now >= v.until && !nightIn && !(v.child && parentOf(v) && parentOf(v).state === 'indoors')) comeOut(v, now);
       return;
     }
-    if (v.child && v.state !== 'leave' && child(v, now)) { /* targets set */ }
+    if (v.state === 'solo') { if (now >= v.until) { const t = v.talk; v.talk = null; setSay(v, null); if (t) talkResult(t); idle(v, now, 500 + S.rand() * 900); } return; }
+    if (v.child && !v.talk && v.state !== 'leave' && child(v, now)) { /* targets set */ }
     else if (v.state === 'idle') { if (now >= v.until) errand(v, now); return; }
     else if (v.state === 'waitchat') {
       const p = S.vs.get(v.partner);
@@ -1012,6 +1126,7 @@
     else if (v.state === 'chat') {
       const p = S.vs.get(v.partner);
       if (!p || now >= v.until) { endChat(v, now); return; }
+      if (v.talk) { if (v.leads) talkStep(v, p, now); return; }   // set up by the player: scripted
       // Take turns: the bubble passes back and forth every 1.4 s.
       if (v.leads) {
         const turn = Math.floor((now - v.sayFrom) / 1400) % 2 === 0;
@@ -1022,7 +1137,8 @@
     }
     if (v.state === 'idle' || (v.child && v.state === 'idle')) return;
     const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy);
-    const stepPx = v.speed * (v.state === 'chase' || v.state === 'ahead' ? 1.3 : 1) * dt / 1000;
+    if (v.state === 'tochat' && v.talk && now >= v.until) { endChat(v, now); return; }   // never got there
+    const stepPx = v.speed * (v.talk ? 1.8 : v.state === 'chase' || v.state === 'ahead' ? 1.3 : 1) * dt / 1000;
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }
@@ -1097,7 +1213,11 @@
   // here: when the scene starts, the area changes or the phase turns.
   function syncGlow() { const H = global.KWHome; if (H && H.syncGlow) requestFrame(() => H.syncGlow()); }
 
-  function clear() { closeMenu(); for (const v of S.vs.values()) v.el.remove(); S.vs.clear(); }
+  function clear() {
+    closeMenu();
+    for (const v of S.vs.values()) { if (v.talk) talkResult(v.talk); v.el.remove(); }   // a chat under way is still told
+    S.vs.clear();
+  }
   function start() {
     if (!S.shown || S.paused || !S.layer || !V()) return;
     V().injectStyles();
@@ -1168,6 +1288,8 @@
       return true;
     },
     deselect: () => { if (M.v) deselect(true); },
+    // A chat the player set up, and praise (js/social.js).
+    playTalk, playPraise, TALK_MS,
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.
     preview: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); return S.phase; },

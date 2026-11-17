@@ -95,6 +95,7 @@
     const again = f => { try { const r = f(); if (r && r.catch) r.catch(() => {}); } catch (_) { /* not loaded */ } };
     if (typeof global.refreshResources === 'function') again(() => global.refreshResources());
     if (global.KWMoments && global.KWMoments.load) again(() => global.KWMoments.load());
+    if (global.KWSocial && global.KWSocial.load) again(() => global.KWSocial.load(true));
     if (typeof global.loadCitizens === 'function') again(() => global.loadCitizens());
     if (typeof global.refreshSettlementView === 'function') again(() => global.refreshSettlementView());
     try { global.dispatchEvent(new global.CustomEvent('kw:away', { detail: { away: false } })); } catch (_) { /* old browser */ }

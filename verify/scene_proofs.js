@@ -517,7 +517,7 @@ console.log('15. Selecting a villager: the radial menu (§3.6)');
   check('15m. it fans out in 150 ms; not under reduced motion; 48 px on touch', /transition: transform 150ms/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwv-rb \{ transition: none; \}/.test(CSS) && /pointer: coarse\) \{\s*#settlement-view \.kwv-rb \{ width: 48px; height: 48px/.test(CSS));
   check('15n. a pop as the menu opens, another as it closes (the effects volume applies)', C3.SOUND.on === 'ui/pop_on.mp3' && C3.SOUND.off === 'ui/pop_off.mp3' && /global\.playSfx\(SOUND\[k\]\)/.test(E)
     && ['pop_on.mp3', 'pop_off.mp3'].every(f => fs.existsSync(path.join(ROOT, 'assets/audio/ui', f)) && fs.statSync(path.join(ROOT, 'assets/audio/ui', f)).size < 40000));
-  check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{ closeMenu\(\);/.test(E));
+  check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{\s*closeMenu\(\);/.test(E));
 }
 
 console.log('16. Phones and comfort (step 8), names, faces');

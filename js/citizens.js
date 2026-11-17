@@ -551,6 +551,7 @@ function renderCitizenProfile(c) {
     </div>
 
     <div class="cp-tab-panel" id="cp-tab-rels" style="display:none">
+      ${window.KWSocial ? KWSocial.profileHtml(c) : ''}
       <div id="cp-rel-list" class="cp-rel-list-full"><div class="cp-rel-loading">Loading…</div></div>
     </div>
 

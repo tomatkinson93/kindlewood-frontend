@@ -292,6 +292,31 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 @media (pointer: coarse) {
   #settlement-view .kwv-rb { width: 48px; height: 48px; margin: -24px 0 0 -24px; }
 }
+/* Used today (Talk to…, Praise): greyed; a press says when it comes back. */
+#settlement-view .kwv-rb.kwv-rb-off { background: #d9d2c2; border-color: #9a8f7a; cursor: default; }
+#settlement-view .kwv-rb.kwv-rb-off .kwv-rb-i { opacity: 0.45; filter: grayscale(1); }
+#settlement-view .kwv-rb.kwv-rb-off .kwv-rb-l { color: #cfc5b0; }
+/* What a chat or a praise did: a small sign that rises and fades (above the
+   night shade, so it reads at any hour). */
+#settlement-view .kwv-float {
+  position: absolute; z-index: 1500; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
+  padding: 2px 9px; border-radius: 11px; background: #fffaf0; border: 2px solid #b98a4a; color: #3a2414;
+  font: 800 14px/1.3 system-ui, sans-serif; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  animation: kwv-float 2.1s ease-out forwards;
+}
+#settlement-view .kwv-float-good { border-color: #c2527a; color: #8a1f4a; }
+#settlement-view .kwv-float-bad { border-color: #6a7385; color: #39414f; background: #eef0f4; }
+@keyframes kwv-float {
+  0% { opacity: 0; transform: translate(-50%, -80%) scale(0.7); }
+  12% { opacity: 1; transform: translate(-50%, -100%) scale(1.08); }
+  20% { transform: translate(-50%, -100%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -100%) translateY(-34px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #settlement-view .kwv-float { animation: kwv-float-still 2.1s linear forwards; }
+  @keyframes kwv-float-still { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+}
 @media (prefers-reduced-motion: reduce) {
   #settlement-view .kwv-rb { transition: none; }
 }
@@ -425,3 +450,54 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 .kww .kwn-hint, .kww .kwn-none { margin: var(--kw-s-1) 0 0; font-size: var(--kw-fs-2); color: var(--kw-muted); }
 .kww .kwn-styles .kwn-style { border-color: var(--kw-line-2); background: var(--kw-panel-2); color: var(--kw-cream); }
 .kww .kwn-styles .kwn-style[aria-checked="true"] { border-color: var(--kw-gold); }
+
+/* ── Talk to… and Praise (js/social.js; docs/HOME_SCENE.md Part F) ──────── */
+.kww .kws-none, .kww .kws-hint { color: var(--kw-muted); font-size: var(--kw-fs-2); margin: var(--kw-s-2) 0; }
+.kww .kws-people { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: var(--kw-s-1); }
+.kww .kws-person {
+  width: 100%; display: flex; align-items: center; gap: var(--kw-s-2); padding: 6px 10px; min-height: 48px; text-align: left; cursor: pointer;
+  border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); color: var(--kw-cream); font: inherit;
+}
+.kww .kws-person:hover, .kww .kws-person:focus-visible { border-color: var(--kw-gold); outline: none; }
+.kww .kws-person .kwv-face { flex: none; border-radius: 50%; background-color: rgba(0, 0, 0, 0.18); background-repeat: no-repeat; }
+.kww .kws-ptext { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.kww .kws-ptext b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kww .kws-ptext span { color: var(--kw-muted); font-size: var(--kw-fs-2); }
+.kww .kws-ptext span::first-letter { text-transform: uppercase; }
+.kww .kws-known { flex: none; display: flex; gap: 2px; font-size: 16px; }
+.kww .kws-known .kws-dull { opacity: 0.45; filter: grayscale(1); }
+.kww .kws-back { border: 0; background: none; color: var(--kw-gold); cursor: pointer; padding: 6px 0; font: inherit; }
+.kww .kws-bond, .kww .kws-knows { margin: 0 0 var(--kw-s-2); font-size: var(--kw-fs-2); line-height: 1.5; }
+.kww .kws-knows { color: var(--kw-muted); }
+.kww .kws-knows b { color: var(--kw-cream); }
+.kww .kws-topics { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: var(--kw-s-1); }
+.kww .kws-topic {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px 6px; min-height: 76px; cursor: pointer;
+  border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); color: var(--kw-cream); font: inherit;
+}
+.kww .kws-topic:hover, .kww .kws-topic:focus-visible { border-color: var(--kw-gold); outline: none; }
+.kww .kws-topic:disabled { opacity: 0.5; cursor: default; }
+.kww .kws-ti { font-size: 22px; line-height: 1.1; }
+.kww .kws-tl { font-weight: 600; font-size: var(--kw-fs-2); }
+.kww .kws-tn { font-size: 11px; color: var(--kw-muted); min-height: 14px; text-align: center; }
+.kww .kws-topic.kws-good { border-color: #6fae6a; }
+.kww .kws-topic.kws-good .kws-tn { color: #8ecf7e; }
+.kww .kws-topic.kws-bad { border-style: dashed; }
+.kww .kws-topic.kws-bad .kws-ti { opacity: 0.55; filter: grayscale(0.8); }
+/* In a villager's profile (Relationships). */
+.kws-profile { margin-bottom: 14px; color: #eadfc6; }
+.kws-profile:empty { display: none; }
+.kws-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.kws-chip { padding: 2px 9px; border-radius: 11px; border: 1px solid rgba(220, 180, 100, 0.45); font-size: 12px; white-space: nowrap; color: #eadfc6; }
+.kws-chip.kws-like { border-color: #6fae6a; color: #b8e6ad; }
+.kws-chip.kws-dullchip { border-style: dashed; opacity: 0.8; }
+.kws-chip.kws-finechip { opacity: 0.65; border-style: dotted; }
+.kws-legend { font-size: 11.5px; color: #b9aa8c; margin-bottom: 6px; }
+.kws-today { list-style: none; margin: 6px 0; padding: 0; font-size: 12.5px; line-height: 1.5; color: #eadfc6; }
+.kws-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.kws-btn {
+  min-height: 40px; padding: 6px 14px; border-radius: 8px; cursor: pointer; font: 600 13px/1.2 system-ui, sans-serif;
+  border: 1px solid #b98a4a; background: #fff6df; color: #3a2414;
+}
+.kws-btn:hover, .kws-btn:focus-visible { background: #ffe7a8; outline: none; }
+.kws-btn[aria-disabled="true"] { background: #d9d2c2; border-color: #9a8f7a; color: #6b6252; cursor: default; }
