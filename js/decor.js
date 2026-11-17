@@ -95,6 +95,23 @@
     }
     return out;
   }
+  // What the villagers make of the decorations in one part of Home (js/villager-engine.js).
+  // `list`: the town's decorations; w × h: the scene in px. → { spots: [{ id, x, y, rest? }],
+  // blocks: [{ l, r, t, b }] }. A bench is somewhere to sit; a flower bed, the well
+  // and the pond are somewhere to stop; the well and the pond are walked round. Pure.
+  function sceneParts(list, area, w, h, artFor) {
+    const spots = [], blocks = [];
+    for (const d of (list || []).filter(x => x.area === area)) {
+      const a = (artFor || (k => ART[k]))(d.kind);
+      if (!a) continue;
+      const x = d.x / 100 * w, y = d.y / 100 * h;
+      if (d.kind === 'bench') spots.push({ id: 'bench-' + d.id, x, y: y + 4, rest: true });
+      else if (d.kind === 'flower_bed') spots.push({ id: 'flowers-' + d.id, x, y: y + 14 });
+      else if (d.kind === 'well') { spots.push({ id: 'well-' + d.id, x, y: y + 22 }); blocks.push({ l: x - a.w / 2 - 8, r: x + a.w / 2 + 8, t: y - Math.max(10, a.h / 4) - 8, b: y + 6 }); }
+      else if (d.kind === 'pond') { spots.push({ id: 'pond-' + d.id, x, y: y + 16 }); blocks.push({ l: x - a.w / 2 - 6, r: x + a.w / 2 + 6, t: y - a.h - 4, b: y + 4 }); }
+    }
+    return { spots, blocks };
+  }
   function charmHtml(d) {
     const c = d && d.charm;
     if (!c || !c.score) return '';
@@ -109,8 +126,11 @@
     S.data = d;
     paint(true); palette();
     doc.querySelectorAll('.kwc-mood').forEach(m => { const old = m.querySelector('.kwd-charm'), html = charmHtml(d); if (old) old.outerHTML = html; else if (html) m.insertAdjacentHTML('beforeend', html); });
-    // The automatic scenery of a kind steps aside (or comes back): look again.
-    if (was !== placedScatter(d.decorations).join() && global.KWCast && global.KWCast.resurvey) global.KWCast.resurvey();
+    // The villagers' places to stop and things to walk round changed (and the
+    // automatic scenery of a kind may step aside or come back): look again.
+    const sigNow = d.decorations.map(x => x.id + ':' + x.area + ':' + x.x + ':' + x.y).join();
+    if ((was !== placedScatter(d.decorations).join() || S.partsSig !== sigNow) && global.KWCast && global.KWCast.resurvey) global.KWCast.resurvey();
+    S.partsSig = sigNow;
     try { global.dispatchEvent(new global.CustomEvent('kw:decor', { detail: { charm: d.charm } })); } catch (_) { /* old browser */ }
   }
   async function load() {
@@ -316,9 +336,11 @@
     charmHtml: () => charmHtml(S.data),
     // js/home-ground.js: the kinds of automatic scenery to leave out.
     placedKinds: () => placedScatter(S.data && S.data.decorations),
+    // js/villager-engine.js: places to stop and things to walk round, in this part of Home.
+    sceneParts: (area, w, h) => sceneParts(S.data && S.data.decorations, area, w, h, artOf),
     // js/settlement-view.js: Build mode was switched on or off.
     buildModeChanged() { S.placing = null; S.picked = null; paint(true); palette(); },
     onEvent: () => load(),   // changed on another device (js/realtime.js)
-    _costLine: costLine, _canAfford: canAfford, _depthOf: depthOf, _placedScatter: placedScatter, _litAt: litAt, _round: round, _charmHtml: charmHtml, _paint: paint,
+    _costLine: costLine, _canAfford: canAfford, _depthOf: depthOf, _placedScatter: placedScatter, _litAt: litAt, _round: round, _charmHtml: charmHtml, _sceneParts: sceneParts, _paint: paint,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -162,6 +162,25 @@
   const NIGHT_OUT = 3;   // at night most are indoors; two or three stay out
   const SAY = ['…', '…', '…', '🐟', '❤', '🌰', '♪'];
 
+  // One step toward (tx, ty), going round what stands in the way. `walls`:
+  // [{ l, r, t, b }] (the well, the pond, big scenery). A step that would
+  // land inside one slides along its side instead, by the shorter way round;
+  // someone already inside one (it was put down on top of them) walks out
+  // straight, and a target inside one is walked to as it is. Pure.
+  function stepRound(x, y, tx, ty, step, walls) {
+    const dx = tx - x, dy = ty - y, d = Math.hypot(dx, dy) || 1, nx = x + dx / d * step, ny = y + dy / d * step;
+    const inside = (w, px, py) => px > w.l && px < w.r && py > w.t && py < w.b;
+    const hit = (walls || []).find(w => inside(w, nx, ny) && !inside(w, x, y) && !inside(w, tx, ty));
+    if (!hit) return { x: nx, y: ny };
+    if (x <= hit.l || x >= hit.r) {   // coming at its side: go over or under
+      const under = Math.abs(hit.b - y) + Math.abs(hit.b - ty) <= Math.abs(hit.t - y) + Math.abs(hit.t - ty);
+      return { x, y: y + (under ? 1 : -1) * step };
+    }
+    const right = Math.abs(hit.r - x) + Math.abs(hit.r - tx) <= Math.abs(hit.l - x) + Math.abs(hit.l - tx);   // coming from above or below: go round an end
+    return { x: x + (right ? 1 : -1) * step, y };
+  }
+  const SIT_MS = [9000, 18000];   // how long someone sits at a bench
+
   // Where someone goes next. ctx: { phase, work (door or null), tavern, home,
   // doors: [door], spots: [{x,y}], ground() → {x,y}, owl (stays out at night) }.
   // → { kind: 'door' | 'spot' | 'ground', key?, x, y }.
@@ -169,7 +188,7 @@
   // are chosen sparingly by day (about a third of the cast inside at once).
   function chooseErrand(ctx, rand) {
     const door = d => ({ kind: 'door', key: d.key, x: d.x, y: d.y });
-    const spot = () => { const s = ctx.spots[Math.floor(rand() * ctx.spots.length)]; return { kind: 'spot', x: s.x, y: s.y }; };
+    const spot = () => { const s = ctx.spots[Math.floor(rand() * ctx.spots.length)]; return { kind: 'spot', x: s.x, y: s.y, ...(s.rest ? { rest: true } : {}) }; };
     const outdoors = () => (ctx.spots.length && rand() < 0.4 ? spot() : { kind: 'ground', ...ctx.ground() });
     const r = rand();
     if (ctx.phase === 'night') {
@@ -371,6 +390,12 @@
     const g = G ? G.sync({ layer: S.layer, area: S.area, doors: S.doors, exits: S.exits, blocks: S.blocks.slice(), w: W(), h: H() }) : null;
     S.propBlocks = (g && g.blocks) || [];
     S.propSpots = (g && g.spots) || [];
+    // What the player has placed (js/decor.js): benches and flower beds are
+    // places to stop, the well and the pond too, and those two are walked round.
+    let d = null;
+    try { d = global.KWDecor && global.KWDecor.sceneParts ? global.KWDecor.sceneParts(S.area, W(), H()) : null; } catch (_) { d = null; }
+    if (d) { S.propSpots = S.propSpots.concat(d.spots); S.propBlocks = S.propBlocks.concat(d.blocks); }
+    S.walls = S.propBlocks.slice();   // big things on the ground: nobody walks through them
     S.blocks.push(...S.propBlocks);
   }
   const depth = footY => Math.max(1, Math.min(1000, Math.round(footY / (H() || 1) * 1000)));
@@ -572,6 +597,7 @@
     // Never stop on top of anyone: a door fans out, anywhere else spreads.
     const others = othersOf(v);
     walkTo(v, g.kind === 'door' ? doorSpot(g, others) : spreadPoint(g, others, { ok: onMeadow }), g.kind === 'door' ? g.key : null);
+    v.rest = !!g.rest;   // a bench: they stay a while when they get there
   }
   // Everyone else's position, and their target while they walk.
   function othersOf(...not) {
@@ -1857,11 +1883,13 @@
       }
       if (v.goal && v.goal.door) { goIndoors(v, now, v.goal.door); return; }
       if (v.child) { v.state = v.state === 'ahead' ? 'ahead' : 'idle'; v.until = Math.max(v.until, now + 300); return; }
+      if (v.rest && v.state === 'walk') { v.rest = false; idle(v, now, SIT_MS[0] + S.rand() * (SIT_MS[1] - SIT_MS[0])); v.dir = 's'; return; }   // sitting a while at a bench
       idle(v, now);
       return;
     }
-    v.x += dx / dist * stepPx; v.y += dy / dist * stepPx;
-    v.dir = V().dirFromVector(dx, dy);
+    const to = stepRound(v.x, v.y, v.tx, v.ty, stepPx, S.walls || []);
+    v.dir = V().dirFromVector(to.x - v.x, to.y - v.y);
+    v.x = to.x; v.y = to.y;
   }
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
@@ -1980,7 +2008,7 @@
     _routine: routine, _atWork: atWork, _callOut: callOut, _stayMs: stayMs, _setClock: f => { S.clock = f || null; },
     _pickCast: pickCast, _areaOf: areaOf, _inPolygon: inPolygon, _groundPoint: groundPoint, _onGround: onGround, _doorPoint: doorPoint, _seeded: seeded,
     _chooseErrand: chooseErrand, _nightOwls: nightOwls, _chatPairs: chatPairs, _followPoint: followPoint,
-    _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP,
+    _spreadPoint: spreadPoint, _doorSpot: doorSpot, _chatSpots: chatSpots, APART, CHAT_GAP, _stepRound: stepRound, SIT_MS,
     _seed: n => { S.rand = seeded(n); },
     // The scene changed (a building built, moved or removed, a resize): look
     // again at the doors, and redraw the paths and props.

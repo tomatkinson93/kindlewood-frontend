@@ -74,6 +74,29 @@ console.log('5. The lamplighter');
   check('5i. the engine still never calls the server', !/apiFetch|fetch\(/.test(E.replace(/\/\/[^\n]*/g, '')));
 }
 
+console.log('5b. Villagers use what is placed');
+{
+  const we = { console, Date, Math, JSON, Number, String, Array, Object, Map, Set }; we.window = we; vm.createContext(we);
+  let step = null;
+  try { vm.runInContext(E, we); step = we.KWCast && we.KWCast._stepRound; } catch (_) { step = null; }
+  const list = [{ id: 1, kind: 'bench', area: 'town', x: 50, y: 80 }, { id: 2, kind: 'well', area: 'town', x: 20, y: 70 }, { id: 3, kind: 'pond', area: 'town', x: 70, y: 90 }, { id: 4, kind: 'flower_bed', area: 'town', x: 10, y: 60 },
+    { id: 5, kind: 'lantern', area: 'town', x: 30, y: 60 }, { id: 6, kind: 'fence', area: 'town', x: 40, y: 60 }, { id: 7, kind: 'bench', area: 'outskirts', x: 50, y: 80 }];
+  const p = K._sceneParts(list, 'town', 2000, 600);
+  check('5j. a bench is somewhere to sit; flowers, the well and the pond are somewhere to stop; a lantern and a fence are neither', p.spots.map(s => s.id).join() === 'bench-1,well-2,pond-3,flowers-4' && p.spots[0].rest === true && !p.spots[1].rest);
+  check('5k. only this part of Home\'s decorations count', K._sceneParts(list, 'outskirts', 2000, 600).spots.length === 1 && K._sceneParts(list, 'neighbourhood', 2000, 600).spots.length === 0 && K._sceneParts(null, 'town', 1, 1).blocks.length === 0);
+  const well = p.blocks[0], pond = p.blocks[1];
+  check('5l. the well and the pond take up ground: the well its base, the pond all of itself', p.blocks.length === 2 && well.l < 400 && well.r > 400 && well.b > 420 && well.t < 420 && well.t > 420 - 60 && pond.t < 540 - 40 && pond.b >= 540);
+  check('5m. the places to stop are outside what takes up ground', p.spots.every(s => !p.blocks.some(b => s.x > b.l && s.x < b.r && s.y > b.t && s.y < b.b)));
+  const wall = { l: 100, r: 200, t: 100, b: 160 };
+  const walk = (x, y, tx, ty) => { let n = 0, through = false; while (Math.hypot(tx - x, ty - y) > 3 && n++ < 2000) { const q = step(x, y, tx, ty, 3, [wall]); x = q.x; y = q.y; if (x > wall.l && x < wall.r && y > wall.t && y < wall.b) through = true; } return { n, through, x, y }; };
+  const across = step ? walk(40, 130, 260, 130) : null, down = step ? walk(150, 40, 150, 220) : null, clear = step ? walk(40, 40, 260, 60) : null;
+  check('5n. nobody walks through the well or the pond: they go round and still arrive', !!step && !across.through && across.n < 400 && Math.hypot(across.x - 260, across.y - 130) <= 3 && !down.through && down.n < 400 && Math.hypot(down.x - 150, down.y - 220) <= 3);
+  check('5o. with nothing in the way the walk is the straight one', !!step && clear.n <= Math.ceil(Math.hypot(220, 20) / 3) + 1);
+  check('5p. someone a thing was put down on top of walks out; a place inside one is still reached', !!step && (() => { const q = step(150, 130, 300, 130, 3, [wall]); return q.x === 153 && q.y === 130; })() && (() => { const q = step(98, 130, 150, 130, 3, [wall]); return q.x === 101; })());
+  check('5q. the engine reads them when it surveys, and looks again when a decoration is placed, moved or removed', /global\.KWDecor\.sceneParts\(S\.area, W\(\), H\(\)\)/.test(E) && /S\.partsSig !== sigNow/.test(J) && /stepRound\(v\.x, v\.y, v\.tx, v\.ty, stepPx, S\.walls \|\| \[\]\)/.test(E));
+  check('5r. someone who reaches a bench stays a while', /if \(v\.rest && v\.state === 'walk'\) \{ v\.rest = false; idle\(v, now, SIT_MS\[0\]/.test(E) && /rest: true/.test(J));
+}
+
 console.log('6. Kept small');
 {
   const frames = CSS.match(/@keyframes kwd-[a-z-]+ \{[^\n]*/g) || [];
