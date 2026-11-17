@@ -103,5 +103,12 @@ console.log('5. In the scene');
   check('5h. the script is on the page before the engine', H.indexOf('/js/social.js?v=') > 0 && H.indexOf('/js/social.js?v=') < H.indexOf('/js/villager-engine.js?v='));
 }
 
+console.log('6. The citizens list ("Choose a builder" and First steps lead here)');
+{
+  const CZ = read('js/citizens.js');
+  const row = CZ.slice(CZ.indexOf('// Role cell — no dropdown'), CZ.indexOf("return '<tr class=\"ac-row"));
+  check('6a. a row knows whether its citizen is away before it draws their job (it threw for every grown-up)', row.indexOf('const away = citizenAway(c);') >= 0 && row.indexOf('const away = citizenAway(c);') < row.indexOf(': away'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
