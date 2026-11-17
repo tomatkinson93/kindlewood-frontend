@@ -211,6 +211,8 @@
   border-radius: 50%; background: radial-gradient(closest-side, rgba(28, 58, 22, 0.42), rgba(28, 58, 22, 0));
 }
 #settlement-view .kwh-ph .kwh-hut { filter: none; }
+/* A prop that lies flat on the ground (the village green) casts no shadow. */
+#settlement-view .kwh-art.kwh-flat::before { display: none; }
 /* The nameplate sits just under the foot, over the meadow. */
 #settlement-view .sv-world .kwh-plate { top: 100%; }
 

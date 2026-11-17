@@ -687,7 +687,7 @@ function _renderProps() {
     btn.setAttribute('data-kwh', p.id);
     btn.setAttribute('aria-label', KWHome.label(p.label, p.opens));
     btn.innerHTML = '<span class="kwh-bubble-host">' + KWHome.bubbleHtml(p.id) + '</span>'
-      + KWHome.propSvg(p.kind, size, p.flip)
+      + KWHome.propArt(p.kind, size, p.flip)
       + (p.kind === 'signpost' ? '<span class="kwh-sign-text" aria-hidden="true">' + _svEsc(p.label) + '</span>' : '')
       + KWHome.plateHtml(p.label, p.opens);
     el.appendChild(btn);

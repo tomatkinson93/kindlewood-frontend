@@ -850,5 +850,22 @@ console.log('24. The Neighbourhood scene');
     && /body\.kw-shell #settlement-view \.sv-build-panel \{ position: fixed; \}/.test(read('css/mobile-shell.css')));
 }
 
+// ── 25. Art added 2026-11-17: night images, the Jeweller, the Neighbourhood's door, the village green ──
+console.log('25. More building art');
+{
+  const man = JSON.parse(read('assets/images/scene_v2/buildings/manifest.v2.json'));
+  check('25a. every town building with windows has a night image now, bar the Workshop; the burrow has its own daytime drawing',
+    ['tavern', 'library', 'market', 'smithy', 'guild_hall', 'jeweller', 'neighbourhood', 'house_thatch', 'house_timber', 'house_stone', 'house_burrow'].every(k => man[k] && man[k].lit === k + '_lit.webp')
+    && man.house_burrow.file === 'house_burrow.webp' && !man.workshop.lit);
+  check('25b. the Neighbourhood\'s door in Town is its own drawing (the cluster of house drawings was a stand-in), with its arch as the door',
+    KH.art('neighbourhood', man) && !KH.art('neighbourhood', man).cluster && man.neighbourhood.door[0] > 150 && man.neighbourhood.door[0] < 260);
+  const hp = KH.propArt('green', 170, false, man), sv = KH.propArt('green', 170, false, {});
+  check('25c. a prop with a drawing uses it (the village green: flat, no shadow); one without keeps its placeholder',
+    /village_green\.webp/.test(hp) && /class="kwh-art kwh-flat kwh-prop-img/.test(hp) && /<svg class="kwh-prop-art"/.test(sv) && /\.kwh-art\.kwh-flat::before \{ display: none; \}/.test(read('css/home-scene.css'))
+    && /KWHome\.propArt\(p\.kind, size, p\.flip\)/.test(read('js/settlement-view.js')));
+  check('25d. the conversion is a script: scripts/pack_buildings.py (four kinds of background, night sized to day)',
+    fs.existsSync(path.join(ROOT, 'scripts/pack_buildings.py')) && /checkerboard/.test(read('scripts/pack_buildings.py')) && /def match_holes/.test(read('scripts/pack_buildings.py')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

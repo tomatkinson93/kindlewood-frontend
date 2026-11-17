@@ -34,7 +34,8 @@
     "native": true,
     "smooth": true,
     "scale": 2,
-    "file": "market.webp"
+    "file": "market.webp",
+    "lit": "market_lit.webp"
   },
   "library": {
     "w": 333,
@@ -59,7 +60,8 @@
     "native": true,
     "smooth": true,
     "scale": 2,
-    "file": "smithy.webp"
+    "file": "smithy.webp",
+    "lit": "smithy_lit.webp"
   },
   "workshop": {
     "w": 392,
@@ -83,7 +85,8 @@
     "native": true,
     "smooth": true,
     "scale": 2,
-    "file": "guild_hall.webp"
+    "file": "guild_hall.webp",
+    "lit": "guild_hall_lit.webp"
   },
   "house_thatch": {
     "w": 212,
@@ -135,7 +138,46 @@
     "smooth": true,
     "scale": 2,
     "lit": "house_burrow_lit.webp",
-    "file": "house_burrow_lit.webp",
-    "note": "no unlit version yet; the lit one stands in"
+    "file": "house_burrow.webp"
+  },
+  "jeweller": {
+    "w": 286,
+    "h": 305,
+    "door": [
+      83,
+      301
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "jeweller.webp",
+    "lit": "jeweller_lit.webp"
+  },
+  "neighbourhood": {
+    "w": 440,
+    "h": 227,
+    "door": [
+      205,
+      220
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "neighbourhood.webp",
+    "lit": "neighbourhood_lit.webp",
+    "note": "the Neighbourhood's door in Town; the door is its arch"
+  },
+  "village_green": {
+    "w": 320,
+    "h": 159,
+    "door": [
+      160,
+      152
+    ],
+    "native": true,
+    "smooth": true,
+    "scale": 2,
+    "file": "village_green.webp",
+    "note": "a prop (the green): flat on the ground, no shadow"
   }
 }
