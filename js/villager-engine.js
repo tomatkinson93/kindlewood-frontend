@@ -39,6 +39,7 @@
   // (docs/ART_GUIDE.md §4.3). x is percent of the world's width.
   const MEADOW = [[1, 31], [99, 31], [99, 97], [1, 97]];
   const GROUND = { town: MEADOW, outskirts: MEADOW, neighbourhood: MEADOW };
+  const BUILDERS_SHOWN = 4;         // builders always in the cast while they have a site here
   const HOOD = 'neighbourhood';   // the Neighbourhood scene (js/neighbourhood.js): the cast is who lives there
   // Named spots worth walking to (percent). Placeholders until the new art.
   const SPOTS = {
@@ -326,9 +327,20 @@
     if (!S.layer) return;
     const lr = S.layer.getBoundingClientRect();
     const sx = lr.width / (S.layer.clientWidth || 1), sy = lr.height / (S.layer.clientHeight || 1);   // parallax never scales; guard anyway
-    S.doors = []; S.exits = []; S.blocks = [];
+    S.doors = []; S.exits = []; S.blocks = []; S.sites = [];
     S.layer.querySelectorAll(':scope > .sv-slot').forEach(slot => {
       if (slot.hidden) return;
+      // A construction site (js/construction.js): somewhere the builders work
+      // in front of, and something to walk round; never a door.
+      const site = slot.querySelector('.kwbt-site');
+      if (site) {
+        const a = (site.querySelector('.kwbt-site-art') || site).getBoundingClientRect();
+        const r = { left: (a.left - lr.left) / sx, top: (a.top - lr.top) / sy, width: a.width / sx, height: a.height / sy };
+        slot.style.zIndex = String(depth(r.top + r.height));
+        S.blocks.push({ l: r.left, r: r.left + r.width, t: r.top, b: r.top + r.height });
+        S.sites.push({ id: Number(site.getAttribute('data-kwbt-site')), x: r.left + r.width / 2, y: r.top + r.height + 24, half: r.width / 2 });   // in front of it, where they can be seen
+        return;
+      }
       const btn = slot.querySelector('[data-kwh]');
       // The art box (sized by the manifest), the placeholder hut, or a prop.
       const box0 = btn && btn.querySelector('.kwh-art');
@@ -346,6 +358,9 @@
       const p = { key, x: g.x / 100 * W(), y: g.y / 100 * H(), btn };
       if (btn.classList.contains('kwh-prop-signpost')) S.exits.push(p);
       else if (!btn.classList.contains('kwh-prop')) S.doors.push(p);
+      // Being upgraded: the builders work beside its door.
+      const up = btn.classList.contains('kwbt-upgrading') && btn.querySelector('[data-kwbt-pct]');
+      if (up) S.sites.push({ id: Number(up.getAttribute('data-kwbt-pct')), x: p.x, y: p.y + 12, half: 60 });
     });
     // The ground: paths between the doors, and the props (js/home-ground.js).
     // Big props are places not to stop; the well, benches and pond are spots.
@@ -380,8 +395,41 @@
     const k = gameClock();
     return atWork(routine(Number(c.id), k.day), k.hour);
   }
+  // ── Builders (HOME_SCENE.md D.8; js/construction.js) ───────────────────
+  // While something is being built and someone is building, every builder is
+  // where the first site in the queue is: at it, hammering, with a rest now
+  // and then and the odd walk to the stores. Around the clock.
+  const isBuilder = c => !!c && c.role === 'builder' && !isChild(c);
+  function firstSite() {
+    const B = global.KWBuild;
+    if (!B || !B.data || !(B.data.rate > 0)) return null;
+    return B.sites()[0] || null;
+  }
+  // The area the first site is in: the Neighbourhood for a home, else where
+  // its building's plot is.
+  function siteArea() {
+    const f = firstSite();
+    if (!f) return null;
+    return f.kind === 'house' ? HOOD : builtArea(f.type) || 'town';
+  }
+  // Where a builder stands to work on the first site, when it is in the
+  // scene showing: beside it, each builder in their own place.
+  function buildSpot(v) {
+    const f = firstSite();
+    if (!f || !isBuilder(v.c)) return null;
+    const st = (S.sites || []).find(x => x.id === f.id);
+    if (!st) return null;
+    const crew = [...S.vs.values()].filter(x => live(x) && isBuilder(x.c)).map(x => x.id).sort((a, b) => a - b);
+    const i = Math.max(0, crew.indexOf(v.id));
+    const side = i % 2 ? 1 : -1, out = Math.min(st.half, 70) * 0.6 + 24 * Math.floor(i / 2);
+    return { id: f.id, x: st.x + side * out, y: st.y + 4 * (i % 3), sx: st.x };
+  }
   // The area someone is in, for the scene showing.
-  const areaFor = c => (inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea));
+  const areaFor = c => {
+    const sa = isBuilder(c) ? siteArea() : null;
+    if (sa) return sa === S.area ? sa : sa === HOOD || inHood() ? null : sa;
+    return inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea);
+  };
   // Their own front door: their house in the Neighbourhood, the
   // Neighbourhood's door in Town, the way back to town from the Outskirts.
   function homeDoor(v) {
@@ -438,6 +486,16 @@
   function errand(v, now) {
     const owls = S.owls.size ? S.owls : nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
     const home = homeDoor(v);
+    // A builder with a site here goes to it (after a rest, or back from the
+    // stores); now and then they fetch something from the stores first.
+    const bs = buildSpot(v);
+    if (bs) {
+      const store = !v.fetched && S.rand() < 0.18 ? doorOf('granary') || doorOf('workshop') || doorOf('lumber_camp') : null;
+      if (store) { v.fetched = true; walkTo(v, doorSpot(store, othersOf(v)), null); return; }
+      v.fetched = false;
+      walkTo(v, bs, null); v.state = 'tosite'; v.siteId = bs.id; v.siteX = bs.sx;
+      return;
+    }
     // Their working day (§3.5a): at work, they go to it; on a break or off
     // work, they do what everyone does.
     if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
@@ -629,6 +687,45 @@
     if (!v.partner && !v.talk) { setSay(v, '😊'); setTimeout(() => { if (v.say === '😊') setSay(v, null); }, 1600); }
     return true;
   }
+  // A builder at the site: the hammer goes up in a bubble in a steady beat,
+  // dust puffs at the site, then a short rest. (The idle picture stands in
+  // until the owner's work animation arrives: docs/ART_GUIDE.md.)
+  const BUILD_MS = [14000, 30000], REST_MS = [2500, 5500];
+  function buildStep(v, now) {
+    if (v.state === 'cheer') { if (now >= v.until) { setSay(v, null); idle(v, now, 400 + S.rand() * 900); } return; }
+    const bs = buildSpot(v);
+    if (!bs || bs.id !== v.siteId) { setSay(v, null); idle(v, now, 300 + S.rand() * 700); return; }   // finished, cancelled, or another came first
+    if (now >= v.until) { setSay(v, null); idle(v, now, REST_MS[0] + S.rand() * (REST_MS[1] - REST_MS[0])); return; }
+    const beat = (now - v.hamFrom) % 1500;
+    setSay(v, beat < 850 ? '🔨' : null);
+    if (now >= v.puffAt) { v.puffAt = now + 1500; puff(bs.sx + (S.rand() - 0.5) * 50, bs.y - 10 - S.rand() * 14); }
+  }
+  function puff(x, y) {
+    if (!S.layer || (V().reducedMotion && V().reducedMotion())) return;
+    const d = doc.createElement('span');
+    d.className = 'kwv-dust';
+    d.style.left = Math.round(x) + 'px'; d.style.top = Math.round(y) + 'px';
+    d.style.zIndex = String(depth(y + 20));
+    S.layer.appendChild(d);
+    setTimeout(() => d.remove(), 950);
+  }
+  // Something was finished (js/construction.js): the builders here cheer.
+  function cheer() {
+    if (!S.shown || S.paused) return;
+    const now = performanceNow();
+    let any = null;
+    for (const v of S.vs.values()) {
+      if (!live(v) || !isBuilder(v.c) || v.state === 'indoors' || v.selected || v.held || v.talk || v.moment) continue;
+      v.state = 'cheer'; v.until = now + 2600; v.dir = 's'; v.goal = null; setSay(v, '🎉');
+      any = any || v;
+    }
+    if (any) floater(any.siteX || any.x, any.y - 90, '🎉 Finished!', 'good');
+  }
+  if (global.addEventListener) global.addEventListener('kw:built', () => { try { cheer(); } catch (_) { /* scene closed */ } });
+  // The builders' queue changed: who is where may have too.
+  // (A little later, so builders at a site just finished cheer before they go.)
+  if (global.addEventListener) global.addEventListener('kw:build', () => { setTimeout(() => { if (S.shown && S.layer && cits().length && signature(cits()) !== S.sig) recast(false); }, 3200); });
+
   // A small sign that rises from a point in the scene and fades.
   function floater(x, y, text, tone) {
     if (!S.layer) return;
@@ -679,7 +776,9 @@
     S.phase = S.hold || clockPhase();
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const all = cits();
-    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds(), rand: S.rand });
+    // Builders with a site in this part of town are always in the cast (up to 4).
+    const crew = siteArea() === S.area ? all.filter(c => living(c) && isBuilder(c) && !awayOf(c)).slice(0, BUILDERS_SHOWN).map(c => Number(c.id)) : [];
+    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew), rand: S.rand });
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
@@ -709,7 +808,8 @@
   }
   function signature(all) {
     // (In the Neighbourhood, also who is out at work and who lives where.)
-    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',');
+    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',')
+      + '|' + (siteArea() || '');   // the builders go where the first site is
   }
   // Now and then one walks into a building and someone else comes out.
   function rotate() {
@@ -1100,6 +1200,8 @@
       }
       return;
     }
+    if (v.state === 'indoors' && buildSpot(v)) { comeOut(v, now); return; }   // there is building to do
+    if (v.state === 'build' || v.state === 'cheer') { buildStep(v, now); return; }
     if (v.state === 'indoors') {
       // At work: in while working, out when the break or the day comes.
       if (workKey(v) && v.inside === workKey(v)) {
@@ -1142,6 +1244,7 @@
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }
+      if (v.state === 'tosite') { v.state = 'build'; v.until = now + BUILD_MS[0] + S.rand() * (BUILD_MS[1] - BUILD_MS[0]); v.hamFrom = now; v.puffAt = now + 600; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tochat') {
         const p = S.vs.get(v.partner);
         if (!p || p.partner !== v.id) { endChat(v, now); return; }
@@ -1160,7 +1263,7 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
@@ -1290,6 +1393,8 @@
     deselect: () => { if (M.v) deselect(true); },
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
+    // Builders (js/construction.js): where they are and what they do.
+    BUILDERS_SHOWN, _buildSpot: id => { const v = S.vs.get(Number(id)); return v ? buildSpot(v) : null; }, _siteArea: siteArea, _cheer: cheer, get sites() { return (S.sites || []).slice(); },
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.
     preview: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); return S.phase; },

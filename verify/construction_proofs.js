@@ -69,6 +69,21 @@ console.log('4. In the scenes');
   check('4i. the script is on the page before the scenes use it', H.indexOf('/js/construction.js?v=') > 0 && H.indexOf('/js/construction.js?v=') < H.indexOf('/js/villager-engine.js?v='));
 }
 
+console.log('4z. The builders, seen working');
+{
+  const E = read('js/villager-engine.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  check('4z1. builders with a site in this part of town are always in the cast, up to 4', e.KWCast.BUILDERS_SHOWN === 4 && /momentIds: momentIds\(\)\.concat\(crew\)/.test(E) && /siteArea\(\) === S\.area \? all\.filter\(c => living\(c\) && isBuilder\(c\) && !awayOf\(c\)\)\.slice\(0, BUILDERS_SHOWN\)/.test(E));
+  check('4z2. they are where the first site is (the Neighbourhood for a home), only while someone is building', /return f\.kind === 'house' \? HOOD : builtArea\(f\.type\) \|\| 'town';/.test(E) && /if \(!B \|\| !B\.data \|\| !\(B\.data\.rate > 0\)\) return null;/.test(E));
+  check('4z3. a site is somewhere to work at and to walk round, never a door to go in by', /const site = slot\.querySelector\('\.kwbt-site'\);[\s\S]{0,700}S\.sites\.push\(/.test(E) && /S\.sites\.push\(\{ id: Number\(site\.getAttribute\('data-kwbt-site'\)\)[^\n]*\n\s*return;/.test(E));
+  check('4z4. they walk to it, each to their own place, and hammer in a steady beat with dust at the site', /v\.state = 'tosite'/.test(E) && /setSay\(v, beat < 850 \? '🔨' : null\)/.test(E) && /function puff\(x, y\)/.test(E) && /\.kwv-dust \{/.test(CSS));
+  check('4z5. with rests, and the odd walk to the stores', /idle\(v, now, REST_MS\[0\]/.test(E) && /doorOf\('granary'\) \|\| doorOf\('workshop'\)/.test(E));
+  check('4z6. around the clock: a builder indoors comes out when there is building to do', /if \(v\.state === 'indoors' && buildSpot\(v\)\) \{ comeOut\(v, now\); return; \}/.test(E));
+  check('4z7. when something is finished they cheer', /global\.addEventListener\('kw:built'/.test(E) && /setSay\(v, '🎉'\)/.test(E) && /'🎉 Finished!'/.test(E) && /recast\(false\); \}, 3200\);/.test(E));
+  check('4z8. no dust under reduced motion', /if \(!S\.layer \|\| \(V\(\)\.reducedMotion && V\(\)\.reducedMotion\(\)\)\) return;/.test(E));
+}
+
 console.log('5. Dev Tools');
 {
   const L = read('js/life-admin.js');

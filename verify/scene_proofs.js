@@ -849,7 +849,7 @@ console.log('24. The Neighbourhood scene');
     /post\(`\/\$\{n\.id\}\/houses`, \{ plot, style: S\.style \|\| 'thatch' \}\)/.test(NJ) && /if \(S\.picked && \(!h \|\| h\.id !== S\.picked\)\) return void moveTo\(plot\);/.test(NJ)
     && /post\(`\/houses\/\$\{id\}\/move`, \{ plot, neighbourhood_id: S\.hoodId \}\)/.test(NJ) && /KWHood\.buildModeChanged\(\)/.test(S) && /\.kwn-picked \.kwh-art/.test(CSS));
   check('24j. the cast is who lives there (and anyone with no bed); those at work are away, leaving and coming home by the signpost; home is their own door',
-    /const areaFor = c => \(inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\)\);/.test(E)
+    /return inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\);/.test(E)
     && /if \(inHood\(\)\) return v\.c\.house_id != null \? doorOf\('house-' \+ v\.c\.house_id\) : null;/.test(E) && /\(inHood\(\) && \(\(why === 'rotate' && homeDoor\(v\)\) \|\| S\.exits\[0\]\)\)/.test(E)
     && /return c\.house_id == null \? true : n\.houses\.some\(h => h\.id === Number\(c\.house_id\)\);/.test(NJ) && /\(outAtWork\(c\) \? 'w' : ''\)/.test(E));
   check('24k. Who\'s here in a house: at home, or visiting',

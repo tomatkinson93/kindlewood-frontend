@@ -661,6 +661,7 @@ function _renderScene() {
     if (!el) continue;
     el.innerHTML = '';
     el.onclick   = null;
+    el.classList.remove('sv-has-site');
 
     if (slot.type === 'neighbourhood') {
       var housingB   = _svBuildings.find(function(b) { return b.id === 'starter_house'; });
@@ -681,6 +682,7 @@ function _renderScene() {
         // Being built: a construction site. A click opens the builders' queue;
         // in Build mode, the panel for moving it to another plot.
         el.appendChild(_buildSiteEl(slot, occupant));
+        el.classList.add('sv-has-site');   // (it does not rise over the builders in front of it)
         el.hidden = false;
         (function(s, o) { el.onclick = function() {
           if (_svJustDragged) return;

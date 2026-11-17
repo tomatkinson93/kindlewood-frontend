@@ -105,8 +105,9 @@
 
 /* A building under the pointer or focus rises above the villagers, so its
    nameplate is never hidden behind someone walking in front. */
-#settlement-view .sv-fg-layer > .sv-slot:hover,
-#settlement-view .sv-fg-layer > .sv-slot:focus-within { z-index: 1010 !important; }
+#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):hover,
+#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):focus-within { z-index: 1010 !important; }
+/* (Not a construction site: its plate is above it, and the builders stand in front.) */
 
 /* Villagers' behaviour (js/villager-engine.js, §3.5). */
 /* A speech bubble over a chatting villager: dots or a tiny picture. */
@@ -505,7 +506,8 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 /* ── Building time (js/construction.js; docs/HOME_SCENE.md Part D) ──────── */
 /* A construction site on its plot: generic drawing in three stages by the
    work done, until the owner's site art arrives. */
-#settlement-view .kwbt-site { display: flex; flex-direction: column; align-items: center; background: none; border: 0; padding: 0; cursor: pointer; }
+/* (The plate is above the drawing, so builders working in front never cover it.) */
+#settlement-view .kwbt-site { display: flex; flex-direction: column-reverse; align-items: center; background: none; border: 0; padding: 0; cursor: pointer; }
 #settlement-view .kwbt-site-art { display: block; }
 #settlement-view .kwbt-site-art svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25)); }
 #settlement-view .kwbt-site-art .kwbt-s1, #settlement-view .kwbt-site-art .kwbt-s2 { display: none; }
@@ -519,11 +521,14 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 #settlement-view .kwbt-site:focus-visible { outline: 3px solid #ffd27a; outline-offset: 4px; border-radius: 8px; }
 /* Its plate: name, a bar, an honest estimate. Always shown (a site is news). */
 #settlement-view .kwbt-plate {
-  margin-top: 2px; min-width: 132px; max-width: 220px; padding: 3px 9px 5px; border-radius: 7px; text-align: center; pointer-events: none;
+  margin-bottom: 4px; min-width: 132px; max-width: 220px; padding: 3px 9px 5px; border-radius: 7px; text-align: center; pointer-events: none;
   background: rgba(24, 16, 9, 0.88); border: 1px solid rgba(220, 180, 100, 0.5); color: #ffe9a8; font: 600 12px/1.35 system-ui, sans-serif;
   display: flex; flex-direction: column; gap: 3px;
 }
 #settlement-view .kwbt-plate b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* While little stands yet, the plate sits down close to what is drawn. */
+#settlement-view .kwbt-site-art[data-kwbt-stage="0"] + .kwbt-plate { margin-bottom: -46px; }
+#settlement-view .kwbt-site-art[data-kwbt-stage="1"] + .kwbt-plate { margin-bottom: -8px; }
 #settlement-view .kwbt-plate .kwbt-eta { font-weight: 500; font-size: 11px; color: #e3d2a8; white-space: nowrap; }
 .kwbt-bar { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
 .kwbt-bar > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #d9a441, #f2cf6e); transition: width 0.9s linear; }
@@ -563,3 +568,9 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 .kwbt-note.kwbt-warn { background: rgba(217, 138, 74, 0.16); border: 1px solid rgba(217, 138, 74, 0.5); }
 .kwbt-link { border: 0; background: none; padding: 0; color: #ffd27a; text-decoration: underline; cursor: pointer; font: inherit; }
 .kwbt-work { opacity: 0.75; white-space: nowrap; }
+/* Dust at a site where builders are working (js/villager-engine.js). */
+#settlement-view .kwv-dust {
+  position: absolute; width: 14px; height: 10px; margin: -5px 0 0 -7px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(226, 204, 168, 0.95), rgba(226, 204, 168, 0)); animation: kwv-dust 0.9s ease-out forwards;
+}
+@keyframes kwv-dust { 0% { opacity: 0.9; transform: translateY(0) scale(0.6); } 100% { opacity: 0; transform: translateY(-16px) scale(1.9); } }
