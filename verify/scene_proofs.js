@@ -403,7 +403,7 @@ console.log('13. Behaviour (§3.5)');
   check('13m. a chat lasts 4–7 s with a bubble passed back and forth (dots or a tiny picture)', /CHAT_MS = \[4000, 7000\]/.test(E) && /SAY = \['…'/.test(E) && /\.kwv-say \{/.test(CSS));
   check('13n. children go indoors with their parent and come out after', /k\.child && k\.state !== 'indoors' && live\(k\) && parentsOf\(k\.c\)\.includes\(v\.id\)/.test(E) && /parentOf\(v\)\.state === 'indoors'/.test(E));
   check('13o. evening and night: buildings with a lit image glow; no chats at night; the cast stops changing at night',
-    /setAttribute\('data-phase', S\.phase\)/.test(E) && /\[data-phase="night"\] \.kwh-lit \{ opacity: 1; \}|\[data-phase="night"\] \.kwh-lit/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night'\) rotate\(\)/.test(E));
+    /setAttribute\('data-phase', S\.phase\)/.test(E) && /\[data-phase="night"\] \.kwh-lit \{ opacity: 1; \}|\[data-phase="night"\] \.kwh-lit/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night' && S\.event !== 'raid'\) rotate\(\)/.test(E));
   check('13p. the time of day is the game clock (Dev Tools time included)', /global\.KWClock \? global\.KWClock\.phase\(\)\.phase/.test(E));
   check('13q. a chat gives up if the two never meet', /a\.until = now \+ 8000/.test(E) && /now >= v\.until\) endChat\(v, now\)/.test(E));
 }
@@ -517,7 +517,22 @@ console.log('15. Selecting a villager: the radial menu (§3.6)');
   check('15m. it fans out in 150 ms; not under reduced motion; 48 px on touch', /transition: transform 150ms/.test(CSS) && /prefers-reduced-motion: reduce\) \{\s*#settlement-view \.kwv-rb \{ transition: none; \}/.test(CSS) && /pointer: coarse\) \{\s*#settlement-view \.kwv-rb \{ width: 48px; height: 48px/.test(CSS));
   check('15n. a pop as the menu opens, another as it closes (the effects volume applies)', C3.SOUND.on === 'ui/pop_on.mp3' && C3.SOUND.off === 'ui/pop_off.mp3' && /global\.playSfx\(SOUND\[k\]\)/.test(E)
     && ['pop_on.mp3', 'pop_off.mp3'].every(f => fs.existsSync(path.join(ROOT, 'assets/audio/ui', f)) && fs.statSync(path.join(ROOT, 'assets/audio/ui', f)).size < 40000));
-  check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{ closeMenu\(\);/.test(E));
+  check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{\s*closeMenu\(\);/.test(E));
+}
+
+console.log('15z. Where buildings stand is kept on the server');
+{
+  const S3 = read('js/settlement-view.js'), RT = read('js/realtime.js');
+  const grab = name => { const m = S3.match(new RegExp('function ' + name + '\\(([^)]*)\\) \\{[\\s\\S]*?\\n\\}')); return m && m[0]; };
+  const fns = new Function(grab('_svLayoutText') + '\n' + grab('_svLayoutDecide') + '\nreturn { text: _svLayoutText, decide: _svLayoutDecide };')();
+  check('15z1. the server has a map: this device takes it (unless it is the same, whatever the key order)',
+    fns.decide({ a: 'tavern', b: 'farm' }, { a: 'tavern' }) === 'take' && fns.decide({ a: 'tavern', b: 'farm' }, { b: 'farm', a: 'tavern' }) === 'same' && fns.decide({}, { a: 'tavern' }) === 'take');
+  check('15z2. the server has none: the first device sends its own, if it has one', fns.decide(null, { a: 'tavern' }) === 'send' && fns.decide(null, {}) === 'same' && fns.decide(undefined, { a: 'x' }) === 'send');
+  check('15z3. every change goes through one place and is sent a moment later, never before the first load',
+    /function _svSaveAssignments\(a\) \{[\s\S]{0,160}_svLayoutChanged\(\);/.test(S3) && !/localStorage\.setItem\(_SV_ASSIGN_KEY, JSON\.stringify\(next\)\)/.test(S3)
+    && /if \(!_svLayout\.ready\) return;/.test(S3) && /setTimeout\(_svLayoutPush, 700\)/.test(S3) && /method: 'PUT'/.test(S3));
+  check('15z4. read when Home opens, and when another device moves something', /_svOpen = true;[\s\S]{0,220}_svLayoutLoad\(\);/.test(S3) && /layout\(\) \{ if \(typeof global\._svLayoutLoad === 'function'\) global\._svLayoutLoad\(\); \}/.test(RT));
+  check('15z5. a working copy left on this browser by another town is not sent as this town\'s', /if \(sid && owner && owner !== sid\) localStorage\.removeItem\(_SV_ASSIGN_KEY\);/.test(S3));
 }
 
 console.log('16. Phones and comfort (step 8), names, faces');
@@ -714,8 +729,8 @@ console.log('22. A building\'s radial menu');
     keys({ enter: 1, upgrade: 1, demolish: 1 }) === 'enter,min,upgrade,demolish,who' && keys({ enter: 1, demolish: 1 }) === 'enter,min,demolish,who'
     && keys({ enter: 1 }) === 'enter,min,who' && BM.items({ enter: 1 })[0].big === true && /\.kwv-rb\.kwb-enter \{ width: 62px; height: 62px;/.test(CSS));
   check('22b. at the top level no Upgrade; the Neighbourhood has neither Upgrade nor Demolish; Build mode keeps placing and moving',
-    /upgrade: o\.currentLevel < o\.maxLevel \? function/.test(S) && /KWBuildingMenu\.click\(this, \{ key: 'neighbourhood', label: 'Neighbourhood', enter: function\(\) \{ _svOpenBuilding\('neighbourhood'\); \} \}, ev\)/.test(S)
-    && /_svBuildMode \? ''   \/\/ Build mode places and moves/.test(S) && !/sv-bp-demolish-btn" onclick/.test(S));
+    /upgrade: o\.currentLevel < o\.maxLevel && !o\.site \? function/.test(S) && /KWBuildingMenu\.click\(this, \{ key: 'neighbourhood', label: 'Neighbourhood', enter: function\(\) \{ _svOpenBuilding\('neighbourhood'\); \} \}, ev\)/.test(S)
+    && /_svBuildMode \|\| occupant\.site \? ''   \/\/ Build mode places and moves/.test(S) && !/sv-bp-demolish-btn" onclick/.test(S));
   const r = BM.ring(4, 100);
   check('22c. the others sit evenly round Enter, the first straight above', r.length === 4 && r[0].x === 0 && r[0].y === -100 && r[2].y === 100);
   check('22d. a double click, or Enter twice, goes straight in; a keyboard opening focuses Enter',
@@ -727,6 +742,13 @@ console.log('22. A building\'s radial menu');
   check('22f. Who\'s here lists exactly the villagers the scene has inside; a name brings them out with their menu',
     /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(v\.state === 'indoors'\) comeOut\(v, performanceNow\(\)\);/.test(E)
     && /C\.callOut\(id\)/.test(BJ) && /Nobody inside right now\./.test(BJ));
+  const wp = BM._whoPlace;
+  check('22f2. a long Who\'s here list never runs off the scene: below the ring if it fits, else the side with more room, capped to that room and scrolling inside',
+    JSON.stringify(wp({ cy: 400, off: 142, top: 60, bottom: 800, want: 200 })) === '{"top":542,"max":258}'
+    && JSON.stringify(wp({ cy: 600, off: 142, top: 60, bottom: 800, want: 200 })) === '{"top":258,"max":398}'
+    && (() => { const r = wp({ cy: 380, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 522 && r.max === 278; })()
+    && (() => { const r = wp({ cy: 620, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 60 && r.max === 418 && r.top + r.max <= 620 - 142; })()
+    && /\.kwb-who \{ overflow-y: auto;/.test(CSS) && /box\.style\.maxHeight = place\.max \+ 'px';/.test(BJ));
   check('22g. one menu at a time; a See through toggle beside Names does every building; props keep their single click',
     /global\.KWBuildingMenu\.close\(false, true\);   \/\/ one menu at a time/.test(E) && /C\.deselect\(\)/.test(BJ) && /key: 'seethrough'/.test(PL)
     && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
@@ -827,7 +849,7 @@ console.log('24. The Neighbourhood scene');
     /post\(`\/\$\{n\.id\}\/houses`, \{ plot, style: S\.style \|\| 'thatch' \}\)/.test(NJ) && /if \(S\.picked && \(!h \|\| h\.id !== S\.picked\)\) return void moveTo\(plot\);/.test(NJ)
     && /post\(`\/houses\/\$\{id\}\/move`, \{ plot, neighbourhood_id: S\.hoodId \}\)/.test(NJ) && /KWHood\.buildModeChanged\(\)/.test(S) && /\.kwn-picked \.kwh-art/.test(CSS));
   check('24j. the cast is who lives there (and anyone with no bed); those at work are away, leaving and coming home by the signpost; home is their own door',
-    /const areaFor = c => \(inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\)\);/.test(E)
+    /return inHood\(\) \? \(livesHere\(c\) && !outAtWork\(c\) \? HOOD : null\) : areaOf\(c, builtArea\);/.test(E)
     && /if \(inHood\(\)\) return v\.c\.house_id != null \? doorOf\('house-' \+ v\.c\.house_id\) : null;/.test(E) && /\(inHood\(\) && \(\(why === 'rotate' && homeDoor\(v\)\) \|\| S\.exits\[0\]\)\)/.test(E)
     && /return c\.house_id == null \? true : n\.houses\.some\(h => h\.id === Number\(c\.house_id\)\);/.test(NJ) && /\(outAtWork\(c\) \? 'w' : ''\)/.test(E));
   check('24k. Who\'s here in a house: at home, or visiting',
@@ -841,6 +863,130 @@ console.log('24. The Neighbourhood scene');
   check('24n. on phones the moment cards step aside in Build mode (they covered the build panel and took its taps)',
     /classList\.toggle\('sv-building', _svBuildMode\)/.test(S) && /body\.kw-shell\.sv-building #kw-moments \{ display: none; \}/.test(read('css/mobile-shell.css'))
     && /body\.kw-shell #settlement-view \.sv-build-panel \{ position: fixed; \}/.test(read('css/mobile-shell.css')));
+}
+
+// ── 25. Art added 2026-11-17: night images, the Jeweller, the Neighbourhood's door, the village green ──
+console.log('25. More building art');
+{
+  const man = JSON.parse(read('assets/images/scene_v2/buildings/manifest.v2.json'));
+  check('25a. every town building with windows has a night image now, bar the Workshop; the burrow has its own daytime drawing',
+    ['tavern', 'library', 'market', 'smithy', 'guild_hall', 'jeweller', 'neighbourhood', 'house_thatch', 'house_timber', 'house_stone', 'house_burrow'].every(k => man[k] && man[k].lit === k + '_lit.webp')
+    && man.house_burrow.file === 'house_burrow.webp' && !man.workshop.lit);
+  check('25b. the Neighbourhood\'s door in Town is its own drawing (the cluster of house drawings was a stand-in), with its arch as the door',
+    KH.art('neighbourhood', man) && !KH.art('neighbourhood', man).cluster && man.neighbourhood.door[0] > 150 && man.neighbourhood.door[0] < 260);
+  const hp = KH.propArt('green', 170, false, man), sv = KH.propArt('green', 170, false, {});
+  check('25c. a prop with a drawing uses it (the village green: flat, no shadow); one without keeps its placeholder',
+    /village_green\.webp/.test(hp) && /class="kwh-art kwh-flat kwh-prop-img/.test(hp) && /<svg class="kwh-prop-art"/.test(sv) && /\.kwh-art\.kwh-flat::before \{ display: none; \}/.test(read('css/home-scene.css'))
+    && /KWHome\.propArt\(p\.kind, size, p\.flip\)/.test(read('js/settlement-view.js')));
+  check('25d. the conversion is a script: scripts/pack_buildings.py (four kinds of background, night sized to day)',
+    fs.existsSync(path.join(ROOT, 'scripts/pack_buildings.py')) && /checkerboard/.test(read('scripts/pack_buildings.py')) && /def match_holes/.test(read('scripts/pack_buildings.py')));
+}
+
+console.log('26z. The scene can read the town');
+{
+  const M = read('js/main.js');
+  // A top-level `let` is not on window; modules that read window.gameData got undefined.
+  const w2 = {}; w2.window = w2; vm.createContext(w2);
+  vm.runInContext("let gameData = null;\n" + M.match(/try \{ Object\.defineProperty\(window, 'gameData'[^\n]*/)[0] + "\nfunction load(v) { gameData = v; }", w2);
+  vm.runInContext("load({ settlement: { tier: 'city' } })", w2);
+  check('26z1. window.gameData is the town the game loaded (the scene\'s tier, famine and festival come from it)', w2.gameData && w2.gameData.settlement.tier === 'city');
+  vm.runInContext("window.gameData = { settlement: { tier: 'town' } }", w2);
+  check('26z2. and setting it there changes the same value', vm.runInContext('gameData.settlement.tier', w2) === 'town');
+}
+
+console.log('27. Mood (§3.8)');
+{
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast;
+  const cits = [{ id: 1, life: { happiness: 80 }, house_id: 3 }, { id: 2, life: { happiness: 30 }, house_id: 3 }, { id: 3, life: { happiness: 90 }, house_id: null },
+    { id: 4, stage: 'child', life: { happiness: 10 }, house_id: null }, { id: 5, house_id: 3 }, { id: 6, life_stage: 'deceased', life: { happiness: 0 }, house_id: 3 }];
+  const town = C._townMood(cits, { famine: { state: 'ok' } });
+  check('27a. the town\'s happiness is its living grown-ups\' average', town.happy === 67 && town.hungry === 'ok' && town.festival === false);
+  check('27b. happy at 70 and up, low under 40, plain between; a villager\'s own happiness where they have it, the town\'s otherwise',
+    C._moodOf(cits[0], town) === 'happy' && C._moodOf(cits[1], town) === 'low' && C._moodOf(cits[4], town) === 'plain' && C._moodOf(cits[4], { ...town, happy: 75 }) === 'happy' && C.MOOD.HIGH === 70 && C.MOOD.LOW === 40);
+  check('27c. no bed comes first, on that villager only (a child is with a parent)', C._moodOf(cits[2], town) === 'homeless' && C._moodOf(cits[3], town) === 'low' && C._moodOf(cits[0], town) !== 'homeless');
+  check('27d. then short food, then a festival', C._moodOf(cits[0], C._townMood(cits, { famine: { state: 'low' } })) === 'hungry' && C._moodOf(cits[0], C._townMood(cits, { famine: { state: 'famine' }, town: { festival: { active: true } } })) === 'hungry'
+    && C._moodOf(cits[1], C._townMood(cits, { town: { festival: { active: true } } })) === 'festival' && C._townMood(cits, { town: { festival: { active: false, can_start: true } } }).festival === false);
+  const L = [{ id: 1, free: true }, { id: 2, free: true, showing: true }, { id: 3, free: true, showing: true }];
+  check('27e. at most two villagers show an emote at a time', C._emoteTurn(L, 0) === null && C._emoteTurn(L.slice(0, 2), 0, () => 0) === 1 && C.MOOD.AT_ONCE === 2);
+  check('27f. each villager at most once a minute; only someone free (not chatting, picked, or with a moment)',
+    C._emoteTurn([{ id: 1, free: true, last: 0 }], 59000) === null && C._emoteTurn([{ id: 1, free: true, last: 0 }], 60000, () => 0) === 1 && C._emoteTurn([{ id: 1, free: false }], 0) === null);
+  check('27g. the emotes differ in shape, not only colour; each shows for 2 to 3 seconds', C.EMOTES.happy.length === 3 && C.EMOTES.low.length === 2 && C.EMOTES.hungry[0] === '🥣' && C.EMOTES.homeless[0] === '🏠❓'
+    && new Set([].concat(...Object.values(C.EMOTES))).size >= 9 && C.MOOD.SHOW_MS[0] === 2000 && C.MOOD.SHOW_MS[1] === 3000);
+  check('27h. middling mood: mostly nothing', /if \(kind === 'plain' && S\.rand\(\) < 0\.75\) return;/.test(E));
+  check('27i. happy: now and then a little hop (still under reduced motion)', /if \(\(kind === 'happy' \|\| kind === 'festival'\) && S\.rand\(\) < 0\.4\) hop\(v\);/.test(E) && /@keyframes kwv-hop/.test(CSS) && /prefers-reduced-motion: reduce\) \{ #settlement-view \.kwv-hop \.kwv-sprite \{ animation: none; \} \}/.test(CSS));
+  check('27j. unhappy: walks slower, stands about longer, and an unhappy town chats less', C.MOOD.LOW_SPEED < 1 && C.MOOD.LOW_IDLE > 1 && C.MOOD.LOW_CHAT < 1 && /lowMood\(v\) \? MOOD\.LOW_SPEED : 1/.test(E) && /\(lowMood\(v\) \? MOOD\.LOW_IDLE : 1\)/.test(E) && /\(glum \? MOOD\.LOW_CHAT : 1\)/.test(E));
+  check('27k. with food short some stand by the granary; someone with no bed stands near the Neighbourhood', /town\.hungry !== 'ok' && S\.rand\(\) < 0\.3 \? doorOf\('granary'\)/.test(E) && /v\.c\.house_id == null && !v\.child && S\.rand\(\) < 0\.5 \? doorOf\('neighbourhood'\)/.test(E));
+  check('27l. an emote never talks over a chat, and clears itself', /!v\.say && v\.partner == null && !v\.talk && !v\.moment/.test(E) && /if \(v\.emote && \(now >= v\.emoteUntil \|\| v\.say !== v\.emote\)\)/.test(E));
+}
+
+console.log('28. Life events seen happening (§3.9)');
+{
+  const E = read('js/villager-engine.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast;
+  const at = { home: id => ({ x: 100 + id, y: 100 }), work: id => (id === 9 ? null : { x: 300, y: 120 }), edge: { x: 0, y: 200 }, centre: { x: 200, y: 200 }, across: { x: 400, y: 200 } };
+  const who = { family: () => [5, 6, 7, 8, 9], neighbour: () => 4 };
+  const sc = k => C._lifeScene({ kind: k, citizen_ids: [1, 2, 3] }, at, who);
+  const says = a => a.steps.map(s => s.say).filter(Boolean);
+  check('28a. the six kinds of chronicle line that play', C.LIFE.KINDS.join() === 'birth,came_of_age,partnership,death,settler,inheritance' && C._lifeScene({ kind: 'town', citizen_ids: [1] }, at, who) === null && C._lifeScene({ kind: 'birth', citizen_ids: [] }, at, who) === null);
+  const birth = sc('birth');
+  check('28b. a birth: the parents stand outside their home with a heart; a neighbour walks over', birth.actors.map(a => a.id).join() === '1,2,4' && says(birth.actors[0])[0] === '❤️' && Math.abs(birth.actors[0].steps[0].to.x - 101) < 20 && birth.actors[2].steps.some(s => s.to));
+  const age = sc('came_of_age');
+  check('28c. a coming of age: from home to their workplace with a star; the first villager they pass gives a hop', age.actors.length === 1 && age.actors[0].greet === true && says(age.actors[0]).every(x => x === '⭐') && age.actors[0].steps[2].to.x === 300
+    && C._lifeScene({ kind: 'came_of_age', citizen_ids: [9] }, at, who).actors[0].steps[2].to.x === 200 && /if \(a\.greet\) for \(const o of S\.vs\.values\(\)\)[\s\S]{0,160}hop\(o\); a\.greet = false;/.test(E));
+  const pair = sc('partnership');
+  check('28d. a partnership: the two walk side by side across the town with hearts (both, or not at all)', pair.need === 2 && pair.actors.length === 2 && pair.actors[1].steps[2].to.x === pair.actors[0].steps[2].to.x - 24 && says(pair.actors[0])[0] === '❤️'
+    && C._lifeScene({ kind: 'partnership', citizen_ids: [1] }, at, who) === null);
+  const death = sc('death');
+  check('28e. a death: up to four, family first, gather by the home with a candle, stand a while and leave slowly', death.actors.length === 4 && death.actors.map(a => a.id).join() === '5,6,7,8' && death.actors.every(a => says(a)[0] === '🕯️' && a.steps[1].wait >= 10000 && a.steps[3].speed < 1));
+  check('28f. and no happy emotes in town for those minutes', death.hush === C.LIFE.HUSH_MS && C.LIFE.HUSH_MS >= 180000 && /if \(scene\.hush\) S\.hush = now \+ scene\.hush;/.test(E) && /if \(S\.hush && now < S\.hush\) return;/.test(E));
+  const set = sc('settler');
+  check('28g. a settler walks in from the edge of the scene with a bundle and goes to their new home; someone meets them on the way', set.actors[0].from === at.edge && says(set.actors[0])[0] === '🎒' && set.actors[1].id === 4 && says(set.actors[1])[0] === '👋');
+  const inh = sc('inheritance');
+  check('28h. an inheritance: the heir goes into the home and comes out with a sparkle', inh.actors.length === 1 && inh.actors[0].steps.some(s => s.inside > 0) && says(inh.actors[0])[0] === '✨');
+  const total = a => a.steps.reduce((t, s) => t + (s.wait || s.inside || 0), 0);
+  check('28i. each scene is under a minute', [birth, age, pair, death, set, inh].every(x => x.actors.every(a => total(a) < 30000)) && /now \+ Math\.min\(58000, longest \+ 3000\)/.test(E));
+  const now = 1e12, M = 60000;
+  const L = [{ id: 9, kind: 'birth', at: new Date(now - M) }, { id: 8, kind: 'town', at: new Date(now - 1000) }, { id: 7, kind: 'death', at: new Date(now - 11 * M) }, { id: 6, kind: 'settler', at: new Date(now - 5000) }];
+  const first = C._lifeNews(L, null, now);
+  check('28j. when Home opens: lines under ten minutes old play, oldest first; older ones do not', first.play.map(x => x.id).join() === '6,9' && first.seen === 9 && C.LIFE.FRESH_MS === 10 * M);
+  check('28k. after that only new lines play, each once', C._lifeNews(L, 9, now).play.length === 0 && C._lifeNews(L.concat([{ id: 12, kind: 'partnership', at: new Date(now) }]), 9, now).play.map(x => x.id).join() === '12');
+  const many = [5, 4, 3, 2, 1].map(i => ({ id: 20 + i, kind: 'birth', at: new Date(now - i * 1000) }));
+  check('28l. more than three waiting: the newest are dropped first', C._lifeNews(many, 9, now).play.map(x => x.id).join() === '21,22,23' && C.LIFE.WAITING === 3);
+  check('28m. one scene at a time; people in it join the cast for its length and are not recast away', /if \(S\.lifePlaying\) \{/.test(E) && /v = make\(byId\.get\(a\.id\), \{ x: d\.x, y: d\.y \}, true\); v\.guest = true;/.test(E) && /live\(v\) && !\(v\.act && !first\)/.test(E) && /if \(v\.guest\) \{ v\.guest = false; leave\(v, 'rotate'\); \}/.test(E));
+  check('28n. nobody busy with the player is pulled into a scene; picking an actor takes them out of it', /return !v \|\| !\(v\.selected \|\| v\.held \|\| v\.moment \|\| v\.talk\);/.test(E) && /if \(v\.act\) \{ v\.act = null; v\.guest = false;/.test(E));
+  const LS = read('js/life-scenes.js');
+  check('28o. the chronicle is the event; a small reader hands its lines to the engine (which still never calls the server), and nothing is written; skipped under reduced motion (the loop does not run)',
+    /apiFetch\('\/api\/families\/all\/chronicle'\)/.test(LS) && /KWCast\.offerLife\(d\.entries \|\| \[\]\)/.test(LS) && !/method:/.test(LS) && !/apiFetch|fetch\(/.test(E) && /global\.addEventListener\('kw:home'/.test(LS)
+    && read('index.html').indexOf('/js/life-scenes.js?v=') > read('index.html').indexOf('/js/villager-engine.js?v=') && /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\);/.test(E));
+}
+
+console.log('29. Town-wide events (§3.10)');
+{
+  const E = read('js/villager-engine.js'), HS = read('js/home-scene.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast, now = 1e12, M = 60000;
+  const fest = { town: { festival: { active: true } } };
+  check('29a. a festival running is the town\'s event', C._townEvent(fest, now) === 'festival' && C._townEvent({ town: { festival: { active: false, can_start: true } } }, now) === null && C._townEvent({}, now) === null);
+  check('29b. a raid in its last ten minutes (or under way) comes before everything', C._townEvent({ ...fest, raid: { arrives_at: new Date(now + 9 * M) } }, now) === 'raid' && C._townEvent({ raid: { arrives_at: new Date(now - M) } }, now) === 'raid' && C.TOWN.RAID_NEAR_MS === 10 * M);
+  check('29c. a raid still hours off changes nothing (a town empty for a whole warning would be bleak)', C._townEvent({ raid: { arrives_at: new Date(now + 3 * 60 * M) } }, now) === null && C._townEvent({ ...fest, raid: { arrives_at: new Date(now + 60 * M) } }, now) === 'festival');
+  check('29d. once resolved it is over', C._townEvent({ raid: { arrives_at: new Date(now - M), resolved_at: new Date(now) } }, now) === null);
+  check('29e. priority: raid, then a death, then a festival', C._townEvent(fest, now, true) === null && C._townEvent({ ...fest, raid: { arrives_at: new Date(now) } }, now, true) === 'raid');
+  const ring = Array.from({ length: 8 }, (_, i) => C._ringSpot({ x: 500, y: 400 }, i, 8));
+  check('29f. the festival ring: places round the green, flattened as seen from in front, no two the same', new Set(ring.map(q => q.x + ',' + q.y)).size === 8 && ring.every(q => Math.abs(q.x - 500) <= C.TOWN.RING_R && Math.abs(q.y - 400) <= C.TOWN.RING_R * 0.5)
+    && Math.max(...ring.map(q => q.x)) - Math.min(...ring.map(q => q.x)) > 2 * (Math.max(...ring.map(q => q.y)) - Math.min(...ring.map(q => q.y))));
+  check('29g. most of the cast gathers there and dances (turning, notes and lanterns, a hop); a few still wander', C.TOWN.RING === 0.8 && /S\.event === 'festival' && !isBuilder\(v\.c\) && S\.rand\(\) < TOWN\.RING/.test(E) && /v\.dir = \['s', 'e', 'n', 'w'\]\[Math\.floor\(t \/ 380\) % 4\];/.test(E) && /v\.danceSay = S\.rand\(\) < 0\.5 \? '🎵' : '🏮'/.test(E));
+  check('29h. a raid: everyone runs for the nearest door and stays in; guards stand by the way out', C.TOWN.RUN > 1.3 && /v\.run = true; walkTo\(v, \{ x: d\.x, y: d\.y \}, d\.key \|\| null\)/.test(E) && /if \(v\.state === 'indoors' && S\.event === 'raid'\) \{ if \(isGuard\(v\.c\)\) comeOut\(v, now\); return; \}/.test(E)
+    && /setSay\(v, '🛡️'\)/.test(E) && /if \(S\.event === 'raid'\) return;   \/\/ nobody is called out while raiders are near/.test(E));
+  check('29i. when it ends people come out, relieved or sad by how it went', /const bad = S\.raidLast && \(S\.raidLast\.outcome === 'lost' \|\| S\.raidLast\.outcome === 'partial'\);/.test(E) && /v\.emote = bad \? '😢' : '😌'/.test(E));
+  check('29j. the town grows a tier: everyone out cheers once', /order\.indexOf\(tier\) > order\.indexOf\(S\.tierSeen\)/.test(E) && /setSay\(v, '⭐'\); hop\(v\);/.test(E));
+  check('29k. no life scenes, emotes or chats while raiders are near', /townTick\(now\); if \(S\.event !== 'raid'\) lifeTick\(now\);/.test(E) && /if \(S\.event === 'raid'\) return;       \/\/ nobody stops to feel things/.test(E));
+  check('29l. the scene knows of the raid (the town\'s data, readable at last)', /raid: \(s && s\.raid\) \|\| null/.test(HS));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

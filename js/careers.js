@@ -52,13 +52,20 @@
   }
   function roleIcon(role) { const c = classOf(role); return c ? c.icon : role === 'idle' ? '💤' : '•'; }
 
+  // A job that belongs to a feature (Builder: building time, docs/HOME_SCENE.md
+  // Part D) is offered only in a town where that feature is on.
+  function featureOn(cls) {
+    if (!cls || !cls.feature) return true;
+    const st = gd() && gd().settlement;
+    return cls.feature === 'construction' ? !!(st && st.building_time) : false;
+  }
   // <option>s for the job picker: level in each job, and jobs whose
   // building is missing say so (and can't be picked).
   function roleOptionsHtml(c) {
     if (!_defs) return null;
     const have = buildingTypes();
     const lv = c.class_levels || {};
-    const keys = Object.keys(_defs.classes).filter(k => _defs.classes[k].assignable);
+    const keys = Object.keys(_defs.classes).filter(k => _defs.classes[k].assignable && (featureOn(_defs.classes[k]) || c.role === k));
     const opts = keys.map(k => {
       const cls = _defs.classes[k];
       const ok = !cls.needs || cls.needs.some(t => have.includes(t));
@@ -474,7 +481,7 @@
   }
 
   global.KWCareers = {
-    loadDefs, defs, roleLabel, roleIcon, roleOptionsHtml, badgeHtml, listBadge, traitsHtml,
+    loadDefs, defs, roleLabel, roleIcon, roleOptionsHtml, featureOn, badgeHtml, listBadge, traitsHtml,
     renderTab, openTree, openFork, onEvent, closeTree, _career,
   };
   // Defs early so the job picker has levels and labels on first open.

@@ -4,6 +4,12 @@ const API = window.KINDLEWOOD_API || '';
 
 let chosenSpecies = null;
 let gameData = null;
+// A top-level `let` is not a property of window, and a dozen modules read the
+// town as window.gameData (the Home scene's state, the town's species, the
+// raid on its way, the stores after a card or a clan gift). They all got
+// undefined: the scene believed every town was a Camp with no famine and no
+// festival. This makes window.gameData the same value, always.
+try { Object.defineProperty(window, 'gameData', { get: function () { return gameData; }, set: function (v) { gameData = v; }, configurable: true }); } catch (e) { /* an old engine: as before */ }
 let worldMapData = null;
 let _selectedFogTile = null; // {wx, wy} — persists across re-renders
 
@@ -297,7 +303,7 @@ async function submitRegister() {
     const res = await apiFetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, remember: _keepSignedIn('reg-keep') }),
     });
 
     const data = await res.json();
@@ -308,6 +314,7 @@ async function submitRegister() {
     }
 
     if (data.token) setStoredToken(data.token);
+    if (window.KWSession) KWSession.remember(_keepSignedIn('reg-keep'));
 
     showMsg('reg-success', `Welcome, ${username}! Your realm awaits...`);
     setTimeout(() => loadGame(true), 700);
@@ -316,6 +323,9 @@ async function submitRegister() {
     showMsg('reg-error', 'Could not reach the server. Please try again.');
   }
 }
+
+// The "Keep me signed in" tick box (js/session.js); ticked when it isn't there.
+function _keepSignedIn(id) { const b = document.getElementById(id); return !b || b.checked; }
 
 async function submitLogin() {
   const email = document.getElementById('login-email').value.trim();
@@ -333,7 +343,7 @@ async function submitLogin() {
     const res = await apiFetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, remember: _keepSignedIn('login-keep') }),
     });
 
     const data = await res.json();
@@ -344,6 +354,7 @@ async function submitLogin() {
     }
 
     if (data.token) setStoredToken(data.token);
+    if (window.KWSession) KWSession.remember(_keepSignedIn('login-keep'));
 
     showMsg('login-success', `Welcome back, ${data.username}. Loading your realm...`);
     setTimeout(() => loadGame(true), 500);
@@ -361,6 +372,7 @@ async function logout() {
   }
 
   clearStoredToken();
+  if (window.KWSession) KWSession.forget();
   stopResourceTick();
   if (window.KWPlaces) KWPlaces.reset();   // the Home scene, windows and cards (js/places.js)
   gameData = null;

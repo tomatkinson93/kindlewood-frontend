@@ -71,7 +71,7 @@
     // The Neighbourhood's way back; it lands by the Neighbourhood's door (68 % along Town).
     { id: 'signpost-hood', kind: 'signpost', area: 'neighbourhood', x: 4, y: 93, label: '← To town', opens: 'Walk back to town', flip: true,
       run: () => call('_svSwitchArea', 'town', false, 0.68 * 2600) },
-    { id: 'green',         kind: 'green',    area: 'town',      x: 6,  y: 94, label: 'Village green', opens: 'Hold a festival',
+    { id: 'green',         kind: 'green',    area: 'town',      x: 7,  y: 95, label: 'Village green', opens: 'Hold a festival',
       run: () => global.KWTown && global.KWTown.open('festival'), show: s => !!s.festivals },
     { id: 'wonder-site',   kind: 'wonder',   area: 'outskirts', x: 95, y: 94, label: 'Wonder site', opens: 'Build a Wonder',
       run: () => global.KWTown && global.KWTown.open('wonders'), show: s => s.tier === 'city' && !!s.festivals },
@@ -81,7 +81,7 @@
   function sceneState() {
     const gd = global.gameData || null, s = gd && gd.settlement;
     return { tier: (s && s.tier) || 'camp', festivals: !!global.KWTown, town: (s && s.town) || null,
-      famine: (s && s.famine) || null, beds: s && typeof s.beds === 'number' ? s.beds : null,
+      famine: (s && s.famine) || null, raid: (s && s.raid) || null, beds: s && typeof s.beds === 'number' ? s.beds : null,
       // citizensData is a top-level let in main.js, not on window.
       living: Array.isArray(cits()) ? cits().filter(c => c && c.life_stage !== 'deceased').length
         : (s && typeof s.population === 'number' ? s.population : null) };
@@ -155,6 +155,14 @@
       + `<line x1="98" y1="61" x2="98" y2="66" stroke="#3a2a1a" stroke-width="1.5"/><line x1="106" y1="61" x2="106" y2="66" stroke="#3a2a1a" stroke-width="1.5"/>`
       + `<rect x="94" y="66" width="18" height="16" rx="2" fill="#d9b77a" stroke="#5a3d22" stroke-width="1.5"/>`
       + `<ellipse cx="55" cy="100" rx="48" ry="4" fill="#000" opacity=".22"/></svg>`;
+  }
+  // A prop's drawing: its image from the manifest when there is one (the
+  // village green), else the placeholder drawn by code.
+  const PROP_ART = { green: 'village_green', wonder: 'wonder_site', signpost: 'signpost' };
+  function propArt(kind, size, flip, m = manifest) {
+    const key = PROP_ART[kind];
+    if (key && art(key, m)) return artHtml(key, {}, size, m).html.replace('class="kwh-art', 'class="kwh-art kwh-flat kwh-prop-img');
+    return propSvg(kind, size, flip);
   }
   function propSvg(kind, size, flip) {
     if (kind === 'signpost') {
@@ -433,7 +441,7 @@
   global.KWHome = {
     ROUTES, PROPS, route, open, props, openProp, sceneState,
     loadManifest, art, door, get manifest() { return manifest; },
-    artHtml, propSvg, hutSvg, plateHtml, label, ART_BASE, PH_SIZE,
+    artHtml, propSvg, propArt, hutSvg, plateHtml, label, ART_BASE, PH_SIZE,
     note, bubble, bubbleHtml, clearBubble, redraw,
     namesOn, setNames, applyNames, homeShown, townList, fillProfile, nightFilters, NIGHT_TINTS: TINTS,
     syncGlow, glowFor, _glowPixels: glowPixels, GLOW_MIN,

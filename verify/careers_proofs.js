@@ -215,6 +215,11 @@ const tick = () => new Promise(r => setImmediate(r));
     check('5b. realtime handlers for every career event', ['career_level_up', 'career_fork', 'career_milestone', 'career_find', 'trait_hint', 'trait_revealed'].every(t => new RegExp(t + '\\(ev\\) \\{ if \\(global\\.KWCareers\\)').test(rt)));
     check('5c. citizens.js: Career tab, badge, job list, hidden traits', /cp-tab-career/.test(cz) && /KWCareers\.renderTab/.test(cz) && /KWCareers\.badgeHtml/.test(cz) && /KWCareers\.roleOptionsHtml/.test(cz) && /KWCareers\.traitsHtml/.test(cz));
     check('5d. a refused job change says why', /Could not change job/.test(cz) && /res\.ok/.test(cz));
+    // A job that belongs to a feature (Builder: building time) is offered only where it is on.
+    check('5d2. the Builder job is offered only in a town with building time; someone who has it keeps seeing it',
+      /if \(!cls \|\| !cls\.feature\) return true;/.test(read('js/careers.js')) && /cls\.feature === 'construction' \? !!\(st && st\.building_time\) : false/.test(read('js/careers.js'))
+      && /_defs\.classes\[k\]\.assignable && \(featureOn\(_defs\.classes\[k\]\) \|\| c\.role === k\)/.test(read('js/careers.js')) && /st\.building_time/.test(read('js/careers.js'))
+      && /KWCareers\.featureOn\(k\) \|\| k\.key === a\.class_key/.test(cz));
     check('5e. reduced motion calms the tree', /prefers-reduced-motion/.test(read('css/careers.css')) && /prefers-reduced-motion/.test(read('js/career-tree.js')));
   }
 

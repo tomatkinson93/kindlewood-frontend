@@ -130,9 +130,16 @@ async function buildBuilding(id) {
     const data = await res.json();
     if (!res.ok) {
       showBuildToast(data.error || 'Construction failed.', 'error');
-      return;
+      return null;
     }
     const def = buildingsData.find(b => b.id === id);
+    // Building time (js/construction.js): paid for, and the builders take it from here.
+    if (data.queued) {
+      if (window.KWBuild) KWBuild.ordered(data, def?.label || id, def?.work);
+      await loadBuildings();
+      await refreshResources();
+      return data;
+    }
     showBuildToast(`${def?.icon || '🏗'} ${def?.label || id} built! (Lv ${data.newLevel})`, 'success');
 
     // Refresh data
@@ -160,7 +167,8 @@ async function buildBuilding(id) {
     if (id === 'tavern' && data.newLevel === 1) {
       showTavernCelebration();
     }
-  } catch(e) { console.error(e); }
+    return data;
+  } catch(e) { console.error(e); return null; }
 }
 
 async function refreshResources() {

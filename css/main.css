@@ -332,6 +332,12 @@ body.login-mode #screen-login .login-back-btn {
 .field input { width: 100%; padding: 11px 13px; font-family: 'Crimson Pro', serif; font-size: 15px; background: var(--parchment2); border: 1.5px solid transparent; border-radius: 5px; color: var(--ink); outline: none; transition: border-color .15s; }
 .field input:focus { border-color: var(--amber-glow); }
 .field input::placeholder { color: rgba(60,48,37,.35); }
+.keep-in { display: flex; align-items: center; gap: 8px; margin: -4px 0 4px; font-size: 13px; color: #3a2a18; cursor: pointer; }   /* the sign-in card is parchment */
+.keep-in input { width: 18px; height: 18px; accent-color: var(--moss, #7a9a4a); }
+.keep-hint { margin: 0 0 12px; font-size: 11.5px; line-height: 1.35; color: #6b5a45; }
+/* Paused while nobody is there (js/session.js). */
+.kw-away-pill { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 100000; max-width: calc(100vw - 24px); padding: 8px 16px; border-radius: 999px;
+  background: rgba(24, 16, 9, 0.94); border: 1px solid rgba(220, 180, 100, 0.55); color: #ffe9a8; font: 600 13px/1.3 system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45); pointer-events: none; text-align: center; }
 .forgot { text-align: right; margin-bottom: 18px; margin-top: -8px; }
 .forgot a { font-size: 12px; color: var(--moss); cursor: pointer; }
 

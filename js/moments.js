@@ -4,7 +4,9 @@
 //  A small stack of cards (soonest to expire first); each opens in the
 //  dialogue box (KWSay) with its options and hints; the outcome shows for a
 //  few seconds and the card folds away. Live: 'moment' adds a card,
-//  'moment_resolved' (a default while you watched) removes it with a toast.
+//  'moment_resolved' removes it with a toast (a default taken while you
+//  watched, or your answer on another device). What a moment changed shows at
+//  once: the top bar is read again and the difference floats up from it.
 //  The bell's list shows them on top (js/events.js), the away report says
 //  how many wait. Server: /api/moments.
 // ══════════════════════════════════════════════════════════════════════════
@@ -12,7 +14,32 @@
   'use strict';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const MAX_CARDS = 4;
-  const st = { list: [], loaded: false, timer: null };
+  const st = { list: [], loaded: false, timer: null, answering: null, openId: null };
+
+  // What changed in the stores between two readings, ignoring the trickle of
+  // production in between (anything under 2). Pure.
+  function storeChanges(before, after) {
+    const out = {};
+    for (const k of Object.keys(after || {})) {
+      const d = Math.round((Number(after[k]) || 0) - (Number((before || {})[k]) || 0));
+      if (Math.abs(d) >= 2) out[k] = d;
+    }
+    return out;
+  }
+  // After a moment is settled: the citizens, the outposts and the top bar are
+  // read again (the top bar otherwise waits for its five-minute sync), and
+  // what the moment gave or took floats up from it.
+  async function showEffects() {
+    const stores = () => { try { return typeof tickResources !== 'undefined' && tickResources ? { ...tickResources } : null; } catch (_) { return null; } };   // eslint-disable-line no-undef
+    const before = stores();
+    if (typeof global.loadCitizens === 'function') global.loadCitizens().catch(() => {});
+    if (global.KWOutposts && global.KWOutposts.refreshModal) { try { global.KWOutposts.refreshModal(); } catch (_) {} }
+    if (typeof global.refreshResources !== 'function') return;
+    try { await global.refreshResources(); } catch (_) { return; }
+    const after = stores();
+    if (!before || !after || typeof global._spawnFloater !== 'function') return;
+    for (const [k, d] of Object.entries(storeChanges(before, after))) { try { global._spawnFloater(k, d); } catch (_) {} }
+  }
 
   function left(at) {
     const ms = new Date(at) - Date.now();
@@ -74,8 +101,11 @@
   async function open(id) {
     const m = st.list.find(x => x.id === Number(id));
     if (!m || !global.KWSay) return;
+    st.openId = m.id;
     await global.KWSay.ask(Object.assign(sayOptions(m), {
       async choose(key) {
+        st.answering = m.id;   // our own answer comes back as a live event too: no toast for it
+        setTimeout(() => { if (st.answering === m.id) st.answering = null; }, 15000);
         const res = await global.apiFetch(`/api/moments/${m.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choice: key }) });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -84,9 +114,8 @@
         }
         st.list = st.list.filter(x => x.id !== m.id);
         render();
-        // What it changed may show elsewhere: citizens, stores, the outpost.
-        if (typeof global.loadCitizens === 'function') global.loadCitizens().catch(() => {});
-        if (global.KWOutposts && global.KWOutposts.refreshModal) { try { global.KWOutposts.refreshModal(); } catch (_) {} }
+        // What it changed shows at once: citizens, the outpost, the stores.
+        showEffects();
         return { outcome: d.outcome };
       },
     }));
@@ -99,10 +128,16 @@
       st.list.sort((a, b) => new Date(a.expires_at) - new Date(b.expires_at));
       render();
     } else if (ev.type === 'moment_resolved') {
+      // A default was taken while you watched (auto; older servers sent only
+      // these), or you answered it on another device.
+      const mine = st.answering === ev.id;
       const had = st.list.some(x => x.id === ev.id);
       st.list = st.list.filter(x => x.id !== ev.id);
       render();
-      if (had && typeof global.showToastNotification === 'function') global.showToastNotification(`🔔 Decided for you: ${ev.outcome || ''}`, 'default');
+      if (mine || !had) return;
+      if (st.openId === ev.id && global.KWSay && global.KWSay.isOpen && global.KWSay.isOpen()) global.KWSay.close();   // its dialogue was up here
+      if (typeof global.showToastNotification === 'function') global.showToastNotification(`🔔 ${ev.auto === false ? 'Answered on another device' : 'Decided for you'}: ${ev.outcome || ''}`, 'default');
+      showEffects();
     }
   }
 
@@ -121,5 +156,5 @@
 
   if (global.document && typeof global.kwWhenReady === 'function') global.kwWhenReady(() => { if (global.localStorage && global.localStorage.getItem('kw_token')) start(); });
 
-  global.KWMoments = { load, open, openFirst, onEvent, start, list: () => st.list.slice(), _stackHtml: stackHtml, _bellHtml: bellHtml, _sayOptions: sayOptions };
+  global.KWMoments = { load, open, openFirst, onEvent, start, list: () => st.list.slice(), _stackHtml: stackHtml, _bellHtml: bellHtml, _sayOptions: sayOptions, _storeChanges: storeChanges };
 })(typeof window !== 'undefined' ? window : globalThis);

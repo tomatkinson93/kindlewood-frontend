@@ -551,6 +551,7 @@ function renderCitizenProfile(c) {
     </div>
 
     <div class="cp-tab-panel" id="cp-tab-rels" style="display:none">
+      ${window.KWSocial ? KWSocial.profileHtml(c) : ''}
       <div id="cp-rel-list" class="cp-rel-list-full"><div class="cp-rel-loading">Loading…</div></div>
     </div>
 
@@ -805,7 +806,7 @@ function _apprenticeHtml(c) {
   const a = c.apprentice || {};
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const defs = window.KWCareers && KWCareers.defs && KWCareers.defs();
-  const classes = defs ? Object.values(defs.classes).filter(k => k.assignable) : [];
+  const classes = defs ? Object.values(defs.classes).filter(k => k.assignable && (!KWCareers.featureOn || KWCareers.featureOn(k) || k.key === a.class_key)) : [];
   const label = k => (window.KWCareers ? `${KWCareers.roleIcon(k)} ${KWCareers.roleLabel(k)}` : k);
   const tradeOpts = (a.class_key ? '' : '<option value="" selected disabled>Choose a trade…</option>')
     + classes.map(k => `<option value="${esc(k.key)}"${k.key === a.class_key ? ' selected' : ''}>${esc(k.icon)} ${esc(k.label)}</option>`).join('');
@@ -1040,6 +1041,7 @@ function renderAllCitizens(sortKey, sortDir, filter) {
       : '<span style="opacity:.3">—</span>';
 
     // Role cell — no dropdown for children or citizens on quests
+    const away = citizenAway(c);   // (before the role cell, which reads it)
     const roleCell = isChild(c)
       ? '<td class="ac-role-child">🍼 Child</td>'
       : away
@@ -1050,7 +1052,6 @@ function renderAllCitizens(sortKey, sortDir, filter) {
           ((window.KWCareers && KWCareers.roleOptionsHtml(c)) || getAvailableRoles().map(r => '<option value="' + r + '"' + (c.role===r?' selected':'') + '>' + (ROLE_ICONS[r]||'?') + ' ' + r + '</option>').join('')) +
           '</select></td>';
 
-    const away = citizenAway(c);
     return '<tr class="ac-row' + (isChild(c) ? ' ac-row--child' : '') + (away ? ' ac-row--away' : '') + '" id="ac-row-' + c.id + '"' + (away ? ' title="' + away.label.replace(/"/g, '') + ' — not in the settlement"' : '') + ' onclick="openCitizenProfile(' + c.id + ')" style="cursor:pointer">'
       + '<td class="ac-name">' + c.name + (isChild(c) ? ' <span class="ac-child-tag">child</span>' : '') + '</td>'
       + '<td class="ac-meta">' + (c.gender==='female'?'♀':'♂') + ' · ' + (c.life?.age??'?') + 'y' + _stageTag(c, true) + '</td>'

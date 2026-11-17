@@ -39,6 +39,7 @@
   // (docs/ART_GUIDE.md §4.3). x is percent of the world's width.
   const MEADOW = [[1, 31], [99, 31], [99, 97], [1, 97]];
   const GROUND = { town: MEADOW, outskirts: MEADOW, neighbourhood: MEADOW };
+  const BUILDERS_SHOWN = 4;         // builders always in the cast while they have a site here
   const HOOD = 'neighbourhood';   // the Neighbourhood scene (js/neighbourhood.js): the cast is who lives there
   // Named spots worth walking to (percent). Placeholders until the new art.
   const SPOTS = {
@@ -326,9 +327,20 @@
     if (!S.layer) return;
     const lr = S.layer.getBoundingClientRect();
     const sx = lr.width / (S.layer.clientWidth || 1), sy = lr.height / (S.layer.clientHeight || 1);   // parallax never scales; guard anyway
-    S.doors = []; S.exits = []; S.blocks = [];
+    S.doors = []; S.exits = []; S.blocks = []; S.sites = [];
     S.layer.querySelectorAll(':scope > .sv-slot').forEach(slot => {
       if (slot.hidden) return;
+      // A construction site (js/construction.js): somewhere the builders work
+      // in front of, and something to walk round; never a door.
+      const site = slot.querySelector('.kwbt-site');
+      if (site) {
+        const a = (site.querySelector('.kwbt-site-art') || site).getBoundingClientRect();
+        const r = { left: (a.left - lr.left) / sx, top: (a.top - lr.top) / sy, width: a.width / sx, height: a.height / sy };
+        slot.style.zIndex = String(depth(r.top + r.height));
+        S.blocks.push({ l: r.left, r: r.left + r.width, t: r.top, b: r.top + r.height });
+        S.sites.push({ id: Number(site.getAttribute('data-kwbt-site')), x: r.left + r.width / 2, y: r.top + r.height + 24, half: r.width / 2 });   // in front of it, where they can be seen
+        return;
+      }
       const btn = slot.querySelector('[data-kwh]');
       // The art box (sized by the manifest), the placeholder hut, or a prop.
       const box0 = btn && btn.querySelector('.kwh-art');
@@ -346,6 +358,9 @@
       const p = { key, x: g.x / 100 * W(), y: g.y / 100 * H(), btn };
       if (btn.classList.contains('kwh-prop-signpost')) S.exits.push(p);
       else if (!btn.classList.contains('kwh-prop')) S.doors.push(p);
+      // Being upgraded: the builders work beside its door.
+      const up = btn.classList.contains('kwbt-upgrading') && btn.querySelector('[data-kwbt-pct]');
+      if (up) S.sites.push({ id: Number(up.getAttribute('data-kwbt-pct')), x: p.x, y: p.y + 12, half: 60 });
     });
     // The ground: paths between the doors, and the props (js/home-ground.js).
     // Big props are places not to stop; the well, benches and pond are spots.
@@ -380,8 +395,41 @@
     const k = gameClock();
     return atWork(routine(Number(c.id), k.day), k.hour);
   }
+  // ── Builders (HOME_SCENE.md D.8; js/construction.js) ───────────────────
+  // While something is being built and someone is building, every builder is
+  // where the first site in the queue is: at it, hammering, with a rest now
+  // and then and the odd walk to the stores. Around the clock.
+  const isBuilder = c => !!c && c.role === 'builder' && !isChild(c);
+  function firstSite() {
+    const B = global.KWBuild;
+    if (!B || !B.data || !(B.data.rate > 0)) return null;
+    return B.sites()[0] || null;
+  }
+  // The area the first site is in: the Neighbourhood for a home, else where
+  // its building's plot is.
+  function siteArea() {
+    const f = firstSite();
+    if (!f) return null;
+    return f.kind === 'house' ? HOOD : builtArea(f.type) || 'town';
+  }
+  // Where a builder stands to work on the first site, when it is in the
+  // scene showing: beside it, each builder in their own place.
+  function buildSpot(v) {
+    const f = firstSite();
+    if (!f || !isBuilder(v.c)) return null;
+    const st = (S.sites || []).find(x => x.id === f.id);
+    if (!st) return null;
+    const crew = [...S.vs.values()].filter(x => live(x) && isBuilder(x.c)).map(x => x.id).sort((a, b) => a - b);
+    const i = Math.max(0, crew.indexOf(v.id));
+    const side = i % 2 ? 1 : -1, out = Math.min(st.half, 70) * 0.6 + 24 * Math.floor(i / 2);
+    return { id: f.id, x: st.x + side * out, y: st.y + 4 * (i % 3), sx: st.x };
+  }
   // The area someone is in, for the scene showing.
-  const areaFor = c => (inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea));
+  const areaFor = c => {
+    const sa = isBuilder(c) ? siteArea() : null;
+    if (sa) return sa === S.area ? sa : sa === HOOD || inHood() ? null : sa;
+    return inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : null) : areaOf(c, builtArea);
+  };
   // Their own front door: their house in the Neighbourhood, the
   // Neighbourhood's door in Town, the way back to town from the Outskirts.
   function homeDoor(v) {
@@ -438,6 +486,33 @@
   function errand(v, now) {
     const owls = S.owls.size ? S.owls : nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
     const home = homeDoor(v);
+    // Town-wide (§3.10). A raid about to strike: guards to their post by the
+    // way out, everyone else runs for the nearest door.
+    if (S.event === 'raid') {
+      if (isGuard(v.c)) { const post = S.exits[0] || nearestDoor(v.x, v.y) || { x: v.x, y: v.y }; walkTo(v, spreadPoint({ x: post.x + 30, y: post.y + 18 }, othersOf(v), { ok: onMeadow }), null); v.guarding = true; return; }
+      const d = nearestDoor(v.x, v.y) || home;
+      if (d) { v.run = true; walkTo(v, { x: d.x, y: d.y }, d.key || null); return; }
+    }
+    // A festival: most gather on the green and dance in a loose ring.
+    if (S.event === 'festival' && !isBuilder(v.c) && S.rand() < TOWN.RING) {
+      const g = greenPoint();
+      if (g) { const n = Math.max(6, [...S.vs.values()].filter(live).length); walkTo(v, ringSpot(g, v.id % n, n), null); v.state = 'toring'; return; }
+    }
+    // A builder with a site here goes to it (after a rest, or back from the
+    // stores); now and then they fetch something from the stores first.
+    const bs = buildSpot(v);
+    if (bs) {
+      const store = !v.fetched && S.rand() < 0.18 ? doorOf('granary') || doorOf('workshop') || doorOf('lumber_camp') : null;
+      if (store) { v.fetched = true; walkTo(v, doorSpot(store, othersOf(v)), null); return; }
+      v.fetched = false;
+      walkTo(v, bs, null); v.state = 'tosite'; v.siteId = bs.id; v.siteX = bs.sx;
+      return;
+    }
+    // Mood (§3.8): with food short some stand by the granary; someone with no
+    // bed stands about near the Neighbourhood.
+    const town = S.mood || {};
+    const gather = town.hungry && town.hungry !== 'ok' && S.rand() < 0.3 ? doorOf('granary') : v.c.house_id == null && !v.child && S.rand() < 0.5 ? doorOf('neighbourhood') : null;
+    if (gather) { walkTo(v, spreadPoint({ x: gather.x + (S.rand() - 0.5) * 90, y: gather.y + 14 + S.rand() * 22 }, othersOf(v), { ok: onMeadow }), null); return; }
     // Their working day (§3.5a): at work, they go to it; on a break or off
     // work, they do what everyone does.
     if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
@@ -467,7 +542,7 @@
   function walkTo(v, p, doorKey) { v.tx = p.x; v.ty = p.y; v.goal = doorKey ? { door: doorKey } : null; v.state = 'walk'; }
   function idle(v, now, ms) {
     v.state = 'idle'; v.goal = null;
-    v.until = now + (ms != null ? ms : IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0]));
+    v.until = now + (ms != null ? ms : (IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0])) * (lowMood(v) ? MOOD.LOW_IDLE : 1));
     // Face the camera, or the nearest villager close by.
     let near = null, d = 150;
     for (const o of S.vs.values()) if (o !== v && live(o) && o.state !== 'indoors') { const k = Math.hypot(o.x - v.x, o.y - v.y); if (k < d) { d = k; near = o; } }
@@ -477,7 +552,8 @@
   // Indoors: fade at the door, stay 20–60 s (at night, until morning), come
   // out and go on. The building gives a little bounce as someone goes in.
   function goIndoors(v, now, key) {
-    v.state = 'indoors'; v.inside = key; v.inSince = now;
+    v.state = 'indoors'; v.inside = key; v.inSince = now; v.run = false;
+    if (v.emote) { v.emote = null; setSay(v, null); }   // a bubble does not hang in the doorway
     v.until = now + stayMs(key, S.phase, S.rand);   // at work, they stay while working (step)
     v.el.classList.add('kwv-gone');
     const d = doorOf(key) || S.exits.find(e => e.key === key);
@@ -490,6 +566,7 @@
   const minOut = () => (isPhone() ? MIN_OUT.phone : MIN_OUT.desktop);
   const outsideCount = () => [...S.vs.values()].filter(v => live(v) && v.state !== 'indoors').length;
   function keepSomeOut(now) {
+    if (S.event === 'raid') return;   // nobody is called out while raiders are near
     if (S.phase !== 'day' && S.phase !== 'dawn') return;
     const list = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held)
       .map(v => ({ id: v.id, inside: v.state === 'indoors', worker: v.state === 'indoors' && !!workKey(v) && v.inside === workKey(v), since: v.inSince || 0, v }));
@@ -548,13 +625,424 @@
     S.cool[pairKey(a.id, b.id)] = now;
   }
   function chatting(a, b, now) {
-    const len = CHAT_MS[0] + S.rand() * (CHAT_MS[1] - CHAT_MS[0]);
+    const len = a.talk ? TALK_MS : CHAT_MS[0] + S.rand() * (CHAT_MS[1] - CHAT_MS[0]);
     for (const [x, y] of [[a, b], [b, a]]) { x.state = 'chat'; x.until = now + len; x.dir = V().dirFromVector(y.x - x.x, 0) || 'e'; }
     a.sayFrom = now; a.leads = true; b.leads = false;
+    if (a.talk) { const sp = a.talk.speaker === a.id ? a : b, li = sp === a ? b : a; sp.leads = true; li.leads = false; sp.sayFrom = now; }
   }
   function endChat(v, now) {
     const p = v.partner != null ? S.vs.get(v.partner) : null;
-    for (const x of [v, p]) if (x) { x.partner = null; setSay(x, null); if (x.state === 'chat' || x.state === 'tochat' || x.state === 'waitchat') idle(x, now, 500 + S.rand() * 1500); }
+    if (v.talk) talkResult(v.talk);   // cut short (someone was picked, or they never met): the result still shows
+    for (const x of [v, p]) if (x) { x.partner = null; x.talk = null; setSay(x, null); if (x.state === 'chat' || x.state === 'tochat' || x.state === 'waitchat') idle(x, now, 500 + S.rand() * 1500); }
+  }
+  // ── A chat the player set up, and praise (js/social.js; Part F) ─────────
+  // The server has already decided how it went; this plays it out. The
+  // speaker hurries over to the listener (who waits, and steps out if they
+  // were indoors), the topic's picture goes up in a bubble, the listener
+  // answers, and a heart with the bond gained, or a storm cloud with the bond
+  // lost, floats up between them. `done` is called once it has shown.
+  // → false when it cannot be played here (the scene is not showing, or the
+  // speaker is not in it): the caller tells it in words instead.
+  const TALK_MS = 3800, TALK_WAIT = 45000;
+  const FELT = { likes: '😊', dull: '😴', fine: '🙂' };
+  function playTalk(o, done) {
+    if (!S.shown || S.paused || !S.layer) return false;
+    const a = S.vs.get(Number(o.speaker)), b = S.vs.get(Number(o.listener));
+    const usable = x => x && x.state !== 'gone' && x.state !== 'leave' && !x.moment;
+    if (!usable(a)) return false;
+    const now = performanceNow();
+    const t = { speaker: a.id, listener: usable(b) ? b.id : null, icon: o.icon || '💬', good: !!o.good, delta: Number(o.delta) || 0, speakerFelt: o.speakerFelt, listenerFelt: o.listenerFelt, done, shown: false };
+    for (const x of [a, t.listener != null ? b : null]) {
+      if (!x) continue;
+      if (M.v === x) deselect(true, true);
+      endChat(x, now);
+      if (x.state === 'indoors') comeOut(x, now);
+      x.held = false; x.heldBy = null; x.goal = null;
+    }
+    if (t.listener == null) {
+      // The listener is somewhere else (another part of town, or indoors out
+      // of the scene): the speaker says it where they stand.
+      a.talk = t; a.state = 'solo'; a.until = now + 1500; a.dir = 's'; setSay(a, t.icon);
+      return true;
+    }
+    a.partner = b.id; b.partner = a.id; a.talk = b.talk = t;
+    const side = a.x <= b.x ? -1 : 1;
+    const behind = (x, y) => (S.blocks || []).some(k => k.b > y && x + 24 > k.l && x - 24 < k.r && y - 64 < k.b && y > k.t);
+    let pa = { x: b.x + side * CHAT_GAP, y: b.y }, pb = null;
+    if (behind(b.x, b.y) || behind(pa.x, pa.y)) {
+      // The listener stands behind a building: they meet at the nearest spot in the open.
+      const spot = clearSpot(b.x, { w: W(), h: H(), blocks: S.blocks || [] });
+      pa = { x: spot.x + side * CHAT_GAP / 2, y: spot.y }; pb = { x: spot.x - side * CHAT_GAP / 2, y: spot.y };
+    }
+    walkTo(a, pa, null); a.state = 'tochat'; a.until = now + TALK_WAIT;
+    if (pb) { walkTo(b, pb, null); b.state = 'tochat'; }
+    else { b.state = 'waitchat'; b.tx = b.x; b.ty = b.y; b.dir = V().dirFromVector(a.x - b.x, 0) || 'w'; }
+    b.until = now + TALK_WAIT;
+    return true;
+  }
+  // The heart or the storm cloud, once; then the caller's line.
+  function talkResult(t) {
+    if (t.shown) return;
+    t.shown = true;
+    const a = S.vs.get(t.speaker), b = t.listener != null ? S.vs.get(t.listener) : null;
+    const at = a && b ? { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) } : a || b;
+    const n = Math.abs(t.delta);
+    if (at) floater(at.x, at.y - 74, t.good ? `💗${n ? ' +' + n : ''}` : `🌩️${n ? ' −' + n : ''}`, t.good ? 'good' : 'bad');
+    if (typeof t.done === 'function') { try { t.done(); } catch (_) { /* told elsewhere */ } }
+  }
+  // The scripted part of a chat: topic, answer, how it ended.
+  function talkStep(v, p, now) {
+    const t = v.talk, e = now - v.sayFrom;
+    const li = S.vs.get(t.listener) || p, sp = S.vs.get(t.speaker) || v;
+    if (e < 1300) { setSay(sp, t.icon); setSay(li, null); }
+    else if (e < 2500) { setSay(sp, null); setSay(li, FELT[t.listenerFelt] || '…'); }
+    else { talkResult(t); setSay(sp, t.good ? '😄' : '😕'); setSay(li, t.good ? '😄' : '😒'); }
+  }
+  // Praise: a happy bubble and "+2" floating up. → false when they are not in the scene.
+  function playPraise(id, amount) {
+    const v = S.vs.get(Number(id));
+    if (!S.shown || S.paused || !v || v.state === 'gone' || v.state === 'indoors') return false;
+    floater(v.x, v.y - 74, `👏 +${Number(amount) || 2}`, 'good');
+    if (!v.partner && !v.talk) { setSay(v, '😊'); setTimeout(() => { if (v.say === '😊') setSay(v, null); }, 1600); }
+    return true;
+  }
+  // ── Mood (§3.8) ─────────────────────────────────────────────────────────
+  // Small emotes over heads, from the town's real state, so the scene reads
+  // as a picture of how the town is doing. One little bubble for 2 to 3 s,
+  // on at most two villagers at a time, each at most once a minute. The mix
+  // follows the numbers: a villager's own happiness where the citizen has
+  // it, the town's otherwise; no bed, short food and a festival come first.
+  // (Emoji stand in until the owner's emote sheet arrives: ART_GUIDE.)
+  const EMOTES = {
+    happy: ['😊', '🎵', '❤️'], low: ['☹️', '🌧️'], hungry: ['🥣'], homeless: ['🏠❓'], festival: ['🎵', '🏮'], plain: ['…'],
+  };
+  const MOOD = { HIGH: 70, LOW: 40, AT_ONCE: 2, EVERY_MS: 60000, SHOW_MS: [2000, 3000], LOW_SPEED: 0.8, LOW_IDLE: 1.5, LOW_CHAT: 0.4 };
+  const happinessOf = c => { const h = c && c.life && c.life.happiness; return Number.isFinite(Number(h)) && h != null ? Number(h) : null; };
+  // The town, as far as mood goes. `scene`: KWHome.sceneState(). Pure.
+  function townMood(citizens, scene = {}) {
+    const grown = citizens.filter(c => living(c) && !isChild(c)).map(happinessOf).filter(h => h != null);
+    const fam = scene.famine && scene.famine.state;
+    return { happy: grown.length ? Math.round(grown.reduce((a, b) => a + b, 0) / grown.length) : null,
+      hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', festival: !!(scene.town && scene.town.festival && scene.town.festival.active) };
+  }
+  // What one villager feels, by what comes first: no bed (that villager
+  // only), short food, a festival, then how happy they are. Pure.
+  function moodOf(c, town) {
+    if (c.house_id == null && !isChild(c)) return 'homeless';
+    if (town.hungry !== 'ok') return 'hungry';
+    if (town.festival) return 'festival';
+    const h = happinessOf(c) != null ? happinessOf(c) : town.happy;
+    return h == null ? 'plain' : h >= MOOD.HIGH ? 'happy' : h < MOOD.LOW ? 'low' : 'plain';
+  }
+  // Who may show an emote now: at most AT_ONCE showing; each at most once
+  // per EVERY_MS. `list`: [{ id, free, last, showing }]. → an id, or null. Pure.
+  function emoteTurn(list, now, rand = Math.random) {
+    if (list.filter(v => v.showing).length >= MOOD.AT_ONCE) return null;
+    const ok = list.filter(v => v.free && !v.showing && (v.last == null || now - v.last >= MOOD.EVERY_MS));
+    return ok.length ? ok[Math.floor(rand() * ok.length)].id : null;
+  }
+  function sceneNow() { try { return global.KWHome && global.KWHome.sceneState ? global.KWHome.sceneState() : {}; } catch (_) { return {}; } }
+  function maybeMood(now) {
+    const town = S.mood = townMood(cits(), sceneNow());
+    if (S.hush && now < S.hush) return;   // a sad time: no emotes for a while (§3.9)
+    if (S.event === 'raid') return;       // nobody stops to feel things with raiders at the gate
+    const list = [...S.vs.values()].map(v => ({ id: v.id, last: v.emoteAt, showing: !!v.emote,
+      free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.selected && !v.held && !v.say && v.partner == null && !v.talk && !v.moment }));
+    const id = emoteTurn(list, now, S.rand);
+    if (id == null) return;
+    const v = S.vs.get(id), kind = moodOf(v.c, town);
+    v.emoteAt = now;
+    if (kind === 'plain' && S.rand() < 0.75) return;   // middling: mostly nothing
+    const set = EMOTES[kind];
+    v.emote = set[Math.floor(S.rand() * set.length)];
+    v.emoteUntil = now + MOOD.SHOW_MS[0] + S.rand() * (MOOD.SHOW_MS[1] - MOOD.SHOW_MS[0]);
+    setSay(v, v.emote);
+    // Happy: now and then a little hop.
+    if ((kind === 'happy' || kind === 'festival') && S.rand() < 0.4) hop(v);
+  }
+  function hop(v) {
+    v.el.classList.remove('kwv-hop'); void v.el.offsetWidth; v.el.classList.add('kwv-hop');
+    setTimeout(() => v.el.classList.remove('kwv-hop'), 700);
+  }
+  // Their own mood slows or steadies them: unhappy villagers walk slower
+  // and stand about longer.
+  const lowMood = v => { const h = happinessOf(v.c); return (h != null ? h : S.mood && S.mood.happy != null ? S.mood.happy : 70) < MOOD.LOW; };
+
+  // ── Life events seen happening (§3.9) ───────────────────────────────────
+  // A new line in the chronicle (a birth, a coming of age, a partnership, a
+  // death, a settler, an inheritance) plays as a small scene, once, when
+  // Home is showing: within ten minutes of it happening. One at a time; up
+  // to three wait their turn. Each is under a minute. People in a scene join
+  // the cast for its length. Nothing here changes the game: the chronicle
+  // line is the event, this only shows it.
+  const LIFE = { KINDS: ['birth', 'came_of_age', 'partnership', 'death', 'settler', 'inheritance'], FRESH_MS: 600000, WAITING: 3, HUSH_MS: 240000, POLL_MS: 45000 };
+  // Who does what. `entry`: { kind, citizen_ids }. `at`: { home(id), work(id),
+  // edge, centre, across } points in the scene. `who`: { family(id) → ids,
+  // neighbour(not) → id|null }. → { actors: [{ id, from?, greet?, steps }], hush? } or null. Pure.
+  // A step: { to, speed?, say? (null clears), wait?, hop?, inside? }.
+  function lifeScene(entry, at, who) {
+    const ids = (entry.citizen_ids || []).map(Number).filter(Boolean), a = ids[0], b = ids[1];
+    const off = (p, dx, dy = 0) => ({ x: p.x + dx, y: p.y + dy });
+    if (!a) return null;
+    if (entry.kind === 'birth') {
+      const home = at.home(a), n = who.neighbour(ids);
+      const actors = [{ id: a, steps: [{ to: off(home, -16, 14) }, { say: '❤️', wait: 9000 }, { say: null }] }];
+      if (b) actors.push({ id: b, steps: [{ to: off(home, 16, 16) }, { say: '❤️', wait: 9000 }, { say: null }] });
+      if (n != null) actors.push({ id: n, steps: [{ wait: 2500 }, { to: off(home, 0, 46) }, { say: '…', wait: 3000 }, { say: '😊', wait: 1800 }, { say: null }] });
+      return { actors };
+    }
+    if (entry.kind === 'came_of_age') {
+      return { actors: [{ id: a, greet: true, steps: [{ to: off(at.home(a), 0, 16) }, { say: '⭐', wait: 1200 }, { to: at.work(a) || at.centre, say: '⭐' }, { hop: true, wait: 1500 }, { say: null }] }] };
+    }
+    if (entry.kind === 'partnership') {
+      if (!b) return null;
+      return { need: 2, actors: [   // both of them, or not at all
+        { id: a, steps: [{ to: at.centre }, { say: '❤️', wait: 800 }, { to: at.across, say: '❤️', speed: 0.8 }, { wait: 1500 }, { say: null }] },
+        { id: b, steps: [{ to: off(at.centre, -24, 8) }, { say: '❤️', wait: 800 }, { to: off(at.across, -24, 8), say: '❤️', speed: 0.8 }, { wait: 1500 }, { say: null }] },
+      ] };
+    }
+    if (entry.kind === 'death') {
+      const mourners = who.family(a).slice(0, 4);
+      if (!mourners.length) return null;
+      const home = at.home(mourners[0]);
+      return { hush: LIFE.HUSH_MS, actors: mourners.map((id, i) => ({ id, steps: [{ to: off(home, (i - (mourners.length - 1) / 2) * 46, 18 + (i % 2) * 12) }, { say: '🕯️', wait: 15000 }, { say: null }, { to: off(home, (i - 1.5) * 90, 70), speed: 0.6 }] })) };
+    }
+    if (entry.kind === 'settler') {
+      const n = who.neighbour(ids), home = at.home(a), mid = { x: (at.edge.x + home.x) / 2, y: (at.edge.y + home.y) / 2 };
+      const actors = [{ id: a, from: at.edge, steps: [{ to: mid, say: '🎒' }, { wait: 2500 }, { to: off(home, 0, 14), say: '🎒' }, { say: '😊', wait: 2000 }, { say: null }] }];
+      if (n != null) actors.push({ id: n, steps: [{ to: off(mid, 30, 6) }, { say: '👋', wait: 3000 }, { say: null }] });
+      return { actors };
+    }
+    if (entry.kind === 'inheritance') {
+      return { actors: [{ id: a, steps: [{ to: off(at.home(a), 0, 6) }, { inside: 2500 }, { say: '✨', wait: 2800 }, { say: null }] }] };
+    }
+    return null;
+  }
+  // Which chronicle lines to play. `entries`: newest first. `seen`: the
+  // highest id already dealt with (null: this is the first look, so only
+  // fresh ones). → { play: [oldest first, at most WAITING], seen }. Pure.
+  function lifeNews(entries, seen, now) {
+    const list = (entries || []).filter(e => e && LIFE.KINDS.includes(e.kind));
+    const top = (entries || []).reduce((m, e) => Math.max(m, Number(e.id) || 0), seen || 0);
+    const fresh = list.filter(e => (seen == null || Number(e.id) > seen) && now - new Date(e.at).getTime() <= LIFE.FRESH_MS);
+    // More than three waiting: the newest are dropped first.
+    return { play: fresh.sort((x, y) => Number(x.id) - Number(y.id)).slice(0, LIFE.WAITING), seen: top };
+  }
+  const lifeSeen = v => { try { if (v === undefined) { const n = Number(global.sessionStorage.getItem('kw_life_seen')); return Number.isFinite(n) && n > 0 ? n : null; } global.sessionStorage.setItem('kw_life_seen', String(v)); } catch (_) { /* private mode */ } return null; };
+  // Chronicle lines arrive from js/life-scenes.js (the engine itself never
+  // calls the server): the fresh ones wait their turn.
+  function offerLife(entries) {
+    const out = lifeNews(entries || [], S.lifeSeen !== undefined ? S.lifeSeen : lifeSeen(), clockMs());
+    S.lifeSeen = out.seen; lifeSeen(out.seen);
+    S.lifeWaiting = (S.lifeWaiting || []).concat(out.play).slice(0, LIFE.WAITING);
+    return out.play.length;
+  }
+  const clockMs = () => (global.KWClock && global.KWClock.now ? global.KWClock.now() : Date.now());
+  // The next waiting scene, when none is playing and the scene shows homes
+  // (Town or the Neighbourhood).
+  function lifeTick(now) {
+    if (S.lifePlaying) {
+      const busy = [...S.vs.values()].some(v => v.act && v.act.scene === S.lifePlaying.id);
+      if (!busy || now > S.lifePlaying.until) { for (const v of S.vs.values()) if (v.act && v.act.scene === S.lifePlaying.id) endAct(v, now); S.lifePlaying = null; }
+      return;
+    }
+    if (!S.lifeWaiting || !S.lifeWaiting.length || S.area === 'outskirts') return;
+    const entry = S.lifeWaiting.shift();
+    const byId = new Map(cits().map(c => [Number(c.id), c]));
+    const ok = id => { const c = byId.get(Number(id)); return !!c && living(c) && !awayOf(c); };
+    const here = id => { const v = S.vs.get(Number(id)); return v && live(v) ? v : null; };
+    const homeOf = id => { const c = byId.get(Number(id)); const d = (inHood() && c && c.house_id != null && doorOf('house-' + c.house_id)) || doorOf('neighbourhood') || S.exits[0] || S.doors[0]; return d ? { x: d.x, y: d.y } : px({ x: 50, y: 80 }); };
+    const places = {
+      home: homeOf,
+      work: id => { const c = byId.get(Number(id)); const d = c && doorOf(ROLE_BUILDING[c.role]); return d ? { x: d.x, y: d.y + 12 } : null; },
+      edge: { x: W() * 0.03, y: H() * 0.86 }, centre: px({ x: 50, y: 84 }), across: px({ x: 82, y: 86 }),
+    };
+    const who = {
+      family: id => { const dead = byId.get(Number(id)); const fam = dead && dead.family_id; const kin = cits().filter(c => ok(c.id) && !isChild(c) && Number(c.id) !== Number(id) && fam != null && c.family_id === fam).map(c => Number(c.id));
+        const rest = [...S.vs.values()].filter(v => live(v) && !v.child && !kin.includes(v.id) && v.id !== Number(id)).map(v => v.id); return kin.concat(rest); },
+      neighbour: not => { const o = [...S.vs.values()].filter(v => live(v) && !v.child && v.state !== 'indoors' && !not.includes(v.id) && !v.act && !v.moment && !v.selected); return o.length ? o[Math.floor(S.rand() * o.length)].id : null; },
+    };
+    const scene = lifeScene(entry, places, who);
+    if (!scene) return;
+    let longest = 0;
+    // Who can take part: living, in town, and not busy with the player (picked,
+    // a window open on them, a moment waiting, a chat the player set up).
+    const can = a => { if (!ok(a.id)) return false; const v = here(a.id); return !v || !(v.selected || v.held || v.moment || v.talk); };
+    if (scene.actors.filter(can).length < (scene.need || 1)) return;
+    for (const a of scene.actors) {
+      if (!can(a)) continue;
+      let v = here(a.id);
+      if (!v) { const d = a.from || homeOf(a.id); v = make(byId.get(a.id), { x: d.x, y: d.y }, true); v.guest = true; }   // they join the cast for the scene
+      if (v.state === 'indoors') comeOut(v, now);
+      endChat(v, now);
+      if (a.from) { v.x = a.from.x; v.y = a.from.y; }
+      v.act = { scene: entry.id, steps: a.steps, i: -1, greet: !!a.greet }; v.state = 'act'; v.goal = null;
+      longest = Math.max(longest, a.steps.reduce((t, st) => t + (st.wait || st.inside || 0) + (st.to ? 12000 : 0), 0));
+    }
+    if (scene.hush) S.hush = now + scene.hush;
+    S.lifePlaying = { id: entry.id, kind: entry.kind, until: now + Math.min(58000, longest + 3000) };
+  }
+  function endAct(v, now) {
+    v.act = null; setSay(v, null); v.el.classList.remove('kwv-gone');
+    if (v.guest) { v.guest = false; leave(v, 'rotate'); } else idle(v, now, 500 + S.rand() * 1200);
+  }
+  // One actor's part: walk, say, wait, hop, step indoors and out.
+  function actStep(v, dt, now) {
+    const a = v.act;
+    let st = a.steps[a.i];
+    const next = () => {
+      a.i++; st = a.steps[a.i];
+      if (!st) { endAct(v, now); return false; }
+      if ('say' in st) setSay(v, st.say);
+      if (st.hop) hop(v);
+      if (st.inside) v.el.classList.add('kwv-gone');
+      a.until = now + (st.wait || st.inside || 0);
+      if (st.to) { v.tx = st.to.x; v.ty = st.to.y; }
+      return true;
+    };
+    if (!st && !next()) return;
+    if (st.to) {
+      const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy), stepPx = v.speed * 1.15 * (st.speed || 1) * dt / 1000;
+      if (dist > stepPx) {
+        v.x += dx / dist * stepPx; v.y += dy / dist * stepPx; v.dir = V().dirFromVector(dx, dy);
+        // Coming of age: the first villager they pass gives a hop.
+        if (a.greet) for (const o of S.vs.values()) if (o !== v && live(o) && o.state !== 'indoors' && !o.act && Math.hypot(o.x - v.x, o.y - v.y) < 44) { hop(o); a.greet = false; break; }
+        return;
+      }
+      v.x = v.tx; v.y = v.ty; v.dir = 's';
+      next();
+      return;
+    }
+    if (now >= a.until) { if (st.inside) v.el.classList.remove('kwv-gone'); next(); }
+  }
+
+  // ── Town-wide events (§3.10) ────────────────────────────────────────────
+  // What the whole town is doing, from what the client already knows. By
+  // priority: a raid about to strike (or under way), then a death (its hush),
+  // then a festival. A raid that is still hours off changes nothing: an empty
+  // town for a whole warning would be bleak, so people only run for cover in
+  // its last ten minutes.
+  const TOWN = { RAID_NEAR_MS: 600000, RING: 0.8, RUN: 1.7, RING_R: 74, DANCE_MS: [8000, 14000] };
+  const GUARDS = ['soldier', 'archer'];
+  const isGuard = c => !!c && GUARDS.includes(c.role) && !isChild(c);
+  // `scene`: KWHome.sceneState(). `hushed`: a death is being mourned. Pure.
+  function townEvent(scene, now, hushed) {
+    const r = scene && scene.raid;
+    if (r && !r.resolved_at) { const left = new Date(r.arrives_at).getTime() - now; if (!(left > TOWN.RAID_NEAR_MS)) return 'raid'; }
+    if (hushed) return null;
+    if (scene && scene.town && scene.town.festival && scene.town.festival.active) return 'festival';
+    return null;
+  }
+  // Place `i` of `n` in a loose ring round a point (flattened: seen from in front). Pure.
+  function ringSpot(c, i, n, r = TOWN.RING_R) {
+    const a = (i / Math.max(3, n)) * Math.PI * 2;
+    return { x: Math.round(c.x + Math.cos(a) * r), y: Math.round(c.y + Math.sin(a) * r * 0.45) };
+  }
+  // The village green, when it is in the scene showing (the festival's ring).
+  function greenPoint() {
+    const el = S.layer && S.layer.querySelector('#sv-prop-green .kwh-prop');
+    if (!el || !el.getBoundingClientRect) return null;
+    const lr = S.layer.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const sx = lr.width / (S.layer.clientWidth || 1), sy = lr.height / (S.layer.clientHeight || 1);
+    if (!r.width) return null;
+    return { x: (r.left + r.width / 2 - lr.left) / sx, y: (r.top + r.height * 0.72 - lr.top) / sy };
+  }
+  function townTick(now) {
+    const scene = sceneNow(), was = S.event || null;
+    S.event = townEvent(scene, clockMs(), !!(S.hush && now < S.hush));
+    if (scene.raid) S.raidLast = scene.raid;
+    // A raid begins: everyone outdoors makes for cover at once; guards come out.
+    if (S.event === 'raid' && was !== 'raid') {
+      for (const v of S.vs.values()) {
+        if (!live(v) || v.selected || v.held || v.act || v.moment) continue;
+        if (isGuard(v.c)) { if (v.state === 'indoors') comeOut(v, now); }
+        if (v.state !== 'indoors') { endChat(v, now); v.emote = null; setSay(v, null); errand(v, now); }
+      }
+    }
+    // A festival begins: those out and free set off for the green at once.
+    if (S.event === 'festival' && was !== 'festival') {
+      for (const v of S.vs.values()) if (live(v) && (v.state === 'idle' || v.state === 'walk') && !v.goal && !v.selected && !v.held && !v.act && !v.moment && v.partner == null) errand(v, now);
+    }
+    // It is over: people come out, relieved or sad by how it went.
+    if (was === 'raid' && S.event !== 'raid') {
+      const bad = S.raidLast && (S.raidLast.outcome === 'lost' || S.raidLast.outcome === 'partial');
+      let n = 0;
+      for (const v of S.vs.values()) {
+        v.run = false;
+        if (!live(v) || v.selected || v.held) continue;
+        if (v.state === 'indoors') { comeOut(v, now); v.until = now + 600 + S.rand() * 2500; }
+        if (n++ < 6) { v.emote = bad ? '😢' : '😌'; v.emoteUntil = now + 3500 + S.rand() * 2000; v.emoteAt = now; setSay(v, v.emote); }
+      }
+    }
+    // The town has grown a tier: everyone out cheers once.
+    const tier = scene.tier || null, order = ['camp', 'village', 'town', 'city'];
+    if (S.tierSeen && tier && order.indexOf(tier) > order.indexOf(S.tierSeen)) {
+      for (const v of S.vs.values()) {
+        if (!live(v) || v.state === 'indoors' || v.selected || v.held || v.act || v.talk || v.moment) continue;
+        endChat(v, now); v.state = 'cheer'; v.until = now + 2600; v.dir = 's'; v.goal = null; setSay(v, '⭐'); hop(v);
+      }
+    }
+    if (tier) S.tierSeen = tier;
+  }
+  // The festival ring: turn through the directions, a note or a lantern now
+  // and then, a hop here and there.
+  function danceStep(v, now) {
+    if (S.event !== 'festival' || now >= v.until) { setSay(v, null); idle(v, now, 600 + S.rand() * 1500); return; }
+    const t = now - v.danceFrom;
+    v.dir = ['s', 'e', 'n', 'w'][Math.floor(t / 380) % 4];
+    const beat = t % 3200;
+    setSay(v, beat < 1300 ? v.danceSay : null);
+    if (beat < 40 && S.rand() < 0.5) hop(v);
+  }
+
+  // A builder at the site: the hammer goes up in a bubble in a steady beat,
+  // dust puffs at the site, then a short rest. (The idle picture stands in
+  // until the owner's work animation arrives: docs/ART_GUIDE.md.)
+  const BUILD_MS = [14000, 30000], REST_MS = [2500, 5500];
+  function buildStep(v, now) {
+    if (v.state === 'cheer') { if (now >= v.until) { setSay(v, null); idle(v, now, 400 + S.rand() * 900); } return; }
+    const bs = buildSpot(v);
+    if (!bs || bs.id !== v.siteId) { setSay(v, null); idle(v, now, 300 + S.rand() * 700); return; }   // finished, cancelled, or another came first
+    if (now >= v.until) { setSay(v, null); idle(v, now, REST_MS[0] + S.rand() * (REST_MS[1] - REST_MS[0])); return; }
+    const beat = (now - v.hamFrom) % 1500;
+    setSay(v, beat < 850 ? '🔨' : null);
+    if (now >= v.puffAt) { v.puffAt = now + 1500; puff(bs.sx + (S.rand() - 0.5) * 50, bs.y - 10 - S.rand() * 14); }
+  }
+  function puff(x, y) {
+    if (!S.layer || (V().reducedMotion && V().reducedMotion())) return;
+    const d = doc.createElement('span');
+    d.className = 'kwv-dust';
+    d.style.left = Math.round(x) + 'px'; d.style.top = Math.round(y) + 'px';
+    d.style.zIndex = String(depth(y + 20));
+    S.layer.appendChild(d);
+    setTimeout(() => d.remove(), 950);
+  }
+  // Something was finished (js/construction.js): the builders here cheer.
+  function cheer() {
+    if (!S.shown || S.paused) return;
+    const now = performanceNow();
+    let any = null;
+    for (const v of S.vs.values()) {
+      if (!live(v) || !isBuilder(v.c) || v.state === 'indoors' || v.selected || v.held || v.talk || v.moment) continue;
+      v.state = 'cheer'; v.until = now + 2600; v.dir = 's'; v.goal = null; setSay(v, '🎉');
+      any = any || v;
+    }
+    if (any) floater(any.siteX || any.x, any.y - 90, '🎉 Finished!', 'good');
+  }
+  if (global.addEventListener) global.addEventListener('kw:built', () => { try { cheer(); } catch (_) { /* scene closed */ } });
+  // The builders' queue changed: who is where may have too.
+  // (A little later, so builders at a site just finished cheer before they go.)
+  if (global.addEventListener) global.addEventListener('kw:build', () => { setTimeout(() => { if (S.shown && S.layer && cits().length && signature(cits()) !== S.sig) recast(false); }, 3200); });
+
+  // A small sign that rises from a point in the scene and fades.
+  function floater(x, y, text, tone) {
+    if (!S.layer) return;
+    const f = doc.createElement('span');
+    f.className = 'kwv-float' + (tone ? ' kwv-float-' + tone : '');
+    f.textContent = text;
+    f.style.left = Math.round(x) + 'px'; f.style.top = Math.round(y) + 'px';
+    S.layer.appendChild(f);
+    setTimeout(() => f.remove(), 2200);
   }
   function setSay(v, text) {
     if (v.say === text) return;
@@ -596,11 +1084,13 @@
     S.phase = S.hold || clockPhase();
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const all = cits();
-    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds(), rand: S.rand });
+    // Builders with a site in this part of town are always in the cast (up to 4).
+    const crew = siteArea() === S.area ? all.filter(c => living(c) && isBuilder(c) && !awayOf(c)).slice(0, BUILDERS_SHOWN).map(c => Number(c.id)) : [];
+    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew), rand: S.rand });
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
-      if (!want.includes(v.id) && live(v)) { if (first) { v.el.remove(); S.vs.delete(v.id); } else leave(v); }
+      if (!want.includes(v.id) && live(v) && !(v.act && !first)) { if (first) { v.el.remove(); S.vs.delete(v.id); } else leave(v); }   // someone in a scene stays for it
       else if (c) v.c = c;
     }
     const present = () => [...S.vs.values()].filter(live).length;
@@ -626,14 +1116,15 @@
   }
   function signature(all) {
     // (In the Neighbourhood, also who is out at work and who lives where.)
-    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',');
+    return all.filter(living).map(c => c.id + (awayOf(c) ? 'a' : '') + ':' + (c.role || '') + ':' + (c.stage || '') + (inHood() ? ':' + (c.house_id || '') + (outAtWork(c) ? 'w' : '') : '')).join(',') + '|' + momentIds().join(',')
+      + '|' + (siteArea() || '');   // the builders go where the first site is
   }
   // Now and then one walks into a building and someone else comes out.
   function rotate() {
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const pool = cits().filter(c => living(c) && !awayOf(c) && areaFor(c) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
     const moments = momentIds().map(Number);
-    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.child && !moments.includes(v.id)
+    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.talk && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
     leave(out[Math.floor(S.rand() * out.length)], 'rotate');
@@ -664,24 +1155,44 @@
     return (c.name || 'Villager') + ' · ' + what + (age != null ? ', ' + age : '');
   }
   // The menu's buttons for someone. Children have no Change work; youths
-  // have Apprenticeship in its place. Pure.
-  function menuItems(c) {
+  // have Apprenticeship in its place. `social` (js/social.js, today's state
+  // for them) adds Talk to… and Praise, greyed (`off`) once used. Pure.
+  function menuItems(c, social) {
     const youth = c.stage === 'youth', child = !youth && (c.stage === 'child' || (!c.stage && c.life_stage === 'child'));
-    const items = [{ key: 'inspect', icon: '🔍', label: 'Inspect' }, { key: 'family', icon: '👪', label: 'Family' }];
+    const items = [{ key: 'inspect', icon: '🔍', label: 'Inspect' }];
+    if (social) {
+      items.push({ key: 'talk', icon: '💬', label: social.talked ? 'Chatted today' : 'Talk to…', off: !!social.talked });
+      const none = social.ready && !social.praised && social.praiseLeft <= 0;
+      items.push({ key: 'praise', icon: '👏', label: social.praised ? 'Praised today' : none ? 'No praise left' : social.ready ? `Praise (${social.praiseLeft})` : 'Praise', off: !!social.praised || none });
+    }
+    items.push({ key: 'family', icon: '👪', label: 'Family' });
     if (youth) items.push({ key: 'apprentice', icon: '🎓', label: 'Apprenticeship' });
-    else if (!child) items.push({ key: 'work', icon: '🛠', label: 'Change work' });
+    else if (!child) items.push({ key: 'work', icon: '🛠️', label: 'Change work' });
     items.push({ key: 'house', icon: '🏡', label: 'House' });
     return items;
   }
   // Where the buttons go: an arc of `n` around `centre` degrees (−90 is
   // straight up; screen y grows downward), turned toward the middle when the
   // villager stands near the left or right edge of the view. Pure.
+  // Five or six buttons take a wider, larger arc so their labels stay apart.
   function arc(n, { radius = 96, spread = 150, sx = 500, viewW = 1000, edge = 130 } = {}) {
-    const atEdge = sx < edge || sx > viewW - edge;
+    const atEdge = sx < edge || sx > viewW - edge, many = n > 4;
+    if (many) { radius += (n - 4) * 9; spread = 150 + (n - 4) * 30; }
+    const at = (deg) => { const r = deg * Math.PI / 180; return { x: Math.round(Math.cos(r) * radius), y: Math.round(Math.sin(r) * radius) }; };
+    if (many && atEdge) {
+      // Worked out for the left edge, mirrored for the right: the arc starts
+      // no further toward the edge than there is room for a button, and runs
+      // over the head and down the inner side.
+      const room = Math.max(0, (sx < edge ? sx : viewW - sx) - 26);
+      const limit = room >= radius ? -180 : -Math.acos(-room / radius) * 180 / Math.PI;
+      const from = Math.max(-35 - 85, limit), to = Math.min(from + 170, 75);
+      const pts = Array.from({ length: n }, (_, i) => at(from + (to - from) * i / (n - 1)));
+      return sx < edge ? pts : pts.map(q => ({ x: -q.x, y: q.y })).reverse();
+    }
     const centre = sx < edge ? -60 : sx > viewW - edge ? -120 : -90;
     if (atEdge) spread = Math.min(spread, 115);   // turned, and narrower, so it stays above the head
     const step = n > 1 ? spread / (n - 1) : 0, start = centre - spread / 2 * (n > 1 ? 1 : 0);
-    return Array.from({ length: n }, (_, i) => { const a = (start + step * i) * Math.PI / 180; return { x: Math.round(Math.cos(a) * radius), y: Math.round(Math.sin(a) * radius) }; });
+    return Array.from({ length: n }, (_, i) => at(start + step * i));
   }
 
   function select(v, byKeyboard) {
@@ -695,6 +1206,7 @@
     }
     // Someone walking into a building can still be picked: they stop.
     if (v.state === 'leave') v.state = 'idle';
+    if (v.act) { v.act = null; v.guest = false; v.el.classList.remove('kwv-gone'); setSay(v, null); }   // picked out of a scene
     if (global.KWBuildingMenu) global.KWBuildingMenu.close(false, true);   // one menu at a time
     if (M.v && M.v !== v) deselect(true, true);
     endChat(v, performanceNow());
@@ -729,7 +1241,7 @@
   function openMenu(v, byKeyboard) {
     closeMenu();
     M.v = v;
-    const items = menuItems(v.c);
+    const items = menuItems(v.c, global.KWSocial ? global.KWSocial.forMenu(v.id) : null);
     const sc = doc.getElementById('sv-scene');
     const vr = v.el.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : { left: 0, width: 1000 };
     const pts = arc(items.length, { sx: vr.left + vr.width / 2 - sr.left, viewW: sr.width, radius: isPhone() ? 100 : 96 });
@@ -740,12 +1252,18 @@
     const head = (v.child ? 0.75 : 1) * 62;   // the figure is about 62 px tall
     m.style.left = Math.round(v.x) + 'px';
     m.style.top = Math.round(v.y - head) + 'px';
-    m.innerHTML = items.map((it, i) => `<button type="button" class="kwv-rb" role="menuitem" data-kwv-act="${it.key}" style="--rx:${pts[i].x}px;--ry:${pts[i].y}px">`
+    m.innerHTML = items.map((it, i) => `<button type="button" class="kwv-rb${it.off ? ' kwv-rb-off' : ''}" role="menuitem" data-kwv-act="${it.key}"${it.off ? ' aria-disabled="true"' : ''} style="--rx:${pts[i].x}px;--ry:${pts[i].y}px">`
       + `<span class="kwv-rb-i" aria-hidden="true">${it.icon}</span><span class="kwv-rb-l">${it.label}</span></button>`).join('');
     m.addEventListener('click', e => {
       e.stopPropagation();
       const b = e.target.closest('[data-kwv-act]');
-      if (b) choose(b.getAttribute('data-kwv-act'));
+      if (!b) return;
+      // Greyed (used today): it says why and when it comes back; the menu stays.
+      if (b.getAttribute('aria-disabled') === 'true') {
+        if (global.KWSocial && typeof global.showToastNotification === 'function') global.showToastNotification(global.KWSocial.why(b.getAttribute('data-kwv-act'), v.id), 'default');
+        return;
+      }
+      choose(b.getAttribute('data-kwv-act'));
     });
     m.addEventListener('keydown', e => {
       const bs = [...m.querySelectorAll('.kwv-rb')], i = bs.indexOf(doc.activeElement);
@@ -771,6 +1289,7 @@
     const v = M.v;
     if (!v) return;
     const c = v.c, id = v.id;
+    if (key === 'praise') { deselect(true); if (global.KWSocial) global.KWSocial.praise(id); return; }   // no window: they carry on
     v.held = true; v.heldFrom = performanceNow(); v.heldCheck = performanceNow() + 300; v.heldBy = null;
     deselect(true);
     const call = (name, ...a) => (typeof global[name] === 'function' ? global[name](...a) : null);
@@ -778,6 +1297,7 @@
     else if (key === 'family') { if (global.KWFamilies) global.KWFamilies.open(c.family_id ? { family: c.family_id } : {}); }
     else if (key === 'work' || key === 'apprentice') { call('openCitizenProfile', id); focusInProfile('.cp-role-section .cp-role-select'); }   // the job picker, or a youth's trade
     else if (key === 'house') openHome(c);
+    else if (key === 'talk') { if (global.KWSocial) global.KWSocial.openTalk(id); }
   }
   // The job picker (or the apprenticeship) is in the citizen's profile: open
   // it there, scrolled to and focused.
@@ -800,6 +1320,7 @@
     const W = global.KWWindow;
     if (W && W.isOpen && W.isOpen('families')) return { kww: 'families' };
     if (W && W.isOpen && W.isOpen('house')) return { kww: 'house' };
+    if (W && W.isOpen && W.isOpen('talk')) return { kww: 'talk' };
     const top = global.KWA11y && global.KWA11y.topmost ? global.KWA11y.topmost() : null;
     return top ? { el: top } : null;
   }
@@ -959,6 +1480,7 @@
     return { x: Math.max(w * 0.03, Math.min(w * 0.97, cx)), y: front * h };
   }
   function stepMoment(v, dt, now) {
+    if (v.talk) endChat(v, now);   // a moment came up mid-chat: its result shows now
     if (v.state === 'indoors') comeOut(v, now);
     if (!v.mSpot) { v.mSpot = momentSpot(v); v.tx = v.mSpot.x; v.ty = v.mSpot.y; v.state = 'tomoment'; }
     if (v.state === 'waiting') return;
@@ -975,6 +1497,8 @@
     // Selected: stands facing the camera until the menu closes. Held: a window
     // opened from the menu is still up; they walk on once it closes.
     if (v.selected || v.pressed) return;   // a finger or button is on them: they wait
+    if (v.act && (v.moment || v.held)) endAct(v, now);   // a moment or a window takes them out of the scene
+    if (v.act) { actStep(v, dt, now); return; }
     if (v.moment && !v.held && v.state !== 'leave') { stepMoment(v, dt, now); return; }
     if (v.held) {
       // Held by the window the button opened: found once it appears, released
@@ -987,6 +1511,12 @@
       }
       return;
     }
+    if (v.state === 'indoors' && buildSpot(v)) { comeOut(v, now); return; }   // there is building to do
+    if (v.state === 'build' || v.state === 'cheer') { buildStep(v, now); return; }
+    if (v.state === 'dance') { danceStep(v, now); return; }
+    if (v.guarding && S.event !== 'raid') { v.guarding = false; if (v.say === '🛡️') setSay(v, null); }
+    // During a raid nobody but the guards comes back out.
+    if (v.state === 'indoors' && S.event === 'raid') { if (isGuard(v.c)) comeOut(v, now); return; }
     if (v.state === 'indoors') {
       // At work: in while working, out when the break or the day comes.
       if (workKey(v) && v.inside === workKey(v)) {
@@ -1001,7 +1531,9 @@
       if (now >= v.until && !nightIn && !(v.child && parentOf(v) && parentOf(v).state === 'indoors')) comeOut(v, now);
       return;
     }
-    if (v.child && v.state !== 'leave' && child(v, now)) { /* targets set */ }
+    if (v.emote && (now >= v.emoteUntil || v.say !== v.emote)) { if (v.say === v.emote) setSay(v, null); v.emote = null; }   // an emote's time is up
+    if (v.state === 'solo') { if (now >= v.until) { const t = v.talk; v.talk = null; setSay(v, null); if (t) talkResult(t); idle(v, now, 500 + S.rand() * 900); } return; }
+    if (v.child && !v.talk && v.state !== 'leave' && child(v, now)) { /* targets set */ }
     else if (v.state === 'idle') { if (now >= v.until) errand(v, now); return; }
     else if (v.state === 'waitchat') {
       const p = S.vs.get(v.partner);
@@ -1012,6 +1544,7 @@
     else if (v.state === 'chat') {
       const p = S.vs.get(v.partner);
       if (!p || now >= v.until) { endChat(v, now); return; }
+      if (v.talk) { if (v.leads) talkStep(v, p, now); return; }   // set up by the player: scripted
       // Take turns: the bubble passes back and forth every 1.4 s.
       if (v.leads) {
         const turn = Math.floor((now - v.sayFrom) / 1400) % 2 === 0;
@@ -1022,10 +1555,14 @@
     }
     if (v.state === 'idle' || (v.child && v.state === 'idle')) return;
     const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy);
-    const stepPx = v.speed * (v.state === 'chase' || v.state === 'ahead' ? 1.3 : 1) * dt / 1000;
+    if (v.state === 'tochat' && v.talk && now >= v.until) { endChat(v, now); return; }   // never got there
+    const stepPx = v.speed * (v.talk ? 1.8 : v.run ? TOWN.RUN : v.state === 'chase' || v.state === 'ahead' || v.state === 'toring' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * dt / 1000;
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }
+      if (v.state === 'toring') { v.state = 'dance'; v.until = now + TOWN.DANCE_MS[0] + S.rand() * (TOWN.DANCE_MS[1] - TOWN.DANCE_MS[0]); v.danceFrom = now - S.rand() * 3000; v.danceSay = S.rand() < 0.5 ? '🎵' : '🏮'; return; }
+      if (v.guarding && S.event === 'raid') { idle(v, now, 6000); v.dir = 's'; setSay(v, '🛡️'); return; }
+      if (v.state === 'tosite') { v.state = 'build'; v.until = now + BUILD_MS[0] + S.rand() * (BUILD_MS[1] - BUILD_MS[0]); v.hamFrom = now; v.puffAt = now + 600; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tochat') {
         const p = S.vs.get(v.partner);
         if (!p || p.partner !== v.id) { endChat(v, now); return; }
@@ -1044,7 +1581,7 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'toring', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
@@ -1058,7 +1595,9 @@
     const free = [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, child: v.child, selected: !!v.selected || !!v.held,
       free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.goal && v.partner == null && (S.phase !== 'night') }));
     const pairs = chatPairs(free, now, S.cool);
-    if (pairs.length && S.rand() < 0.35) startChat(S.vs.get(pairs[0][0]), S.vs.get(pairs[0][1]), now);
+    if (S.event === 'raid') return;
+    const glum = S.mood && S.mood.happy != null && S.mood.happy < MOOD.LOW;   // an unhappy town chats less
+    if (pairs.length && S.rand() < 0.35 * (glum ? MOOD.LOW_CHAT : 1)) startChat(S.vs.get(pairs[0][0]), S.vs.get(pairs[0][1]), now);
   }
   function tick(now) {
     S.raf = 0;
@@ -1072,8 +1611,10 @@
       if (ph !== S.phase) { S.phase = ph; nightLights(); }
       if (signature(cits()) !== S.sig) recast(false);
     }
-    if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night') rotate(); }
+    if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night' && S.event !== 'raid') rotate(); }
     if ((S.chatT += dt) > 2000) { S.chatT = 0; maybeChat(now); }
+    if ((S.moodT = (S.moodT || 0) + dt) > 2500) { S.moodT = 0; maybeMood(now); }
+    if ((S.lifeTickT = (S.lifeTickT || 0) + dt) > 1000) { S.lifeTickT = 0; townTick(now); if (S.event !== 'raid') lifeTick(now); }
     if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
@@ -1097,7 +1638,11 @@
   // here: when the scene starts, the area changes or the phase turns.
   function syncGlow() { const H = global.KWHome; if (H && H.syncGlow) requestFrame(() => H.syncGlow()); }
 
-  function clear() { closeMenu(); for (const v of S.vs.values()) v.el.remove(); S.vs.clear(); }
+  function clear() {
+    closeMenu();
+    for (const v of S.vs.values()) { if (v.talk) talkResult(v.talk); v.el.remove(); }   // a chat under way is still told
+    S.vs.clear();
+  }
   function start() {
     if (!S.shown || S.paused || !S.layer || !V()) return;
     V().injectStyles();
@@ -1168,6 +1713,18 @@
       return true;
     },
     deselect: () => { if (M.v) deselect(true); },
+    // A chat the player set up, and praise (js/social.js).
+    playTalk, playPraise, TALK_MS,
+    // Builders (js/construction.js): where they are and what they do.
+    // Town-wide events (§3.10).
+    TOWN, _townEvent: townEvent, _ringSpot: ringSpot, get event() { return S.event || null; },
+    // Life events (§3.9).
+    LIFE, offerLife, _lifeScene: lifeScene, _lifeNews: lifeNews, get lifePlaying() { return S.lifePlaying ? S.lifePlaying.kind : null; },
+    _playLife: e => { S.lifeWaiting = (S.lifeWaiting || []).concat([e]).slice(0, LIFE.WAITING); },   // tests and Dev Tools: play this chronicle line
+    // Mood (§3.8).
+    EMOTES, MOOD, _townMood: townMood, _moodOf: moodOf, _emoteTurn: emoteTurn, get mood() { return S.mood || null; },
+    hush: ms => { S.hush = performanceNow() + (Number(ms) || 0); },   // no emotes for a while (a death: §3.9)
+    BUILDERS_SHOWN, _buildSpot: id => { const v = S.vs.get(Number(id)); return v ? buildSpot(v) : null; }, _siteArea: siteArea, _cheer: cheer, get sites() { return (S.sites || []).slice(); },
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.
     preview: p => { S.hold = p || null; S.phase = p || clockPhase(); nightLights(); return S.phase; },
