@@ -18,10 +18,10 @@ console.log('1. The picture');
 {
   const order = K._paintOrder([{ z: 700, order: 3, n: 'front building' }, { z: -5, order: 9, n: 'sky' }, { z: 1050, order: 1, n: 'night' }, { z: 0, order: 2, n: 'puddle' }, { z: 700, order: 5, n: 'villager at the same depth' }, { z: 1060, order: 0, n: 'glow' }]).map(i => i.n);
   check('1a. painted in the page\'s own order: the sky, the ground, what stands (by depth), the night\'s tint, then the lights', order.join('|') === 'sky|puddle|front building|villager at the same depth|night|glow');
-  check('1b. every part of the scene the painter knows is named', K.KIND.length === 15 && K._kindOf(el('IMG')) === 'img' && K._kindOf(el('CANVAS')) === 'canvas' && K._kindOf(el('svg')) === 'svg'
+  check('1b. every part of the scene the painter knows is named', K.KIND.length === 17 && K._kindOf(el('SPAN', 'kwh-plate')) === 'label' && K._kindOf(el('SPAN', 'kwv-tag')) === 'label' && K._kindOf(el('IMG')) === 'img' && K._kindOf(el('CANVAS')) === 'canvas' && K._kindOf(el('svg')) === 'svg'
     && K._kindOf(el('DIV', 'kwv-sprite')) === 'sprite' && K._kindOf(el('DIV', 'sv-bd', 'sv-bd-sky')) === 'sky' && K._kindOf(el('DIV', 'sv-bd', 'sv-bd-trees')) === 'strip'
     && K._kindOf(el('DIV', 'sv-night')) === 'fill' && K._kindOf(el('DIV', 'kww-tint')) === 'fill' && K._kindOf(el('SPAN', 'kww-cloud')) === 'cloud' && K._kindOf(el('SPAN', 'kwa-smoke')) === 'puff'
-    && K._kindOf(el('I', 'kwd-glow')) === 'glow' && K._kindOf(el('SPAN', 'kww-puddle')) === 'puddle' && K._kindOf(el('DIV', 'kwh-plate')) === null);
+    && K._kindOf(el('I', 'kwd-glow')) === 'glow' && K._kindOf(el('SPAN', 'kww-puddle')) === 'puddle' && K._kindOf(el('DIV', 'kwh-bubble-host')) === null);
   check('1c. the evening\'s tint multiplies and the lights screen, as on the page', /if \(it\.blend === 'multiply' \|\| it\.blend === 'screen'\) ctx\.globalCompositeOperation = it\.blend;/.test(J));
   check('1d. what is hidden or faded right out is left out; fades in between are kept', /s\.display === 'none' \|\| s\.visibility === 'hidden' \|\| ch\.hidden/.test(J) && /if \(a < 0\.02\) continue;/.test(J) && /ctx\.globalAlpha = Math\.max\(0, Math\.min\(1, it\.alpha\)\);/.test(J));
   check('1e. a villager is the frame showing, facing the way they face', /ctx\.drawImage\(it\.img, -bx \* fx, -by \* fy, w \* fx, h \* fy, r\.left, r\.top, r\.width, r\.height\);/.test(J) && /el\.classList\.contains\('kwv-flip'\)/.test(J));
@@ -30,6 +30,9 @@ console.log('1. The picture');
   check('1h. one thing that will not paint does not lose the picture', /catch \(_\) \{ \/\* one thing that would not paint must not lose the picture \*\/ \}/.test(J));
   check('1i. rain and snow are in the picture, and the town\'s name is in a corner', /fall\(ctx, box, global\.KWWeather \? global\.KWWeather\.now\(\) : 'clear'\);/.test(J) && /caption\(ctx, box, g && g\.settlement && g\.settlement\.name\);/.test(J));
   check('1j. only what is on screen is photographed', /Math\.min\(global\.innerWidth, r\.right\)/.test(J) && /Math\.min\(global\.innerHeight, r\.bottom\)/.test(J));
+  check('1k. names are in the picture when asked for: building plates painted last so the night does not dim them, villagers\' tags with the villager so a building in front still hides them', /kind === 'label' && ch\.classList\.contains\('kwh-plate'\) \? LABEL_Z/.test(J) && /const LABEL_Z = 2000;/.test(J) && /data-kwph-names aria-pressed/.test(J) && /body\.kw-photo:not\(\.kw-photo-names\) #settlement-view \.kwh-plate/.test(CSS));
+  check('1l. the photo\'s Names is its own: the player\'s setting comes back on Done', /v\.classList\.toggle\('kwh-names', S\.on \? S\.names : !!\(H && H\.namesOn && H\.namesOn\(\)\)\)/.test(J) && /names\(\);  \/\/ and the player's own Names setting/.test(J));
+  check('1m. the cracks of a worn building and the boards of a broken one are in the picture', /getComputedStyle\(ch, '::after'\)\.backgroundImage/.test(J) && /it\.kind === 'overlay'/.test(J));
 }
 
 console.log('2. Size and name');

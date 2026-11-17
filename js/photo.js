@@ -15,6 +15,8 @@
 //  our own painter (no library), so it knows the scene's parts by name;
 //  something new in the scene that is not a picture, a drawing or one of
 //  the kinds below will be missing from photos until it is added to KIND.
+//  Names (building plates and villagers' name tags) are in the picture when
+//  the bar's Names is on; they are painted last so the night does not dim them.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -24,7 +26,7 @@
   const PHASES = [['dawn', 'Dawn'], ['day', 'Day'], ['dusk', 'Dusk'], ['night', 'Night']];
   const SKIES = [['clear', 'Clear'], ['cloudy', 'Cloudy'], ['rain', 'Rain'], ['snow', 'Snow']];
   const MAX_PIXELS = 8000000;   // the saved picture is at most about this many pixels
-  const S = { on: false, phase: null, sky: null, busy: false };
+  const S = { on: false, phase: null, sky: null, names: false, busy: false };
 
   // ── Rules (pure) ────────────────────────────────────────────────────────
   // Paint order: the page's own. Things with a lower z come first; equal z
@@ -69,9 +71,11 @@
     if (c.contains('kwa-firefly') || c.contains('kwa-spark') || c.contains('kwa-seed') || c.contains('kwa-blossom') || c.contains('kwa-leaf') || c.contains('kwa-butterfly')) return 'dot';
     if (c.contains('kwd-glow') || c.contains('kwa-forge')) return 'glow';
     if (c.contains('kwl-icon')) return 'emoji';
+    if (c.contains('kwh-plate') || c.contains('kwv-tag')) return 'label';
     return null;
   }
-  const KIND = ['img', 'canvas', 'svg', 'sprite', 'shadow', 'sky', 'strip', 'fill', 'snow-ground', 'cloud', 'puddle', 'puff', 'dot', 'glow', 'emoji'];
+  const KIND = ['img', 'canvas', 'svg', 'sprite', 'shadow', 'sky', 'strip', 'fill', 'snow-ground', 'cloud', 'puddle', 'puff', 'dot', 'glow', 'emoji', 'label', 'overlay'];
+  const LABEL_Z = 2000;   // building nameplates are painted last, over the evening's tint, so they stay readable
 
   // ── The painter ─────────────────────────────────────────────────────────
   const images = new Map();
@@ -114,10 +118,16 @@
         if (kind) {
           const r = ch.getBoundingClientRect();
           if (r.width > 0 && r.height > 0 && r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom || kind === 'fill' || kind === 'sky')
-            out.push({ el: ch, kind, z: zi == null ? 0 : zi, order: order++, alpha: a, blend: bl || null, filter: fl || null, style: s });
-          if (kind === 'svg' || kind === 'img' || kind === 'canvas' || kind === 'sprite') continue;
+            // A building's nameplate is painted last; a villager's name tag stays with the villager, so a building in front still hides it.
+            out.push({ el: ch, kind, z: kind === 'label' && ch.classList.contains('kwh-plate') ? LABEL_Z : zi == null ? 0 : zi, order: order++, alpha: a, blend: bl || null, filter: kind === 'label' ? null : fl || null, style: s });
+          if (kind === 'svg' || kind === 'img' || kind === 'canvas' || kind === 'sprite' || kind === 'label') continue;
         }
         walk(ch, zi, a, bl, fl);
+        // What the page draws over a building's picture with CSS alone: the cracks of a worn one, the boards of a broken one.
+        if (ch.classList && ch.classList.contains('kwh-art')) {
+          const bg = urlOf(global.getComputedStyle(ch, '::after').backgroundImage);
+          if (bg) out.push({ el: ch, kind: 'overlay', bg, z: zi == null ? 0 : zi, order: order++, alpha: a, blend: null, filter: null, style: s });
+        }
       }
     };
     walk(world, null, 1, null, null);
@@ -127,6 +137,7 @@
     await Promise.all(items.map(async it => {
       if (it.kind === 'svg') it.img = await loadImage(svgUrl(it.el));
       else if (it.kind === 'sprite' || it.kind === 'strip') { const u = urlOf(it.style.backgroundImage); it.img = u ? await loadImage(u) : null; }
+      else if (it.kind === 'overlay') it.img = await loadImage(it.bg);
     }));
   }
   const px = v => parseFloat(v) || 0;
@@ -183,11 +194,36 @@
       } else if (it.kind === 'dot') {
         ctx.fillStyle = s.backgroundColor && s.backgroundColor !== 'rgba(0, 0, 0, 0)' ? s.backgroundColor : '#ffd35c';
         ctx.beginPath(); ctx.arc(r.left + r.width / 2, r.top + r.height / 2, Math.max(1.5, Math.min(r.width, r.height) / 2), 0, 6.2832); ctx.fill();
+      } else if (it.kind === 'overlay') {
+        if (it.img && it.img.naturalWidth) { const w = r.width * 0.78, h = w * it.img.naturalHeight / it.img.naturalWidth; ctx.drawImage(it.img, r.left + (r.width - w) / 2, r.top + (r.height - h) * 0.62, w, h); }   // as css/home-scene.css places it
+      } else if (it.kind === 'label') {
+        label(ctx, el, r, s);
       } else if (it.kind === 'emoji') {
         ctx.font = `${Math.round(r.height)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(el.textContent || '', r.left + r.width / 2, r.bottom);
       }
     } catch (_) { /* one thing that would not paint must not lose the picture */ }
     ctx.restore();
+  }
+  // A nameplate or a name tag: its plate, then each piece of text where the page has it.
+  function label(ctx, el, r, s) {
+    const rad = Math.min(parseFloat(s.borderTopLeftRadius) || 0, r.height / 2), bw = parseFloat(s.borderTopWidth) || 0;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(r.left, r.top, r.width, r.height, rad); else ctx.rect(r.left, r.top, r.width, r.height);
+    if (s.backgroundColor && s.backgroundColor !== 'rgba(0, 0, 0, 0)') { ctx.fillStyle = s.backgroundColor; ctx.fill(); }
+    if (bw > 0) { ctx.lineWidth = bw; ctx.strokeStyle = s.borderTopColor; ctx.stroke(); }
+    const tw = doc.createTreeWalker(el, 4 /* text */);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      const text = n.nodeValue.replace(/\s+/g, ' ').trim();
+      if (!text) continue;
+      const ps = global.getComputedStyle(n.parentNode);
+      if (ps.display === 'none' || ps.visibility === 'hidden') continue;
+      const range = doc.createRange(); range.selectNodeContents(n);
+      const t = range.getBoundingClientRect();
+      if (!t.width || !t.height) continue;
+      ctx.font = `${ps.fontStyle} ${ps.fontWeight} ${ps.fontSize} ${ps.fontFamily}`;
+      ctx.fillStyle = ps.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, t.left + t.width / 2, t.top + t.height / 2 + 0.5);
+    }
   }
   // Rain or snow over the picture, as on screen.
   function fall(ctx, box, kind) {
@@ -267,6 +303,12 @@
     if (A && A.preview) A.preview(S.phase);
     if (W && W.preview) W.preview(S.sky);
   }
+  // Names in the picture: the scene's own nameplates and name tags, shown or not for the photo only.
+  function names() {
+    const v = view(), H = global.KWHome;
+    doc.body.classList.toggle('kw-photo-names', S.on && S.names);
+    if (v) v.classList.toggle('kwh-names', S.on ? S.names : !!(H && H.namesOn && H.namesOn()));
+  }
   function paintBar() {
     const v = view();
     if (!v) return;
@@ -277,6 +319,7 @@
     const group = (label, list, cur, attr) => `<div class="kwph-group" role="group" aria-label="${label}"><span>${label}</span>`
       + list.map(([k, t]) => `<button type="button" data-kwph-${attr}="${k}" aria-pressed="${k === cur}">${t}</button>`).join('') + '</div>';
     const html = group('Time', PHASES, ph, 'phase') + group('Weather', SKIES, sky, 'sky')
+      + `<div class="kwph-group"><button type="button" data-kwph-names aria-pressed="${S.names}" title="Show building and villager names in the picture">🏷 Names</button></div>`
       + `<div class="kwph-group kwph-acts"><button type="button" class="kwph-save" data-kwph-save${S.busy ? ' disabled' : ''}>📷 ${S.busy ? 'Saving…' : 'Save picture'}</button><button type="button" data-kwph-done>Done</button></div>`;
     if (bar.innerHTML !== html) bar.innerHTML = html;
     const r = v.getBoundingClientRect();
@@ -288,8 +331,9 @@
     if (global._svIsBuildMode && global._svIsBuildMode() && global._svToggleBuildMode) global._svToggleBuildMode(false);
     if (global.KWCast && global.KWCast.deselect) global.KWCast.deselect();
     if (global.KWBuildingMenu && global.KWBuildingMenu.close) global.KWBuildingMenu.close(false, true);
-    S.on = true; S.phase = null; S.sky = null;
+    S.on = true; S.phase = null; S.sky = null; S.names = false;
     doc.body.classList.add('kw-photo');
+    names();
     paintBar();
     if (global.KWPlaces && global.KWPlaces.refreshTools) global.KWPlaces.refreshTools();
   }
@@ -298,6 +342,7 @@
     S.on = false; S.phase = null; S.sky = null;
     look();   // back to the real hour and sky
     doc.body.classList.remove('kw-photo');
+    names();  // and the player's own Names setting
     paintBar();
     if (global.KWPlaces && global.KWPlaces.refreshTools) global.KWPlaces.refreshTools();
   }
@@ -309,6 +354,7 @@
       e.preventDefault(); e.stopPropagation();
       if (t.hasAttribute('data-kwph-phase')) { S.phase = t.getAttribute('data-kwph-phase'); look(); paintBar(); }
       else if (t.hasAttribute('data-kwph-sky')) { S.sky = t.getAttribute('data-kwph-sky'); look(); paintBar(); }
+      else if (t.hasAttribute('data-kwph-names')) { S.names = !S.names; names(); paintBar(); }
       else if (t.hasAttribute('data-kwph-save')) save();
       else if (t.hasAttribute('data-kwph-done')) close();
     }, true);

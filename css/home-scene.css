@@ -814,7 +814,7 @@ body.kw-shell #settlement-view .kwv-follow { top: 58px; }
 /* The interface over the scene steps aside; the camera chip stays so there
    is always a way out besides the bar's Done and Esc. */
 body.kw-photo #kw-moments, body.kw-photo #kw-town-card, body.kw-photo #settlement-view .sv-header,
-body.kw-photo #settlement-view .kwh-plate, body.kw-photo #settlement-view .kwh-bubble-host, body.kw-photo #settlement-view .kwv-tag,
+body.kw-photo:not(.kw-photo-names) #settlement-view .kwh-plate, body.kw-photo #settlement-view .kwh-bubble-host, body.kw-photo:not(.kw-photo-names) #settlement-view .kwv-tag,
 body.kw-photo #settlement-view .kwv-mark, body.kw-photo #settlement-view .kwv-say, body.kw-photo #settlement-view .kwv-radial, body.kw-photo #kwv-follow,
 body.kw-photo #settlement-view .kwl-thing, body.kw-photo #settlement-view .kwu-needs, body.kw-photo #settlement-view .kwv-float { display: none !important; }
 body.kw-photo #kw-place-tools > :not([data-tool="photo"]) { display: none !important; }
@@ -848,7 +848,7 @@ body.kw-photo #settlement-view .sv-slot, body.kw-photo #settlement-view .kwv-vil
 #settlement-view[data-phase="night"] :is(.kwm-plate, .kwm-badge) { filter: url(#kwn-undo-night); }
 #settlement-view[data-phase="dusk"] :is(.kwm-plate, .kwm-badge) { filter: url(#kwn-undo-dusk); }
 #settlement-view .sv-scene.sv-build-mode .kwm-cart { pointer-events: none; opacity: 0.6; }
-body.kw-photo #settlement-view .kwm-plate, body.kw-photo #settlement-view .kwm-badge { display: none !important; }
+body.kw-photo #settlement-view .kwm-plate, body.kw-photo #settlement-view .kwm-badge, body.kw-photo #settlement-view .kwh-plate-opens { display: none !important; }
 body.kw-photo #settlement-view .kwm-cart { pointer-events: none; }
 .kwm { display: grid; gap: 8px; }
 .kwm-intro, .kwm-none { margin: 0 0 4px; opacity: 0.85; }
