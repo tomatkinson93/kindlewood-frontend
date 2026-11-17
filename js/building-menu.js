@@ -39,6 +39,19 @@
     return Array.from({ length: n }, (_, i) => { const a = (-90 + 360 / n * i) * Math.PI / 180; return { x: Math.round(Math.cos(a) * radius), y: Math.round(Math.sin(a) * radius) }; });
   }
 
+  // Where the Who's here list goes: below the ring if it fits there, else
+  // on the side with more room, capped to that room. `cy` the ring's middle,
+  // `off` how far the list stands from it, `top`/`bottom` the room in the
+  // scene, `want` the list's full height. → { top, max }. Pure.
+  function whoPlace({ cy, off, top, bottom, want, least = 132 }) {
+    const below = bottom - (cy + off), above = (cy - off) - top;
+    if (want <= below) return { top: cy + off, max: Math.round(below) };
+    if (want <= above) return { top: cy - off - want, max: Math.round(above) };
+    const max = Math.max(least, Math.round(Math.max(below, above)));
+    const h = Math.min(want, max);
+    return below >= above ? { top: cy + off, max } : { top: Math.max(top, cy - off - h), max };
+  }
+
   const cast = () => global.KWCast;
   const insideOf = key => { const C = cast(); return C && C.inside ? C.inside(key) : []; };
   const isPhone = () => !!(doc.body && doc.body.classList.contains('kw-shell'));
@@ -144,10 +157,16 @@
     });
     M.el.parentNode.appendChild(box);
     M.who = box;
-    // No room below (the moment cards and tab bar sit low on a phone): above the ring instead.
-    const sc = doc.getElementById('sv-scene'), br = box.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : null;
-    if (sr && br.bottom > sr.bottom - (isPhone() ? 110 : 24)) {
-      box.style.top = (parseFloat(M.el.style.top) - (isPhone() ? 150 : 142) - box.offsetHeight) + 'px';
+    // Below the ring, or above it, whichever has more room; never taller than
+    // that room (a full tavern has a long list): the names scroll inside.
+    const sc = doc.getElementById('sv-scene'), sr = sc ? sc.getBoundingClientRect() : null, lr = M.el.parentNode.getBoundingClientRect();
+    const k = M.el.parentNode.clientHeight ? lr.height / M.el.parentNode.clientHeight : 1;
+    const cy = parseFloat(M.el.style.top), off = isPhone() ? 150 : 142;
+    if (sr) {
+      const top = (sr.top - lr.top) / k + 56, bottom = (sr.bottom - lr.top) / k - (isPhone() ? 110 : 16);   // clear of the chips; of the moment cards and tab bar
+      const place = whoPlace({ cy, off, top, bottom, want: box.offsetHeight });
+      box.style.maxHeight = place.max + 'px';
+      box.style.top = place.top + 'px';
     }
     const first = box.querySelector('button'); if (first && doc.activeElement && M.el.contains(doc.activeElement)) first.focus();
   }
@@ -203,7 +222,7 @@
   }
 
   global.KWBuildingMenu = {
-    click, open, close, items, ring, minimise, restore, toggleAll, allMin, apply,
+    click, open, close, items, ring, minimise, restore, toggleAll, allMin, apply, _whoPlace: whoPlace,
     isMin: k => minimised.has(k), get openKey() { return M.key; }, DOUBLE_MS, SOUND,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -727,6 +727,13 @@ console.log('22. A building\'s radial menu');
   check('22f. Who\'s here lists exactly the villagers the scene has inside; a name brings them out with their menu',
     /inside: key => \[\.\.\.S\.vs\.values\(\)\]\.filter\(v => v\.state === 'indoors' && v\.inside === key\)/.test(E) && /if \(v\.state === 'indoors'\) comeOut\(v, performanceNow\(\)\);/.test(E)
     && /C\.callOut\(id\)/.test(BJ) && /Nobody inside right now\./.test(BJ));
+  const wp = BM._whoPlace;
+  check('22f2. a long Who\'s here list never runs off the scene: below the ring if it fits, else the side with more room, capped to that room and scrolling inside',
+    JSON.stringify(wp({ cy: 400, off: 142, top: 60, bottom: 800, want: 200 })) === '{"top":542,"max":258}'
+    && JSON.stringify(wp({ cy: 600, off: 142, top: 60, bottom: 800, want: 200 })) === '{"top":258,"max":398}'
+    && (() => { const r = wp({ cy: 380, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 522 && r.max === 278; })()
+    && (() => { const r = wp({ cy: 620, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 60 && r.max === 418 && r.top + r.max <= 620 - 142; })()
+    && /\.kwb-who \{ overflow-y: auto;/.test(CSS) && /box\.style\.maxHeight = place\.max \+ 'px';/.test(BJ));
   check('22g. one menu at a time; a See through toggle beside Names does every building; props keep their single click',
     /global\.KWBuildingMenu\.close\(false, true\);   \/\/ one menu at a time/.test(E) && /C\.deselect\(\)/.test(BJ) && /key: 'seethrough'/.test(PL)
     && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
