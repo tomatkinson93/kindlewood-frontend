@@ -704,7 +704,11 @@ function _renderScene() {
         (function(s, o) { el.onclick = function(ev) {
           if (_svJustDragged) return;
           if (_svBuildMode) return _openBuildPanel(s, o);
-          var enter = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); };
+          var enter = function() {
+            // Broken (js/upkeep.js): no screen behind it until it is mended; its panel has Repair now.
+            if (o.state === 'broken') { if (typeof showToastNotification === 'function') showToastNotification('🏚️ The ' + o.label + ' is broken and gives nothing until a builder mends it.', 'default'); return _openBuildPanel(s, o); }
+            _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); });
+          };
           if (!window.KWBuildingMenu) return enter();
           KWBuildingMenu.click(this, { key: o.id, label: o.label, enter: enter,
             upgrade: o.currentLevel < o.maxLevel && !o.site ? function() { _openBuildPanel(s, o); } : null,
@@ -829,6 +833,12 @@ function _buildOccupiedEl(slot, building) {
   var vis = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
   var btn = _svBuildingButton(building.id, building.label, vis, _svGetSlotSize(slot.id),
     building.currentLevel > 1 ? 'Lv ' + building.currentLevel : '');
+  // Upkeep (js/upkeep.js): worn and broken looks are drawn over the picture.
+  if (building.state && window.KWUpkeep) {
+    var look = KWUpkeep.lookOf(building.state);
+    if (look) btn.classList.add(look);
+    if (building.state === 'broken') btn.insertAdjacentHTML('beforeend', '<span class="kwu-needs">' + (building.repair ? '🛠️ Being mended' : '🏚️ Needs repair') + '</span>');
+  }
   // Being upgraded: it keeps working; a small sign says how far along.
   if (building.site && window.KWBuild) {
     btn.classList.add('kwbt-upgrading');
@@ -928,6 +938,7 @@ function _openBuildPanel(slot, occupant) {
         : _svBuildMode || occupant.site ? ''   // Build mode places and moves; Upgrade is in the building's menu; one upgrade at a time
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
       + '</div>' + (!isMax && !_svBuildMode && !occupant.site && window.KWBuild ? KWBuild.noteHtml(occupant.work) : '')
+      + (window.KWUpkeep && occupant.currentLevel > 0 ? KWUpkeep.healthHtml({ on: KWUpkeep.on || !!occupant.state, health: occupant.health, state: occupant.state, repair: !!occupant.repair }, 'data-kwu-repair="' + occupant.id + '"') : '')
       + '<div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
       + (occupant.id === 'guild_hall' && typeof openClanPanel === 'function'
@@ -1043,6 +1054,8 @@ async function _svBuild(buildingId) {
   await _svLoad();
 }
 window._svBuild = _svBuild;
+// Upkeep changed (something wore, broke or was mended): the scene follows.
+window.addEventListener('kw:upkeep', function() { if (_svOpen && !_svDragSlot) _svLoad(); });
 // The builders' queue changed (ordered on another device, finished, cancelled): the scene follows.
 window.addEventListener('kw:build', function() { if (_svOpen && !_svDragSlot) _svLoad(); });
 

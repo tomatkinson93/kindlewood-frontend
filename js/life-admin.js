@@ -85,6 +85,28 @@
         <button type="button" class="cheat-all-btn" data-kwld="bt-all" data-on="0">Turn off for every town</button>
         <span class="ra-muted">A town it is on for keeps it until turned off for that town too.</span></div>`;
   }
+  // Upkeep and building health (docs/HOME_SCENE.md Part E; /api/upkeep/admin/*).
+  function upkeepHtml(u) {
+    if (!u) return '';
+    return `<div class="cheat-section-label">Upkeep (building health)</div>
+      <div class="kwld-grid"><div><b>This town</b> ${u.on ? '<span class="kwld-ok">on</span>' : u.exempt ? 'off (a Camp is exempt: make it a Village to try)' : 'off'}</div>
+        ${u.on ? `<div><b>Now</b> ${esc(u.line)}</div><div><b>Damaged</b> ${u.damaged.length ? u.damaged.slice(0, 8).map(x => `${esc(x.label)} ${x.health}%`).join(', ') : 'nothing'}</div>` : ''}</div>
+      <div class="kwld-row"><button type="button" class="cheat-all-btn" data-kwld="uk-town" data-on="${u.on ? 0 : 1}">${u.on ? 'Turn off for this town' : '🧰 Turn on for this town'}</button>
+        <label>Set every building's health to <input class="ce-input kwld-num" type="number" min="0" max="100" step="5" value="50" id="kwld-health" aria-label="Health"></label>
+        <button type="button" class="cheat-all-btn" data-kwld="uk-health"${u.on ? '' : ' disabled'}>Set</button></div>
+      <div class="kwld-row"><button type="button" class="cheat-all-btn kwld-danger" data-kwld="uk-all" data-on="1">Turn on for EVERY town</button>
+        <button type="button" class="cheat-all-btn" data-kwld="uk-all" data-on="0">Turn off for every town</button>
+        <span class="ra-muted">Everything starts at 100 when it goes on, and goes back to 100 when it goes off. Camps are exempt.</span></div>`;
+  }
+  async function upkeep(path, body) {
+    const res = await global.apiFetch('/api/upkeep' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Request failed.');
+    st.upkeep = d.upkeep || st.upkeep;
+    if (global.KWUpkeep) global.KWUpkeep.load();
+    if (typeof global.refreshSettlementView === 'function') Promise.resolve(global.refreshSettlementView()).catch(() => {});
+    return d;
+  }
   async function build(path, body) {
     const res = await global.apiFetch('/api/construction' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
     const d = await res.json().catch(() => ({}));
@@ -103,11 +125,11 @@
     const el = root();
     if (!el) return;
     el.innerHTML = `${st.msg ? `<div class="kw-note ${st.bad ? 'bad' : 'good'}">${esc(st.msg)}</div>` : ''}
-      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${numbersHtml(st.numbers)}`;
+      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${upkeepHtml(st.upkeep)}${numbersHtml(st.numbers)}`;
   }
   async function load() {
     try {
-      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null)]);
+      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null), upkeep('').catch(() => null)]);
       st.status = s; st.numbers = n.numbers;
     } catch (e) { st.msg = e.message; st.bad = true; }
     render();
@@ -145,6 +167,13 @@
     }
     if (a === 'bt-finish') return act(() => build('/admin/finish', {}), d => d.finished ? d.finished.text : 'Finished.');
     if (a === 'bt-builders') return act(() => build('/admin/builders', { count: Number(el.querySelector('#kwld-builders').value) }), d => `The town has ${d.builders} builder${d.builders === 1 ? '' : 's'}.`);
+    if (a === 'uk-town') return act(() => upkeep('/admin/town', { on: t.getAttribute('data-on') === '1' }), d => `Upkeep is ${d.on ? 'on' : 'off'} for this town. Every building is at 100.`);
+    if (a === 'uk-all') {
+      const on = t.getAttribute('data-on') === '1';
+      if (on && !global.confirm('Turn upkeep on for EVERY town? Buildings nobody looks after will start to wear.')) return;
+      return act(() => upkeep('/admin/switch', { on }), d => `Upkeep is ${d.everywhere ? 'ON' : 'off'} for every town.`);
+    }
+    if (a === 'uk-health') return act(() => upkeep('/admin/health', { health: Number(el.querySelector('#kwld-health').value) }), d => `Every building here is at ${d.health}.`);
     if (a === 'refresh') { st.msg = ''; return load(); }
   }
 
@@ -158,5 +187,5 @@
     load();
   }
 
-  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml };
+  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml, _upkeepHtml: upkeepHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

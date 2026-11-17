@@ -294,7 +294,7 @@ console.log('11. Build mode (§2.3)');
   check('11d. onto a building, the two swap (a building shown by default is pinned where it goes)', swapped.a === 'mine' && swapped.b === 'farm');
   check('11e. the map passed in is left alone', JSON.stringify(b._svMoveAssignment({ a: 'x' }, 'a', 'a', occ({ a: 'x' }))) === '{"a":"x"}');
   check('11f. empty plots show only in Build mode', /el\.hidden = !_svBuildMode;/.test(S) && /\.sv-slot\[hidden\] \{ display: none; \}/.test(read('css/home-scene.css')));
-  check('11g. in Build mode a building opens its panel for moving it; otherwise its radial menu, whose Enter opens its screen', /if \(_svBuildMode\) return _openBuildPanel\(s, o\);/.test(S) && /var enter = function\(\) \{ _svOpenBuilding\(o\.id/.test(S) && /KWBuildingMenu\.click\(this, \{ key: o\.id/.test(S));
+  check('11g. in Build mode a building opens its panel for moving it; otherwise its radial menu, whose Enter opens its screen', /if \(_svBuildMode\) return _openBuildPanel\(s, o\);/.test(S) && /var enter = function\(\) \{[\s\S]{0,420}_svOpenBuilding\(o\.id/.test(S) && /KWBuildingMenu\.click\(this, \{ key: o\.id/.test(S));
   check('11h. a drag that just ended does not also click', /if \(_svJustDragged\) return;/.test(S) && /_SV_DRAG_PX = 6/.test(S));
   check('11i. Esc closes an open panel first, then leaves Build mode; windows keep their own Escape',
     /function _svBuildKey/.test(S) && /KWWindow\.isOpen\(\)\)\) return;/.test(grab('_svBuildKey')) && /_closeBuildPanel\(\); return;/.test(grab('_svBuildKey')) && /_svToggleBuildMode\(false\)/.test(grab('_svBuildKey')));

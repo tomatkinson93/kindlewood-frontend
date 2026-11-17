@@ -20,7 +20,7 @@
   'use strict';
   const doc = global.document;
   const STYLES = ['/css/card-admin.css?v=1778502600'];
-  const SCRIPTS = ['/js/life-admin.js?v=2', '/js/funnel-admin.js?v=p0', '/js/item_admin.js?v=r5d',
+  const SCRIPTS = ['/js/life-admin.js?v=3', '/js/funnel-admin.js?v=p0', '/js/item_admin.js?v=r5d',
     '/js/happenings-admin.js?v=r5d', '/js/enemy_admin.js?v=r5d', '/js/card-admin.js?v=r5d'];
   let _p = null, _done = false;
 

@@ -549,6 +549,14 @@
     const town = S.mood || {};
     const gather = town.hungry && town.hungry !== 'ok' && S.rand() < 0.3 ? doorOf('granary') : v.c.house_id == null && !v.child && S.rand() < 0.5 ? doorOf('neighbourhood') : null;
     if (gather) { walkTo(v, spreadPoint({ x: gather.x + (S.rand() - 0.5) * 90, y: gather.y + 14 + S.rand() * 22 }, othersOf(v), { ok: onMeadow }), null); return; }
+    // Upkeep (Part E.6): a builder with nothing to build walks a round of the
+    // buildings and taps at each.
+    if (isBuilder(v.c) && global.KWUpkeep && global.KWUpkeep.on && S.doors.length && S.phase !== 'night' && S.rand() < 0.6) {
+      const d = S.doors[Math.floor(S.rand() * S.doors.length)];
+      walkTo(v, spreadPoint({ x: d.x + (S.rand() < 0.5 ? -34 : 34), y: d.y + 10 }, othersOf(v), { ok: onMeadow }), null);
+      v.state = 'totend'; v.siteX = d.x;
+      return;
+    }
     // Their working day (§3.5a): at work, they go to it; on a break or off
     // work, they do what everyone does.
     if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
@@ -1746,6 +1754,7 @@
     if (v.state === 'indoors' && buildSpot(v)) { comeOut(v, now); return; }   // there is building to do
     if (v.state === 'build' || v.state === 'cheer') { buildStep(v, now); return; }
     if (v.state === 'dance') { danceStep(v, now); return; }
+    if (v.state === 'tend') { if (now >= v.until) { setSay(v, null); idle(v, now, 800 + S.rand() * 1500); } else setSay(v, (now - v.hamFrom) % 1500 < 850 ? '🔨' : null); return; }
     if (v.guarding && S.event !== 'raid') { v.guarding = false; if (v.say === '🛡️') setSay(v, null); }
     // During a raid nobody but the guards comes back out.
     if (v.state === 'indoors' && S.event === 'raid') { if (isGuard(v.c)) comeOut(v, now); return; }
@@ -1794,6 +1803,7 @@
       if (v.state === 'leave') { drop(v); return; }
       if (v.state === 'toring') { v.state = 'dance'; v.until = now + TOWN.DANCE_MS[0] + S.rand() * (TOWN.DANCE_MS[1] - TOWN.DANCE_MS[0]); v.danceFrom = now - S.rand() * 3000; v.danceSay = S.rand() < 0.5 ? '🎵' : '🏮'; return; }
       if (v.guarding && S.event === 'raid') { idle(v, now, 6000); v.dir = 's'; setSay(v, '🛡️'); return; }
+      if (v.state === 'totend') { v.state = 'tend'; v.until = now + 4000 + S.rand() * 3500; v.hamFrom = now; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tosite') { v.state = 'build'; v.until = now + BUILD_MS[0] + S.rand() * (BUILD_MS[1] - BUILD_MS[0]); v.hamFrom = now; v.puffAt = now + 600; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tochat') {
         const p = S.vs.get(v.partner);
@@ -1813,7 +1823,7 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'toring', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'totend', 'toring', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;

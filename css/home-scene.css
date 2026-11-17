@@ -596,3 +596,49 @@ body.kw-shell #settlement-view .kwv-follow { top: 58px; }
 #settlement-view .kwv-follow-l li { padding: 1px 0; font-variant-numeric: tabular-nums; }
 #settlement-view .kwv-follow-l li:last-child { color: #fff3cf; font-weight: 600; }
 #settlement-view .kwv-follow-n { margin: 6px 0 0; color: #cdbf9c; }
+
+/* ── Upkeep (js/upkeep.js; docs/HOME_SCENE.md Part E) ───────────────────── */
+/* Worn and broken looks are drawn over a building's own picture by code
+   (cracks and weeds; boards and a dulled picture), so no new art is needed
+   per building. The owner may add proper worn art later. */
+#settlement-view .kwu-worn .kwh-art, #settlement-view .kwu-broken .kwh-art { position: relative; }
+#settlement-view .kwu-worn .kwh-art::after, #settlement-view .kwu-broken .kwh-art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background-repeat: no-repeat; background-position: center 62%; background-size: 78% auto;
+}
+#settlement-view .kwu-worn .kwh-art { filter: saturate(0.82); }
+#settlement-view .kwu-worn .kwh-art::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cg fill='none' stroke='%232b1a0c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.8'%3E%3Cpath d='M38 18l10 14-7 10 9 13'/%3E%3Cpath d='M150 30l-8 12 9 9-6 12'/%3E%3Cpath d='M96 6l5 10-6 8'/%3E%3C/g%3E%3Cg fill='%237d5a2c' stroke='%232b1a0c' stroke-width='2'%3E%3Crect x='112' y='14' width='26' height='15' rx='2' transform='rotate(-9 125 21)'/%3E%3C/g%3E%3Cg fill='none' stroke='%234f7a2a' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M22 118c0-10-4-14-8-18M24 118c1-8 5-12 9-14M172 118c0-9 4-13 8-17M168 118c-1-7-5-10-8-12'/%3E%3C/g%3E%3C/svg%3E");
+}
+#settlement-view .kwu-broken .kwh-art { filter: grayscale(0.7) brightness(0.72); }
+#settlement-view .kwu-broken .kwh-art::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cg fill='%23a8773f' stroke='%232b1a0c' stroke-width='3' stroke-linejoin='round'%3E%3Crect x='40' y='52' width='120' height='14' rx='2' transform='rotate(-14 100 59)'/%3E%3Crect x='40' y='52' width='120' height='14' rx='2' transform='rotate(13 100 59)'/%3E%3C/g%3E%3Cg fill='%232b1a0c'%3E%3Ccircle cx='52' cy='70' r='2.5'/%3E%3Ccircle cx='148' cy='48' r='2.5'/%3E%3Ccircle cx='52' cy='48' r='2.5'/%3E%3Ccircle cx='148' cy='70' r='2.5'/%3E%3C/g%3E%3Cg fill='none' stroke='%232b1a0c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' opacity='.85'%3E%3Cpath d='M30 10l12 16-8 12 10 14'/%3E%3Cpath d='M166 14l-9 14 10 10-7 13'/%3E%3C/g%3E%3C/svg%3E");
+  filter: none;
+}
+/* (Under reduced transparency or forced colours the words still say it.) */
+#settlement-view .kwu-needs {
+  position: absolute; left: 50%; top: 4px; transform: translateX(-50%); z-index: 3; pointer-events: none; white-space: nowrap;
+  padding: 1px 8px; border-radius: 10px; background: #fff1e0; border: 2px solid #b0562a; color: #6b2a10; font: 700 11.5px/1.4 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+#settlement-view[data-phase="night"] .kwu-needs { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] .kwu-needs { filter: url(#kwn-undo-dusk); }
+/* The condition line in a building's panel and a home's window. */
+.kwu-health { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(220, 180, 100, 0.3); color: #eadfc6; font-size: 12.5px; }
+.kwu-health-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.kwu-bar { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.kwu-bar > i { display: block; height: 100%; border-radius: 4px; background: #7fbf6a; }
+.kwu-is-worn .kwu-bar > i { background: #e0a94a; }
+.kwu-is-broken { border-color: rgba(214, 110, 70, 0.7); }
+.kwu-is-broken .kwu-bar > i { background: #d66e46; }
+.kwu-health-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.kwu-repair { min-height: 40px; padding: 6px 14px; border-radius: 8px; cursor: pointer; font: 600 13px/1.2 system-ui, sans-serif; border: 1px solid #b98a4a; background: #fff6df; color: #3a2414; }
+.kwu-repair:hover:not(:disabled), .kwu-repair:focus-visible { background: #ffe7a8; outline: none; }
+.kwu-repair:disabled { opacity: 0.5; cursor: default; }
+.kwu-hint, .kwu-inhand { font-size: 11.5px; color: #cdbf9c; }
+/* The line by the town card. */
+.kwu-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; padding: 5px 12px; text-align: left;
+  border-radius: var(--kw-radius, 8px); border: 1px solid var(--kw-line-2, rgba(232, 200, 140, 0.4)); background: var(--kw-panel, #2a1f14); color: var(--kw-cream, #f0e4c8); font-size: var(--kw-fs-2, 13px);
+}
+.kwu-chip.kwu-chip-short { border-color: #d98a4a; color: #ffd9a8; }
+#kwu-slot:empty, .kwc-upkeep:empty { display: none; }
+.kwc-upkeep { margin: var(--kw-s-2, 8px) 0; }
