@@ -1308,9 +1308,11 @@ Each step ships on its own and is shown to the owner.
       around the clock. When it is finished they cheer.
     - **Dev Tools** (Life tab): on for this town, on for every town (asked
       twice), finish the first site now, set the number of builders.
-    - **Before turning it on for everyone:** move the server suites that
-      build things onto `scripts/_build.js` (step 12), and play a new town
-      through the first ten minutes with it on.
+    - **Before turning it on for everyone:** play a new town through the
+      first ten minutes with it on. The server suites are ready
+      (2026-11-17): the ones that build things go through
+      `scripts/_build.js`, and the whole set passes with the switch on as
+      well as off.
 14. **Mood** (§3.8). **Built** (2026-11-17) in `js/villager-engine.js`:
     emotes from a villager's own happiness (the town's when they have none),
     with no bed, short food and a festival coming first; at most two at a
