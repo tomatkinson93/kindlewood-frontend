@@ -1283,6 +1283,7 @@ function _svToggleBuildMode(on) {
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();   // the chip reads Build / Done
   _renderScene();
   if (window.KWHood) KWHood.buildModeChanged();
+  if (window.KWDecor) KWDecor.buildModeChanged();   // the Decorate bar (js/decor.js)
   return _svBuildMode;
 }
 window._svToggleBuildMode = _svToggleBuildMode;

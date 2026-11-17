@@ -947,6 +947,7 @@
       if (!st) { endAct(v, now); return false; }
       if ('say' in st) setSay(v, st.say);
       if (st.hop) hop(v);
+      if (st.run) { try { st.run(); } catch (_) { /* the scene moved on */ } }
       if (st.inside) v.el.classList.add('kwv-gone');
       a.until = now + (st.wait || st.inside || 0);
       if (st.to) { v.tx = st.to.x; v.ty = st.to.y; }
@@ -966,6 +967,21 @@
       return;
     }
     if (now >= a.until) { if (st.inside) v.el.classList.remove('kwv-gone'); next(); }
+  }
+
+  // A script for one villager who is out and free (the lamplighter, the
+  // crier's walk, a bucket chain): `steps` as in a life scene, plus `run`, a
+  // function called as that step begins. `prefer(c)`: who suits it best.
+  // → their id, or null when nobody is free.
+  function playScript(id, steps, prefer) {
+    if (!S.shown || S.paused || !S.layer) return null;
+    const now = performanceNow();
+    const free = [...S.vs.values()].filter(v => live(v) && !v.child && !v.act && !v.selected && !v.held && !v.moment && !v.talk && v.partner == null && v.state !== 'indoors' && F.id !== v.id);
+    if (!free.length) return null;
+    const v = (prefer && free.find(x => prefer(x.c))) || free[0];
+    endChat(v, now); v.emote = null;
+    v.act = { scene: 'script:' + id, steps, i: -1 }; v.state = 'act'; v.goal = null;
+    return v.id;
   }
 
   // ── What is on their mind (Part F.3) ────────────────────────────────────
@@ -1976,6 +1992,8 @@
     playTalk, playPraise, TALK_MS,
     // A small sign rising from a point in the scene (js/lost.js).
     floatAt: (x, y, text, tone) => floater(x, y, text, tone),
+    // One free villager plays a script (js/decor.js: the lamplighter).
+    playScript,
     // Builders (js/construction.js): where they are and what they do.
     // What is on their mind, and Follow (Part F.3, F.4).
     _thoughtOf: thoughtOf, _dayLog: dayLog, _seenLine: seenLine, follow, stopFollow: () => stopFollow(), get following() { return F.id; }, get followLines() { return F.lines.slice(); },

@@ -136,7 +136,7 @@
       + `<div class="kwc-town-sub">${esc(cap(s.tier || 'camp'))} · ${esc(cap(gd.species || s.species || ''))}${beds != null ? ` · Beds ${cits.length} of ${beds}` : ''}</div>`
       + `<div class="kwc-ages">${[['Children', n('child')], ['Youths', n('youth')], ['Adults', n('adult')], ['Elders', n('elder')]]
           .map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>`
-      + `<div class="kwc-mood">${happy != null ? `<span>😊 ${happy}% happy</span>` : ''}${food != null ? `<span class="${food < 0 ? 'kwc-bad' : ''}">🍖 food ${food >= 0 ? '+' : ''}${Math.round(food * 10) / 10}/hr</span>` : ''}</div>`
+      + `<div class="kwc-mood">${happy != null ? `<span>😊 ${happy}% happy</span>` : ''}${food != null ? `<span class="${food < 0 ? 'kwc-bad' : ''}">🍖 food ${food >= 0 ? '+' : ''}${Math.round(food * 10) / 10}/hr</span>` : ''}${global.KWDecor ? global.KWDecor.charmHtml() : ''}</div>`
       + (opts.card ? '' : `<div class="kwc-going">${global.KWBuild ? global.KWBuild.chipHtml() : ''}</div><div class="kwc-upkeep">${global.KWUpkeep ? global.KWUpkeep.chipHtml() : ''}</div>`)
       + (opts.card ? '' : fs ? `<div id="fs-slot" class="kwc-fs">${fs}</div>` : '<div id="fs-slot"></div>')
       + (under.length ? `<div class="kwc-h">Under way</div>` + under.slice(0, 4).map(([t, v]) => `<div class="kwc-row"><span>${esc(t)}</span><span>${esc(v)}</span></div>`).join('') : '')
