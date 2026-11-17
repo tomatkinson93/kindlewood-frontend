@@ -69,7 +69,7 @@ console.log('5. The lamplighter');
   check('5d. each post lights as they reach it', /steps\.push\(\{ wait: 650, say: '🔥', run: \(\) => setLit\(p\.el, true\) \}\)/.test(J) && /if \(st\.run\) \{ try \{ st\.run\(\); \}/.test(E));
   check('5e. nobody about: they come on by themselves; and however the round goes, every post ends up lit', /if \(who == null\) \{ posts\.forEach/.test(J) && /now\.querySelectorAll\(':scope > \.kwd-lantern'\)\.forEach\(el => setLit\(el, true\)\)/.test(J));
   check('5f. opening Home in the evening or at night finds them already lit', /S\.lit = want;\n    posts\.forEach\(el => setLit\(el, want\)\);/.test(J));
-  check('5g. the engine has one hook for it: a script for a villager who is out and free', /function playScript\(id, steps, prefer\)/.test(E) && /!v\.child && !v\.act && !v\.selected && !v\.held && !v\.moment && !v\.talk && v\.partner == null && v\.state !== 'indoors'/.test(E));
+  check('5g. the engine has one hook for it: a script for a villager who is out and free', /function playScript\(id, steps, prefer, opts = \{\}\)/.test(E) && /!v\.child && !v\.act && !v\.selected && !v\.held && !v\.moment && !v\.talk && v\.partner == null && v\.state !== 'indoors'/.test(E));
   check('5h. the light sits over the night\'s tint; the post keeps its depth', /\.kwd-glow \{[^}]*z-index: 1061/.test(CSS) && !/\.kwd-item\.kwd-lit \{[^}]*z-index/.test(CSS));
   check('5i. the engine still never calls the server', !/apiFetch|fetch\(/.test(E.replace(/\/\/[^\n]*/g, '')));
 }

@@ -935,7 +935,8 @@
     S.lifePlaying = { id: entry.id, kind: entry.kind, until: now + Math.min(58000, longest + 3000) };
   }
   function endAct(v, now) {
-    v.act = null; setSay(v, null); v.el.classList.remove('kwv-gone');
+    if (v.act && v.act.was) v.el.setAttribute('aria-label', v.act.was);
+    v.act = null; setSay(v, null); v.el.classList.remove('kwv-gone', 'kwv-asks');
     if (v.guest) { v.guest = false; leave(v, 'rotate'); } else idle(v, now, 500 + S.rand() * 1200);
   }
   // One actor's part: walk, say, wait, hop, step indoors and out.
@@ -970,19 +971,32 @@
   }
 
   // A script for one villager who is out and free (the lamplighter, the
-  // crier's walk, a bucket chain): `steps` as in a life scene, plus `run`, a
-  // function called as that step begins. `prefer(c)`: who suits it best.
-  // → their id, or null when nobody is free.
-  function playScript(id, steps, prefer) {
+  // crier, a bucket chain): `steps` as in a life scene, plus `run`, a
+  // function called as that step begins, and `door: key` (with dx, dy) for
+  // "walk to that building's door". `prefer(c)`: who suits it best.
+  // `opts.onClick`: a click on them does this instead of opening their menu
+  // (`opts.label` names it for screen readers). → their id, or null when
+  // nobody is free or a door it needs is not there.
+  function playScript(id, steps, prefer, opts = {}) {
     if (!S.shown || S.paused || !S.layer) return null;
-    const now = performanceNow();
+    const now = performanceNow(), list = [];
+    for (const st of steps) {
+      if (!st.door) { list.push(st); continue; }
+      const d = doorOf(st.door);
+      if (!d) return null;
+      list.push({ ...st, door: undefined, to: { x: d.x + (st.dx || 0), y: d.y + (st.dy || 0) } });
+    }
     const free = [...S.vs.values()].filter(v => live(v) && !v.child && !v.act && !v.selected && !v.held && !v.moment && !v.talk && v.partner == null && v.state !== 'indoors' && F.id !== v.id);
     if (!free.length) return null;
     const v = (prefer && free.find(x => prefer(x.c))) || free[0];
     endChat(v, now); v.emote = null;
-    v.act = { scene: 'script:' + id, steps, i: -1 }; v.state = 'act'; v.goal = null;
+    v.act = { scene: 'script:' + id, steps: list, i: -1, onClick: opts.onClick || null };
+    v.state = 'act'; v.goal = null;
+    if (opts.onClick) { v.el.classList.add('kwv-asks'); if (opts.label) { v.act.was = v.el.getAttribute('aria-label'); v.el.setAttribute('aria-label', opts.label); } }
     return v.id;
   }
+  const scripted = id => [...S.vs.values()].find(v => v.act && v.act.scene === 'script:' + id) || null;
+  function stopScript(id) { const v = scripted(id); if (v) endAct(v, performanceNow()); return !!v; }
 
   // ── What is on their mind (Part F.3) ────────────────────────────────────
   // One line under a selected villager's name, from what the game already
@@ -1465,9 +1479,11 @@
       global.KWMoments.open(v.moment.id);
       return;
     }
+    // Someone with a part to play that answers a click (the town crier).
+    if (v.act && v.act.onClick) { if (M.v) deselect(true, true); sound('on'); try { v.act.onClick(v.id); } catch (_) { /* their window failed to open */ } return; }
     // Someone walking into a building can still be picked: they stop.
     if (v.state === 'leave') v.state = 'idle';
-    if (v.act) { v.act = null; v.guest = false; v.el.classList.remove('kwv-gone'); setSay(v, null); }   // picked out of a scene
+    if (v.act) { if (v.act.was) v.el.setAttribute('aria-label', v.act.was); v.act = null; v.guest = false; v.el.classList.remove('kwv-gone', 'kwv-asks'); setSay(v, null); }   // picked out of a scene
     if (global.KWBuildingMenu) global.KWBuildingMenu.close(false, true);   // one menu at a time
     if (M.v && M.v !== v) deselect(true, true);
     endChat(v, performanceNow());
@@ -1992,8 +2008,8 @@
     playTalk, playPraise, TALK_MS,
     // A small sign rising from a point in the scene (js/lost.js).
     floatAt: (x, y, text, tone) => floater(x, y, text, tone),
-    // One free villager plays a script (js/decor.js: the lamplighter).
-    playScript,
+    // One free villager plays a script (js/decor.js: the lamplighter; js/crier.js).
+    playScript, stopScript, scriptOn: id => !!scripted(id), scriptSay: (id, text) => { const v = scripted(id); if (v) setSay(v, text); return !!v; },
     // Builders (js/construction.js): where they are and what they do.
     // What is on their mind, and Follow (Part F.3, F.4).
     _thoughtOf: thoughtOf, _dayLog: dayLog, _seenLine: seenLine, follow, stopFollow: () => stopFollow(), get following() { return F.id; }, get followLines() { return F.lines.slice(); },

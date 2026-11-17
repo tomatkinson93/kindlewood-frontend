@@ -958,7 +958,7 @@ console.log('28. Life events seen happening (§3.9)');
   const many = [5, 4, 3, 2, 1].map(i => ({ id: 20 + i, kind: 'birth', at: new Date(now - i * 1000) }));
   check('28l. more than three waiting: the newest are dropped first', C._lifeNews(many, 9, now).play.map(x => x.id).join() === '21,22,23' && C.LIFE.WAITING === 3);
   check('28m. one scene at a time; people in it join the cast for its length and are not recast away', /if \(S\.lifePlaying\) \{/.test(E) && /v = make\(byId\.get\(a\.id\), \{ x: d\.x, y: d\.y \}, true\); v\.guest = true;/.test(E) && /live\(v\) && !\(v\.act && !first\)/.test(E) && /if \(v\.guest\) \{ v\.guest = false; leave\(v, 'rotate'\); \}/.test(E));
-  check('28n. nobody busy with the player is pulled into a scene; picking an actor takes them out of it', /return !v \|\| !\(v\.selected \|\| v\.held \|\| v\.moment \|\| v\.talk\);/.test(E) && /if \(v\.act\) \{ v\.act = null; v\.guest = false;/.test(E));
+  check('28n. nobody busy with the player is pulled into a scene; picking an actor takes them out of it', /return !v \|\| !\(v\.selected \|\| v\.held \|\| v\.moment \|\| v\.talk\);/.test(E) && /if \(v\.act\) \{ if \(v\.act\.was\) v\.el\.setAttribute\('aria-label', v\.act\.was\); v\.act = null; v\.guest = false;/.test(E));
   const LS = read('js/life-scenes.js');
   check('28o. the chronicle is the event; a small reader hands its lines to the engine (which still never calls the server), and nothing is written; skipped under reduced motion (the loop does not run)',
     /apiFetch\('\/api\/families\/all\/chronicle'\)/.test(LS) && /KWCast\.offerLife\(d\.entries \|\| \[\]\)/.test(LS) && !/method:/.test(LS) && !/apiFetch|fetch\(/.test(E) && /global\.addEventListener\('kw:home'/.test(LS)

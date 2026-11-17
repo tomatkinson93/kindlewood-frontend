@@ -712,7 +712,9 @@ function _renderScene() {
           if (!window.KWBuildingMenu) return enter();
           KWBuildingMenu.click(this, { key: o.id, label: o.label, enter: enter,
             upgrade: o.currentLevel < o.maxLevel && !o.site ? function() { _openBuildPanel(s, o); } : null,
-            demolish: function() { _svDemolish(o.id); } }, ev);
+            demolish: function() { _svDemolish(o.id); },
+            // The Guild Hall: today's news at any hour (js/crier.js).
+            extra: o.id === 'guild_hall' && window.KWCrier ? [{ key: 'news', icon: '📜', label: "Today's news", run: function() { KWCrier.open(); } }] : null }, ev);
         }; })(slot, occupant);
       } else {
         var areaBuildings = _svSlotBuildingIds();
