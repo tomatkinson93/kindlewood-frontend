@@ -579,3 +579,20 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 #settlement-view .kwv-hop .kwv-sprite { animation: kwv-hop 0.6s ease-out 1; }
 @keyframes kwv-hop { 0%, 100% { translate: 0 0; } 35% { translate: 0 -10px; } 60% { translate: 0 0; } 78% { translate: 0 -4px; } }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwv-hop .kwv-sprite { animation: none; } }
+/* What is on a selected villager's mind: one line under their name (Part F.3). */
+#settlement-view .kwv-thought { display: block; font-weight: 500; font-style: italic; color: #e6d7b4; text-align: center; }
+/* Follow (Part F.4): the small card of their day. */
+#settlement-view .kwv-follow {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1700; width: min(340px, calc(100% - 24px)); pointer-events: auto;
+  padding: 8px 12px 10px; border-radius: 10px; background: rgba(24, 16, 9, 0.92); border: 1px solid rgba(220, 180, 100, 0.55); color: #f0e4c8;
+  font: 500 12.5px/1.45 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+body.kw-shell #settlement-view .kwv-follow { top: 58px; }
+#settlement-view .kwv-follow-h { display: flex; align-items: center; gap: 6px; color: #ffe9a8; font-size: 13.5px; }
+#settlement-view .kwv-follow-h b { flex: 1; }
+#settlement-view .kwv-follow-x { width: 32px; height: 32px; margin: -4px -6px -4px 0; border: 0; border-radius: 6px; background: none; color: #ffe9a8; font-size: 20px; line-height: 1; cursor: pointer; }
+#settlement-view .kwv-follow-x:hover, #settlement-view .kwv-follow-x:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
+#settlement-view .kwv-follow-l { list-style: none; margin: 6px 0 0; padding: 0; }
+#settlement-view .kwv-follow-l li { padding: 1px 0; font-variant-numeric: tabular-nums; }
+#settlement-view .kwv-follow-l li:last-child { color: #fff3cf; font-weight: 600; }
+#settlement-view .kwv-follow-n { margin: 6px 0 0; color: #cdbf9c; }

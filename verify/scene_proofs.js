@@ -1028,5 +1028,39 @@ console.log('31. Who is in which part of town (§3.3, changed 2026-11-17)');
   check('31h. Home\'s first cast is made again once its buildings are drawn (workplaces were not known before)', /performanceNow\(\) - S\.openedAt < 6000 && cits\(\)\.length && signature\(cits\(\)\) !== S\.sig\) recast\(true\);/.test(E));
 }
 
+console.log('32. What is on their mind, and Follow (Part F.3, F.4)');
+{
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null, getElementById: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast, now = 1e12, ago = h => new Date(now - h * 3600e3);
+  const c = { id: 7, house_id: 2, family_id: 3, life: { happiness: 55 } };
+  const T = (x, ctx) => C._thoughtOf(x, Object.assign({ now, hungry: 'ok' }, ctx));
+  check('32a. the most pressing first: no bed, then short food, then a moment waiting', T({ ...c, house_id: null }, { hungry: 'famine', moment: true }) === 'Has no bed of their own.' && T(c, { hungry: 'low', moment: true }) === 'Worried that food is running low.'
+    && T(c, { hungry: 'famine' }) === 'Hungry. The stores are empty.' && T(c, { moment: true }) === 'Has something to ask you.');
+  check('32b. then grief for a death in their family (not their own line, not another family\'s)', T(c, { recent: [{ kind: 'death', citizen_ids: [99], family_id: 3, at: ago(2) }] }) === 'Grieving a death in the family.'
+    && T(c, { recent: [{ kind: 'death', citizen_ids: [99], family_id: 8, at: ago(2) }] }) !== 'Grieving a death in the family.');
+  check('32c. a new partner, a new child (the parents, not the baby), a coming of age, something they built', T(c, { recent: [{ kind: 'partnership', citizen_ids: [7, 9], at: ago(1) }] }) === 'Newly partnered, and it shows.'
+    && T(c, { recent: [{ kind: 'birth', citizen_ids: [5, 7, 40], at: ago(1) }] }) === 'A new parent: tired and happy.' && T({ ...c, id: 40 }, { recent: [{ kind: 'birth', citizen_ids: [5, 7, 40], at: ago(1) }] }) !== 'A new parent: tired and happy.'
+    && T(c, { recent: [{ kind: 'town', text: 'The Library is finished, built by Ada.', citizen_ids: [7], at: ago(3) }] }) === 'Proud of what they have just built.');
+  check('32d. only what happened in the last day counts', T(c, { recent: [{ kind: 'partnership', citizen_ids: [7, 9], at: ago(30) }] }) !== 'Newly partnered, and it shows.');
+  check('32e. taking to their work or not, from a trait the player has already seen', T(c, { work: 'likes' }) === 'Loves the work.' && T(c, { work: 'dislikes' }) === 'Does not take to this work.' && /const seen = c\.revealed_hidden_traits \|\| \[\];/.test(E));
+  check('32f. something they like to talk about, once a chat has taught it (the same one all day)', /^Thinking about (fishing|music)\.$/.test(T(c, { likes: ['Fishing', 'Music'] })) && T(c, { likes: ['Fishing', 'Music'] }) === T(c, { likes: ['Fishing', 'Music'], now: now + 3600e3 }));
+  check('32g. else how the day feels: content, low, or the time of day; a child wants to play', T({ ...c, life: { happiness: 85 } }, {}) === 'Content with how things are.' && T({ ...c, life: { happiness: 20 } }, {}) === 'Feeling low.'
+    && T(c, { phase: 'night' }) === 'Ready for bed.' && T({ ...c, stage: 'child', house_id: null }, {}) === 'Wants to play.');
+  check('32h. one line, under their name', /th\.className = 'kwv-thought';\s*th\.textContent = thoughtFor\(v\);\s*tag\.appendChild\(th\);/.test(E) && /\.kwv-thought \{ display: block;/.test(CSS));
+  const rt = { start: 10.25, end: 22.5, breaks: [[12, 13], [17, 18.5]] };
+  const log = C._dayLog(rt, 17.5, 'Smithy');
+  check('32i. the card: their day so far from their routine', log.join('|') === '10:15  Went to work at the Smithy|12:00  Took a break|13:00  Back to work|17:00  On a break' && C._dayLog(rt, 9, 'Smithy').length === 0 && C._dayLog(rt, 15, null).length === 0
+    && C._dayLog(rt, 23, 'Smithy').pop() === '22:30  Finished work for the day');
+  check('32j. and what they do while watched, in words', C._seenLine('indoors', {}, { inside: 'the Tavern' }) === 'Went into the Tavern' && C._seenLine('chat', {}, { partner: 'Fenn' }) === 'Stopped to chat with Fenn' && C._seenLine('out', {}, { inside: 'the Tavern' }) === 'Came out of the Tavern' && C._seenLine('build', {}) === 'Hammering at the site');
+  check('32k. chats the player set up today are on the card', /A chat with \$\{[^}]+\} about \$\{global\.KWSocial\.topic\(ch\.topic\)\.label\.toLowerCase\(\)\}/.test(E));
+  check('32l. Follow is on the menu; the view keeps them centred and goes with them to another part of town', /key: 'follow', icon: '👣', label: 'Follow'/.test(E) && /sc\.scrollLeft \+= d \* Math\.min\(1, dt \/ 220\);/.test(E) && /global\._svSwitchArea\(t, false, t === 'outskirts' \? 'start' : 'end'\);/.test(E));
+  check('32m. the one being followed stays in the cast', /concat\(crew, F\.id != null \? \[F\.id\] : \[\]\)/.test(E) && /live\(v\) && v\.id !== F\.id && !v\.selected/.test(E));
+  check('32n. any pan by the player, Esc or the card\'s close button ends it; so does leaving Home', /addEventListener\('wheel'/.test(E) && /Math\.abs\(e\.clientX - downX\) > 12/.test(E) && /addEventListener\('touchmove'/.test(E) && /e\.key !== 'Escape' \|\| F\.id == null/.test(E)
+    && /data-kwv-unfollow/.test(E) && /if \(!\(e\.detail && e\.detail\.open\)\) stopFollow\(true\);/.test(E));
+  check('32o. the card is a live region with a close button a thumb can hit', /aria-live="polite"/.test(E) && /\.kwv-follow-x \{ width: 32px; height: 32px;/.test(CSS));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

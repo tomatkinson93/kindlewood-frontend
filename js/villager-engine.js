@@ -953,6 +953,187 @@
     if (now >= a.until) { if (st.inside) v.el.classList.remove('kwv-gone'); next(); }
   }
 
+  // ── What is on their mind (Part F.3) ────────────────────────────────────
+  // One line under a selected villager's name, from what the game already
+  // knows, the most pressing first: no bed, short food, a moment waiting,
+  // grief, a new partner or child, pride in something just built, taking to
+  // their work or not (a trait the player has already seen), something they
+  // like to talk about (learned through chats), else how the day feels.
+  // `ctx`: { hungry, moment, recent: [{ kind, citizen_ids, family_id, at }],
+  // now, likes: [labels], work: 'likes' | 'dislikes' | null, phase }. Pure.
+  const DAY_MS = 86400000;
+  function thoughtOf(c, ctx = {}) {
+    const id = Number(c.id), now = ctx.now || 0;
+    const recent = (ctx.recent || []).filter(e => e && now - new Date(e.at).getTime() < DAY_MS);
+    const mine = e => (e.citizen_ids || []).map(Number).includes(id);
+    const child = c.stage === 'child' || (!c.stage && c.life_stage === 'child');
+    if (c.house_id == null && !child) return 'Has no bed of their own.';
+    if (ctx.hungry === 'famine') return 'Hungry. The stores are empty.';
+    if (ctx.hungry === 'low') return 'Worried that food is running low.';
+    if (ctx.moment) return 'Has something to ask you.';
+    if (recent.some(e => e.kind === 'death' && !mine(e) && c.family_id != null && e.family_id === c.family_id)) return 'Grieving a death in the family.';
+    if (recent.some(e => e.kind === 'partnership' && mine(e))) return 'Newly partnered, and it shows.';
+    if (recent.some(e => e.kind === 'birth' && mine(e) && (e.citizen_ids || []).map(Number).indexOf(id) < 2)) return 'A new parent: tired and happy.';
+    if (recent.some(e => e.kind === 'came_of_age' && mine(e))) return 'Grown up at last, and proud of it.';
+    if (recent.some(e => e.kind === 'town' && mine(e) && /finished|now level/.test(e.text || ''))) return 'Proud of what they have just built.';
+    if (child) return 'Wants to play.';
+    if (ctx.work === 'likes') return 'Loves the work.';
+    if (ctx.work === 'dislikes') return 'Does not take to this work.';
+    const likes = ctx.likes || [];
+    if (likes.length) return `Thinking about ${String(likes[(id + Math.floor(now / DAY_MS)) % likes.length]).toLowerCase()}.`;
+    const h = happinessOf(c);
+    if (h != null && h >= MOOD.HIGH) return 'Content with how things are.';
+    if (h != null && h < MOOD.LOW) return 'Feeling low.';
+    return { dawn: 'Glad of the morning.', day: 'Getting on with the day.', dusk: 'Looking forward to the evening.', night: 'Ready for bed.' }[ctx.phase] || 'Getting on with the day.';
+  }
+  function thoughtFor(v) {
+    const c = v.c, scene = sceneNow(), fam = scene.famine && scene.famine.state;
+    let work = null, likes = [];
+    try {
+      const d = global.KWCareers && global.KWCareers.defs && global.KWCareers.defs();
+      const seen = c.revealed_hidden_traits || [];
+      if (d && d.traits && seen.some(t => d.traits.aptitudes[t] && (d.traits.aptitudes[t].classes || []).includes(c.role))) work = 'likes';
+      else if (d && d.traits && seen.some(t => d.traits.aversions[t] && (d.traits.aversions[t].classes || []).includes(c.role))) work = 'dislikes';
+    } catch (_) { /* not loaded */ }
+    try { const k = global.KWSocial && global.KWSocial.data && global.KWSocial.data.known[c.id]; likes = k ? (k.likes || []).map(t => global.KWSocial.topic(t).label) : []; } catch (_) { /* not loaded */ }
+    const recent = global.KWLifeScenes && global.KWLifeScenes.recent ? global.KWLifeScenes.recent() : [];
+    return thoughtOf(c, { hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', moment: !!v.moment, recent, now: clockMs(), likes, work, phase: S.phase });
+  }
+
+  // ── Follow (Part F.4) ───────────────────────────────────────────────────
+  // The view keeps one villager centred as they walk, and goes with them to
+  // another part of town. A small card lists what they have done today (from
+  // their routine and the chats the player set up) and what they do while
+  // watched. Any pan by the player, Esc or the card's close button ends it.
+  const F = { id: null, name: '', lines: [], last: null, k: 1, kAt: 0 };
+  const hhmm = h => { const m = Math.round(h * 60); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+  // Their day so far, from the routine. `rt`: routine(id, day); `hour`: now;
+  // `work`: their workplace's name, or null (no working day). Pure.
+  function dayLog(rt, hour, work) {
+    const out = [];
+    if (!work || hour < rt.start) return out;
+    out.push(`${hhmm(rt.start)}  Went to work at the ${work}`);
+    for (const [a, b] of rt.breaks) {
+      if (hour >= a) out.push(`${hhmm(a)}  ${hour < b ? 'On a break' : 'Took a break'}`);
+      if (hour >= b && b < rt.end) out.push(`${hhmm(b)}  Back to work`);
+    }
+    if (hour >= rt.end) out.push(`${hhmm(rt.end)}  Finished work for the day`);
+    return out;
+  }
+  // What a change of state looks like in words (while watched). Pure.
+  function seenLine(state, v, names = {}) {
+    if (state === 'indoors') return `Went into ${names.inside || 'a building'}`;
+    if (state === 'chat') return `Stopped to chat${names.partner ? ' with ' + names.partner : ''}`;
+    if (state === 'build') return 'Hammering at the site';
+    if (state === 'dance') return 'Dancing on the green';
+    if (state === 'cheer') return 'Cheering';
+    if (state === 'act') return 'Part of something happening in town';
+    if (state === 'out') return `Came out${names.inside ? ' of ' + names.inside : ''}`;
+    return null;
+  }
+  const placeName = key => {
+    if (!key) return null;
+    if (key === 'neighbourhood' || key.indexOf('house-') === 0) return 'home';
+    const d = doorOf(key); const lab = d && d.btn && d.btn.getAttribute('aria-label');
+    return lab ? 'the ' + lab.split(/[:.(,]/)[0].trim() : 'a building';
+  };
+  function whereIs(c) {
+    if (isBuilder(c) && siteArea()) return siteArea();
+    const a = areaOf(c, builtArea);
+    return a !== 'town' && outAtWork(c) && !(S.visitors && S.visitors.has(Number(c.id))) ? a : 'town';
+  }
+  function follow(id) {
+    const c = cits().find(x => Number(x.id) === Number(id));
+    if (!c) return false;
+    stopFollow(true);
+    F.id = Number(id); F.name = String(c.name || 'Villager').split(' ')[0]; F.last = null;
+    const k = gameClock(), wk = ROLE_BUILDING[c.role], wd = wk && builtArea(wk) && !isChild(c) && !isElder(c);
+    let work = null;
+    if (wd) { const el = doc.querySelector('#settlement-view .sv-fg-layer [data-kwh="' + wk + '"]'); work = el ? (el.getAttribute('aria-label') || wk).split(/[:.(,]/)[0].trim() : wk; }
+    F.lines = dayLog(routine(F.id, k.day), k.hour, work);
+    if (S.visitors && S.visitors.has(F.id)) F.lines.push('On an errand in town');
+    try {
+      const S2 = global.KWSocial && global.KWSocial.data;
+      for (const ch of (S2 && S2.chats_today) || []) {
+        if (ch.speaker_id !== F.id && ch.listener_id !== F.id) continue;
+        const o = cits().find(x => Number(x.id) === (ch.speaker_id === F.id ? ch.listener_id : ch.speaker_id));
+        F.lines.push(`A chat with ${String((o && o.name) || 'someone').split(' ')[0]} about ${global.KWSocial.topic(ch.topic).label.toLowerCase()} (${ch.got_along ? 'it went well' : 'it went badly'})`);
+      }
+    } catch (_) { /* not loaded */ }
+    followCard();
+    return true;
+  }
+  function stopFollow(quiet) {
+    if (F.id == null) return;
+    F.id = null;
+    const el = doc.getElementById('kwv-follow');
+    if (el) el.remove();
+    void quiet;
+  }
+  function followNote(line) { if (!line || F.lines[F.lines.length - 1] === line) return; F.lines.push(line); followCard(); }
+  function followCard() {
+    const host = doc.getElementById('settlement-view');
+    if (!host || F.id == null) return;
+    let el = doc.getElementById('kwv-follow');
+    if (!el) {
+      el = doc.createElement('aside');
+      el.id = 'kwv-follow'; el.className = 'kwv-follow'; el.setAttribute('aria-label', 'Following a villager');
+      el.addEventListener('click', e => { if (e.target.closest('[data-kwv-unfollow]')) stopFollow(); });
+      host.appendChild(el);
+    }
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const lines = F.lines.slice(-6);
+    el.innerHTML = `<div class="kwv-follow-h"><span aria-hidden="true">👣</span> <b>Following ${esc(F.name)}</b><button type="button" class="kwv-follow-x" data-kwv-unfollow aria-label="Stop following">×</button></div>`
+      + (lines.length ? `<ol class="kwv-follow-l" aria-live="polite">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ol>` : '<p class="kwv-follow-n">Nothing to tell yet today.</p>');
+  }
+  // Each frame: keep them centred; say what they do; go with them.
+  function followStep(dt, now) {
+    if (F.id == null) return;
+    const c = cits().find(x => Number(x.id) === F.id);
+    if (!c || !living(c) || awayOf(c)) { stopFollow(); return; }
+    const v = S.vs.get(F.id);
+    if (!v || !live(v)) {
+      // Not in this part of town any more: go where they went.
+      if (v && v.state === 'leave') return;   // still walking out
+      const t = inHood() ? (livesHere(c) && !outAtWork(c) ? HOOD : whereIs(c)) : whereIs(c);
+      if (t && t !== S.area && now - (F.movedAt || 0) > 1500) {
+        F.movedAt = now;
+        followNote(t === 'outskirts' ? 'Walked out to the Outskirts' : t === 'town' ? 'Walked back to town' : 'Went home');
+        if (typeof global._svSwitchArea === 'function') global._svSwitchArea(t, false, t === 'outskirts' ? 'start' : 'end');
+      }
+      return;
+    }
+    // Words for what they do.
+    const st = v.state === 'indoors' ? 'indoors' : ['chat', 'build', 'dance', 'cheer', 'act'].includes(v.state) ? v.state : 'out';
+    if (st !== F.last) {
+      const p = v.partner != null ? S.vs.get(v.partner) : null;
+      const line = st === 'out' ? (F.last === 'indoors' ? seenLine('out', v, { inside: F.inside }) : null) : seenLine(st, v, { inside: placeName(v.inside), partner: p ? String(p.c.name || '').split(' ')[0] : null });
+      if (st === 'indoors') F.inside = placeName(v.inside);
+      F.last = st;
+      followNote(line);
+    }
+    // Centred, gently.
+    const sc = doc.getElementById('sv-scene'), world = doc.getElementById('sv-world');
+    if (!sc || !world) return;
+    if (now - F.kAt > 1000) { F.kAt = now; F.k = world.offsetWidth ? world.getBoundingClientRect().width / world.offsetWidth : 1; }
+    const want = v.x * F.k - sc.clientWidth / 2, d = want - sc.scrollLeft;
+    if (Math.abs(d) > 1) sc.scrollLeft += d * Math.min(1, dt / 220);
+  }
+  if (doc) {
+    // The player takes the view back: a wheel, a drag, a swipe, or Esc.
+    let downX = null;
+    doc.addEventListener('wheel', e => { if (F.id != null && e.target.closest && e.target.closest('#sv-scene')) stopFollow(); }, { passive: true, capture: true });
+    doc.addEventListener('pointerdown', e => { downX = F.id != null && e.target.closest && e.target.closest('#sv-scene') ? e.clientX : null; }, { passive: true, capture: true });
+    doc.addEventListener('pointermove', e => { if (downX != null && F.id != null && e.buttons && Math.abs(e.clientX - downX) > 12) { downX = null; stopFollow(); } }, { passive: true, capture: true });
+    doc.addEventListener('touchmove', e => { if (F.id != null && e.target.closest && e.target.closest('#sv-scene')) stopFollow(); }, { passive: true, capture: true });
+    doc.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || F.id == null || M.v) return;
+      if ((global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen()) || (global.KWDialog && global.KWDialog.isOpen && global.KWDialog.isOpen())) return;
+      stopFollow();
+    });
+    if (global.addEventListener) global.addEventListener('kw:home', e => { if (!(e.detail && e.detail.open)) stopFollow(true); });
+  }
+
   // ── Town-wide events (§3.10) ────────────────────────────────────────────
   // What the whole town is doing, from what the client already knows. By
   // priority: a raid about to strike (or under way), then a death (its hush),
@@ -1124,7 +1305,7 @@
     S.visitors = visitorsNow();
     // Builders with a site in this part of town are always in the cast (up to 4).
     const crew = siteArea() === S.area ? all.filter(c => living(c) && isBuilder(c) && !awayOf(c)).slice(0, BUILDERS_SHOWN).map(c => Number(c.id)) : [];
-    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew), rand: S.rand });
+    const want = pickCast(all, { cap, area: S.area, areaOf: areaFor, away: awayOf, momentIds: momentIds().concat(crew, F.id != null ? [F.id] : []), rand: S.rand });
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
@@ -1169,7 +1350,7 @@
     const cap = isPhone() ? CAP.phone : CAP.desktop;
     const pool = cits().filter(c => living(c) && !awayOf(c) && areaFor(c) === S.area && !isChild(c) && !S.vs.has(Number(c.id)));
     const moments = momentIds().map(Number);
-    const out = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.talk && !v.child && !moments.includes(v.id)
+    const out = [...S.vs.values()].filter(v => live(v) && v.id !== F.id && !v.selected && !v.held && v.state !== 'chat' && v.state !== 'tochat' && !v.talk && !v.child && !moments.includes(v.id)
       && ![...S.vs.values()].some(k => k.child && parentsOf(k.c).includes(v.id)));
     if (!pool.length || !out.length || S.vs.size > cap) return;
     leave(out[Math.floor(S.rand() * out.length)], 'rotate');
@@ -1214,6 +1395,7 @@
     if (youth) items.push({ key: 'apprentice', icon: '🎓', label: 'Apprenticeship' });
     else if (!child) items.push({ key: 'work', icon: '🛠️', label: 'Change work' });
     items.push({ key: 'house', icon: '🏡', label: 'House' });
+    if (social) items.push({ key: 'follow', icon: '👣', label: 'Follow' });   // (with the newer buttons, where the engine's page has them)
     return items;
   }
   // Where the buttons go: an arc of `n` around `centre` degrees (−90 is
@@ -1262,6 +1444,10 @@
     let tag = v.el.querySelector('.kwv-name');
     if (!tag) { tag = doc.createElement('span'); tag.className = 'kwv-name'; v.el.appendChild(tag); }
     tag.textContent = nameLine(v.c);
+    const th = doc.createElement('span');   // what is on their mind (Part F.3)
+    th.className = 'kwv-thought';
+    th.textContent = thoughtFor(v);
+    tag.appendChild(th);
     const ring = v.el.querySelector('.kwv-ring') || v.el.appendChild(Object.assign(doc.createElement('span'), { className: 'kwv-ring' }));
     placeHit(v); void ring;
     draw(v, false);
@@ -1335,6 +1521,7 @@
     if (!v) return;
     const c = v.c, id = v.id;
     if (key === 'praise') { deselect(true); if (global.KWSocial) global.KWSocial.praise(id); return; }   // no window: they carry on
+    if (key === 'follow') { deselect(true); follow(id); return; }
     v.held = true; v.heldFrom = performanceNow(); v.heldCheck = performanceNow() + 300; v.heldBy = null;
     deselect(true);
     const call = (name, ...a) => (typeof global[name] === 'function' ? global[name](...a) : null);
@@ -1666,6 +1853,7 @@
     if ((S.outT = (S.outT || 0) + dt) > 2000) { S.outT = 0; keepSomeOut(now); }
     S.size = { w: S.layer.clientWidth, h: S.layer.clientHeight };
     try { for (const v of S.vs.values()) { step(v, dt, now); draw(v, false); } } finally { S.size = null; }
+    followStep(dt, now);
     S.ms = S.ms * 0.95 + (performanceNow() - t0) * 0.05;   // the loop's own cost (target: under 2 ms)
     S.raf = requestFrame(tick);
   }
@@ -1767,6 +1955,8 @@
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
     // Builders (js/construction.js): where they are and what they do.
+    // What is on their mind, and Follow (Part F.3, F.4).
+    _thoughtOf: thoughtOf, _dayLog: dayLog, _seenLine: seenLine, follow, stopFollow: () => stopFollow(), get following() { return F.id; }, get followLines() { return F.lines.slice(); },
     // Who is in which part of town.
     VISIT, _townVisitors: townVisitors, get visitors() { return [...(S.visitors || [])]; },
     // Town-wide events (§3.10).
