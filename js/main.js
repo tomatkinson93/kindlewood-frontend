@@ -4,6 +4,12 @@ const API = window.KINDLEWOOD_API || '';
 
 let chosenSpecies = null;
 let gameData = null;
+// A top-level `let` is not a property of window, and a dozen modules read the
+// town as window.gameData (the Home scene's state, the town's species, the
+// raid on its way, the stores after a card or a clan gift). They all got
+// undefined: the scene believed every town was a Camp with no famine and no
+// festival. This makes window.gameData the same value, always.
+try { Object.defineProperty(window, 'gameData', { get: function () { return gameData; }, set: function (v) { gameData = v; }, configurable: true }); } catch (e) { /* an old engine: as before */ }
 let worldMapData = null;
 let _selectedFogTile = null; // {wx, wy} — persists across re-renders
 

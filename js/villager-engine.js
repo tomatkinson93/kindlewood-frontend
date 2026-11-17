@@ -496,6 +496,11 @@
       walkTo(v, bs, null); v.state = 'tosite'; v.siteId = bs.id; v.siteX = bs.sx;
       return;
     }
+    // Mood (§3.8): with food short some stand by the granary; someone with no
+    // bed stands about near the Neighbourhood.
+    const town = S.mood || {};
+    const gather = town.hungry && town.hungry !== 'ok' && S.rand() < 0.3 ? doorOf('granary') : v.c.house_id == null && !v.child && S.rand() < 0.5 ? doorOf('neighbourhood') : null;
+    if (gather) { walkTo(v, spreadPoint({ x: gather.x + (S.rand() - 0.5) * 90, y: gather.y + 14 + S.rand() * 22 }, othersOf(v), { ok: onMeadow }), null); return; }
     // Their working day (§3.5a): at work, they go to it; on a break or off
     // work, they do what everyone does.
     if (working(v, now)) { const d = doorOf(workKey(v)); walkTo(v, doorSpot(d, othersOf(v)), d.key); return; }
@@ -525,7 +530,7 @@
   function walkTo(v, p, doorKey) { v.tx = p.x; v.ty = p.y; v.goal = doorKey ? { door: doorKey } : null; v.state = 'walk'; }
   function idle(v, now, ms) {
     v.state = 'idle'; v.goal = null;
-    v.until = now + (ms != null ? ms : IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0]));
+    v.until = now + (ms != null ? ms : (IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0])) * (lowMood(v) ? MOOD.LOW_IDLE : 1));
     // Face the camera, or the nearest villager close by.
     let near = null, d = 150;
     for (const o of S.vs.values()) if (o !== v && live(o) && o.state !== 'indoors') { const k = Math.hypot(o.x - v.x, o.y - v.y); if (k < d) { d = k; near = o; } }
@@ -687,6 +692,67 @@
     if (!v.partner && !v.talk) { setSay(v, '😊'); setTimeout(() => { if (v.say === '😊') setSay(v, null); }, 1600); }
     return true;
   }
+  // ── Mood (§3.8) ─────────────────────────────────────────────────────────
+  // Small emotes over heads, from the town's real state, so the scene reads
+  // as a picture of how the town is doing. One little bubble for 2 to 3 s,
+  // on at most two villagers at a time, each at most once a minute. The mix
+  // follows the numbers: a villager's own happiness where the citizen has
+  // it, the town's otherwise; no bed, short food and a festival come first.
+  // (Emoji stand in until the owner's emote sheet arrives: ART_GUIDE.)
+  const EMOTES = {
+    happy: ['😊', '🎵', '❤️'], low: ['☹️', '🌧️'], hungry: ['🥣'], homeless: ['🏠❓'], festival: ['🎵', '🏮'], plain: ['…'],
+  };
+  const MOOD = { HIGH: 70, LOW: 40, AT_ONCE: 2, EVERY_MS: 60000, SHOW_MS: [2000, 3000], LOW_SPEED: 0.8, LOW_IDLE: 1.5, LOW_CHAT: 0.4 };
+  const happinessOf = c => { const h = c && c.life && c.life.happiness; return Number.isFinite(Number(h)) && h != null ? Number(h) : null; };
+  // The town, as far as mood goes. `scene`: KWHome.sceneState(). Pure.
+  function townMood(citizens, scene = {}) {
+    const grown = citizens.filter(c => living(c) && !isChild(c)).map(happinessOf).filter(h => h != null);
+    const fam = scene.famine && scene.famine.state;
+    return { happy: grown.length ? Math.round(grown.reduce((a, b) => a + b, 0) / grown.length) : null,
+      hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', festival: !!(scene.town && scene.town.festival && scene.town.festival.active) };
+  }
+  // What one villager feels, by what comes first: no bed (that villager
+  // only), short food, a festival, then how happy they are. Pure.
+  function moodOf(c, town) {
+    if (c.house_id == null && !isChild(c)) return 'homeless';
+    if (town.hungry !== 'ok') return 'hungry';
+    if (town.festival) return 'festival';
+    const h = happinessOf(c) != null ? happinessOf(c) : town.happy;
+    return h == null ? 'plain' : h >= MOOD.HIGH ? 'happy' : h < MOOD.LOW ? 'low' : 'plain';
+  }
+  // Who may show an emote now: at most AT_ONCE showing; each at most once
+  // per EVERY_MS. `list`: [{ id, free, last, showing }]. → an id, or null. Pure.
+  function emoteTurn(list, now, rand = Math.random) {
+    if (list.filter(v => v.showing).length >= MOOD.AT_ONCE) return null;
+    const ok = list.filter(v => v.free && !v.showing && (v.last == null || now - v.last >= MOOD.EVERY_MS));
+    return ok.length ? ok[Math.floor(rand() * ok.length)].id : null;
+  }
+  function sceneNow() { try { return global.KWHome && global.KWHome.sceneState ? global.KWHome.sceneState() : {}; } catch (_) { return {}; } }
+  function maybeMood(now) {
+    const town = S.mood = townMood(cits(), sceneNow());
+    if (S.hush && now < S.hush) return;   // a sad time: no emotes for a while (§3.9)
+    const list = [...S.vs.values()].map(v => ({ id: v.id, last: v.emoteAt, showing: !!v.emote,
+      free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.selected && !v.held && !v.say && v.partner == null && !v.talk && !v.moment }));
+    const id = emoteTurn(list, now, S.rand);
+    if (id == null) return;
+    const v = S.vs.get(id), kind = moodOf(v.c, town);
+    v.emoteAt = now;
+    if (kind === 'plain' && S.rand() < 0.75) return;   // middling: mostly nothing
+    const set = EMOTES[kind];
+    v.emote = set[Math.floor(S.rand() * set.length)];
+    v.emoteUntil = now + MOOD.SHOW_MS[0] + S.rand() * (MOOD.SHOW_MS[1] - MOOD.SHOW_MS[0]);
+    setSay(v, v.emote);
+    // Happy: now and then a little hop.
+    if ((kind === 'happy' || kind === 'festival') && S.rand() < 0.4) hop(v);
+  }
+  function hop(v) {
+    v.el.classList.remove('kwv-hop'); void v.el.offsetWidth; v.el.classList.add('kwv-hop');
+    setTimeout(() => v.el.classList.remove('kwv-hop'), 700);
+  }
+  // Their own mood slows or steadies them: unhappy villagers walk slower
+  // and stand about longer.
+  const lowMood = v => { const h = happinessOf(v.c); return (h != null ? h : S.mood && S.mood.happy != null ? S.mood.happy : 70) < MOOD.LOW; };
+
   // A builder at the site: the hammer goes up in a bubble in a steady beat,
   // dust puffs at the site, then a short rest. (The idle picture stands in
   // until the owner's work animation arrives: docs/ART_GUIDE.md.)
@@ -1216,6 +1282,7 @@
       if (now >= v.until && !nightIn && !(v.child && parentOf(v) && parentOf(v).state === 'indoors')) comeOut(v, now);
       return;
     }
+    if (v.emote && (now >= v.emoteUntil || v.say !== v.emote)) { if (v.say === v.emote) setSay(v, null); v.emote = null; }   // an emote's time is up
     if (v.state === 'solo') { if (now >= v.until) { const t = v.talk; v.talk = null; setSay(v, null); if (t) talkResult(t); idle(v, now, 500 + S.rand() * 900); } return; }
     if (v.child && !v.talk && v.state !== 'leave' && child(v, now)) { /* targets set */ }
     else if (v.state === 'idle') { if (now >= v.until) errand(v, now); return; }
@@ -1240,7 +1307,7 @@
     if (v.state === 'idle' || (v.child && v.state === 'idle')) return;
     const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy);
     if (v.state === 'tochat' && v.talk && now >= v.until) { endChat(v, now); return; }   // never got there
-    const stepPx = v.speed * (v.talk ? 1.8 : v.state === 'chase' || v.state === 'ahead' ? 1.3 : 1) * dt / 1000;
+    const stepPx = v.speed * (v.talk ? 1.8 : v.state === 'chase' || v.state === 'ahead' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * dt / 1000;
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }
@@ -1277,7 +1344,8 @@
     const free = [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, child: v.child, selected: !!v.selected || !!v.held,
       free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.goal && v.partner == null && (S.phase !== 'night') }));
     const pairs = chatPairs(free, now, S.cool);
-    if (pairs.length && S.rand() < 0.35) startChat(S.vs.get(pairs[0][0]), S.vs.get(pairs[0][1]), now);
+    const glum = S.mood && S.mood.happy != null && S.mood.happy < MOOD.LOW;   // an unhappy town chats less
+    if (pairs.length && S.rand() < 0.35 * (glum ? MOOD.LOW_CHAT : 1)) startChat(S.vs.get(pairs[0][0]), S.vs.get(pairs[0][1]), now);
   }
   function tick(now) {
     S.raf = 0;
@@ -1293,6 +1361,7 @@
     }
     if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night') rotate(); }
     if ((S.chatT += dt) > 2000) { S.chatT = 0; maybeChat(now); }
+    if ((S.moodT = (S.moodT || 0) + dt) > 2500) { S.moodT = 0; maybeMood(now); }
     if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
@@ -1394,6 +1463,9 @@
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
     // Builders (js/construction.js): where they are and what they do.
+    // Mood (§3.8).
+    EMOTES, MOOD, _townMood: townMood, _moodOf: moodOf, _emoteTurn: emoteTurn, get mood() { return S.mood || null; },
+    hush: ms => { S.hush = performanceNow() + (Number(ms) || 0); },   // no emotes for a while (a death: §3.9)
     BUILDERS_SHOWN, _buildSpot: id => { const v = S.vs.get(Number(id)); return v ? buildSpot(v) : null; }, _siteArea: siteArea, _cheer: cheer, get sites() { return (S.sites || []).slice(); },
     // A look at another time of day: KWCast.preview('night' | 'dusk' | 'dawn' | 'day')
     // holds it until KWCast.preview(null) (or a reload) goes back to the clock.

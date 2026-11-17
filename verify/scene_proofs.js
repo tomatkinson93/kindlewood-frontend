@@ -882,5 +882,45 @@ console.log('25. More building art');
     fs.existsSync(path.join(ROOT, 'scripts/pack_buildings.py')) && /checkerboard/.test(read('scripts/pack_buildings.py')) && /def match_holes/.test(read('scripts/pack_buildings.py')));
 }
 
+console.log('26z. The scene can read the town');
+{
+  const M = read('js/main.js');
+  // A top-level `let` is not on window; modules that read window.gameData got undefined.
+  const w2 = {}; w2.window = w2; vm.createContext(w2);
+  vm.runInContext("let gameData = null;\n" + M.match(/try \{ Object\.defineProperty\(window, 'gameData'[^\n]*/)[0] + "\nfunction load(v) { gameData = v; }", w2);
+  vm.runInContext("load({ settlement: { tier: 'city' } })", w2);
+  check('26z1. window.gameData is the town the game loaded (the scene\'s tier, famine and festival come from it)', w2.gameData && w2.gameData.settlement.tier === 'city');
+  vm.runInContext("window.gameData = { settlement: { tier: 'town' } }", w2);
+  check('26z2. and setting it there changes the same value', vm.runInContext('gameData.settlement.tier', w2) === 'town');
+}
+
+console.log('27. Mood (§3.8)');
+{
+  const E = read('js/villager-engine.js'), CSS = read('css/home-scene.css');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast;
+  const cits = [{ id: 1, life: { happiness: 80 }, house_id: 3 }, { id: 2, life: { happiness: 30 }, house_id: 3 }, { id: 3, life: { happiness: 90 }, house_id: null },
+    { id: 4, stage: 'child', life: { happiness: 10 }, house_id: null }, { id: 5, house_id: 3 }, { id: 6, life_stage: 'deceased', life: { happiness: 0 }, house_id: 3 }];
+  const town = C._townMood(cits, { famine: { state: 'ok' } });
+  check('27a. the town\'s happiness is its living grown-ups\' average', town.happy === 67 && town.hungry === 'ok' && town.festival === false);
+  check('27b. happy at 70 and up, low under 40, plain between; a villager\'s own happiness where they have it, the town\'s otherwise',
+    C._moodOf(cits[0], town) === 'happy' && C._moodOf(cits[1], town) === 'low' && C._moodOf(cits[4], town) === 'plain' && C._moodOf(cits[4], { ...town, happy: 75 }) === 'happy' && C.MOOD.HIGH === 70 && C.MOOD.LOW === 40);
+  check('27c. no bed comes first, on that villager only (a child is with a parent)', C._moodOf(cits[2], town) === 'homeless' && C._moodOf(cits[3], town) === 'low' && C._moodOf(cits[0], town) !== 'homeless');
+  check('27d. then short food, then a festival', C._moodOf(cits[0], C._townMood(cits, { famine: { state: 'low' } })) === 'hungry' && C._moodOf(cits[0], C._townMood(cits, { famine: { state: 'famine' }, town: { festival: { active: true } } })) === 'hungry'
+    && C._moodOf(cits[1], C._townMood(cits, { town: { festival: { active: true } } })) === 'festival' && C._townMood(cits, { town: { festival: { active: false, can_start: true } } }).festival === false);
+  const L = [{ id: 1, free: true }, { id: 2, free: true, showing: true }, { id: 3, free: true, showing: true }];
+  check('27e. at most two villagers show an emote at a time', C._emoteTurn(L, 0) === null && C._emoteTurn(L.slice(0, 2), 0, () => 0) === 1 && C.MOOD.AT_ONCE === 2);
+  check('27f. each villager at most once a minute; only someone free (not chatting, picked, or with a moment)',
+    C._emoteTurn([{ id: 1, free: true, last: 0 }], 59000) === null && C._emoteTurn([{ id: 1, free: true, last: 0 }], 60000, () => 0) === 1 && C._emoteTurn([{ id: 1, free: false }], 0) === null);
+  check('27g. the emotes differ in shape, not only colour; each shows for 2 to 3 seconds', C.EMOTES.happy.length === 3 && C.EMOTES.low.length === 2 && C.EMOTES.hungry[0] === '🥣' && C.EMOTES.homeless[0] === '🏠❓'
+    && new Set([].concat(...Object.values(C.EMOTES))).size >= 9 && C.MOOD.SHOW_MS[0] === 2000 && C.MOOD.SHOW_MS[1] === 3000);
+  check('27h. middling mood: mostly nothing', /if \(kind === 'plain' && S\.rand\(\) < 0\.75\) return;/.test(E));
+  check('27i. happy: now and then a little hop (still under reduced motion)', /if \(\(kind === 'happy' \|\| kind === 'festival'\) && S\.rand\(\) < 0\.4\) hop\(v\);/.test(E) && /@keyframes kwv-hop/.test(CSS) && /prefers-reduced-motion: reduce\) \{ #settlement-view \.kwv-hop \.kwv-sprite \{ animation: none; \} \}/.test(CSS));
+  check('27j. unhappy: walks slower, stands about longer, and an unhappy town chats less', C.MOOD.LOW_SPEED < 1 && C.MOOD.LOW_IDLE > 1 && C.MOOD.LOW_CHAT < 1 && /lowMood\(v\) \? MOOD\.LOW_SPEED : 1/.test(E) && /\(lowMood\(v\) \? MOOD\.LOW_IDLE : 1\)/.test(E) && /\(glum \? MOOD\.LOW_CHAT : 1\)/.test(E));
+  check('27k. with food short some stand by the granary; someone with no bed stands near the Neighbourhood', /town\.hungry !== 'ok' && S\.rand\(\) < 0\.3 \? doorOf\('granary'\)/.test(E) && /v\.c\.house_id == null && !v\.child && S\.rand\(\) < 0\.5 \? doorOf\('neighbourhood'\)/.test(E));
+  check('27l. an emote never talks over a chat, and clears itself', /!v\.say && v\.partner == null && !v\.talk && !v\.moment/.test(E) && /if \(v\.emote && \(now >= v\.emoteUntil \|\| v\.say !== v\.emote\)\)/.test(E));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
