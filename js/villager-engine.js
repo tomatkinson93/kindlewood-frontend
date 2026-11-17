@@ -1045,6 +1045,7 @@
     const recent = global.KWLifeScenes && global.KWLifeScenes.recent ? global.KWLifeScenes.recent() : [];
     let lost = null;
     try { lost = global.KWLost && global.KWLost.hintFor ? global.KWLost.hintFor(c.id) : null; } catch (_) { /* not loaded */ }
+    try { if (!lost && global.KWSceneEvents && global.KWSceneEvents.thoughtFor) lost = global.KWSceneEvents.thoughtFor(c.id); } catch (_) { /* not loaded */ }
     return thoughtOf(c, { hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', moment: !!v.moment, lost, recent, now: clockMs(), likes, work, phase: S.phase });
   }
 

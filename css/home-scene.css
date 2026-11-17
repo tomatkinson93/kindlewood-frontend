@@ -862,3 +862,43 @@ body.kw-photo #settlement-view .kwm-cart { pointer-events: none; }
 .kwm-btn:hover:not(:disabled) { background: #7d5e24; }
 .kwm-btn:disabled { background: transparent; color: inherit; border-color: rgba(138, 106, 42, 0.4); opacity: 0.75; cursor: default; font-weight: 400; }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwm-badge { animation: none; } }
+
+/* ── Events in the scene (js/scene-events.js; docs/HOME_SCENE.md F.12). ──── */
+#settlement-view .kwe { position: absolute; margin: 0; padding: 0; border: 0; background: none; pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwe:focus { outline: none; }
+#settlement-view .kwe:focus-visible { outline: 2px solid #ffe08a; outline-offset: 2px; border-radius: 8px; }
+/* A fire: flames along the roof, smoke above, an alarm to press. Over the building's own picture. */
+#settlement-view .kwe-fire { left: 50%; top: 4%; width: 84px; height: 84px; margin-left: -42px; z-index: 3; transition: opacity 1.2s linear; }
+#settlement-view .kwe-flames { position: absolute; left: 7px; bottom: 6px; transform-origin: 50% 100%; animation: kwe-flicker 0.5s ease-in-out infinite alternate; overflow: visible; }
+#settlement-view .kwe-f1, #settlement-view .kwe-f3 { transform-origin: 50% 100%; transform-box: fill-box; animation: kwe-lick 0.7s ease-in-out infinite alternate; }
+#settlement-view .kwe-f3 { animation-duration: 0.55s; }
+@keyframes kwe-flicker { from { transform: scale(1, 0.94); } to { transform: scale(1.04, 1.06); } }
+@keyframes kwe-lick { from { transform: scaleY(0.82); } to { transform: scaleY(1.12); } }
+#settlement-view .kwe-smoke { position: absolute; left: 30px; bottom: 52px; width: 24px; height: 20px; border-radius: 50%; background: radial-gradient(closest-side, rgba(70, 64, 60, 0.9), rgba(70, 64, 60, 0)); animation: kwe-smoke 2.6s ease-out infinite; opacity: 0; }
+#settlement-view .kwe-smoke-2 { animation-delay: 0.9s; left: 20px; }
+#settlement-view .kwe-smoke-3 { animation-delay: 1.7s; left: 40px; }
+@keyframes kwe-smoke { 0% { opacity: 0; transform: translate(0, 0) scale(0.6); } 15% { opacity: 0.9; } 100% { opacity: 0; transform: translate(26px, -90px) scale(3); } }
+#settlement-view .kwe-alarm { position: absolute; right: -8px; top: 18px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #fff3d6; border: 2px solid #c2452f; font-size: 16px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4); animation: kwe-alarm 0.9s ease-in-out infinite; }
+@keyframes kwe-alarm { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+#settlement-view .kwe-fire.kwe-dying { opacity: 0; pointer-events: none; transition-duration: 5s; }
+#settlement-view .kwe-fire.kwe-dying .kwe-alarm { display: none; }
+#settlement-view[data-phase="night"] .kwe-alarm { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] .kwe-alarm { filter: url(#kwn-undo-dusk); }
+/* A lost child: a bush with eyes in it. Small on purpose. */
+#settlement-view .kwe-child { width: 54px; height: 40px; transform: translate(-50%, -100%); }
+#settlement-view .kwe-child svg { display: block; overflow: visible; }
+#settlement-view .kwe-eyes { transform-origin: 50% 68%; transform-box: view-box; animation: kwe-blink 4.2s linear infinite; }
+@keyframes kwe-blink { 0%, 44%, 50%, 92%, 100% { transform: scaleY(1); } 47%, 96% { transform: scaleY(0.1); } }
+#settlement-view .kwe-child:hover svg, #settlement-view .kwe-child:focus-visible svg { transform: scale(1.1); transform-origin: 50% 100%; }
+/* A runaway cart: up and down the lane until it is stopped. */
+#settlement-view .kwe-cart { width: 66px; height: 46px; transform: translate(0, -100%); pointer-events: none; }   /* the cart itself takes the click, wherever it has rolled to */
+#settlement-view .kwe-roll { display: block; padding: 10px; margin: -10px; pointer-events: auto; animation: kwe-run 9s ease-in-out infinite alternate; will-change: transform; }
+@keyframes kwe-run { from { transform: translateX(0); } to { transform: translateX(var(--kwe-run, 600px)); } }
+#settlement-view .kwe-wheel { transform-origin: 22px 34px; animation: kwe-spin 0.9s linear infinite; }
+#settlement-view .kwe-wheel-2 { transform-origin: 44px 34px; }
+@keyframes kwe-spin { to { transform: rotate(360deg); } }
+#settlement-view .sv-scene.sv-build-mode .kwe { display: none; }
+body.kw-photo #settlement-view .kwe-alarm { display: none !important; }
+body.kw-photo #settlement-view .kwe { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwe-flames, #settlement-view .kwe-f1, #settlement-view .kwe-f3, #settlement-view .kwe-alarm, #settlement-view .kwe-eyes, #settlement-view .kwe-roll, #settlement-view .kwe-wheel { animation: none; }
+  #settlement-view .kwe-smoke { animation: none; opacity: 0.7; transform: translate(8px, -30px) scale(1.8); } }

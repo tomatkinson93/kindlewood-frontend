@@ -98,7 +98,7 @@
     const lr = L.getBoundingClientRect();
     if (!lr.width || !lr.height) return false;
     const x = lr.left + p.x / 100 * lr.width, y = lr.top + p.y / 100 * lr.height;
-    for (const a of L.querySelectorAll(':scope > .sv-slot:not([hidden]) .kwh-art, :scope > .kwg-prop')) {
+    for (const a of L.querySelectorAll(':scope > .sv-slot:not([hidden]) .kwh-art, :scope > .sv-slot:not([hidden]) .kwh-plate, :scope > .kwg-prop, :scope > .kwd-item, :scope > .kwm-cart')) {
       const r = a.getBoundingClientRect();
       if (x > r.left - 14 && x < r.right + 14 && y > r.top - 8 && y < r.bottom + 14) return true;
     }
