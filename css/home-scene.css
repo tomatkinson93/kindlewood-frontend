@@ -677,3 +677,59 @@ body.kw-shell #settlement-view .kwv-follow { top: 58px; }
 #settlement-view .kwa-seed { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.95); box-shadow: 0 0 3px rgba(255, 255, 255, 0.8); animation: kwa-wind 11s linear forwards; }
 @keyframes kwa-wind { 0% { opacity: 0; transform: translate(0, 0) rotate(0deg); } 6% { opacity: 1; } 50% { transform: translate(620px, calc(40px + var(--kwa-r, 0) * 50px)) rotate(400deg); } 94% { opacity: 1; } 100% { opacity: 0; transform: translate(1240px, calc(20px + var(--kwa-r, 0) * 90px)) rotate(800deg); } }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwa, #settlement-view .kwa-forge { display: none; } #settlement-view .kwa-flicker .kwh-lit { animation: none; } }
+
+/* ── Weather (js/home-weather.js; docs/HOME_SCENE.md F.5). Looks only. ───── */
+/* Clouds: drawn by code until clouds.png arrives (ART_GUIDE §8 F). They sit
+   over the sky and behind the mountains, and drift the world's width. */
+#settlement-view .kww-clouds { position: absolute; left: 0; top: 0; width: 0; height: 100%; z-index: -5; pointer-events: none; }
+#settlement-view .kww-cloud { position: absolute; left: -340px; width: 150px; height: 34px; border-radius: 40px; background: #fff; opacity: 0.92;
+  box-shadow: inset 0 -9px 0 rgba(176, 200, 226, 0.75); transform: translateX(0) scale(var(--kww-s, 1)); animation: kww-drift 400s linear infinite; will-change: transform; }
+#settlement-view .kww-cloud::before, #settlement-view .kww-cloud::after { content: ''; position: absolute; background: #fff; border-radius: 50%; }
+#settlement-view .kww-cloud::before { left: 22px; top: -22px; width: 58px; height: 52px; }
+#settlement-view .kww-cloud::after { left: 66px; top: -34px; width: 66px; height: 62px; }
+#settlement-view .kww-cloud-2 { width: 210px; height: 28px; }
+#settlement-view .kww-cloud-2::before { left: 40px; top: -14px; width: 70px; height: 40px; }
+#settlement-view .kww-cloud-2::after { left: 96px; top: -20px; width: 80px; height: 46px; }
+#settlement-view .kww-cloud-3 { width: 96px; height: 26px; }
+#settlement-view .kww-cloud-3::before { left: 12px; top: -14px; width: 40px; height: 36px; }
+#settlement-view .kww-cloud-3::after { left: 40px; top: -22px; width: 44px; height: 42px; }
+#settlement-view .kww-cloud-4::before { left: 10px; top: -30px; width: 70px; height: 62px; }
+#settlement-view .kww-cloud-4::after { left: 70px; top: -20px; width: 60px; height: 50px; }
+@keyframes kww-drift { from { transform: translateX(0) scale(var(--kww-s, 1)); } to { transform: translateX(var(--kww-w, 3000px)) scale(var(--kww-s, 1)); } }
+#settlement-view[data-weather="cloudy"] .kww-cloud, #settlement-view[data-weather="snow"] .kww-cloud { filter: brightness(0.93); }
+#settlement-view[data-weather="rain"] .kww-cloud { filter: brightness(0.8); }
+#settlement-view.kww-still .kww-cloud { animation-play-state: paused; }
+/* A grey or wet day: a plain wash over the world, under the night's multiply
+   (1050). Not a blend mode: a second blended layer over the whole world costs
+   far more than it shows. */
+#settlement-view .kww-tint { position: absolute; left: -1600px; right: -1000px; top: 0; bottom: 0; z-index: 1049; pointer-events: none; background: rgb(96, 110, 134); opacity: 0; transition: opacity 3s linear; }
+#settlement-view[data-weather="cloudy"] .kww-tint { opacity: 0.12; }
+#settlement-view[data-weather="rain"] .kww-tint { opacity: 0.26; }
+#settlement-view[data-weather="snow"] .kww-tint { background: rgb(150, 164, 190); opacity: 0.12; }
+/* Snow lying: a dusting over the meadow (above the paths, under everything
+   that stands), and a white cap on each roof, cut to the picture's outline. */
+#settlement-view .kww-ground { position: absolute; left: -1600px; right: -1000px; top: 21%; bottom: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 4s linear;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0, rgba(250, 252, 255, 0.5) 7%, rgba(250, 252, 255, 0.5) 100%); }
+#settlement-view.kww-lying .kww-ground { opacity: 1; }
+#settlement-view .kww-cap { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 4s linear; }
+#settlement-view.kww-lying .kww-cap { opacity: 1; }
+#settlement-view .kwu-broken .kww-cap { filter: brightness(0.8); }
+/* Puddles: flat on the ground, behind everything that stands. */
+#settlement-view .kww-puddle { position: absolute; width: 64px; height: 18px; margin: -9px 0 0 -32px; border-radius: 50%; z-index: 0; pointer-events: none; transform: scale(var(--kww-s, 1));
+  background: radial-gradient(closest-side, rgba(196, 222, 244, 0.85), rgba(150, 190, 226, 0.7) 70%, rgba(120, 160, 200, 0)); box-shadow: inset 0 -2px 0 rgba(90, 120, 160, 0.25); }
+/* Rain and snow fall over the view, not the world: two sheets, each a tile
+   that slides by exactly its own size. Under the header and the cards. */
+#settlement-view .kww-fall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; contain: strict; }
+#settlement-view .kww-sheet { position: absolute; left: -240px; top: -240px; right: -240px; bottom: -240px; will-change: transform; }
+#settlement-view[data-weather="rain"] .kww-sheet { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg stroke='%23dbeaff' stroke-width='1.6' stroke-linecap='round' opacity='.75'%3E%3Cpath d='M20 4l-5 20M64 30l-5 20M102 12l-5 20M38 66l-5 20M86 78l-5 20M8 92l-5 20'/%3E%3C/g%3E%3C/svg%3E"); animation: kww-rain 0.55s linear infinite; }
+#settlement-view[data-weather="rain"] .kww-far { background-size: 84px 84px; opacity: 0.55; animation-duration: 0.75s; animation-name: kww-rain-far; }
+@keyframes kww-rain { from { transform: translate(0, 0); } to { transform: translate(-30px, 120px); } }
+@keyframes kww-rain-far { from { transform: translate(0, 0); } to { transform: translate(-21px, 84px); } }
+#settlement-view[data-weather="snow"] .kww-sheet { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='18' cy='22' r='2.6'/%3E%3Ccircle cx='70' cy='8' r='1.8'/%3E%3Ccircle cx='124' cy='40' r='2.8'/%3E%3Ccircle cx='44' cy='84' r='2'/%3E%3Ccircle cx='98' cy='104' r='2.4'/%3E%3Ccircle cx='146' cy='132' r='1.8'/%3E%3Ccircle cx='10' cy='140' r='2.2'/%3E%3C/g%3E%3C/svg%3E"); animation: kww-snow 7s linear infinite; }
+#settlement-view[data-weather="snow"] .kww-far { background-size: 104px 104px; opacity: 0.7; animation-duration: 11s; animation-name: kww-snow-far; }
+@keyframes kww-snow { from { transform: translate(0, 0); } to { transform: translate(40px, 160px); } }
+@keyframes kww-snow-far { from { transform: translate(0, 0); } to { transform: translate(-26px, 104px); } }
+/* Blossom on the wind in spring (js/home-ambient.js). */
+#settlement-view .kwa-blossom { width: 6px; height: 5px; border-radius: 70% 30% 70% 30%; background: #ffc6dc; box-shadow: 0 0 2px rgba(255, 150, 190, 0.7); animation: kwa-wind 10s linear forwards; }
+@media (max-width: 700px) { #settlement-view .kww-far { display: none; } }   /* one sheet is enough on a phone */
+@media (prefers-reduced-motion: reduce) { #settlement-view .kww-cloud { animation-play-state: paused; } #settlement-view .kww-fall { display: none; } }

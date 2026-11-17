@@ -590,7 +590,7 @@
   function walkTo(v, p, doorKey) { v.tx = p.x; v.ty = p.y; v.goal = doorKey ? { door: doorKey } : null; v.state = 'walk'; }
   function idle(v, now, ms) {
     v.state = 'idle'; v.goal = null;
-    v.until = now + (ms != null ? ms : (IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0])) * (lowMood(v) ? MOOD.LOW_IDLE : 1));
+    v.until = now + (ms != null ? ms : (IDLE_MS[0] + S.rand() * (IDLE_MS[1] - IDLE_MS[0])) * (lowMood(v) ? MOOD.LOW_IDLE : 1) * (inTheWet() ? WET.IDLE : 1));
     // Face the camera, or the nearest villager close by.
     let near = null, d = 150;
     for (const o of S.vs.values()) if (o !== v && live(o) && o.state !== 'indoors') { const k = Math.hypot(o.x - v.x, o.y - v.y); if (k < d) { d = k; near = o; } }
@@ -765,6 +765,9 @@
   const EMOTES = {
     happy: ['😊', '🎵', '❤️'], low: ['☹️', '🌧️'], hungry: ['🥣'], homeless: ['🏠❓'], festival: ['🎵', '🏮'], plain: ['…'],
   };
+  // Rain and snow (js/home-weather.js): villagers hurry and stand about less.
+  const WET = { SPEED: 1.25, IDLE: 0.5 };
+  const inTheWet = () => { try { return !!(global.KWWeather && global.KWWeather.wet()); } catch (_) { return false; } };
   const MOOD = { HIGH: 70, LOW: 40, AT_ONCE: 2, EVERY_MS: 60000, SHOW_MS: [2000, 3000], LOW_SPEED: 0.8, LOW_IDLE: 1.5, LOW_CHAT: 0.4 };
   const happinessOf = c => { const h = c && c.life && c.life.happiness; return Number.isFinite(Number(h)) && h != null ? Number(h) : null; };
   // The town, as far as mood goes. `scene`: KWHome.sceneState(). Pure.
@@ -1801,7 +1804,7 @@
     if (v.state === 'idle' || (v.child && v.state === 'idle')) return;
     const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy);
     if (v.state === 'tochat' && v.talk && now >= v.until) { endChat(v, now); return; }   // never got there
-    const stepPx = v.speed * (v.talk ? 1.8 : v.run ? TOWN.RUN : v.state === 'chase' || v.state === 'ahead' || v.state === 'toring' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * dt / 1000;
+    const stepPx = v.speed * (v.talk ? 1.8 : v.run ? TOWN.RUN : v.state === 'chase' || v.state === 'ahead' || v.state === 'toring' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * (inTheWet() ? WET.SPEED : 1) * dt / 1000;
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }

@@ -5,8 +5,8 @@
 //  Looks only: nothing here changes the game or calls the server.
 //
 //  Small life: chimney smoke from homes and workplaces with someone in,
-//  fireflies at night, butterflies by day in the warm seasons, leaves on the
-//  wind in autumn and seeds in spring and summer. No birds, cats or pets (the
+//  fireflies at night, butterflies by day in the warm seasons, and on the
+//  wind leaves in autumn, blossom in spring and seeds in summer. No birds, cats or pets (the
 //  settlers are animals themselves).
 //
 //  Working buildings: with someone at work inside, the forge mouth glows and
@@ -29,19 +29,19 @@
   const doc = global.document;
   const MAX = 28, BEAT_MS = 900;
   const KEEP = { firefly: 7, butterfly: 3, drift: 2 };
-  const LIFE_MS = { smoke: 3800, spark: 900, dust: 1300, firefly: 6500, butterfly: 8000, leaf: 9000, seed: 11000 };
+  const LIFE_MS = { smoke: 3800, spark: 900, dust: 1300, firefly: 6500, butterfly: 8000, leaf: 9000, blossom: 10000, seed: 11000 };
   const SOUNDS = { smithy: 'ambient/forge.mp3', tavern: 'ambient/tavern.mp3', market: 'ambient/market.mp3', workshop: 'ambient/workshop.mp3' };
   const S = { timer: null, sounds: {}, rand: Math.random, hold: null };
 
   // ── Rules (pure) ────────────────────────────────────────────────────────
-  // What may be in the air. → { smoke, fireflies, butterflies, drift: 'leaf' | 'seed' | null }
+  // What may be in the air. → { smoke, fireflies, butterflies, drift: 'leaf' | 'blossom' | 'seed' | null }
   function kindsFor(phase, season, weather = 'clear') {
     const wet = weather === 'rain' || weather === 'snow', dark = phase === 'night' || phase === 'dusk', warm = season === 'spring' || season === 'summer';
     return {
       smoke: true,
       fireflies: dark && !wet && season !== 'winter',
       butterflies: !dark && warm && !wet,
-      drift: wet || dark ? null : season === 'autumn' ? 'leaf' : warm ? 'seed' : null,
+      drift: wet || dark ? null : season === 'autumn' ? 'leaf' : season === 'spring' ? 'blossom' : warm ? 'seed' : null,
     };
   }
   // Is a building showing signs of life? `inside`: villagers the scene has in
