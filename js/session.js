@@ -100,6 +100,7 @@
     if (global.KWUpkeep && global.KWUpkeep.load) again(() => global.KWUpkeep.load());
     if (global.KWLost && global.KWLost.load) again(() => global.KWLost.load());
     if (global.KWDecor && global.KWDecor.load) again(() => global.KWDecor.load());
+    if (global.KWMerchant && global.KWMerchant.load) again(() => global.KWMerchant.load());
     if (typeof global.loadCitizens === 'function') again(() => global.loadCitizens());
     if (typeof global.refreshSettlementView === 'function') again(() => global.refreshSettlementView());
     try { global.dispatchEvent(new global.CustomEvent('kw:away', { detail: { away: false } })); } catch (_) { /* old browser */ }

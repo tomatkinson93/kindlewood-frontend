@@ -152,6 +152,7 @@
     upkeep(ev) { if (global.KWUpkeep) global.KWUpkeep.onEvent(ev); },             // upkeep: something wore, broke or was mended
     lost(ev) { if (global.KWLost) global.KWLost.onEvent(ev); },                   // the day's lost thing was found (here or on another device)
     decor(ev) { if (global.KWDecor) global.KWDecor.onEvent(ev); },                 // a decoration placed, moved or removed (here or on another device)
+    merchant(ev) { if (global.KWMerchant) global.KWMerchant.onEvent(ev); },       // the merchant arrived, or a trade was made on another device
     market_porter_home(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_run_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_want_filling(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },

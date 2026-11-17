@@ -33,12 +33,13 @@
   }
   const ago = (at, now) => { const m = Math.max(0, Math.round((now - new Date(at).getTime()) / 60000)); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; };
   // The news. `o`: { entries (chronicle, newest first), now, seenAt, weather,
-  // lost, building: [lines], upkeep, charm }. → { today: [{ icon, text }],
+  // merchant, lost, building: [lines], upkeep, charm }. → { today: [{ icon, text }],
   // lives: [line], rest: [line], fresh } where a line is { text, when, fresh, kind }.
   function newsOf(o) {
     const now = o.now || 0, seen = o.seenAt || 0;
     const today = [];
     if (o.weather) today.push({ icon: o.weatherIcon || '🌤️', text: o.weather });
+    if (o.merchant) today.push({ icon: '🛒', text: o.merchant });
     if (o.lost) today.push({ icon: '🔎', text: o.lost });
     for (const b of o.building || []) today.push({ icon: '🏗️', text: b });
     if (o.upkeep) today.push({ icon: '🧰', text: o.upkeep });
@@ -73,6 +74,7 @@
       entries: LS && LS.recent ? LS.recent() : [], now: clock(), seenAt: seenAt(),
       weather: weatherLine(w, W ? k => W.label(k) : null), weatherIcon: W && w ? W.icon(w.today) : null,
       lost: L && L.line ? L.line() : '', building, upkeep,
+      merchant: global.KWMerchant && global.KWMerchant.line ? global.KWMerchant.line() : '',
       charm: D && D.data && D.data.charm && D.data.charm.score ? D.data.charm.line : '',
     });
   }

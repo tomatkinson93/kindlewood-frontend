@@ -832,3 +832,33 @@ body.kw-photo #settlement-view .sv-slot, body.kw-photo #settlement-view .kwv-vil
 #settlement-view .kwph-bar button:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 700px) { #settlement-view .kwph-bar { left: calc(8px + var(--kwph-side, 0px)); right: calc(8px + var(--kwph-side, 0px)); transform: none; max-width: none; bottom: calc(8px + var(--kwph-under, 0px)); gap: 6px 8px; padding: 6px 8px; }
   #settlement-view .kwph-group > span { display: none; } #settlement-view .kwph-bar button { padding: 0 7px; font-size: 12px; } }
+
+/* ── A visiting merchant (js/merchant.js; docs/HOME_SCENE.md F.13). ──────── */
+#settlement-view .kwm-cart { position: absolute; display: block; margin: 0; padding: 0; border: 0; background: none; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwm-cart > svg, #settlement-view .kwm-cart > img { display: block; position: absolute; left: 0; top: 0; overflow: visible; transition: transform 0.15s ease, filter 0.15s ease; transform-origin: 50% 100%; }
+#settlement-view .kwm-cart:hover > svg, #settlement-view .kwm-cart:hover > img, #settlement-view .kwm-cart:focus-visible > svg, #settlement-view .kwm-cart:focus-visible > img { transform: scale(1.04); filter: brightness(1.08); }
+#settlement-view .kwm-cart:focus { outline: none; }
+#settlement-view .kwm-cart:focus-visible { outline: 2px solid #ffe08a; outline-offset: 3px; border-radius: 8px; }
+#settlement-view .kwm-plate { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 4px); padding: 2px 8px; border-radius: 7px; background: rgba(36, 26, 16, 0.92); color: #f3e6c8; border: 1px solid #6b5536;
+  font: 600 11.5px/1.3 'Cormorant Garamond', Georgia, serif; white-space: nowrap; }
+#settlement-view .kwm-badge { position: absolute; right: -6px; top: -8px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center; background: #c2452f; color: #fff; border: 2px solid #fff3d6;
+  font: 700 11px/1 system-ui, sans-serif; animation: kwm-bob 2.2s ease-in-out infinite; }
+#settlement-view .kwm-done .kwm-badge { background: #4d7a3a; animation: none; }
+@keyframes kwm-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+#settlement-view[data-phase="night"] :is(.kwm-plate, .kwm-badge) { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] :is(.kwm-plate, .kwm-badge) { filter: url(#kwn-undo-dusk); }
+#settlement-view .sv-scene.sv-build-mode .kwm-cart { pointer-events: none; opacity: 0.6; }
+body.kw-photo #settlement-view .kwm-plate, body.kw-photo #settlement-view .kwm-badge { display: none !important; }
+body.kw-photo #settlement-view .kwm-cart { pointer-events: none; }
+.kwm { display: grid; gap: 8px; }
+.kwm-intro, .kwm-none { margin: 0 0 4px; opacity: 0.85; }
+.kwm-trade { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(138, 106, 42, 0.35); background: rgba(138, 106, 42, 0.08); }
+.kwm-trade.kwm-taken { opacity: 0.55; }
+.kwm-sides { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.kwm-give, .kwm-get { display: grid; font-weight: 600; }
+.kwm-give small, .kwm-get small { font-weight: 400; font-size: 0.8em; opacity: 0.7; }
+.kwm-arrow { font-size: 1.3em; opacity: 0.6; }
+.kwm-btn { flex: 0 0 auto; min-width: 84px; min-height: 40px; padding: 0 14px; border-radius: 9px; border: 1px solid #b8923f; background: #6a4f1e; color: #fff3d6; font: inherit; font-weight: 600; cursor: pointer; }
+.kwm-btn:hover:not(:disabled) { background: #7d5e24; }
+.kwm-btn:disabled { background: transparent; color: inherit; border-color: rgba(138, 106, 42, 0.4); opacity: 0.75; cursor: default; font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwm-badge { animation: none; } }

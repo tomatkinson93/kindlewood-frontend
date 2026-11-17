@@ -21,8 +21,8 @@ console.log('1. The news');
     { kind: 'death', text: 'Old Ash died.', at: at(5) }, { kind: 'quest', text: 'A quest came home.', at: at(20) },
     { kind: 'town', text: 'Too old.', at: at(30) }, { kind: 'town', text: '', at: at(1) },
   ];
-  const n = K._newsOf({ entries, now: NOW, seenAt: NOW - 3 * HOUR, weather: 'Rain all day.', lost: 'Ash has lost a ribbon somewhere in Town.', building: ['Tavern: 40% built'], upkeep: 'One builder short.', charm: 'Charm 21.' });
-  check('1a. today: the weather, anything lost, what is being built, upkeep and charm', n.today.map(t => t.text).join('|') === 'Rain all day.|Ash has lost a ribbon somewhere in Town.|Tavern: 40% built|One builder short.|Charm 21.');
+  const n = K._newsOf({ entries, now: NOW, seenAt: NOW - 3 * HOUR, weather: 'Rain all day.', merchant: 'A travelling merchant is in town until dawn.', lost: 'Ash has lost a ribbon somewhere in Town.', building: ['Tavern: 40% built'], upkeep: 'One builder short.', charm: 'Charm 21.' });
+  check('1a. today: the weather, the merchant, anything lost, what is being built, upkeep and charm', n.today.map(t => t.text).join('|') === 'Rain all day.|A travelling merchant is in town until dawn.|Ash has lost a ribbon somewhere in Town.|Tavern: 40% built|One builder short.|Charm 21.');
   check('1b. who was born and who died have their own heading', n.lives.map(e => e.kind).join() === 'birth,death');
   check('1c. the rest of the last day\'s chronicle, newest first; older than a day is left out', n.rest.map(e => e.text).join('|') === 'The Farm is finished.|A quest came home.');
   check('1d. what is new since the player last looked is marked and counted', n.fresh === 2 && n.rest[0].fresh && n.lives[0].fresh && !n.lives[1].fresh && !n.rest[1].fresh);

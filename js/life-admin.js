@@ -98,6 +98,22 @@
         <button type="button" class="cheat-all-btn" data-kwld="uk-all" data-on="0">Turn off for every town</button>
         <span class="ra-muted">Everything starts at 100 when it goes on, and goes back to 100 when it goes off. Camps are exempt.</span></div>`;
   }
+  // The visiting merchant (docs/HOME_SCENE.md F.13; /api/merchant/admin/call).
+  function merchantHtml(m) {
+    if (!m) return '';
+    return `<div class="cheat-section-label">Visiting merchant</div>
+      <div class="kwld-grid"><div><b>Here today</b> ${m.here ? 'yes' : 'no'}</div><div><b>Next visit</b> ${esc(when(m.next_at))}</div></div>
+      <div class="kwld-row"><button type="button" class="cheat-all-btn" data-kwld="me-call" data-on="1">🛒 Call the merchant today</button>
+        <button type="button" class="cheat-all-btn" data-kwld="me-call" data-on="0">Send them away</button></div>`;
+  }
+  async function merchant(path, body) {
+    const res = await global.apiFetch('/api/merchant' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Request failed.');
+    st.merchant = d.merchant || st.merchant;
+    if (global.KWMerchant) global.KWMerchant.load();
+    return d;
+  }
   async function upkeep(path, body) {
     const res = await global.apiFetch('/api/upkeep' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
     const d = await res.json().catch(() => ({}));
@@ -125,11 +141,11 @@
     const el = root();
     if (!el) return;
     el.innerHTML = `${st.msg ? `<div class="kw-note ${st.bad ? 'bad' : 'good'}">${esc(st.msg)}</div>` : ''}
-      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${upkeepHtml(st.upkeep)}${numbersHtml(st.numbers)}`;
+      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${upkeepHtml(st.upkeep)}${merchantHtml(st.merchant)}${numbersHtml(st.numbers)}`;
   }
   async function load() {
     try {
-      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null), upkeep('').catch(() => null)]);
+      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null), upkeep('').catch(() => null), merchant('').catch(() => null)]);
       st.status = s; st.numbers = n.numbers;
     } catch (e) { st.msg = e.message; st.bad = true; }
     render();
@@ -167,6 +183,7 @@
     }
     if (a === 'bt-finish') return act(() => build('/admin/finish', {}), d => d.finished ? d.finished.text : 'Finished.');
     if (a === 'bt-builders') return act(() => build('/admin/builders', { count: Number(el.querySelector('#kwld-builders').value) }), d => `The town has ${d.builders} builder${d.builders === 1 ? '' : 's'}.`);
+    if (a === 'me-call') return act(() => merchant('/admin/call', { on: t.getAttribute('data-on') === '1' }), d => (d.called ? 'The merchant is in town today.' : 'The merchant comes on their own days only.'));
     if (a === 'uk-town') return act(() => upkeep('/admin/town', { on: t.getAttribute('data-on') === '1' }), d => `Upkeep is ${d.on ? 'on' : 'off'} for this town. Every building is at 100.`);
     if (a === 'uk-all') {
       const on = t.getAttribute('data-on') === '1';
@@ -187,5 +204,5 @@
     load();
   }
 
-  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml, _upkeepHtml: upkeepHtml };
+  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml, _upkeepHtml: upkeepHtml, _merchantHtml: merchantHtml };
 })(typeof window !== 'undefined' ? window : globalThis);
