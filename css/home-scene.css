@@ -733,3 +733,17 @@ body.kw-shell #settlement-view .kwv-follow { top: 58px; }
 #settlement-view .kwa-blossom { width: 6px; height: 5px; border-radius: 70% 30% 70% 30%; background: #ffc6dc; box-shadow: 0 0 2px rgba(255, 150, 190, 0.7); animation: kwa-wind 10s linear forwards; }
 @media (max-width: 700px) { #settlement-view .kww-far { display: none; } }   /* one sheet is enough on a phone */
 @media (prefers-reduced-motion: reduce) { #settlement-view .kww-cloud { animation-play-state: paused; } #settlement-view .kww-fall { display: none; } }
+
+/* ── A lost thing each day (js/lost.js; docs/HOME_SCENE.md F.8). ─────────── */
+/* Small on purpose: something to spot. It sorts by depth like everything
+   that stands, and a glint crosses it every few seconds. */
+#settlement-view .kwl-thing { position: absolute; pointer-events: auto; width: 44px; height: 44px; margin: -34px 0 0 -22px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: end center; -webkit-tap-highlight-color: transparent; }
+#settlement-view .kwl-icon { font-size: 20px; line-height: 1; filter: drop-shadow(0 1px 0 #3b2a1a) drop-shadow(0 0 1px #3b2a1a); transform-origin: 50% 100%; animation: kwl-rock 3.6s ease-in-out infinite; }
+#settlement-view .kwl-glint { position: absolute; left: 50%; bottom: 14px; width: 9px; height: 9px; margin-left: 3px; pointer-events: none; opacity: 0; animation: kwl-glint 3.6s ease-in-out infinite;
+  background: radial-gradient(closest-side, #fff, rgba(255, 255, 255, 0)); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+#settlement-view .kwl-thing:hover .kwl-icon, #settlement-view .kwl-thing:focus-visible .kwl-icon { transform: scale(1.25); animation: none; }
+#settlement-view .kwl-thing:focus-visible { outline: 2px solid #ffe08a; outline-offset: -8px; border-radius: 50%; }
+@keyframes kwl-rock { 0%, 86%, 100% { transform: rotate(0deg); } 90% { transform: rotate(-9deg); } 95% { transform: rotate(7deg); } }
+@keyframes kwl-glint { 0%, 70%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); } 80% { opacity: 1; transform: scale(1.3) rotate(40deg); } 90% { opacity: 0; transform: scale(0.6) rotate(80deg); } }
+#settlement-view .sv-scene.sv-build-mode .kwl-thing { display: none; }   /* Build mode: nothing to trip over */
+@media (prefers-reduced-motion: reduce) { #settlement-view .kwl-icon, #settlement-view .kwl-glint { animation: none; } #settlement-view .kwl-glint { opacity: 0.8; } }

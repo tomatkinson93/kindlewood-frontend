@@ -150,6 +150,7 @@
     layout() { if (typeof global._svLayoutLoad === 'function') global._svLayoutLoad(); },   // a building was moved on another device
     construction(ev) { if (global.KWBuild) global.KWBuild.onEvent(ev); },         // building time: ordered, finished, waiting for a builder
     upkeep(ev) { if (global.KWUpkeep) global.KWUpkeep.onEvent(ev); },             // upkeep: something wore, broke or was mended
+    lost(ev) { if (global.KWLost) global.KWLost.onEvent(ev); },                   // the day's lost thing was found (here or on another device)
     market_porter_home(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_run_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_want_filling(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },

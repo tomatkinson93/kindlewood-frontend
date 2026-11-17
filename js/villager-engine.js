@@ -986,6 +986,7 @@
     if (ctx.hungry === 'famine') return 'Hungry. The stores are empty.';
     if (ctx.hungry === 'low') return 'Worried that food is running low.';
     if (ctx.moment) return 'Has something to ask you.';
+    if (ctx.lost) return ctx.lost;   // has lost something today (js/lost.js)
     if (recent.some(e => e.kind === 'death' && !mine(e) && c.family_id != null && e.family_id === c.family_id)) return 'Grieving a death in the family.';
     if (recent.some(e => e.kind === 'partnership' && mine(e))) return 'Newly partnered, and it shows.';
     if (recent.some(e => e.kind === 'birth' && mine(e) && (e.citizen_ids || []).map(Number).indexOf(id) < 2)) return 'A new parent: tired and happy.';
@@ -1012,7 +1013,9 @@
     } catch (_) { /* not loaded */ }
     try { const k = global.KWSocial && global.KWSocial.data && global.KWSocial.data.known[c.id]; likes = k ? (k.likes || []).map(t => global.KWSocial.topic(t).label) : []; } catch (_) { /* not loaded */ }
     const recent = global.KWLifeScenes && global.KWLifeScenes.recent ? global.KWLifeScenes.recent() : [];
-    return thoughtOf(c, { hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', moment: !!v.moment, recent, now: clockMs(), likes, work, phase: S.phase });
+    let lost = null;
+    try { lost = global.KWLost && global.KWLost.hintFor ? global.KWLost.hintFor(c.id) : null; } catch (_) { /* not loaded */ }
+    return thoughtOf(c, { hungry: fam === 'famine' || fam === 'low' ? fam : 'ok', moment: !!v.moment, lost, recent, now: clockMs(), likes, work, phase: S.phase });
   }
 
   // ── Follow (Part F.4) ───────────────────────────────────────────────────
@@ -1971,6 +1974,8 @@
     deselect: () => { if (M.v) deselect(true); },
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
+    // A small sign rising from a point in the scene (js/lost.js).
+    floatAt: (x, y, text, tone) => floater(x, y, text, tone),
     // Builders (js/construction.js): where they are and what they do.
     // What is on their mind, and Follow (Part F.3, F.4).
     _thoughtOf: thoughtOf, _dayLog: dayLog, _seenLine: seenLine, follow, stopFollow: () => stopFollow(), get following() { return F.id; }, get followLines() { return F.lines.slice(); },
