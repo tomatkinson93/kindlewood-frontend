@@ -806,7 +806,7 @@ function _apprenticeHtml(c) {
   const a = c.apprentice || {};
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const defs = window.KWCareers && KWCareers.defs && KWCareers.defs();
-  const classes = defs ? Object.values(defs.classes).filter(k => k.assignable) : [];
+  const classes = defs ? Object.values(defs.classes).filter(k => k.assignable && (!KWCareers.featureOn || KWCareers.featureOn(k) || k.key === a.class_key)) : [];
   const label = k => (window.KWCareers ? `${KWCareers.roleIcon(k)} ${KWCareers.roleLabel(k)}` : k);
   const tradeOpts = (a.class_key ? '' : '<option value="" selected disabled>Choose a trade…</option>')
     + classes.map(k => `<option value="${esc(k.key)}"${k.key === a.class_key ? ' selected' : ''}>${esc(k.icon)} ${esc(k.label)}</option>`).join('');
