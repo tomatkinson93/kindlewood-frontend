@@ -403,7 +403,7 @@ console.log('13. Behaviour (§3.5)');
   check('13m. a chat lasts 4–7 s with a bubble passed back and forth (dots or a tiny picture)', /CHAT_MS = \[4000, 7000\]/.test(E) && /SAY = \['…'/.test(E) && /\.kwv-say \{/.test(CSS));
   check('13n. children go indoors with their parent and come out after', /k\.child && k\.state !== 'indoors' && live\(k\) && parentsOf\(k\.c\)\.includes\(v\.id\)/.test(E) && /parentOf\(v\)\.state === 'indoors'/.test(E));
   check('13o. evening and night: buildings with a lit image glow; no chats at night; the cast stops changing at night',
-    /setAttribute\('data-phase', S\.phase\)/.test(E) && /\[data-phase="night"\] \.kwh-lit \{ opacity: 1; \}|\[data-phase="night"\] \.kwh-lit/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night'\) rotate\(\)/.test(E));
+    /setAttribute\('data-phase', S\.phase\)/.test(E) && /\[data-phase="night"\] \.kwh-lit \{ opacity: 1; \}|\[data-phase="night"\] \.kwh-lit/.test(CSS) && /\(S\.phase !== 'night'\)/.test(E) && /if \(S\.phase !== 'night' && S\.event !== 'raid'\) rotate\(\)/.test(E));
   check('13p. the time of day is the game clock (Dev Tools time included)', /global\.KWClock \? global\.KWClock\.phase\(\)\.phase/.test(E));
   check('13q. a chat gives up if the two never meet', /a\.until = now \+ 8000/.test(E) && /now >= v\.until\) endChat\(v, now\)/.test(E));
 }
@@ -963,6 +963,30 @@ console.log('28. Life events seen happening (§3.9)');
   check('28o. the chronicle is the event; a small reader hands its lines to the engine (which still never calls the server), and nothing is written; skipped under reduced motion (the loop does not run)',
     /apiFetch\('\/api\/families\/all\/chronicle'\)/.test(LS) && /KWCast\.offerLife\(d\.entries \|\| \[\]\)/.test(LS) && !/method:/.test(LS) && !/apiFetch|fetch\(/.test(E) && /global\.addEventListener\('kw:home'/.test(LS)
     && read('index.html').indexOf('/js/life-scenes.js?v=') > read('index.html').indexOf('/js/villager-engine.js?v=') && /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\);/.test(E));
+}
+
+console.log('29. Town-wide events (§3.10)');
+{
+  const E = read('js/villager-engine.js'), HS = read('js/home-scene.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast, now = 1e12, M = 60000;
+  const fest = { town: { festival: { active: true } } };
+  check('29a. a festival running is the town\'s event', C._townEvent(fest, now) === 'festival' && C._townEvent({ town: { festival: { active: false, can_start: true } } }, now) === null && C._townEvent({}, now) === null);
+  check('29b. a raid in its last ten minutes (or under way) comes before everything', C._townEvent({ ...fest, raid: { arrives_at: new Date(now + 9 * M) } }, now) === 'raid' && C._townEvent({ raid: { arrives_at: new Date(now - M) } }, now) === 'raid' && C.TOWN.RAID_NEAR_MS === 10 * M);
+  check('29c. a raid still hours off changes nothing (a town empty for a whole warning would be bleak)', C._townEvent({ raid: { arrives_at: new Date(now + 3 * 60 * M) } }, now) === null && C._townEvent({ ...fest, raid: { arrives_at: new Date(now + 60 * M) } }, now) === 'festival');
+  check('29d. once resolved it is over', C._townEvent({ raid: { arrives_at: new Date(now - M), resolved_at: new Date(now) } }, now) === null);
+  check('29e. priority: raid, then a death, then a festival', C._townEvent(fest, now, true) === null && C._townEvent({ ...fest, raid: { arrives_at: new Date(now) } }, now, true) === 'raid');
+  const ring = Array.from({ length: 8 }, (_, i) => C._ringSpot({ x: 500, y: 400 }, i, 8));
+  check('29f. the festival ring: places round the green, flattened as seen from in front, no two the same', new Set(ring.map(q => q.x + ',' + q.y)).size === 8 && ring.every(q => Math.abs(q.x - 500) <= C.TOWN.RING_R && Math.abs(q.y - 400) <= C.TOWN.RING_R * 0.5)
+    && Math.max(...ring.map(q => q.x)) - Math.min(...ring.map(q => q.x)) > 2 * (Math.max(...ring.map(q => q.y)) - Math.min(...ring.map(q => q.y))));
+  check('29g. most of the cast gathers there and dances (turning, notes and lanterns, a hop); a few still wander', C.TOWN.RING === 0.8 && /S\.event === 'festival' && !isBuilder\(v\.c\) && S\.rand\(\) < TOWN\.RING/.test(E) && /v\.dir = \['s', 'e', 'n', 'w'\]\[Math\.floor\(t \/ 380\) % 4\];/.test(E) && /v\.danceSay = S\.rand\(\) < 0\.5 \? '🎵' : '🏮'/.test(E));
+  check('29h. a raid: everyone runs for the nearest door and stays in; guards stand by the way out', C.TOWN.RUN > 1.3 && /v\.run = true; walkTo\(v, \{ x: d\.x, y: d\.y \}, d\.key \|\| null\)/.test(E) && /if \(v\.state === 'indoors' && S\.event === 'raid'\) \{ if \(isGuard\(v\.c\)\) comeOut\(v, now\); return; \}/.test(E)
+    && /setSay\(v, '🛡️'\)/.test(E) && /if \(S\.event === 'raid'\) return;   \/\/ nobody is called out while raiders are near/.test(E));
+  check('29i. when it ends people come out, relieved or sad by how it went', /const bad = S\.raidLast && \(S\.raidLast\.outcome === 'lost' \|\| S\.raidLast\.outcome === 'partial'\);/.test(E) && /v\.emote = bad \? '😢' : '😌'/.test(E));
+  check('29j. the town grows a tier: everyone out cheers once', /order\.indexOf\(tier\) > order\.indexOf\(S\.tierSeen\)/.test(E) && /setSay\(v, '⭐'\); hop\(v\);/.test(E));
+  check('29k. no life scenes, emotes or chats while raiders are near', /townTick\(now\); if \(S\.event !== 'raid'\) lifeTick\(now\);/.test(E) && /if \(S\.event === 'raid'\) return;       \/\/ nobody stops to feel things/.test(E));
+  check('29l. the scene knows of the raid (the town\'s data, readable at last)', /raid: \(s && s\.raid\) \|\| null/.test(HS));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

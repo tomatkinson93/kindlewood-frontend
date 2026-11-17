@@ -486,6 +486,18 @@
   function errand(v, now) {
     const owls = S.owls.size ? S.owls : nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
     const home = homeDoor(v);
+    // Town-wide (§3.10). A raid about to strike: guards to their post by the
+    // way out, everyone else runs for the nearest door.
+    if (S.event === 'raid') {
+      if (isGuard(v.c)) { const post = S.exits[0] || nearestDoor(v.x, v.y) || { x: v.x, y: v.y }; walkTo(v, spreadPoint({ x: post.x + 30, y: post.y + 18 }, othersOf(v), { ok: onMeadow }), null); v.guarding = true; return; }
+      const d = nearestDoor(v.x, v.y) || home;
+      if (d) { v.run = true; walkTo(v, { x: d.x, y: d.y }, d.key || null); return; }
+    }
+    // A festival: most gather on the green and dance in a loose ring.
+    if (S.event === 'festival' && !isBuilder(v.c) && S.rand() < TOWN.RING) {
+      const g = greenPoint();
+      if (g) { const n = Math.max(6, [...S.vs.values()].filter(live).length); walkTo(v, ringSpot(g, v.id % n, n), null); v.state = 'toring'; return; }
+    }
     // A builder with a site here goes to it (after a rest, or back from the
     // stores); now and then they fetch something from the stores first.
     const bs = buildSpot(v);
@@ -540,7 +552,8 @@
   // Indoors: fade at the door, stay 20–60 s (at night, until morning), come
   // out and go on. The building gives a little bounce as someone goes in.
   function goIndoors(v, now, key) {
-    v.state = 'indoors'; v.inside = key; v.inSince = now;
+    v.state = 'indoors'; v.inside = key; v.inSince = now; v.run = false;
+    if (v.emote) { v.emote = null; setSay(v, null); }   // a bubble does not hang in the doorway
     v.until = now + stayMs(key, S.phase, S.rand);   // at work, they stay while working (step)
     v.el.classList.add('kwv-gone');
     const d = doorOf(key) || S.exits.find(e => e.key === key);
@@ -553,6 +566,7 @@
   const minOut = () => (isPhone() ? MIN_OUT.phone : MIN_OUT.desktop);
   const outsideCount = () => [...S.vs.values()].filter(v => live(v) && v.state !== 'indoors').length;
   function keepSomeOut(now) {
+    if (S.event === 'raid') return;   // nobody is called out while raiders are near
     if (S.phase !== 'day' && S.phase !== 'dawn') return;
     const list = [...S.vs.values()].filter(v => live(v) && !v.selected && !v.held)
       .map(v => ({ id: v.id, inside: v.state === 'indoors', worker: v.state === 'indoors' && !!workKey(v) && v.inside === workKey(v), since: v.inSince || 0, v }));
@@ -731,6 +745,7 @@
   function maybeMood(now) {
     const town = S.mood = townMood(cits(), sceneNow());
     if (S.hush && now < S.hush) return;   // a sad time: no emotes for a while (§3.9)
+    if (S.event === 'raid') return;       // nobody stops to feel things with raiders at the gate
     const list = [...S.vs.values()].map(v => ({ id: v.id, last: v.emoteAt, showing: !!v.emote,
       free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.selected && !v.held && !v.say && v.partner == null && !v.talk && !v.moment }));
     const id = emoteTurn(list, now, S.rand);
@@ -899,6 +914,85 @@
       return;
     }
     if (now >= a.until) { if (st.inside) v.el.classList.remove('kwv-gone'); next(); }
+  }
+
+  // ── Town-wide events (§3.10) ────────────────────────────────────────────
+  // What the whole town is doing, from what the client already knows. By
+  // priority: a raid about to strike (or under way), then a death (its hush),
+  // then a festival. A raid that is still hours off changes nothing: an empty
+  // town for a whole warning would be bleak, so people only run for cover in
+  // its last ten minutes.
+  const TOWN = { RAID_NEAR_MS: 600000, RING: 0.8, RUN: 1.7, RING_R: 74, DANCE_MS: [8000, 14000] };
+  const GUARDS = ['soldier', 'archer'];
+  const isGuard = c => !!c && GUARDS.includes(c.role) && !isChild(c);
+  // `scene`: KWHome.sceneState(). `hushed`: a death is being mourned. Pure.
+  function townEvent(scene, now, hushed) {
+    const r = scene && scene.raid;
+    if (r && !r.resolved_at) { const left = new Date(r.arrives_at).getTime() - now; if (!(left > TOWN.RAID_NEAR_MS)) return 'raid'; }
+    if (hushed) return null;
+    if (scene && scene.town && scene.town.festival && scene.town.festival.active) return 'festival';
+    return null;
+  }
+  // Place `i` of `n` in a loose ring round a point (flattened: seen from in front). Pure.
+  function ringSpot(c, i, n, r = TOWN.RING_R) {
+    const a = (i / Math.max(3, n)) * Math.PI * 2;
+    return { x: Math.round(c.x + Math.cos(a) * r), y: Math.round(c.y + Math.sin(a) * r * 0.45) };
+  }
+  // The village green, when it is in the scene showing (the festival's ring).
+  function greenPoint() {
+    const el = S.layer && S.layer.querySelector('#sv-prop-green .kwh-prop');
+    if (!el || !el.getBoundingClientRect) return null;
+    const lr = S.layer.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const sx = lr.width / (S.layer.clientWidth || 1), sy = lr.height / (S.layer.clientHeight || 1);
+    if (!r.width) return null;
+    return { x: (r.left + r.width / 2 - lr.left) / sx, y: (r.top + r.height * 0.72 - lr.top) / sy };
+  }
+  function townTick(now) {
+    const scene = sceneNow(), was = S.event || null;
+    S.event = townEvent(scene, clockMs(), !!(S.hush && now < S.hush));
+    if (scene.raid) S.raidLast = scene.raid;
+    // A raid begins: everyone outdoors makes for cover at once; guards come out.
+    if (S.event === 'raid' && was !== 'raid') {
+      for (const v of S.vs.values()) {
+        if (!live(v) || v.selected || v.held || v.act || v.moment) continue;
+        if (isGuard(v.c)) { if (v.state === 'indoors') comeOut(v, now); }
+        if (v.state !== 'indoors') { endChat(v, now); v.emote = null; setSay(v, null); errand(v, now); }
+      }
+    }
+    // A festival begins: those out and free set off for the green at once.
+    if (S.event === 'festival' && was !== 'festival') {
+      for (const v of S.vs.values()) if (live(v) && (v.state === 'idle' || v.state === 'walk') && !v.goal && !v.selected && !v.held && !v.act && !v.moment && v.partner == null) errand(v, now);
+    }
+    // It is over: people come out, relieved or sad by how it went.
+    if (was === 'raid' && S.event !== 'raid') {
+      const bad = S.raidLast && (S.raidLast.outcome === 'lost' || S.raidLast.outcome === 'partial');
+      let n = 0;
+      for (const v of S.vs.values()) {
+        v.run = false;
+        if (!live(v) || v.selected || v.held) continue;
+        if (v.state === 'indoors') { comeOut(v, now); v.until = now + 600 + S.rand() * 2500; }
+        if (n++ < 6) { v.emote = bad ? '😢' : '😌'; v.emoteUntil = now + 3500 + S.rand() * 2000; v.emoteAt = now; setSay(v, v.emote); }
+      }
+    }
+    // The town has grown a tier: everyone out cheers once.
+    const tier = scene.tier || null, order = ['camp', 'village', 'town', 'city'];
+    if (S.tierSeen && tier && order.indexOf(tier) > order.indexOf(S.tierSeen)) {
+      for (const v of S.vs.values()) {
+        if (!live(v) || v.state === 'indoors' || v.selected || v.held || v.act || v.talk || v.moment) continue;
+        endChat(v, now); v.state = 'cheer'; v.until = now + 2600; v.dir = 's'; v.goal = null; setSay(v, '⭐'); hop(v);
+      }
+    }
+    if (tier) S.tierSeen = tier;
+  }
+  // The festival ring: turn through the directions, a note or a lantern now
+  // and then, a hop here and there.
+  function danceStep(v, now) {
+    if (S.event !== 'festival' || now >= v.until) { setSay(v, null); idle(v, now, 600 + S.rand() * 1500); return; }
+    const t = now - v.danceFrom;
+    v.dir = ['s', 'e', 'n', 'w'][Math.floor(t / 380) % 4];
+    const beat = t % 3200;
+    setSay(v, beat < 1300 ? v.danceSay : null);
+    if (beat < 40 && S.rand() < 0.5) hop(v);
   }
 
   // A builder at the site: the hammer goes up in a bubble in a steady beat,
@@ -1419,6 +1513,10 @@
     }
     if (v.state === 'indoors' && buildSpot(v)) { comeOut(v, now); return; }   // there is building to do
     if (v.state === 'build' || v.state === 'cheer') { buildStep(v, now); return; }
+    if (v.state === 'dance') { danceStep(v, now); return; }
+    if (v.guarding && S.event !== 'raid') { v.guarding = false; if (v.say === '🛡️') setSay(v, null); }
+    // During a raid nobody but the guards comes back out.
+    if (v.state === 'indoors' && S.event === 'raid') { if (isGuard(v.c)) comeOut(v, now); return; }
     if (v.state === 'indoors') {
       // At work: in while working, out when the break or the day comes.
       if (workKey(v) && v.inside === workKey(v)) {
@@ -1458,10 +1556,12 @@
     if (v.state === 'idle' || (v.child && v.state === 'idle')) return;
     const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy);
     if (v.state === 'tochat' && v.talk && now >= v.until) { endChat(v, now); return; }   // never got there
-    const stepPx = v.speed * (v.talk ? 1.8 : v.state === 'chase' || v.state === 'ahead' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * dt / 1000;
+    const stepPx = v.speed * (v.talk ? 1.8 : v.run ? TOWN.RUN : v.state === 'chase' || v.state === 'ahead' || v.state === 'toring' ? 1.3 : lowMood(v) ? MOOD.LOW_SPEED : 1) * dt / 1000;
     if (dist <= stepPx) {
       v.x = v.tx; v.y = v.ty;
       if (v.state === 'leave') { drop(v); return; }
+      if (v.state === 'toring') { v.state = 'dance'; v.until = now + TOWN.DANCE_MS[0] + S.rand() * (TOWN.DANCE_MS[1] - TOWN.DANCE_MS[0]); v.danceFrom = now - S.rand() * 3000; v.danceSay = S.rand() < 0.5 ? '🎵' : '🏮'; return; }
+      if (v.guarding && S.event === 'raid') { idle(v, now, 6000); v.dir = 's'; setSay(v, '🛡️'); return; }
       if (v.state === 'tosite') { v.state = 'build'; v.until = now + BUILD_MS[0] + S.rand() * (BUILD_MS[1] - BUILD_MS[0]); v.hamFrom = now; v.puffAt = now + 600; v.dir = V().dirFromVector((v.siteX || v.x) - v.x, 0) || 'e'; return; }
       if (v.state === 'tochat') {
         const p = S.vs.get(v.partner);
@@ -1481,7 +1581,7 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'toring', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
@@ -1495,6 +1595,7 @@
     const free = [...S.vs.values()].map(v => ({ id: v.id, x: v.x, y: v.y, child: v.child, selected: !!v.selected || !!v.held,
       free: live(v) && (v.state === 'idle' || v.state === 'walk') && !v.goal && v.partner == null && (S.phase !== 'night') }));
     const pairs = chatPairs(free, now, S.cool);
+    if (S.event === 'raid') return;
     const glum = S.mood && S.mood.happy != null && S.mood.happy < MOOD.LOW;   // an unhappy town chats less
     if (pairs.length && S.rand() < 0.35 * (glum ? MOOD.LOW_CHAT : 1)) startChat(S.vs.get(pairs[0][0]), S.vs.get(pairs[0][1]), now);
   }
@@ -1510,10 +1611,10 @@
       if (ph !== S.phase) { S.phase = ph; nightLights(); }
       if (signature(cits()) !== S.sig) recast(false);
     }
-    if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night') rotate(); }
+    if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night' && S.event !== 'raid') rotate(); }
     if ((S.chatT += dt) > 2000) { S.chatT = 0; maybeChat(now); }
     if ((S.moodT = (S.moodT || 0) + dt) > 2500) { S.moodT = 0; maybeMood(now); }
-    if ((S.lifeTickT = (S.lifeTickT || 0) + dt) > 1000) { S.lifeTickT = 0; lifeTick(now); }
+    if ((S.lifeTickT = (S.lifeTickT || 0) + dt) > 1000) { S.lifeTickT = 0; townTick(now); if (S.event !== 'raid') lifeTick(now); }
     if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
@@ -1615,6 +1716,8 @@
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
     // Builders (js/construction.js): where they are and what they do.
+    // Town-wide events (§3.10).
+    TOWN, _townEvent: townEvent, _ringSpot: ringSpot, get event() { return S.event || null; },
     // Life events (§3.9).
     LIFE, offerLife, _lifeScene: lifeScene, _lifeNews: lifeNews, get lifePlaying() { return S.lifePlaying ? S.lifePlaying.kind : null; },
     _playLife: e => { S.lifeWaiting = (S.lifeWaiting || []).concat([e]).slice(0, LIFE.WAITING); },   // tests and Dev Tools: play this chronicle line

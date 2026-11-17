@@ -81,7 +81,7 @@
   function sceneState() {
     const gd = global.gameData || null, s = gd && gd.settlement;
     return { tier: (s && s.tier) || 'camp', festivals: !!global.KWTown, town: (s && s.town) || null,
-      famine: (s && s.famine) || null, beds: s && typeof s.beds === 'number' ? s.beds : null,
+      famine: (s && s.famine) || null, raid: (s && s.raid) || null, beds: s && typeof s.beds === 'number' ? s.beds : null,
       // citizensData is a top-level let in main.js, not on window.
       living: Array.isArray(cits()) ? cits().filter(c => c && c.life_stage !== 'deceased').length
         : (s && typeof s.population === 'number' ? s.population : null) };
