@@ -753,6 +753,154 @@
   // and stand about longer.
   const lowMood = v => { const h = happinessOf(v.c); return (h != null ? h : S.mood && S.mood.happy != null ? S.mood.happy : 70) < MOOD.LOW; };
 
+  // ── Life events seen happening (§3.9) ───────────────────────────────────
+  // A new line in the chronicle (a birth, a coming of age, a partnership, a
+  // death, a settler, an inheritance) plays as a small scene, once, when
+  // Home is showing: within ten minutes of it happening. One at a time; up
+  // to three wait their turn. Each is under a minute. People in a scene join
+  // the cast for its length. Nothing here changes the game: the chronicle
+  // line is the event, this only shows it.
+  const LIFE = { KINDS: ['birth', 'came_of_age', 'partnership', 'death', 'settler', 'inheritance'], FRESH_MS: 600000, WAITING: 3, HUSH_MS: 240000, POLL_MS: 45000 };
+  // Who does what. `entry`: { kind, citizen_ids }. `at`: { home(id), work(id),
+  // edge, centre, across } points in the scene. `who`: { family(id) → ids,
+  // neighbour(not) → id|null }. → { actors: [{ id, from?, greet?, steps }], hush? } or null. Pure.
+  // A step: { to, speed?, say? (null clears), wait?, hop?, inside? }.
+  function lifeScene(entry, at, who) {
+    const ids = (entry.citizen_ids || []).map(Number).filter(Boolean), a = ids[0], b = ids[1];
+    const off = (p, dx, dy = 0) => ({ x: p.x + dx, y: p.y + dy });
+    if (!a) return null;
+    if (entry.kind === 'birth') {
+      const home = at.home(a), n = who.neighbour(ids);
+      const actors = [{ id: a, steps: [{ to: off(home, -16, 14) }, { say: '❤️', wait: 9000 }, { say: null }] }];
+      if (b) actors.push({ id: b, steps: [{ to: off(home, 16, 16) }, { say: '❤️', wait: 9000 }, { say: null }] });
+      if (n != null) actors.push({ id: n, steps: [{ wait: 2500 }, { to: off(home, 0, 46) }, { say: '…', wait: 3000 }, { say: '😊', wait: 1800 }, { say: null }] });
+      return { actors };
+    }
+    if (entry.kind === 'came_of_age') {
+      return { actors: [{ id: a, greet: true, steps: [{ to: off(at.home(a), 0, 16) }, { say: '⭐', wait: 1200 }, { to: at.work(a) || at.centre, say: '⭐' }, { hop: true, wait: 1500 }, { say: null }] }] };
+    }
+    if (entry.kind === 'partnership') {
+      if (!b) return null;
+      return { need: 2, actors: [   // both of them, or not at all
+        { id: a, steps: [{ to: at.centre }, { say: '❤️', wait: 800 }, { to: at.across, say: '❤️', speed: 0.8 }, { wait: 1500 }, { say: null }] },
+        { id: b, steps: [{ to: off(at.centre, -24, 8) }, { say: '❤️', wait: 800 }, { to: off(at.across, -24, 8), say: '❤️', speed: 0.8 }, { wait: 1500 }, { say: null }] },
+      ] };
+    }
+    if (entry.kind === 'death') {
+      const mourners = who.family(a).slice(0, 4);
+      if (!mourners.length) return null;
+      const home = at.home(mourners[0]);
+      return { hush: LIFE.HUSH_MS, actors: mourners.map((id, i) => ({ id, steps: [{ to: off(home, (i - (mourners.length - 1) / 2) * 46, 18 + (i % 2) * 12) }, { say: '🕯️', wait: 15000 }, { say: null }, { to: off(home, (i - 1.5) * 90, 70), speed: 0.6 }] })) };
+    }
+    if (entry.kind === 'settler') {
+      const n = who.neighbour(ids), home = at.home(a), mid = { x: (at.edge.x + home.x) / 2, y: (at.edge.y + home.y) / 2 };
+      const actors = [{ id: a, from: at.edge, steps: [{ to: mid, say: '🎒' }, { wait: 2500 }, { to: off(home, 0, 14), say: '🎒' }, { say: '😊', wait: 2000 }, { say: null }] }];
+      if (n != null) actors.push({ id: n, steps: [{ to: off(mid, 30, 6) }, { say: '👋', wait: 3000 }, { say: null }] });
+      return { actors };
+    }
+    if (entry.kind === 'inheritance') {
+      return { actors: [{ id: a, steps: [{ to: off(at.home(a), 0, 6) }, { inside: 2500 }, { say: '✨', wait: 2800 }, { say: null }] }] };
+    }
+    return null;
+  }
+  // Which chronicle lines to play. `entries`: newest first. `seen`: the
+  // highest id already dealt with (null: this is the first look, so only
+  // fresh ones). → { play: [oldest first, at most WAITING], seen }. Pure.
+  function lifeNews(entries, seen, now) {
+    const list = (entries || []).filter(e => e && LIFE.KINDS.includes(e.kind));
+    const top = (entries || []).reduce((m, e) => Math.max(m, Number(e.id) || 0), seen || 0);
+    const fresh = list.filter(e => (seen == null || Number(e.id) > seen) && now - new Date(e.at).getTime() <= LIFE.FRESH_MS);
+    // More than three waiting: the newest are dropped first.
+    return { play: fresh.sort((x, y) => Number(x.id) - Number(y.id)).slice(0, LIFE.WAITING), seen: top };
+  }
+  const lifeSeen = v => { try { if (v === undefined) { const n = Number(global.sessionStorage.getItem('kw_life_seen')); return Number.isFinite(n) && n > 0 ? n : null; } global.sessionStorage.setItem('kw_life_seen', String(v)); } catch (_) { /* private mode */ } return null; };
+  // Chronicle lines arrive from js/life-scenes.js (the engine itself never
+  // calls the server): the fresh ones wait their turn.
+  function offerLife(entries) {
+    const out = lifeNews(entries || [], S.lifeSeen !== undefined ? S.lifeSeen : lifeSeen(), clockMs());
+    S.lifeSeen = out.seen; lifeSeen(out.seen);
+    S.lifeWaiting = (S.lifeWaiting || []).concat(out.play).slice(0, LIFE.WAITING);
+    return out.play.length;
+  }
+  const clockMs = () => (global.KWClock && global.KWClock.now ? global.KWClock.now() : Date.now());
+  // The next waiting scene, when none is playing and the scene shows homes
+  // (Town or the Neighbourhood).
+  function lifeTick(now) {
+    if (S.lifePlaying) {
+      const busy = [...S.vs.values()].some(v => v.act && v.act.scene === S.lifePlaying.id);
+      if (!busy || now > S.lifePlaying.until) { for (const v of S.vs.values()) if (v.act && v.act.scene === S.lifePlaying.id) endAct(v, now); S.lifePlaying = null; }
+      return;
+    }
+    if (!S.lifeWaiting || !S.lifeWaiting.length || S.area === 'outskirts') return;
+    const entry = S.lifeWaiting.shift();
+    const byId = new Map(cits().map(c => [Number(c.id), c]));
+    const ok = id => { const c = byId.get(Number(id)); return !!c && living(c) && !awayOf(c); };
+    const here = id => { const v = S.vs.get(Number(id)); return v && live(v) ? v : null; };
+    const homeOf = id => { const c = byId.get(Number(id)); const d = (inHood() && c && c.house_id != null && doorOf('house-' + c.house_id)) || doorOf('neighbourhood') || S.exits[0] || S.doors[0]; return d ? { x: d.x, y: d.y } : px({ x: 50, y: 80 }); };
+    const places = {
+      home: homeOf,
+      work: id => { const c = byId.get(Number(id)); const d = c && doorOf(ROLE_BUILDING[c.role]); return d ? { x: d.x, y: d.y + 12 } : null; },
+      edge: { x: W() * 0.03, y: H() * 0.86 }, centre: px({ x: 50, y: 84 }), across: px({ x: 82, y: 86 }),
+    };
+    const who = {
+      family: id => { const dead = byId.get(Number(id)); const fam = dead && dead.family_id; const kin = cits().filter(c => ok(c.id) && !isChild(c) && Number(c.id) !== Number(id) && fam != null && c.family_id === fam).map(c => Number(c.id));
+        const rest = [...S.vs.values()].filter(v => live(v) && !v.child && !kin.includes(v.id) && v.id !== Number(id)).map(v => v.id); return kin.concat(rest); },
+      neighbour: not => { const o = [...S.vs.values()].filter(v => live(v) && !v.child && v.state !== 'indoors' && !not.includes(v.id) && !v.act && !v.moment && !v.selected); return o.length ? o[Math.floor(S.rand() * o.length)].id : null; },
+    };
+    const scene = lifeScene(entry, places, who);
+    if (!scene) return;
+    let longest = 0;
+    // Who can take part: living, in town, and not busy with the player (picked,
+    // a window open on them, a moment waiting, a chat the player set up).
+    const can = a => { if (!ok(a.id)) return false; const v = here(a.id); return !v || !(v.selected || v.held || v.moment || v.talk); };
+    if (scene.actors.filter(can).length < (scene.need || 1)) return;
+    for (const a of scene.actors) {
+      if (!can(a)) continue;
+      let v = here(a.id);
+      if (!v) { const d = a.from || homeOf(a.id); v = make(byId.get(a.id), { x: d.x, y: d.y }, true); v.guest = true; }   // they join the cast for the scene
+      if (v.state === 'indoors') comeOut(v, now);
+      endChat(v, now);
+      if (a.from) { v.x = a.from.x; v.y = a.from.y; }
+      v.act = { scene: entry.id, steps: a.steps, i: -1, greet: !!a.greet }; v.state = 'act'; v.goal = null;
+      longest = Math.max(longest, a.steps.reduce((t, st) => t + (st.wait || st.inside || 0) + (st.to ? 12000 : 0), 0));
+    }
+    if (scene.hush) S.hush = now + scene.hush;
+    S.lifePlaying = { id: entry.id, kind: entry.kind, until: now + Math.min(58000, longest + 3000) };
+  }
+  function endAct(v, now) {
+    v.act = null; setSay(v, null); v.el.classList.remove('kwv-gone');
+    if (v.guest) { v.guest = false; leave(v, 'rotate'); } else idle(v, now, 500 + S.rand() * 1200);
+  }
+  // One actor's part: walk, say, wait, hop, step indoors and out.
+  function actStep(v, dt, now) {
+    const a = v.act;
+    let st = a.steps[a.i];
+    const next = () => {
+      a.i++; st = a.steps[a.i];
+      if (!st) { endAct(v, now); return false; }
+      if ('say' in st) setSay(v, st.say);
+      if (st.hop) hop(v);
+      if (st.inside) v.el.classList.add('kwv-gone');
+      a.until = now + (st.wait || st.inside || 0);
+      if (st.to) { v.tx = st.to.x; v.ty = st.to.y; }
+      return true;
+    };
+    if (!st && !next()) return;
+    if (st.to) {
+      const dx = v.tx - v.x, dy = v.ty - v.y, dist = Math.hypot(dx, dy), stepPx = v.speed * 1.15 * (st.speed || 1) * dt / 1000;
+      if (dist > stepPx) {
+        v.x += dx / dist * stepPx; v.y += dy / dist * stepPx; v.dir = V().dirFromVector(dx, dy);
+        // Coming of age: the first villager they pass gives a hop.
+        if (a.greet) for (const o of S.vs.values()) if (o !== v && live(o) && o.state !== 'indoors' && !o.act && Math.hypot(o.x - v.x, o.y - v.y) < 44) { hop(o); a.greet = false; break; }
+        return;
+      }
+      v.x = v.tx; v.y = v.ty; v.dir = 's';
+      next();
+      return;
+    }
+    if (now >= a.until) { if (st.inside) v.el.classList.remove('kwv-gone'); next(); }
+  }
+
   // A builder at the site: the hammer goes up in a bubble in a steady beat,
   // dust puffs at the site, then a short rest. (The idle picture stands in
   // until the owner's work animation arrives: docs/ART_GUIDE.md.)
@@ -848,7 +996,7 @@
     const byId = new Map(all.map(c => [Number(c.id), c]));
     for (const v of S.vs.values()) {
       const c = byId.get(v.id);
-      if (!want.includes(v.id) && live(v)) { if (first) { v.el.remove(); S.vs.delete(v.id); } else leave(v); }
+      if (!want.includes(v.id) && live(v) && !(v.act && !first)) { if (first) { v.el.remove(); S.vs.delete(v.id); } else leave(v); }   // someone in a scene stays for it
       else if (c) v.c = c;
     }
     const present = () => [...S.vs.values()].filter(live).length;
@@ -964,6 +1112,7 @@
     }
     // Someone walking into a building can still be picked: they stop.
     if (v.state === 'leave') v.state = 'idle';
+    if (v.act) { v.act = null; v.guest = false; v.el.classList.remove('kwv-gone'); setSay(v, null); }   // picked out of a scene
     if (global.KWBuildingMenu) global.KWBuildingMenu.close(false, true);   // one menu at a time
     if (M.v && M.v !== v) deselect(true, true);
     endChat(v, performanceNow());
@@ -1254,6 +1403,8 @@
     // Selected: stands facing the camera until the menu closes. Held: a window
     // opened from the menu is still up; they walk on once it closes.
     if (v.selected || v.pressed) return;   // a finger or button is on them: they wait
+    if (v.act && (v.moment || v.held)) endAct(v, now);   // a moment or a window takes them out of the scene
+    if (v.act) { actStep(v, dt, now); return; }
     if (v.moment && !v.held && v.state !== 'leave') { stepMoment(v, dt, now); return; }
     if (v.held) {
       // Held by the window the button opened: found once it appears, released
@@ -1330,7 +1481,7 @@
   function draw(v, still) {
     if (v.state === 'indoors' || v.state === 'gone') return;
     const meta = V().meta;
-    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
+    const walking = !still && !v.selected && !v.held && ['walk', 'leave', 'tochat', 'tosite', 'act', 'follow', 'ahead', 'chase', 'tomoment'].includes(v.state) && Math.hypot(v.tx - v.x, v.ty - v.y) > 1;
     const s = V().spriteFor(meta, v.c.species || townSpecies(), walking ? 'walk' : 'idle', still || v.selected ? 's' : v.dir);
     if (!s) return;
     const frame = still ? 0 : Math.floor(v.t / s.ms) % s.frames;
@@ -1362,6 +1513,7 @@
     if ((S.rotateT += dt) > ROTATE_MS) { S.rotateT = 0; if (S.phase !== 'night') rotate(); }
     if ((S.chatT += dt) > 2000) { S.chatT = 0; maybeChat(now); }
     if ((S.moodT = (S.moodT || 0) + dt) > 2500) { S.moodT = 0; maybeMood(now); }
+    if ((S.lifeTickT = (S.lifeTickT || 0) + dt) > 1000) { S.lifeTickT = 0; lifeTick(now); }
     if ((S.markT = (S.markT || 0) + dt) > 1000) { S.markT = 0; markMoments(); }
     const t0 = performanceNow();
     S.owls = nightOwls([...S.vs.values()].filter(x => live(x) && !x.child).map(x => x.id));
@@ -1463,6 +1615,9 @@
     // A chat the player set up, and praise (js/social.js).
     playTalk, playPraise, TALK_MS,
     // Builders (js/construction.js): where they are and what they do.
+    // Life events (§3.9).
+    LIFE, offerLife, _lifeScene: lifeScene, _lifeNews: lifeNews, get lifePlaying() { return S.lifePlaying ? S.lifePlaying.kind : null; },
+    _playLife: e => { S.lifeWaiting = (S.lifeWaiting || []).concat([e]).slice(0, LIFE.WAITING); },   // tests and Dev Tools: play this chronicle line
     // Mood (§3.8).
     EMOTES, MOOD, _townMood: townMood, _moodOf: moodOf, _emoteTurn: emoteTurn, get mood() { return S.mood || null; },
     hush: ms => { S.hush = performanceNow() + (Number(ms) || 0); },   // no emotes for a while (a death: §3.9)

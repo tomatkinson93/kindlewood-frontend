@@ -922,5 +922,48 @@ console.log('27. Mood (§3.8)');
   check('27l. an emote never talks over a chat, and clears itself', /!v\.say && v\.partner == null && !v\.talk && !v\.moment/.test(E) && /if \(v\.emote && \(now >= v\.emoteUntil \|\| v\.say !== v\.emote\)\)/.test(E));
 }
 
+console.log('28. Life events seen happening (§3.9)');
+{
+  const E = read('js/villager-engine.js');
+  const e = { console, Math, Map, Set, JSON, Number, String, Array, Object, Infinity, setTimeout, Date, document: { addEventListener() {}, querySelector: () => null }, addEventListener() {} };
+  e.window = e; vm.createContext(e); vm.runInContext(E, e);
+  const C = e.KWCast;
+  const at = { home: id => ({ x: 100 + id, y: 100 }), work: id => (id === 9 ? null : { x: 300, y: 120 }), edge: { x: 0, y: 200 }, centre: { x: 200, y: 200 }, across: { x: 400, y: 200 } };
+  const who = { family: () => [5, 6, 7, 8, 9], neighbour: () => 4 };
+  const sc = k => C._lifeScene({ kind: k, citizen_ids: [1, 2, 3] }, at, who);
+  const says = a => a.steps.map(s => s.say).filter(Boolean);
+  check('28a. the six kinds of chronicle line that play', C.LIFE.KINDS.join() === 'birth,came_of_age,partnership,death,settler,inheritance' && C._lifeScene({ kind: 'town', citizen_ids: [1] }, at, who) === null && C._lifeScene({ kind: 'birth', citizen_ids: [] }, at, who) === null);
+  const birth = sc('birth');
+  check('28b. a birth: the parents stand outside their home with a heart; a neighbour walks over', birth.actors.map(a => a.id).join() === '1,2,4' && says(birth.actors[0])[0] === '❤️' && Math.abs(birth.actors[0].steps[0].to.x - 101) < 20 && birth.actors[2].steps.some(s => s.to));
+  const age = sc('came_of_age');
+  check('28c. a coming of age: from home to their workplace with a star; the first villager they pass gives a hop', age.actors.length === 1 && age.actors[0].greet === true && says(age.actors[0]).every(x => x === '⭐') && age.actors[0].steps[2].to.x === 300
+    && C._lifeScene({ kind: 'came_of_age', citizen_ids: [9] }, at, who).actors[0].steps[2].to.x === 200 && /if \(a\.greet\) for \(const o of S\.vs\.values\(\)\)[\s\S]{0,160}hop\(o\); a\.greet = false;/.test(E));
+  const pair = sc('partnership');
+  check('28d. a partnership: the two walk side by side across the town with hearts (both, or not at all)', pair.need === 2 && pair.actors.length === 2 && pair.actors[1].steps[2].to.x === pair.actors[0].steps[2].to.x - 24 && says(pair.actors[0])[0] === '❤️'
+    && C._lifeScene({ kind: 'partnership', citizen_ids: [1] }, at, who) === null);
+  const death = sc('death');
+  check('28e. a death: up to four, family first, gather by the home with a candle, stand a while and leave slowly', death.actors.length === 4 && death.actors.map(a => a.id).join() === '5,6,7,8' && death.actors.every(a => says(a)[0] === '🕯️' && a.steps[1].wait >= 10000 && a.steps[3].speed < 1));
+  check('28f. and no happy emotes in town for those minutes', death.hush === C.LIFE.HUSH_MS && C.LIFE.HUSH_MS >= 180000 && /if \(scene\.hush\) S\.hush = now \+ scene\.hush;/.test(E) && /if \(S\.hush && now < S\.hush\) return;/.test(E));
+  const set = sc('settler');
+  check('28g. a settler walks in from the edge of the scene with a bundle and goes to their new home; someone meets them on the way', set.actors[0].from === at.edge && says(set.actors[0])[0] === '🎒' && set.actors[1].id === 4 && says(set.actors[1])[0] === '👋');
+  const inh = sc('inheritance');
+  check('28h. an inheritance: the heir goes into the home and comes out with a sparkle', inh.actors.length === 1 && inh.actors[0].steps.some(s => s.inside > 0) && says(inh.actors[0])[0] === '✨');
+  const total = a => a.steps.reduce((t, s) => t + (s.wait || s.inside || 0), 0);
+  check('28i. each scene is under a minute', [birth, age, pair, death, set, inh].every(x => x.actors.every(a => total(a) < 30000)) && /now \+ Math\.min\(58000, longest \+ 3000\)/.test(E));
+  const now = 1e12, M = 60000;
+  const L = [{ id: 9, kind: 'birth', at: new Date(now - M) }, { id: 8, kind: 'town', at: new Date(now - 1000) }, { id: 7, kind: 'death', at: new Date(now - 11 * M) }, { id: 6, kind: 'settler', at: new Date(now - 5000) }];
+  const first = C._lifeNews(L, null, now);
+  check('28j. when Home opens: lines under ten minutes old play, oldest first; older ones do not', first.play.map(x => x.id).join() === '6,9' && first.seen === 9 && C.LIFE.FRESH_MS === 10 * M);
+  check('28k. after that only new lines play, each once', C._lifeNews(L, 9, now).play.length === 0 && C._lifeNews(L.concat([{ id: 12, kind: 'partnership', at: new Date(now) }]), 9, now).play.map(x => x.id).join() === '12');
+  const many = [5, 4, 3, 2, 1].map(i => ({ id: 20 + i, kind: 'birth', at: new Date(now - i * 1000) }));
+  check('28l. more than three waiting: the newest are dropped first', C._lifeNews(many, 9, now).play.map(x => x.id).join() === '21,22,23' && C.LIFE.WAITING === 3);
+  check('28m. one scene at a time; people in it join the cast for its length and are not recast away', /if \(S\.lifePlaying\) \{/.test(E) && /v = make\(byId\.get\(a\.id\), \{ x: d\.x, y: d\.y \}, true\); v\.guest = true;/.test(E) && /live\(v\) && !\(v\.act && !first\)/.test(E) && /if \(v\.guest\) \{ v\.guest = false; leave\(v, 'rotate'\); \}/.test(E));
+  check('28n. nobody busy with the player is pulled into a scene; picking an actor takes them out of it', /return !v \|\| !\(v\.selected \|\| v\.held \|\| v\.moment \|\| v\.talk\);/.test(E) && /if \(v\.act\) \{ v\.act = null; v\.guest = false;/.test(E));
+  const LS = read('js/life-scenes.js');
+  check('28o. the chronicle is the event; a small reader hands its lines to the engine (which still never calls the server), and nothing is written; skipped under reduced motion (the loop does not run)',
+    /apiFetch\('\/api\/families\/all\/chronicle'\)/.test(LS) && /KWCast\.offerLife\(d\.entries \|\| \[\]\)/.test(LS) && !/method:/.test(LS) && !/apiFetch|fetch\(/.test(E) && /global\.addEventListener\('kw:home'/.test(LS)
+    && read('index.html').indexOf('/js/life-scenes.js?v=') > read('index.html').indexOf('/js/villager-engine.js?v=') && /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\);/.test(E));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
