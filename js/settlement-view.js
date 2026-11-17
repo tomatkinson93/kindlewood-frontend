@@ -114,20 +114,77 @@ function _svLockReason(b) {
 }
 function _svTierLabel(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; }
 
-// ── Slot assignments (persisted to localStorage) ──────────────────────────────
+// ── Slot assignments: which building stands on which plot ────────────────────
+// Kept on the server (/api/buildings/layout), so the town looks the same on
+// every device. localStorage is the working copy: the scene draws from it at
+// once. The first load decides: the server's map if it has one, otherwise
+// this device's is sent up. After that each change is sent a moment later
+// (a drag is one request) and other devices are told on the live stream.
 const _SV_ASSIGN_KEY = 'sv_slot_assignments';
+const _SV_OWNER_KEY  = 'sv_slot_owner';   // the town the working copy belongs to
 function _svGetAssignments() {
   try { return JSON.parse(localStorage.getItem(_SV_ASSIGN_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _svSaveAssignments(a) {
+  try { localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a)); } catch (e) { /* private mode */ }
+  _svLayoutChanged();
 }
 function _svSetAssignment(slotId, buildingId) {
   var a = _svGetAssignments();
   a[slotId] = buildingId;
-  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a));
+  _svSaveAssignments(a);
 }
 function _svClearAssignment(buildingId) {
   var a = _svGetAssignments();
   Object.keys(a).forEach(function(k) { if (a[k] === buildingId) delete a[k]; });
-  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(a));
+  _svSaveAssignments(a);
+}
+var _svLayout = { ready: false, timer: null, sent: null };
+function _svLayoutText(map) {   // the same text for the same map, whatever the key order
+  var o = {}; Object.keys(map || {}).sort().forEach(function(k) { o[k] = map[k]; });
+  return JSON.stringify(o);
+}
+// What to do with the server's answer: 'take' it, 'send' ours (it has none
+// and we have one), or nothing ('same'). Pure.
+function _svLayoutDecide(server, local) {
+  if (server == null) return Object.keys(local || {}).length ? 'send' : 'same';
+  return _svLayoutText(server) === _svLayoutText(local) ? 'same' : 'take';
+}
+function _svLayoutChanged() {
+  if (!_svLayout.ready) return;   // not before the first load: the server's map comes first
+  clearTimeout(_svLayout.timer);
+  _svLayout.timer = setTimeout(_svLayoutPush, 700);
+}
+async function _svLayoutPush() {
+  var map = _svGetAssignments(), text = _svLayoutText(map);
+  if (text === _svLayout.sent || typeof apiFetch !== 'function') return;
+  try {
+    var r = await apiFetch('/api/buildings/layout', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ layout: map }) });
+    if (r.ok) _svLayout.sent = text;
+  } catch (e) { /* sent with the next change */ }
+}
+async function _svLayoutLoad() {
+  if (typeof apiFetch !== 'function') return;
+  // A working copy left by another town on this browser is not this town's.
+  var sid = typeof gameData !== 'undefined' && gameData && gameData.settlement ? String(gameData.settlement.id) : null;
+  try {
+    var owner = localStorage.getItem(_SV_OWNER_KEY);
+    if (sid && owner && owner !== sid) localStorage.removeItem(_SV_ASSIGN_KEY);
+    if (sid) localStorage.setItem(_SV_OWNER_KEY, sid);
+  } catch (e) { /* private mode */ }
+  try {
+    var r = await apiFetch('/api/buildings/layout');
+    if (!r.ok) return;
+    var d = await r.json();
+    var what = _svLayoutDecide(d.layout, _svGetAssignments());
+    _svLayout.ready = true;
+    if (what === 'take') {
+      try { localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(d.layout)); } catch (e) { /* private mode */ }
+      _svLayout.sent = _svLayoutText(d.layout);
+      if (_svOpen && !_svDragSlot && !_svBuildMode) _renderScene();
+    } else if (what === 'send') _svLayoutPush();
+    else if (d.layout != null) _svLayout.sent = _svLayoutText(d.layout);
+  } catch (e) { /* the working copy stands until the next load */ }
 }
 
 // ── Slot sizes (persisted to localStorage) ────────────────────────────────────
@@ -467,6 +524,7 @@ async function openSettlementView() {
   _ensureSvDOM();
   _svOpen = true;
   window.dispatchEvent(new CustomEvent('kw:home', { detail: { open: true } }));   // the map's loops pause under Home
+  _svLayoutLoad();   // where the buildings stand, from the server (the same on every device)
   _svSelectedSlot = null;
 
   var root = document.getElementById('settlement-view');
@@ -873,7 +931,7 @@ function _svMoveTo(fromId, toId) {
   var occ = function(id) { var sl = SV_SLOTS.find(function(s) { return s.id === id; }); var b = sl && _occupantFor(sl); return b ? b.id : null; };
   var moving = occ(fromId);
   var next = _svMoveAssignment(_svGetAssignments(), fromId, toId, occ);
-  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(next));
+  _svSaveAssignments(next);
   _closeBuildPanel();
   _renderScene();
   // Keep the keyboard where the building went.
@@ -1314,7 +1372,7 @@ function _svOnDragEnd(clientX, clientY) {
   if (!toId) return;
   var occ = function(id) { var sl = SV_SLOTS.find(function(s) { return s.id === id; }); var b = sl && _occupantFor(sl); return b ? b.id : null; };
   var next = _svMoveAssignment(_svGetAssignments(), fromId, toId, occ);
-  localStorage.setItem(_SV_ASSIGN_KEY, JSON.stringify(next));
+  _svSaveAssignments(next);
   _renderScene();
 }
 

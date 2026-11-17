@@ -520,6 +520,21 @@ console.log('15. Selecting a villager: the radial menu (§3.6)');
   check('15o. leaving town, Build mode or leaving Home closes the menu quietly', /if \(v\.selected\) deselect\(true\);/.test(E) && /if \(S\.paused\) \{ deselect\(true\);/.test(E) && /function clear\(\) \{\s*closeMenu\(\);/.test(E));
 }
 
+console.log('15z. Where buildings stand is kept on the server');
+{
+  const S3 = read('js/settlement-view.js'), RT = read('js/realtime.js');
+  const grab = name => { const m = S3.match(new RegExp('function ' + name + '\\(([^)]*)\\) \\{[\\s\\S]*?\\n\\}')); return m && m[0]; };
+  const fns = new Function(grab('_svLayoutText') + '\n' + grab('_svLayoutDecide') + '\nreturn { text: _svLayoutText, decide: _svLayoutDecide };')();
+  check('15z1. the server has a map: this device takes it (unless it is the same, whatever the key order)',
+    fns.decide({ a: 'tavern', b: 'farm' }, { a: 'tavern' }) === 'take' && fns.decide({ a: 'tavern', b: 'farm' }, { b: 'farm', a: 'tavern' }) === 'same' && fns.decide({}, { a: 'tavern' }) === 'take');
+  check('15z2. the server has none: the first device sends its own, if it has one', fns.decide(null, { a: 'tavern' }) === 'send' && fns.decide(null, {}) === 'same' && fns.decide(undefined, { a: 'x' }) === 'send');
+  check('15z3. every change goes through one place and is sent a moment later, never before the first load',
+    /function _svSaveAssignments\(a\) \{[\s\S]{0,160}_svLayoutChanged\(\);/.test(S3) && !/localStorage\.setItem\(_SV_ASSIGN_KEY, JSON\.stringify\(next\)\)/.test(S3)
+    && /if \(!_svLayout\.ready\) return;/.test(S3) && /setTimeout\(_svLayoutPush, 700\)/.test(S3) && /method: 'PUT'/.test(S3));
+  check('15z4. read when Home opens, and when another device moves something', /_svOpen = true;[\s\S]{0,220}_svLayoutLoad\(\);/.test(S3) && /layout\(\) \{ if \(typeof global\._svLayoutLoad === 'function'\) global\._svLayoutLoad\(\); \}/.test(RT));
+  check('15z5. a working copy left on this browser by another town is not sent as this town\'s', /if \(sid && owner && owner !== sid\) localStorage\.removeItem\(_SV_ASSIGN_KEY\);/.test(S3));
+}
+
 console.log('16. Phones and comfort (step 8), names, faces');
 {
   const S4 = read('js/settlement-view.js'), PL = read('js/places.js'), HJ = read('js/home-scene.js'), CSS = read('css/home-scene.css'), FJ = read('js/families.js');
