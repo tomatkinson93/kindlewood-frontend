@@ -106,6 +106,21 @@
       <div class="kwld-row"><button type="button" class="cheat-all-btn" data-kwld="me-call" data-on="1">🛒 Call the merchant today</button>
         <button type="button" class="cheat-all-btn" data-kwld="me-call" data-on="0">Send them away</button></div>`;
   }
+  // Test accounts: the login screen's "fresh test account" button (/api/auth/test-account).
+  function testAccountsHtml(on) {
+    if (on == null) return '';
+    return `<div class="cheat-section-label">Test accounts</div>
+      <div class="kwld-grid"><div><b>Login screen button</b> ${on ? 'offered' : 'not offered'}</div></div>
+      <div class="kwld-row"><button type="button" class="cheat-all-btn" data-kwld="ta-switch" data-on="${on ? 0 : 1}">${on ? 'Turn the button off' : '🧪 Turn the button on'}</button>
+        <span class="ra-muted">Turn it off before real players arrive.</span></div>`;
+  }
+  async function testAccounts(body) {
+    const res = await global.apiFetch('/api/auth/test-account' + (body ? '/switch' : ''), { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Request failed.');
+    st.testAccounts = !!d.available;
+    return d;
+  }
   async function merchant(path, body) {
     const res = await global.apiFetch('/api/merchant' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
     const d = await res.json().catch(() => ({}));
@@ -141,11 +156,11 @@
     const el = root();
     if (!el) return;
     el.innerHTML = `${st.msg ? `<div class="kw-note ${st.bad ? 'bad' : 'good'}">${esc(st.msg)}</div>` : ''}
-      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${upkeepHtml(st.upkeep)}${merchantHtml(st.merchant)}${numbersHtml(st.numbers)}`;
+      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${upkeepHtml(st.upkeep)}${merchantHtml(st.merchant)}${testAccountsHtml(st.testAccounts)}${numbersHtml(st.numbers)}`;
   }
   async function load() {
     try {
-      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null), upkeep('').catch(() => null), merchant('').catch(() => null)]);
+      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null), upkeep('').catch(() => null), merchant('').catch(() => null), testAccounts().catch(() => null)]);
       st.status = s; st.numbers = n.numbers;
     } catch (e) { st.msg = e.message; st.bad = true; }
     render();
@@ -183,6 +198,7 @@
     }
     if (a === 'bt-finish') return act(() => build('/admin/finish', {}), d => d.finished ? d.finished.text : 'Finished.');
     if (a === 'bt-builders') return act(() => build('/admin/builders', { count: Number(el.querySelector('#kwld-builders').value) }), d => `The town has ${d.builders} builder${d.builders === 1 ? '' : 's'}.`);
+    if (a === 'ta-switch') return act(() => testAccounts({ on: t.getAttribute('data-on') === '1' }), d => `The login screen's test account button is ${d.available ? 'offered' : 'off'}.`);
     if (a === 'me-call') return act(() => merchant('/admin/call', { on: t.getAttribute('data-on') === '1' }), d => (d.called ? 'The merchant is in town today.' : 'The merchant comes on their own days only.'));
     if (a === 'uk-town') return act(() => upkeep('/admin/town', { on: t.getAttribute('data-on') === '1' }), d => `Upkeep is ${d.on ? 'on' : 'off'} for this town. Every building is at 100.`);
     if (a === 'uk-all') {
@@ -204,5 +220,5 @@
     load();
   }
 
-  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml, _upkeepHtml: upkeepHtml, _merchantHtml: merchantHtml };
+  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml, _upkeepHtml: upkeepHtml, _merchantHtml: merchantHtml, _testAccountsHtml: testAccountsHtml };
 })(typeof window !== 'undefined' ? window : globalThis);

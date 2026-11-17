@@ -58,7 +58,7 @@ console.log('3. The cart');
 console.log('4. Around it');
 {
   check('4a. the crier\'s news says the merchant is here, or when they come', /if \(o\.merchant\) today\.push\(\{ icon: '🛒', text: o\.merchant \}\);/.test(CR) && /global\.KWMerchant\.line\(\)/.test(CR));
-  check('4b. Dev Tools can call the merchant today, and send them away', /data-kwld="me-call" data-on="1"/.test(LA) && /merchant\('\/admin\/call', \{ on:/.test(LA) && /life-admin\.js\?v=4/.test(DT));
+  check('4b. Dev Tools can call the merchant today, and send them away', /data-kwld="me-call" data-on="1"/.test(LA) && /merchant\('\/admin\/call', \{ on:/.test(LA) && /life-admin\.js\?v=\d+/.test(DT));
   check('4c. the script is on the page', /\/js\/merchant\.js\?v=h[0-9a-f]+/.test(H));
 }
 

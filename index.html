@@ -124,7 +124,7 @@
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
   <link rel="stylesheet" href="/css/tokens.css?v=h5aa3c0f1">
-  <link rel="stylesheet" href="/css/main.css?v=h34349f23">
+  <link rel="stylesheet" href="/css/main.css?v=hfd3cf0ff">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=h440c5c14">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=h94c765de">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=h603e58c0">
@@ -453,6 +453,11 @@
       <hr class="divider-line">
       <button type="button" class="btn-secondary" onclick="showScreen('register')">Found a New Settlement</button>
       <div class="auth-switch">New to Kindlewood? <a onclick="showScreen('register')">Create your realm</a></div>
+      <!-- A fresh test account in one press (js/main.js startTestAccount); shown only while the server offers it. -->
+      <div class="test-account" id="login-test" hidden>
+        <button type="button" class="btn-secondary" id="login-test-btn" onclick="startTestAccount()">🧪 Play as a fresh test account</button>
+        <div class="keep-hint">A brand-new account with nothing to fill in. It is deleted when you sign out.</div>
+      </div>
     </form>
     </div>
   </div>
@@ -962,7 +967,7 @@
   <script defer src="/js/context.js?v=hc2b076c0"></script>
   <script defer src="/js/news.js?v=h0410c42e"></script>
   <script defer src="/js/hud.js?v=ha3d269db"></script>
-  <script defer src="/js/dev-tools.js?v=ha3325923"></script>
+  <script defer src="/js/dev-tools.js?v=h8aecde41"></script>
   <script defer src="/js/say.js?v=h44722f0b"></script>
   <script defer src="/js/moments.js?v=h0f187aca"></script>
   <script defer src="/js/journeys.js?v=hb8da9974"></script>
@@ -1025,7 +1030,7 @@
   <script defer src="/js/music.js?v=h8f50862f"></script>
   <script defer src="/js/settings-panel.js?v=h2c85832b"></script>
   <script defer src="/js/session.js?v=he9e2a513"></script>
-  <script defer src="/js/main.js?v=hb73de2ee"></script>
+  <script defer src="/js/main.js?v=h6711dce4"></script>
   <script defer src="/js/away-report.js?v=h3e412267"></script>
   <script defer src="/js/welcome-music-guard.js?v=h7ca91d4e"></script>
   <script defer src="/js/online.js?v=hfc9fb757"></script>
