@@ -53,7 +53,7 @@
     };
   }
   // The plots drawn: every house's, and the ones the tier has opened.
-  const plotsInUse = hood => [...new Set([...(hood.open || []), ...hood.houses.map(h => h.plot)])];
+  const plotsInUse = hood => [...new Set([...(hood.open || []), ...hood.houses.map(h => h.plot), ...(hood.sites || []).map(x => x.plot)])];
   // Who lives there, by first name, for the nameplate's second line.
   const whoLine = h => (h.residents.length ? h.residents.map(c => String(c.name || '').split(' ')[0]).join(', ') : 'Nobody lives here yet');
   const bedsLine = h => `${h.residents.length} of ${h.capacity} beds`;
@@ -124,6 +124,14 @@
       + '<span class="kwh-bubble-host"></span>' + a.html
       + (H ? H.plateHtml(h.display, building() ? 'Move or pull down' : whoLine(h), bedsLine(h)) : '') + '</button>';
   }
+  // A home being built: the site on its plot, with a bar and an estimate.
+  function siteHtml(x) {
+    const B = global.KWBuild, known = B && B.sites().some(q => q.id === x.id), p = known ? B.pct(x.id) : x.pct || 0;
+    return `<button type="button" class="sv-building kwh-btn kwbt-site kwn-site" data-kwbt-site="${x.id}" aria-label="A new home: being built. Open the builders' list">`
+      + `<span class="kwbt-site-art" data-kwbt-stage-of="${x.id}" data-kwbt-stage="${B ? B.stage(p) : 0}" style="width:170px;height:102px">${call('_svSiteSvg') || ''}</span>`
+      + `<span class="kwbt-plate"><b>A new home</b><span class="kwbt-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(p * 100)}"><i data-kwbt-bar="${x.id}" style="width:${(p * 100).toFixed(1)}%"></i></span>`
+      + `<span class="kwbt-eta" data-kwbt-eta="${x.id}">${esc(known ? B.etaLine(x.id) : '')}</span></span></button>`;
+  }
   const stakeHtml = plot => `<button type="button" class="kwn-stake" data-plot="${plot}" aria-label="${S.picked ? 'Put the home here' : 'A free plot. Build a home here'}">`
     + '<svg viewBox="0 0 120 60" width="150" height="75" aria-hidden="true"><ellipse cx="60" cy="42" rx="54" ry="14" fill="rgba(120,90,50,.28)"/>'
     + [[12, 34], [108, 34], [28, 52], [92, 52]].map(([x, y]) => `<rect x="${x - 2}" y="${y - 18}" width="4" height="18" fill="#7a5a36"/><rect x="${x - 4}" y="${y - 20}" width="8" height="4" fill="#d6463c"/>`).join('')
@@ -137,10 +145,12 @@
     if (global._svSetAreaWidth) global._svSetAreaWidth(AREA, lay.w);
     L.querySelectorAll(':scope > .kwn-slot, :scope > .kwn-quarters').forEach(el => el.remove());
     const byPlot = new Map(n.houses.map(h => [h.plot, h]));
+    const siteAt = new Map((n.sites || []).map(x => [x.plot, x]));   // homes being built (js/construction.js)
     const bm = building();
     let html = '';
     for (const plot of plotsInUse(n).sort((a, b) => a - b)) {
-      const h = byPlot.get(plot), p = lay.at(plot);
+      const h = byPlot.get(plot), x = h ? null : siteAt.get(plot), p = lay.at(plot);
+      if (x) { html += `<div class="sv-slot kwn-slot kwn-building" data-plot="${plot}" style="left:${p.xPct.toFixed(3)}%;top:${p.y}%">${siteHtml(x)}</div>`; continue; }
       if (!h && (!bm || !n.open.includes(plot))) continue;   // free plots are plain grass outside Build mode
       html += `<div class="sv-slot kwn-slot${h ? '' : ' kwn-free'}" data-plot="${plot}"${h ? ` data-house="${h.id}"` : ''} style="left:${p.xPct.toFixed(3)}%;top:${p.y}%">${h ? houseHtml(h) : stakeHtml(plot)}</div>`;
     }
@@ -166,6 +176,8 @@
     if (q) { S.hoodId = Number(q.getAttribute('data-quarter')); S.picked = null; render(); return; }
     const slot = e.target.closest('.kwn-slot');
     if (!slot) return;
+    // A home being built: the builders' list (nothing else can go on its plot).
+    if (slot.classList.contains('kwn-building')) { if (!S.picked && global.KWBuild) global.KWBuild.open(); return; }
     const plot = Number(slot.getAttribute('data-plot')), h = slot.hasAttribute('data-house') ? houseById(slot.getAttribute('data-house')) : null;
     if (building()) {
       if (S.picked && (!h || h.id !== S.picked)) return void moveTo(plot);
@@ -197,6 +209,7 @@
         + '<button class="sv-bp-close" data-kwn="cancel" aria-label="Close">\xD7</button></div>'
         + '<div class="sv-occ-desc">A home for four. Choose how it looks (you can change it later, free).</div>'
         + '<div class="kwn-styles" role="radiogroup" aria-label="How it looks">' + stylesHtml(S.style || 'thatch', 'pick') + '</div>'
+        + (global.KWBuild ? global.KWBuild.noteHtml(5) : '')
         + (can ? `<button type="button" class="sv-bp-build-btn kwn-build" data-kwn="build">Build a home — ${costLine(d.cost)}</button>` : '');
     }
     p.innerHTML = html;
@@ -222,7 +235,8 @@
       b.disabled = true;
       const plot = S.placing, n = hood();
       const out = await post(`/${n.id}/houses`, { plot, style: S.style || 'thatch' });
-      if (out) { S.placing = null; if (typeof global._svPlaySound === 'function') global._svPlaySound('/assets/audio/construct.wav'); await changed({ people: true, town: true }); }
+      if (out && out.queued) { S.placing = null; if (global.KWBuild) global.KWBuild.ordered(out, 'home', 5); await changed({ people: false, town: true }); }   // building time: the builders raise it
+      else if (out) { S.placing = null; if (typeof global._svPlaySound === 'function') global._svPlaySound('/assets/audio/construct.wav'); await changed({ people: true, town: true }); }
       else panel();
     }
   }
@@ -321,6 +335,8 @@
 
   if (doc) {
     doc.addEventListener('click', e => { if (showing()) { onClick(e); onPanel(e); } });
+    // The builders' queue changed (a home ordered elsewhere, or finished): look again.
+    global.addEventListener('kw:build', () => { if (showing() && S.data) reload(false); });
     // Esc in Build mode puts a picked-up house down first.
     global.addEventListener('keydown', e => {
       if (e.key !== 'Escape' || !showing() || (!S.picked && S.placing == null)) return;
@@ -331,7 +347,7 @@
   }
 
   global.KWHood = {
-    open, load, render, livesHere, layout, plotsInUse, openHouse,
+    open, load, render, reload, livesHere, layout, plotsInUse, openHouse,
     buildModeChanged() { S.picked = null; S.placing = null; if (S.data && layer()) render(); },
     get data() { return S.data; }, _take: take, _state: S, PITCH, MARGIN, MIN_W, ROW_Y,
   };

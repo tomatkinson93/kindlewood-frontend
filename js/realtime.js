@@ -148,6 +148,7 @@
     moment_resolved(ev) { if (global.KWMoments) global.KWMoments.onEvent(ev); },  // its default was taken
     social(ev) { if (global.KWSocial) global.KWSocial.onEvent(ev); },             // a chat or a praise (here or on another device)
     layout() { if (typeof global._svLayoutLoad === 'function') global._svLayoutLoad(); },   // a building was moved on another device
+    construction(ev) { if (global.KWBuild) global.KWBuild.onEvent(ev); },         // building time: ordered, finished, waiting for a builder
     market_porter_home(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_run_update(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },
     market_want_filling(ev) { if (global.MarketUI) global.MarketUI.onEvent(ev); if (global.KWTravel) global.KWTravel.soon(); },

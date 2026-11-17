@@ -137,6 +137,7 @@
       + `<div class="kwc-ages">${[['Children', n('child')], ['Youths', n('youth')], ['Adults', n('adult')], ['Elders', n('elder')]]
           .map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>`
       + `<div class="kwc-mood">${happy != null ? `<span>😊 ${happy}% happy</span>` : ''}${food != null ? `<span class="${food < 0 ? 'kwc-bad' : ''}">🍖 food ${food >= 0 ? '+' : ''}${Math.round(food * 10) / 10}/hr</span>` : ''}</div>`
+      + (opts.card ? '' : `<div class="kwc-going">${global.KWBuild ? global.KWBuild.chipHtml() : ''}</div>`)
       + (opts.card ? '' : fs ? `<div id="fs-slot" class="kwc-fs">${fs}</div>` : '<div id="fs-slot"></div>')
       + (under.length ? `<div class="kwc-h">Under way</div>` + under.slice(0, 4).map(([t, v]) => `<div class="kwc-row"><span>${esc(t)}</span><span>${esc(v)}</span></div>`).join('') : '')
       + (chronicle && chronicle.length ? `<div class="kwc-h">Today</div>` + chronicle.map(e => `<p class="kwc-line">${esc(e.text)} <span class="kwc-when">${ago(e.at)}</span></p>`).join('') : '')
@@ -151,6 +152,7 @@
     const fs = global.KWFirstSteps ? global.KWFirstSteps.cardHtml() : '';
     card.innerHTML = `<div class="kwc-card${open ? ' kwc-card-open' : ''}">${stripHtml(open)}`
       + (open ? `<div class="kwc-card-more" id="kwc-card-more">${townHtml({ card: true })}</div>` : '') + '</div>'
+      + `<div id="kwbt-slot" class="kwc-fs-chip">${global.KWBuild ? global.KWBuild.chipHtml() : ''}</div>`   // what the builders are on (js/construction.js)
       + `<div id="fs-slot" class="kwc-fs-chip">${fs}</div>`;
     if (open) loadChronicle();
     // The scene can pan the rightmost building clear of the card (js/settlement-view.js).

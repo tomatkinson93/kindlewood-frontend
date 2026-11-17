@@ -501,3 +501,65 @@ body.kw-shell #settlement-view .sv-scene { width: auto; min-width: 0; right: 0; 
 }
 .kws-btn:hover, .kws-btn:focus-visible { background: #ffe7a8; outline: none; }
 .kws-btn[aria-disabled="true"] { background: #d9d2c2; border-color: #9a8f7a; color: #6b6252; cursor: default; }
+
+/* ── Building time (js/construction.js; docs/HOME_SCENE.md Part D) ──────── */
+/* A construction site on its plot: generic drawing in three stages by the
+   work done, until the owner's site art arrives. */
+#settlement-view .kwbt-site { display: flex; flex-direction: column; align-items: center; background: none; border: 0; padding: 0; cursor: pointer; }
+#settlement-view .kwbt-site-art { display: block; }
+#settlement-view .kwbt-site-art svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25)); }
+#settlement-view .kwbt-site-art .kwbt-s1, #settlement-view .kwbt-site-art .kwbt-s2 { display: none; }
+#settlement-view .kwbt-site-art[data-kwbt-stage="1"] .kwbt-s1,
+#settlement-view .kwbt-site-art[data-kwbt-stage="2"] .kwbt-s1,
+#settlement-view .kwbt-site-art[data-kwbt-stage="2"] .kwbt-s2 { display: inline; }
+#settlement-view .kwbt-site-art[data-kwbt-stage="1"] .kwbt-s0,
+#settlement-view .kwbt-site-art[data-kwbt-stage="2"] .kwbt-s0 { display: none; }
+#settlement-view .kwbt-site-art[data-kwbt-stage="2"] .kwbt-pile { opacity: 0.55; }
+#settlement-view .kwbt-site:hover .kwbt-site-art, #settlement-view .kwbt-site:focus-visible .kwbt-site-art { filter: brightness(1.08); }
+#settlement-view .kwbt-site:focus-visible { outline: 3px solid #ffd27a; outline-offset: 4px; border-radius: 8px; }
+/* Its plate: name, a bar, an honest estimate. Always shown (a site is news). */
+#settlement-view .kwbt-plate {
+  margin-top: 2px; min-width: 132px; max-width: 220px; padding: 3px 9px 5px; border-radius: 7px; text-align: center; pointer-events: none;
+  background: rgba(24, 16, 9, 0.88); border: 1px solid rgba(220, 180, 100, 0.5); color: #ffe9a8; font: 600 12px/1.35 system-ui, sans-serif;
+  display: flex; flex-direction: column; gap: 3px;
+}
+#settlement-view .kwbt-plate b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#settlement-view .kwbt-plate .kwbt-eta { font-weight: 500; font-size: 11px; color: #e3d2a8; white-space: nowrap; }
+.kwbt-bar { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.kwbt-bar > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #d9a441, #f2cf6e); transition: width 0.9s linear; }
+@media (prefers-reduced-motion: reduce) { .kwbt-bar > i { transition: none; } }
+#settlement-view[data-phase="night"] .kwbt-plate, #settlement-view[data-phase="night"] .kwbt-sign { filter: url(#kwn-undo-night); }
+#settlement-view[data-phase="dusk"] .kwbt-plate, #settlement-view[data-phase="dusk"] .kwbt-sign { filter: url(#kwn-undo-dusk); }
+/* A building being upgraded keeps working; a small sign says how far along. */
+#settlement-view .kwbt-sign {
+  position: absolute; left: 50%; top: 6px; transform: translateX(-50%); z-index: 3; pointer-events: none; white-space: nowrap;
+  padding: 1px 8px; border-radius: 10px; background: #fff6df; border: 2px solid #b98a4a; color: #3a2414; font: 700 11.5px/1.4 system-ui, sans-serif;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+/* The chip by the town card, and in the phone's town sheet. */
+.kwbt-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 36px; padding: 6px 12px; cursor: pointer; text-align: left;
+  border-radius: var(--kw-radius, 8px); border: 1px solid var(--kw-line-2, rgba(232, 200, 140, 0.4)); background: var(--kw-panel, #2a1f14); color: var(--kw-cream, #f0e4c8); font: inherit; font-size: var(--kw-fs-2, 13px);
+}
+.kwbt-chip:hover, .kwbt-chip:focus-visible { border-color: var(--kw-gold, #e8c87a); outline: none; }
+.kwbt-chip.kwbt-chip-wait { border-color: #d98a4a; }
+.kwc-going:empty, #kwbt-slot:empty { display: none; }
+.kwc-going { margin: var(--kw-s-2, 8px) 0; }
+/* The builders' list (the "Going up" window). */
+.kww .kwbt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kw-s-2); counter-reset: kwbt; }
+.kww .kwbt-row { padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); }
+.kww .kwbt-row:first-child { border-color: var(--kw-gold-dim); }
+.kww .kwbt-top { display: flex; align-items: baseline; gap: var(--kw-s-2); margin-bottom: 6px; }
+.kww .kwbt-top b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kww .kwbt-eta { color: var(--kw-gold); font-size: var(--kw-fs-2); white-space: nowrap; }
+.kww .kwbt-acts { display: flex; flex-wrap: wrap; gap: var(--kw-s-1); margin-top: 8px; }
+.kww .kwbt-small { min-height: 36px; padding: 4px 10px; border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: none; color: var(--kw-cream); font: inherit; font-size: var(--kw-fs-2); cursor: pointer; }
+.kww .kwbt-small:hover:not(:disabled), .kww .kwbt-small:focus-visible { border-color: var(--kw-gold); outline: none; }
+.kww .kwbt-small:disabled { opacity: 0.35; cursor: default; }
+.kww .kwbt-cancel { margin-left: auto; }
+.kww .kwbt-none, .kww .kwbt-hint { color: var(--kw-muted); font-size: var(--kw-fs-2); margin: var(--kw-s-2) 0; }
+/* A line in a build panel, before paying. */
+.kwbt-note { margin: 6px 0; padding: 6px 10px; border-radius: 7px; font-size: 12.5px; line-height: 1.4; background: rgba(255, 255, 255, 0.06); color: #eadfc6; }
+.kwbt-note.kwbt-warn { background: rgba(217, 138, 74, 0.16); border: 1px solid rgba(217, 138, 74, 0.5); }
+.kwbt-link { border: 0; background: none; padding: 0; color: #ffd27a; text-decoration: underline; cursor: pointer; font: inherit; }
+.kwbt-work { opacity: 0.75; white-space: nowrap; }

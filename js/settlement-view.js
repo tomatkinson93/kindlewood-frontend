@@ -677,7 +677,17 @@ function _renderScene() {
       };
     } else {
       var occupant = _occupantFor(slot);
-      if (occupant) {
+      if (occupant && !(occupant.currentLevel > 0)) {
+        // Being built: a construction site. A click opens the builders' queue;
+        // in Build mode, the panel for moving it to another plot.
+        el.appendChild(_buildSiteEl(slot, occupant));
+        el.hidden = false;
+        (function(s, o) { el.onclick = function() {
+          if (_svJustDragged) return;
+          if (_svBuildMode) return _openBuildPanel(s, o);
+          if (window.KWBuild) KWBuild.open();
+        }; })(slot, occupant);
+      } else if (occupant) {
         el.appendChild(_buildOccupiedEl(slot, occupant));
         // A click opens the building's screen (js/home-scene.js ROUTES), or
         // its panel when it has none.
@@ -692,7 +702,7 @@ function _renderScene() {
           var enter = function() { _svOpenBuilding(o.id, function() { _openBuildPanel(s, o); }); };
           if (!window.KWBuildingMenu) return enter();
           KWBuildingMenu.click(this, { key: o.id, label: o.label, enter: enter,
-            upgrade: o.currentLevel < o.maxLevel ? function() { _openBuildPanel(s, o); } : null,
+            upgrade: o.currentLevel < o.maxLevel && !o.site ? function() { _openBuildPanel(s, o); } : null,
             demolish: function() { _svDemolish(o.id); } }, ev);
         }; })(slot, occupant);
       } else {
@@ -756,14 +766,16 @@ function _renderProps() {
 function _occupantFor(slot) {
   var assignments = _svGetAssignments();
   var bid = assignments[slot.id];
+  // Standing, or being built (a construction site holds its plot: js/construction.js).
+  var there = function(b) { return b.currentLevel > 0 || !!b.site; };
   if (bid) {
-    var b = _svBuildings.find(function(b) { return b.id === bid && b.currentLevel > 0; });
+    var b = _svBuildings.find(function(b) { return b.id === bid && there(b); });
     if (b) return b;
     _svClearAssignment(bid); // stale — building was demolished elsewhere
   } else if (slot.accepts && slot.accepts.length === 1) {
     var own = slot.accepts[0];
     var placed = Object.values(assignments).indexOf(own) !== -1;
-    var built = _svBuildings.find(function(b) { return b.id === own && b.currentLevel > 0; });
+    var built = _svBuildings.find(function(b) { return b.id === own && there(b); });
     if (built && !placed) { _svSetAssignment(slot.id, own); return built; }
   }
   return null;
@@ -805,8 +817,52 @@ function _svBuildingButton(key, name, vis, size, extra) {
 
 function _buildOccupiedEl(slot, building) {
   var vis = SV_VISUALS[building.id] || { emoji:'🏛', bodyColor:'#555', roofColor:'#333' };
-  return _svBuildingButton(building.id, building.label, vis, _svGetSlotSize(slot.id),
+  var btn = _svBuildingButton(building.id, building.label, vis, _svGetSlotSize(slot.id),
     building.currentLevel > 1 ? 'Lv ' + building.currentLevel : '');
+  // Being upgraded: it keeps working; a small sign says how far along.
+  if (building.site && window.KWBuild) {
+    btn.classList.add('kwbt-upgrading');
+    btn.insertAdjacentHTML('beforeend', '<span class="kwbt-sign" title="Being upgraded to level ' + building.site.level + '"><span aria-hidden="true">🔨</span> Lv ' + building.site.level
+      + ' <span data-kwbt-pct="' + building.site.id + '">' + Math.floor(KWBuild.pct(building.site.id) * 100) + '%</span></span>');
+  }
+  return btn;
+}
+// A building not yet standing: the site where it will be, drawn in three
+// stages by the work done (staked ground and timber, a frame, nearly done),
+// with its name, a bar and an honest estimate. Generic art until the owner's
+// site drawings arrive (docs/ART_GUIDE.md); sized to the building's own width.
+function _buildSiteEl(slot, building) {
+  var B = window.KWBuild, id = building.site.id, p = B ? B.pct(id) : building.site.pct || 0;
+  var art = window.KWHome && KWHome.art ? KWHome.art(building.id) : null;
+  var w = Math.round(Math.max(150, Math.min(300, art && art.w ? art.w * 0.8 : 190))), h = Math.round(w * 0.6);
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sv-building kwh-btn kwbt-site';
+  btn.setAttribute('data-kwh', building.id);
+  btn.setAttribute('data-kwbt-site', id);
+  btn.setAttribute('aria-label', building.label + ': being built. Open the builders\' list');
+  btn.innerHTML = '<span class="kwbt-site-art" data-kwbt-stage-of="' + id + '" data-kwbt-stage="' + (B ? B.stage(p) : 0) + '" style="width:' + w + 'px;height:' + h + 'px">' + _svSiteSvg() + '</span>'
+    + '<span class="kwbt-plate"><b>' + _svEsc(building.label) + '</b>'
+    + '<span class="kwbt-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.floor(p * 100) + '"><i data-kwbt-bar="' + id + '" style="width:' + (p * 100).toFixed(1) + '%"></i></span>'
+    + '<span class="kwbt-eta" data-kwbt-eta="' + id + '">' + _svEsc(B ? B.etaLine(id) : '') + '</span></span>';
+  return btn;
+}
+// The site drawing: every stage is in the picture; CSS shows the parts for
+// the stage it is at (data-kwbt-stage 0, 1 or 2).
+function _svSiteSvg() {
+  var o = 'stroke="#4a2f17" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  return '<svg viewBox="0 0 200 120" aria-hidden="true" focusable="false">'
+    + '<ellipse cx="100" cy="104" rx="92" ry="14" fill="#b58d5c" stroke="#8a6638" stroke-width="2"/>'
+    // Stage 0: four stakes with string, and a pile of timber.
+    + '<g class="kwbt-s0"><path d="M30 100V78M170 100V78M62 108V88M138 108V88" ' + o + ' fill="none"/><path d="M30 82H170M62 92H138" stroke="#e8dcc0" stroke-width="2" fill="none"/></g>'
+    + '<g class="kwbt-pile"><rect x="20" y="96" width="46" height="9" rx="4" fill="#c58a4e" ' + o + '/><rect x="26" y="88" width="42" height="9" rx="4" fill="#d39a5c" ' + o + '/><circle cx="66" cy="100" r="4.5" fill="#e9c08a" ' + o + '/><circle cx="68" cy="92" r="4.5" fill="#e9c08a" ' + o + '/></g>'
+    // Stage 1: a timber frame with scaffolding.
+    + '<g class="kwbt-s1"><path d="M48 104V50M152 104V50M100 104V50M48 50H152M48 78H152" ' + o + ' stroke="#6b4423" fill="none"/><path d="M48 50L74 78M152 50L126 78" stroke="#8a5a2c" stroke-width="3" fill="none" stroke-linecap="round"/>'
+    + '<path d="M162 106V40M178 106V40M158 62H182M158 84H182" stroke="#a8875a" stroke-width="3" fill="none" stroke-linecap="round"/></g>'
+    // Stage 2: the roof timbers and the first boards.
+    + '<g class="kwbt-s2"><path d="M40 52L100 14L160 52" ' + o + ' stroke="#6b4423" fill="#d8a868" fill-opacity="0.55"/><path d="M70 33V52M100 14V52M130 33V52" stroke="#6b4423" stroke-width="3" fill="none"/>'
+    + '<rect x="50" y="80" width="48" height="24" fill="#e6c595" ' + o + '/><rect x="102" y="80" width="48" height="24" fill="#e6c595" fill-opacity="0.6" ' + o + '/></g>'
+    + '</svg>';
 }
 
 function _buildNeighbourhoodEl(slot, houseCount) {
@@ -853,14 +909,16 @@ function _openBuildPanel(slot, occupant) {
       : '';
     html += '<div class="sv-occ-head"><span class="sv-occ-emoji">' + vis.emoji + '</span>'
       + '<div><div class="sv-occ-name">' + occupant.label + '</div>'
-      + '<div class="sv-occ-lv">Level ' + occupant.currentLevel + ' / ' + occupant.maxLevel + '</div></div>'
+      + '<div class="sv-occ-lv">' + (occupant.site ? (occupant.currentLevel > 0 ? 'Level ' + occupant.currentLevel + ', being upgraded to ' + occupant.site.level : 'Being built')
+        : 'Level ' + occupant.currentLevel + ' / ' + occupant.maxLevel) + '</div></div>'
       + (isMax
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">★ MAX</span>'
         : occupant.nextLevelTierMet === false
         ? '<span class="sv-bp-lv-badge" style="margin-left:auto">🔒 Lv ' + (occupant.currentLevel + 1) + ' needs a ' + _svTierLabel(occupant.nextLevelTier) + '</span>'
-        : _svBuildMode ? ''   // Build mode places and moves; Upgrade is in the building's menu
+        : _svBuildMode || occupant.site ? ''   // Build mode places and moves; Upgrade is in the building's menu; one upgrade at a time
         : '<button class="sv-bp-upgrade-btn" style="margin-left:auto" onclick="_svBuild(\'' + occupant.id + '\')">↑ Upgrade' + (costStr ? ' — ' + costStr : '') + '</button>')
-      + '</div><div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
+      + '</div>' + (!isMax && !_svBuildMode && !occupant.site && window.KWBuild ? KWBuild.noteHtml(occupant.work) : '')
+      + '<div class="sv-occ-desc">' + (occupant.desc || '') + '</div>'
       + '<div class="sv-occ-flavor">' + (vis.flavor || '') + '</div>'
       + (occupant.id === 'guild_hall' && typeof openClanPanel === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openClanPanel()">🛡️ Open Clan</button>'
@@ -894,7 +952,7 @@ function _openBuildPanel(slot, occupant) {
         return '<div class="sv-bp-opt available"><span class="sv-bp-emoji">' + vis.emoji + '</span>'
           + '<div class="sv-bp-info"><div class="sv-bp-name">' + b.label + '</div>'
           + '<div class="sv-bp-desc">' + (b.desc || '') + '</div>'
-          + '<div class="sv-bp-cost">' + costStr + '</div></div>'
+          + '<div class="sv-bp-cost">' + costStr + (b.work && window.KWBuild && KWBuild.on ? ' <span class="kwbt-work">· 🔨 ' + b.work + ' min of work</span>' : '') + '</div></div>'
           + '<div class="sv-bp-action"><button class="sv-bp-build-btn" onclick="_svBuild(\'' + id + '\')">Build</button></div></div>';
       }
       if (!_svCanBuild(b) && b.currentLevel === 0) {
@@ -906,7 +964,8 @@ function _openBuildPanel(slot, occupant) {
       }
       return '';
     }).join('');
-    html += '<div class="sv-bp-options">'
+    // Building time: said before paying if nobody is a builder, or the builders' list is full.
+    html += (window.KWBuild ? KWBuild.noteHtml(null) : '') + '<div class="sv-bp-options">'
       + (opts || '<div style="color:rgba(200,180,140,0.45);font-size:13px;text-align:center;padding:14px 0">Nothing to construct here yet.</div>')
       + '</div>';
   }
@@ -960,9 +1019,10 @@ async function _svBuild(buildingId) {
   var bData  = _svBuildings.find(function(b) { return b.id === buildingId; });
   var cost   = bData ? bData.cost : null;
   _closeBuildPanel();
-  await buildBuilding(buildingId);
-  _svPlaySound('/assets/audio/construct.wav');
-  if (slotId) _svSetAssignment(slotId, buildingId);
+  var done = await buildBuilding(buildingId);
+  if (!done) return;   // refused (it said why): nothing was paid, nothing moves
+  if (!done.queued) _svPlaySound('/assets/audio/construct.wav');
+  if (slotId) _svSetAssignment(slotId, buildingId);   // a site holds its plot too
   // Explicitly refresh topbar — buildBuilding's internal refreshResources call
   // can be pre-empted by loadBuildings re-rendering the panel, so we re-run it
   // here to guarantee the numbers reflect the deducted cost.
@@ -973,6 +1033,8 @@ async function _svBuild(buildingId) {
   await _svLoad();
 }
 window._svBuild = _svBuild;
+// The builders' queue changed (ordered on another device, finished, cancelled): the scene follows.
+window.addEventListener('kw:build', function() { if (_svOpen && !_svDragSlot) _svLoad(); });
 
 async function _svDemolish(buildingId) {
   if (!await KWDialog.confirm({ title: 'Demolish this building?', message: 'You will receive 50% of resources back.', ok: 'Demolish', danger: true })) return;

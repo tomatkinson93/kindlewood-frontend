@@ -729,8 +729,8 @@ console.log('22. A building\'s radial menu');
     keys({ enter: 1, upgrade: 1, demolish: 1 }) === 'enter,min,upgrade,demolish,who' && keys({ enter: 1, demolish: 1 }) === 'enter,min,demolish,who'
     && keys({ enter: 1 }) === 'enter,min,who' && BM.items({ enter: 1 })[0].big === true && /\.kwv-rb\.kwb-enter \{ width: 62px; height: 62px;/.test(CSS));
   check('22b. at the top level no Upgrade; the Neighbourhood has neither Upgrade nor Demolish; Build mode keeps placing and moving',
-    /upgrade: o\.currentLevel < o\.maxLevel \? function/.test(S) && /KWBuildingMenu\.click\(this, \{ key: 'neighbourhood', label: 'Neighbourhood', enter: function\(\) \{ _svOpenBuilding\('neighbourhood'\); \} \}, ev\)/.test(S)
-    && /_svBuildMode \? ''   \/\/ Build mode places and moves/.test(S) && !/sv-bp-demolish-btn" onclick/.test(S));
+    /upgrade: o\.currentLevel < o\.maxLevel && !o\.site \? function/.test(S) && /KWBuildingMenu\.click\(this, \{ key: 'neighbourhood', label: 'Neighbourhood', enter: function\(\) \{ _svOpenBuilding\('neighbourhood'\); \} \}, ev\)/.test(S)
+    && /_svBuildMode \|\| occupant\.site \? ''   \/\/ Build mode places and moves/.test(S) && !/sv-bp-demolish-btn" onclick/.test(S));
   const r = BM.ring(4, 100);
   check('22c. the others sit evenly round Enter, the first straight above', r.length === 4 && r[0].x === 0 && r[0].y === -100 && r[2].y === 100);
   check('22d. a double click, or Enter twice, goes straight in; a keyboard opening focuses Enter',

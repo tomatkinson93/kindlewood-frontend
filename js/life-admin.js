@@ -9,7 +9,7 @@
 (function (global) {
   'use strict';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const st = { status: null, numbers: null, msg: '', bad: false };
+  const st = { status: null, numbers: null, queue: null, msg: '', bad: false };
 
   async function call(method, path, body) {
     const res = await global.apiFetch('/api/life/admin' + path, {
@@ -69,16 +69,45 @@
       <button type="button" class="cheat-all-btn" data-kwld="reset">Reset all to the defaults</button>`;
   }
 
+  // Building time with builders (docs/HOME_SCENE.md Part D; /api/construction/admin/*).
+  function buildHtml(q) {
+    if (!q) return '';
+    const n = (q.builders || []).length;
+    return `<div class="cheat-section-label">Building time (builders)</div>
+      <div class="kwld-grid"><div><b>This town</b> ${q.on ? '<span class="kwld-ok">on</span>' : 'off'}</div>
+        <div><b>Builders</b> ${n}${n ? ' (' + q.builders.map(b => esc(String(b.name).split(' ')[0])).join(', ') + ')' : ''}</div>
+        <div><b>Going up</b> ${q.sites.length ? q.sites.map(x => `${esc(x.label)} ${Math.floor(x.pct * 100)}%`).join(', ') : 'nothing'}${q.waiting ? ' — waiting for a builder' : ''}</div></div>
+      <div class="kwld-row"><button type="button" class="cheat-all-btn" data-kwld="bt-town" data-on="${q.on ? 0 : 1}">${q.on ? 'Turn off for this town' : '🔨 Turn on for this town'}</button>
+        <button type="button" class="cheat-all-btn" data-kwld="bt-finish"${q.sites.length ? '' : ' disabled'}>✅ Finish the first site now</button>
+        <label>Builders <input class="ce-input kwld-num" type="number" min="0" max="20" step="1" value="${n}" id="kwld-builders" aria-label="Builders"></label>
+        <button type="button" class="cheat-all-btn" data-kwld="bt-builders">Set</button></div>
+      <div class="kwld-row"><button type="button" class="cheat-all-btn kwld-danger" data-kwld="bt-all" data-on="1">Turn on for EVERY town</button>
+        <button type="button" class="cheat-all-btn" data-kwld="bt-all" data-on="0">Turn off for every town</button>
+        <span class="ra-muted">A town it is on for keeps it until turned off for that town too.</span></div>`;
+  }
+  async function build(path, body) {
+    const res = await global.apiFetch('/api/construction' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Request failed.');
+    st.queue = d.queue || st.queue;
+    // The game follows at once: the Builder job, the queue, the scenes.
+    const gd = typeof gameData !== 'undefined' ? gameData : global.gameData;   // eslint-disable-line no-undef
+    if (gd && gd.settlement && d.queue) gd.settlement.building_time = !!d.queue.on;
+    if (global.KWBuild) global.KWBuild.load();
+    if (typeof global.refreshSettlementView === 'function') Promise.resolve(global.refreshSettlementView()).catch(() => {});
+    return d;
+  }
+
   // ── Render and wire ──────────────────────────────────────────────────────
   function render() {
     const el = root();
     if (!el) return;
     el.innerHTML = `${st.msg ? `<div class="kw-note ${st.bad ? 'bad' : 'good'}">${esc(st.msg)}</div>` : ''}
-      ${statusHtml(st.status)}${actionsHtml(living())}${numbersHtml(st.numbers)}`;
+      ${statusHtml(st.status)}${actionsHtml(living())}${buildHtml(st.queue)}${numbersHtml(st.numbers)}`;
   }
   async function load() {
     try {
-      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers')]);
+      const [s, n] = await Promise.all([call('GET', '/status'), call('GET', '/numbers'), build('').catch(() => null)]);
       st.status = s; st.numbers = n.numbers;
     } catch (e) { st.msg = e.message; st.bad = true; }
     render();
@@ -108,6 +137,14 @@
     if (a === 'settler') return act(() => call('POST', '/settler'), d => d.settler ? `${d.settler.name}, ${d.settler.age}, has arrived.` : 'Nobody came.');
     if (a === 'settle') return act(() => call('POST', '/inheritances/settle'), d => `${d.settled} inheritance${d.settled === 1 ? '' : 's'} settled.`);
     if (a === 'reset') return act(() => call('POST', '/numbers/reset', {}), 'All numbers are back to the defaults.');
+    if (a === 'bt-town') return act(() => build('/admin/town', { on: t.getAttribute('data-on') === '1' }), d => `Building time is ${d.on ? 'on' : 'off'} for this town.`);
+    if (a === 'bt-all') {
+      const on = t.getAttribute('data-on') === '1';
+      if (on && !global.confirm('Turn building time on for EVERY town? Every player will need a builder to build anything.')) return;
+      return act(() => build('/admin/switch', { on }), d => `Building time is ${d.everywhere ? 'ON' : 'off'} for every town.`);
+    }
+    if (a === 'bt-finish') return act(() => build('/admin/finish', {}), d => d.finished ? d.finished.text : 'Finished.');
+    if (a === 'bt-builders') return act(() => build('/admin/builders', { count: Number(el.querySelector('#kwld-builders').value) }), d => `The town has ${d.builders} builder${d.builders === 1 ? '' : 's'}.`);
     if (a === 'refresh') { st.msg = ''; return load(); }
   }
 
@@ -121,5 +158,5 @@
     load();
   }
 
-  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml };
+  global.KWLifeDev = { open, _statusHtml: statusHtml, _actionsHtml: actionsHtml, _numbersHtml: numbersHtml, _buildHtml: buildHtml };
 })(typeof window !== 'undefined' ? window : globalThis);
