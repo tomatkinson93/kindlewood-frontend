@@ -226,6 +226,9 @@
     // choice of the player's, so it mustn't open the panel (js/context.js).
     const quiet = fn => (global.KWContext ? global.KWContext.mute(fn) : fn());
     if (global.KWContext) global.KWContext.close();
+    // The player chose where to go: a full screen opened from Home (the
+    // Tavern, the Market, Fishing) no longer brings them back to it.
+    if (global.KWHome && global.KWHome.forgetReturn) global.KWHome.forgetReturn();
     if (key === 'home') {
       quiet(() => call('navGoMap'));    // closes the tavern, fishing and the community modal
       if (!svOpen()) call('openSettlementView');

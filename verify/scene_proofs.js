@@ -359,7 +359,7 @@ console.log('12. The cast and walking (§3.2–3.4)');
   check('12s. speeds: adults 40, elders 30, children 55 px a second', C.SPEED.adult === 40 && C.SPEED.elder === 30 && C.SPEED.child === 55);
 
   const E = read('js/villager-engine.js'), VJ = read('js/villagers.js'), H = read('index.html');
-  check('12t. depth from the foot: villagers and buildings share one z-index scale', /const z = v\.selected \? 1005 : depth\(v\.y\);/.test(E) && /v\.el\.style\.zIndex = String\(z\)/.test(E) && /slot\.style\.zIndex = String\(depth\(foot\)\)/.test(E));
+  check('12t. depth from the foot: villagers and buildings share one z-index scale', /const z = v\.selected \? 1005 : depth\(v\.y\);/.test(E) && /v\.el\.style\.zIndex = String\(z\)/.test(E) && /slot\.style\.zIndex = String\(depth\(flat \? rect\.top \+ 2 : foot\)\)/.test(E));
   check('12u. one loop, transform only; it stops off Home, with the tab hidden, in Build mode, and stands still under reduced motion',
     /const running = \(\) => S\.shown && !S\.paused && S\.layer && !doc\.hidden && !\(V\(\) && V\(\)\.reducedMotion\(\)\)/.test(E) && /visibilitychange/.test(E)
     && /draw\(v, true\)/.test(E) && /translate3d/.test(VJ) && !/v\.el\.style\.(left|top) =/.test(E));
@@ -749,9 +749,9 @@ console.log('22. A building\'s radial menu');
     && (() => { const r = wp({ cy: 380, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 522 && r.max === 278; })()
     && (() => { const r = wp({ cy: 620, off: 142, top: 60, bottom: 800, want: 520 }); return r.top === 60 && r.max === 418 && r.top + r.max <= 620 - 142; })()
     && /\.kwb-who \{ overflow-y: auto;/.test(CSS) && /box\.style\.maxHeight = place\.max \+ 'px';/.test(BJ));
-  check('22g. one menu at a time; a See through toggle beside Names does every building; props keep their single click',
+  check('22g. one menu at a time; a See through toggle beside Names does every building; a signpost keeps its single click',
     /global\.KWBuildingMenu\.close\(false, true\);   \/\/ one menu at a time/.test(E) && /C\.deselect\(\)/.test(BJ) && /key: 'seethrough'/.test(PL)
-    && /el\.onclick = function\(\) \{ KWHome\.openProp\(p\.id\); \};/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
+    && /if \(p\.kind === 'signpost' \|\| !window\.KWBuildingMenu\) return KWHome\.openProp\(p\.id\);/.test(S) && /\/js\/building-menu\.js\?v=/.test(read('index.html')));
 }
 
 // ── 23. Villagers keep a working day (seeded; js/villager-engine.js) ──
@@ -987,6 +987,26 @@ console.log('29. Town-wide events (§3.10)');
   check('29j. the town grows a tier: everyone out cheers once', /order\.indexOf\(tier\) > order\.indexOf\(S\.tierSeen\)/.test(E) && /setSay\(v, '⭐'\); hop\(v\);/.test(E));
   check('29k. no life scenes, emotes or chats while raiders are near', /townTick\(now\); if \(S\.event !== 'raid'\) lifeTick\(now\);/.test(E) && /if \(S\.event === 'raid'\) return;       \/\/ nobody stops to feel things/.test(E));
   check('29l. the scene knows of the raid (the town\'s data, readable at last)', /raid: \(s && s\.raid\) \|\| null/.test(HS));
+}
+
+console.log('30. The village green, and coming back from a full screen');
+{
+  const E = read('js/villager-engine.js'), S = read('js/settlement-view.js'), HS = read('js/home-scene.js'), BM = read('js/building-menu.js'), CSS = read('css/home-scene.css'), PL = read('js/places.js');
+  check('30a. the green is ground: its depth is its far edge, so anyone standing or dancing on it is in front of it', /const flat = btn && btn\.classList\.contains\('kwh-prop-green'\);/.test(E) && /depth\(flat \? rect\.top \+ 2 : foot\)/.test(E));
+  check('30b. and it does not rise over them when the pointer is on it', /\.sv-slot:not\(\.sv-has-site\):not\(\.kwn-building\):not\(#sv-prop-green\):hover/.test(CSS));
+  check('30c. the green and the Wonder site open a menu like any building (Enter in the middle); with no inside, no "Who\'s here"',
+    /KWBuildingMenu\.click\(this, \{ key: p\.id, label: p\.label, open: true, enter: function\(\) \{ KWHome\.openProp\(p\.id\); \} \}, ev\);/.test(S) && /if \(!o\.open\) out\.push\(\{ key: 'who'/.test(BM));
+  const w = { console, Date, setInterval() { return 1; }, clearInterval() {}, setTimeout() {}, document: { getElementById: () => null, addEventListener() {}, querySelector: () => null }, getComputedStyle: () => ({ display: 'none' }), addEventListener() {} };
+  w.window = w; vm.createContext(w); vm.runInContext(HS, w);
+  const K = w.KWHome, t0 = 1e6;
+  check('30d. the Tavern, the Market and Fishing are the full screens Home closes for', K.SCREENS.join() === 'tavern,fishing,market' && K.ROUTES.tavern.leave === 'tavern' && K.ROUTES.market.leave === 'market' && K.ROUTES.fishing_post.leave === 'fishing');
+  check('30e. a return ticket waits while its screen is open, and brings the player back when it has been open and is closed',
+    K._ticketStep({ seen: false, at: t0 }, true, t0 + 100) === 'wait' && K._ticketStep({ seen: true, at: t0 }, true, t0 + 9e5) === 'wait' && K._ticketStep({ seen: true, at: t0 }, false, t0 + 9e5) === 'back');
+  check('30f. a screen that never opened brings nobody back', K._ticketStep({ seen: false, at: t0 }, false, t0 + 1000) === 'wait' && K._ticketStep({ seen: false, at: t0 }, false, t0 + 6000) === 'drop');
+  check('30g. the ticket remembers the part of town and how far along, and Home opens again right there', /ticket = \{ screen, area: call\('_svActiveAreaName'\) \|\| 'town', x: sc \? sc\.scrollLeft : 0/.test(HS) && /call\('_svSwitchArea', t\.area, true\);[^\n]*sc\.scrollLeft = t\.x;/.test(HS));
+  check('30h. going somewhere else with the place bar tears it up (the player chose)', /global\.KWHome\.forgetReturn\(\);/.test(PL) && /const forgetReturn = \(\) => \{ ticket = null; \};/.test(HS));
+  check('30i. every way from Home to those screens takes a ticket (a building, its panel\'s buttons, the profile menu)', !/closeSettlementView\(\);openMarket/.test(S) && (S.match(/_svLeaveFor\(\\'market\\'\)/g) || []).length === 2
+    && /leaveFor\('tavern'\); call\('visitTavern'\)/.test(HS) && /leaveFor\('fishing'\); call\('visitFishingPost'\)/.test(HS) && /if \(r\.leave\) leaveFor\(r\.leave\);/.test(HS));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

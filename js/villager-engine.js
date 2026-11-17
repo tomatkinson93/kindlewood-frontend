@@ -348,7 +348,10 @@
       const box = (artEl || slot).getBoundingClientRect();
       const rect = { left: (box.left - lr.left) / sx, top: (box.top - lr.top) / sy, width: box.width / sx, height: box.height / sy };
       const foot = rect.top + rect.height;
-      if (!slot.classList.contains('sv-dragging')) slot.style.zIndex = String(depth(foot));
+      // The village green is ground: anyone standing or dancing on it is in
+      // front of it (its depth is its far edge, not its near one).
+      const flat = btn && btn.classList.contains('kwh-prop-green');
+      if (!slot.classList.contains('sv-dragging')) slot.style.zIndex = String(depth(flat ? rect.top + 2 : foot));
       if (!btn) return;
       S.blocks.push({ l: rect.left, r: rect.left + rect.width, t: rect.top, b: foot });   // what stands here (for a clear spot)
       const key = btn.getAttribute('data-kwh');

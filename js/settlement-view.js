@@ -630,6 +630,9 @@ function _svSwitchArea(area, force, where) {
   if (window.KWPlaces && KWPlaces.refreshTools) KWPlaces.refreshTools();
 }
 window._svSwitchArea = _svSwitchArea;
+// Leaving Home for a full screen (the Market from a building's panel): Home
+// opens again where the player stood when that screen is closed.
+window._svLeaveFor = function(screen) { if (window.KWHome && KWHome.leaveFor) KWHome.leaveFor(screen); else closeSettlementView(); };
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 async function _svLoad() {
@@ -761,7 +764,12 @@ function _renderProps() {
       + (p.kind === 'signpost' ? '<span class="kwh-sign-text" aria-hidden="true">' + _svEsc(p.label) + '</span>' : '')
       + KWHome.plateHtml(p.label, p.opens);
     el.appendChild(btn);
-    el.onclick = function() { KWHome.openProp(p.id); };
+    // A signpost is walked through at once. A place (the village green, the
+    // Wonder site) has a menu like any building: Enter in the middle.
+    el.onclick = function(ev) {
+      if (p.kind === 'signpost' || !window.KWBuildingMenu) return KWHome.openProp(p.id);
+      KWBuildingMenu.click(this, { key: p.id, label: p.label, open: true, enter: function() { KWHome.openProp(p.id); } }, ev);
+    };
   });
 }
 
@@ -926,7 +934,7 @@ function _openBuildPanel(slot, occupant) {
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openClanPanel()">🛡️ Open Clan</button>'
         : '')
       + (occupant.id === 'market' && typeof openMarket === 'function'
-        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket()">⚖️ Open Market</button>'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();_svLeaveFor(\'market\');openMarket()">⚖️ Open Market</button>'
         : '')
       + (['smithy', 'jeweller', 'workshop', 'smelter'].includes(occupant.id) && typeof openCrafting === 'function'
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openCrafting(\'' + occupant.id + '\')">🔨 Open the workshop</button>'
@@ -936,7 +944,7 @@ function _openBuildPanel(slot, occupant) {
         ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();openLibrary()">📚 Open the Library</button>'
         : '')
       + (['smithy', 'jeweller', 'fishing_post'].includes(occupant.id) && typeof openMarket === 'function'
-        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();closeSettlementView();openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
+        ? '<button class="sv-bp-upgrade-btn" onclick="_closeBuildPanel();_svLeaveFor(\'market\');openMarket({tab:\'shops\'})">🏪 Run the shop</button>'
         : '')
       + _svMoveHtml(slot);   // Demolish is in the building's radial menu (js/building-menu.js)
     void refundStr;

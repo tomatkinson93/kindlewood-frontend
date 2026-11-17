@@ -105,8 +105,9 @@
 
 /* A building under the pointer or focus rises above the villagers, so its
    nameplate is never hidden behind someone walking in front. */
-#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):hover,
-#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):focus-within { z-index: 1010 !important; }
+#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):not(#sv-prop-green):hover,
+#settlement-view .sv-fg-layer > .sv-slot:not(.sv-has-site):not(.kwn-building):not(#sv-prop-green):focus-within { z-index: 1010 !important; }
+/* (Nor the village green: it is ground, and people dance on it.) */
 /* (Not a construction site: its plate is above it, and the builders stand in front.) */
 
 /* Villagers' behaviour (js/villager-engine.js, §3.5). */

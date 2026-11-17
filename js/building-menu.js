@@ -30,7 +30,8 @@
     const out = [{ key: 'enter', icon: '🚪', label: 'Enter', big: true }, { key: 'min', icon: '👁', label: 'Minimise' }];
     if (o.upgrade) out.push({ key: 'upgrade', icon: '⬆', label: 'Upgrade' });
     if (o.demolish) out.push({ key: 'demolish', icon: '🔨', label: 'Demolish' });
-    out.push({ key: 'who', icon: '👥', label: "Who's here" + (inside ? ' (' + inside + ')' : '') });
+    // A place with no inside (the village green, the Wonder site) has nobody in it.
+    if (!o.open) out.push({ key: 'who', icon: '👥', label: "Who's here" + (inside ? ' (' + inside + ')' : '') });
     return out;
   }
   // Where the buttons round Enter go: evenly round a circle from the top.
