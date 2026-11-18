@@ -36,14 +36,21 @@
     if (u === 'opened:families') return page.familiesWindow ? u : null;
     if (u === 'area:neighbourhood') return page.area === 'neighbourhood' ? u : null;
     if (u === 'place:families') return page.place === 'families' || page.familiesWindow ? u : null;
+    if (u === 'place:land') return page.place === 'land' ? u : null;
     return null;
   }
   // Where to ring, most exact first: the list of things to look for, by what is on the page now.
   // `page`: { building (Build mode), menu (a villager's menu is open), panel (the build panel is open), houseWindow, area }.
-  function targets(point, page, who, area) {
+  // `want`: the building the beat asks for (from "built:<type>"), so the right row of the build list is ringed.
+  function targets(point, page, who, area, want) {
     const p = String(point || ''), w = who || {};
     // Building time: something for this beat is being built and the elder's help is left. Finish now, on the chip.
     if (page.finish && !page.panel && (p === 'tool:build' || p === 'plot:any')) return ['chip:finish'];
+    // The beat is on Home and the player is on The Land: Home first. (Families and the rest are windows over
+    // Home: for those the window's close button is ringed, in find.)
+    if (p && !/^(place:|land:|moment:)/.test(p) && page.place === 'land') return ['place:home'];
+    // Already in the Neighbourhood: there is nothing left to point at (it used to flash the way back to town).
+    if (p === 'building:neighbourhood' && page.area === 'neighbourhood') return [];
     // The beat happens in another part of Home: lead there first.
     if (area && page.area && page.area !== area && p !== 'building:neighbourhood') {
       if (page.bmenu) return ['bmenu:enter'];
@@ -57,10 +64,12 @@
     if (p === 'villager-menu:family') return page.menu ? ['menu:family'] : [w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'villager-menu:work') return page.menu ? ['menu:work'] : [w.b ? `villager:${w.b}` : null, w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'building:neighbourhood') return page.bmenu ? ['bmenu:enter'] : page.area === 'town' ? ['building:neighbourhood'] : ['signpost:town'];
-    if (p === 'tool:build' || p === 'plot:any') return page.panel ? ['panel:lumber', 'panel:build', 'plot'] : page.building ? ['plot'] : ['tool:build'];
+    // The build list: the row of the building the beat wants, and never another one in its place.
+    if (p === 'tool:build' || p === 'plot:any') return page.panel ? (want ? [`panel:type:${want}`] : ['panel:build', 'plot']) : page.building ? ['plot'] : ['tool:build'];
     if (p === 'house:any') return page.houseWindow ? ['house:in'] : page.bmenu ? ['bmenu:enter'] : page.building ? ['tool:build'] : ['house:free', 'house'];
-    if (p === 'guide:errand') return ['chip:errand'];
-    if (p === 'place:families') return ['place:families'];
+    if (p === 'place:families' || p === 'place:land') return [p];
+    // The Land: the place, then a tile in the mist beside the town, then Dispatch once that tile's panel is up.
+    if (p === 'land:fog') return page.place !== 'land' ? ['place:land'] : page.scoutPanel ? ['land:dispatch', 'land:tile'] : ['land:tile'];
     if (p === 'moment:first') return ['moment', 'villager:marked'];
     return [];
   }
@@ -73,8 +82,7 @@
     'tool:build': '#kw-place-tools [data-tool="build"]',
     'tool:totown': '#kw-place-tools [data-tool="totown"]',
     plot: '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-stake, #settlement-view .sv-fg-layer:not(.sv-area-hidden) .sv-slot:not([hidden]) .sv-slot-empty:not(.locked)',
-    // The button that builds: a home's (the plot panel in the Neighbourhood), the Lumber Camp's row in Town's list, else the first.
-    'panel:lumber': '#sv-build-panel.open .sv-bp-build-btn[onclick*="lumber_camp"]',
+    // The button that builds: a home's (the plot panel in the Neighbourhood). A named building's row is `panel:type:<id>` (see find).
     'panel:build': '#sv-build-panel.open .kwn-build, #sv-build-panel.open .sv-bp-build-btn',
     'modal:role': '#citizen-profile-modal.open .cp-role-select', 'modal:close': '#citizen-profile-modal.open .citizen-profile-close',
     'bmenu:enter': '.kwb-enter',
@@ -82,27 +90,26 @@
     house: '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-slot[data-house] .kwh-art',
     'house:in': '.kww [data-action="in"]',
     'chip:finish': '#kwgd-chip [data-kwgd="finish"]',
-    'chip:errand': '#kwgd-chip [data-kwgd="errand"], #kwgd-chip [data-kwgd="collect"]',
-    'place:families': '.kwp-place[data-place="families"]',
+    'place:families': '.kwp-place[data-place="families"]', 'place:land': '.kwp-place[data-place="land"]', 'place:home': '.kwp-place[data-place="home"]',
+    'land:dispatch': '.btn-send-scout:not([disabled])',
     moment: '#kw-moments [data-kwm]',
   };
   // The chip's words while it waits.
   function chipHtml(g, now) {
     if (!g || g.state !== 'active' || !g.beat) return '';
-    const b = g.beat, e = g.errand;
+    const b = g.beat;
+    // A quiet wait (someone is out scouting): how long is left.
     let act = '';
-    if (b.key === 'errand' && !e) act = '<button type="button" class="kwgd-act" data-kwgd="errand">Send someone</button>';
-    else if (e && !e.collected && (b.key === 'collect' || b.key === 'families')) {
-      const left = Math.max(0, Math.ceil((new Date(e.back_at).getTime() - now) / 1000));
-      act = left > 0 ? `<span class="kwgd-wait">${esc(String(e.name).split(' ')[0])} is back in ${left >= 60 ? Math.ceil(left / 60) + ' min' : left + ' s'}</span>`
-        : (b.key === 'collect' ? '<button type="button" class="kwgd-act" data-kwgd="collect">Hear the news</button>' : '');
+    if (b.wait_until) {
+      const left = Math.max(0, Math.ceil((new Date(b.wait_until).getTime() - now) / 1000));
+      act = `<span class="kwgd-wait">${left > 0 ? 'back in ' + (left >= 90 ? Math.ceil(left / 60) + ' min' : left + ' s') : 'any moment now'}</span>`;
     }
     const fin = g.finish && g.finish.left > 0 && (g.finish.sites || []).length
       ? `<button type="button" class="kwgd-act kwgd-finish" data-kwgd="finish" data-site="${g.finish.sites[0].id}" title="${g.finish.left} left during the tour">⏩ Finish now</button>` : '';
     return `<span class="kwgd-face" aria-hidden="true">${EMOJI[g.elder.species] || '🍂'}</span>`
       + `<span class="kwgd-words"><b>${esc(g.elder.name)}</b><span class="kwgd-hint">${esc(b.hint || 'Listen')}</span></span>`
       + act + fin
-      + `<button type="button" class="kwgd-small" data-kwgd="again" aria-label="Hear that again" title="Hear that again">↺</button>`
+      + ((b.say || []).length ? `<button type="button" class="kwgd-small" data-kwgd="again" aria-label="Hear that again" title="Hear that again">↺</button>` : '')
       + `<button type="button" class="kwgd-small" data-kwgd="skip">Skip the tour</button>`
       + `<span class="kwgd-n" aria-label="Step ${b.n} of ${b.of}">${b.n}/${b.of}</span>`;
   }
@@ -124,10 +131,21 @@
     // A place has just opened (a Tavern brings The Road, a Guild Hall The Clan): the elder says so, once.
     if (before && g.state !== 'active') { if (!before.road && g.unlock.road) setTimeout(() => S.later && S.later('road'), 800); else if (!before.clan && g.unlock.clan) setTimeout(() => S.later && S.later('clan'), 800); }
     if (global.KWPlaces && global.KWPlaces.setLocked) global.KWPlaces.setLocked({ road: !g.unlock.road, clan: !g.unlock.clan });
-    for (const j of g.just || []) if (j.given && giftLine(j.given)) { toast(`🎁 ${g.elder.name} gave you ${giftLine(j.given)}.`, 'success'); if (typeof global.refreshResources === 'function') { try { global.refreshResources(); } catch (_) { /* later */ } } }
+    // A gift: the box says it under the elder's line (speak). A toast only where there is no box to say it (a skip).
+    for (const j of g.just || []) if (j.given && giftLine(j.given)) { if (g.state !== 'active') toast(`🎁 ${g.elder.name} gave you ${giftLine(j.given)}.`, 'success'); if (typeof global.refreshResources === 'function') { try { global.refreshResources(); } catch (_) { /* later */ } } }
     if (g.finished) toast(`🌿 That is the tour. ${g.elder.name} is in Help if you want it again.`, 'success');
-    if (g.state !== 'active') { S.told = null; paint(); return; }
-    if (g.beat.key !== was) speak();
+    const closeTell = () => { if (S.telling && global.KWSay && global.KWSay.isTelling && global.KWSay.isTelling()) global.KWSay.close(); };
+    if (g.state !== 'active') { S.told = null; closeTell(); paint(); return; }
+    // Someone was moved in by hand, and the rest have just found their own beds (the server did that as the
+    // beat ended): the homes, their open window and the villagers are read again, so nothing shows the old count.
+    if (was === 'move_in' && g.beat.key !== 'move_in') {
+      try { if (global.KWHood && global.KWHood.reload) { const r = global.KWHood.reload(true); if (r && r.catch) r.catch(() => {}); } } catch (_) { /* later */ }
+      if (typeof global.loadCitizens === 'function') { try { const r = global.loadCitizens(); if (r && r.catch) r.catch(() => {}); } catch (_) { /* later */ } }
+    }
+    // A moment is wanted: make sure the screen has it (it may have started on the server a moment ago).
+    if (g.beat.key === 'moment' && was !== 'moment' && global.KWMoments && global.KWMoments.load) { try { global.KWMoments.load(); } catch (_) { /* later */ } }
+    // The beat moved on. If he is still speaking (the player did the thing while he spoke), those lines give way to the next.
+    if (g.beat.key !== was) { if (S.telling) closeTell(); else speak(); }
     else paint();
   }
   async function load() {
@@ -156,10 +174,18 @@
     if (!g || g.state !== 'active' || !g.beat || S.telling || !global.KWSay || !gameShowing()) { paint(); return; }
     if (!again && S.told === g.beat.key) { paint(); return; }
     const b = g.beat;
+    // A quiet wait (someone is out scouting): nothing to say; the chip says what is being waited for.
+    if (!(b.say || []).length) { S.told = b.key; paint(); return; }
     S.telling = true; paint();
-    const how = await global.KWSay.tell({ character: characterUrl(g.elder.species), emoji: EMOJI[g.elder.species], speaker: g.elder.name, lines: b.say, skip: 'Skip the tour', count: `${b.n} of ${b.of}`, done: b.until ? '' : 'On we go' });
-    S.telling = false; S.told = b.key;
-    if (how === 'skip') { await skip(); return; }
+    // What the beat gave is said under his line, from the line at which he hands it over: not speech, a receipt.
+    const got = b.gift ? giftLine(b.gift) : '';
+    const how = await global.KWSay.tell({ character: characterUrl(g.elder.species), emoji: EMOJI[g.elder.species], speaker: g.elder.name, lines: b.say, skip: 'Skip the tour', count: `${b.n} of ${b.of}`, done: b.until ? '' : 'On we go',
+      note: got ? `You received ${got}.` : '', noteFrom: b.gift_at || 0 });
+    S.telling = false;
+    if (how === 'skip') { S.told = b.key; await skip(); return; }
+    // The tour moved on while he was speaking: the next beat's lines, now.
+    if (S.g && S.g.state === 'active' && S.g.beat && S.g.beat.key !== b.key) { S.told = null; speak(); return; }
+    S.told = b.key;
     if (how === 'done' && !b.until && S.g && S.g.beat && S.g.beat.key === b.key) await send('/advance', { key: b.key });
     else paint();
   }
@@ -174,7 +200,7 @@
     familiesWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('families')),
     houseWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('house')),
     area: global._svActiveAreaName ? global._svActiveAreaName() : 'town', place: global.KWPlaces && global.KWPlaces.shown ? global.KWPlaces.shown() : null,
-    profile: !!doc.querySelector('#citizen-profile-modal.open'),
+    profile: !!doc.querySelector('#citizen-profile-modal.open'), scoutPanel: !!doc.querySelector('.btn-send-scout'),
     finish: !!(S.g && S.g.finish && S.g.finish.left > 0 && (S.g.finish.sites || []).length),
     building: !!(global._svIsBuildMode && global._svIsBuildMode()), panel: !!doc.querySelector('#sv-build-panel.open'), bmenu: !!doc.querySelector('.kwb-enter'),
   });
@@ -194,15 +220,48 @@
       }
     } catch (_) { /* stays put */ }
   }
+  // A tile in the mist beside the player's town on The Land, as a place on the screen. The map is drawn on a
+  // canvas, so there is no element to find: the nearest unseen tile that is in view, ring by ring outwards.
+  function landTile() {
+    try {
+      const K = global.KWMap && global.KWMap.controller, canvas = typeof _getCanvas === 'function' ? _getCanvas() : null;   // eslint-disable-line no-undef
+      const data = typeof worldMapData !== 'undefined' ? worldMapData : null;   // eslint-disable-line no-undef
+      if (!K || !K.hexToScreen || !canvas || !data || !Array.isArray(data.tiles)) return null;
+      const home = data.tiles.find(x => x.settlement && x.settlement.isOwn);
+      if (!home) return null;
+      const known = new Map(data.tiles.map(x => [x.q + ',' + x.r, x])), box = canvas.getBoundingClientRect();
+      const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+      for (let d = 1; d <= 8; d++) {
+        let q = home.q + DIRS[4][0] * d, r = home.r + DIRS[4][1] * d;
+        for (let side = 0; side < 6; side++) for (let i = 0; i < d; i++) {
+          const tile = known.get(q + ',' + r);
+          if (!tile || tile.terrain === 'fog') {
+            const pt = K.hexToScreen(q, r);
+            if (pt) {
+              const x = box.left + pt.x, y = box.top + pt.y, rect = { left: x - 26, top: y - 22, right: x + 26, bottom: y + 22, width: 52, height: 44 };
+              const hit = onScreen(rect) && x > box.left + 30 && x < box.right - 30 && y > box.top + 30 && y < box.bottom - 30 && doc.elementFromPoint ? doc.elementFromPoint(x, y) : null;
+              if (hit === canvas) return rect;
+            }
+          }
+          q += DIRS[side][0]; r += DIRS[side][1];
+        }
+      }
+    } catch (_) { /* no map yet */ }
+    return null;
+  }
   // Of everything a name matches, the first that is on the screen. If none is (the town is wider than the
   // window), the view is led to the first, once, so there is always something to press.
   function find(name, strict) {
-    const m = /^villager:(\d+)$/.exec(name);
+    if (name === 'land:tile') return landTile();
+    const m = /^villager:(\d+)$/.exec(name), t = /^panel:type:([a-z_]+)$/.exec(name);
+    const sel = m ? `#settlement-view .kwv-cit[data-cid="${m[1]}"]:not(.kwv-gone)` : t ? `#sv-build-panel.open .sv-bp-build-btn[onclick*="'${t[1]}'"]` : SELECTOR[name];
     let all = [];
-    try { all = m ? doc.querySelectorAll(`#settlement-view .kwv-cit[data-cid="${m[1]}"]:not(.kwv-gone)`) : SELECTOR[name] ? doc.querySelectorAll(SELECTOR[name]) : []; } catch (_) { all = []; }   // an old browser without :has()
+    try { all = sel ? doc.querySelectorAll(sel) : []; } catch (_) { all = []; }   // an old browser without :has()
     if (!all.length) return null;
     // Behind an open window: the window's close button is the thing to press first.
-    const W = global.KWWindow, covered = W && W.isOpen && W.isOpen() && !all[0].closest('.kww, #kwgd-chip, .kwp-bar, #kw-places');
+    // (The place bar may or may not be under the window's backdrop: what is really at that spot decides.)
+    const W = global.KWWindow, under = el => { if (!doc.elementFromPoint) return true; const b = el.getBoundingClientRect(), hit = doc.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !(hit && (el.contains(hit) || hit.contains(el))) || !!(hit && hit.closest && hit.closest('.kww-backdrop') && !el.closest('.kww')); };
+    const covered = W && W.isOpen && W.isOpen() && !all[0].closest('.kww, #kwgd-chip') && under(all[0]);
     if (covered) { const x = doc.querySelector('.kww:last-of-type .kww-close, .kww .kww-close'), r = x && x.getBoundingClientRect(); return r && onScreen(r) ? r : null; }
     let use = null, r = null, any = false;
     for (const el of all) {
@@ -225,19 +284,48 @@
     if (cid && global.KWCast && global.KWCast.pause && Date.now() - (S.paused || 0) > 1500) { S.paused = Date.now(); global.KWCast.pause(Number(cid), 5000); }
     return r;
   }
+  // Is something already laid over the game (a window, a villager's page, a pop-up with its own dark backdrop)?
+  // Then the ring glows but adds no dimming of its own: two layers of it left the screen nearly black.
+  function overlayUp() {
+    const now = Date.now();
+    if (S.overAt && now - S.overAt < 500) return S.over;
+    S.overAt = now; S.over = false;
+    try {
+      if ((global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen()) || (global.KWDialog && global.KWDialog.isOpen && global.KWDialog.isOpen())) return (S.over = true);
+      const vw = global.innerWidth, vh = global.innerHeight;
+      for (const e of doc.querySelectorAll('[class*="backdrop"], [class*="overlay"], [class*="modal"]')) {
+        if (e.id === 'kwgd-ring' || e.closest('#kwgd-chip, .kws-layer')) continue;
+        const b = e.getBoundingClientRect();
+        if (b.width >= vw * 0.8 && b.height >= vh * 0.8) { const cs = global.getComputedStyle(e); if (cs.display !== 'none' && cs.visibility !== 'hidden' && Number(cs.opacity) > 0.05 && cs.pointerEvents !== 'none') return (S.over = true); }
+      }
+    } catch (_) { /* no dimming decision: leave it off */ }
+    return S.over;
+  }
+  // The building a beat asks for ("built:scout_post" → scout_post), so the right row of the build list is ringed.
+  const wantOf = b => { const m = /^built:([a-z_]+)$/.exec(String(b && b.until || '')); return m ? m[1] : null; };
   function ring() {
     let el = doc.getElementById('kwgd-ring');
-    const g = S.g, on = g && g.state === 'active' && g.beat && g.beat.point && !S.telling && gameShowing() && !(global.KWSay && global.KWSay.isOpen && global.KWSay.isOpen());
-    let r = null;
+    // Shown while the elder is speaking too: what he says to press glows as he says it. Not under a moment's own dialogue.
+    const Say = global.KWSay, asking = Say && Say.isOpen && Say.isOpen() && !(Say.isTelling && Say.isTelling());
+    const g = S.g, on = g && g.state === 'active' && g.beat && g.beat.point && gameShowing() && !asking;
+    let r = null, names = [];
     // Two passes: first only what can be pressed where it stands, then anything on the screen.
-    if (on) { const names = targets(g.beat.point, page(), g.beat.who, g.beat.area); let wait = false;
+    if (on) { names = targets(g.beat.point, page(), g.beat.who, g.beat.area, wantOf(g.beat)); let wait = false;
       for (const strict of [true, false]) { for (const name of names) { r = find(name, strict); if (r === WAIT) { r = null; wait = true; break; } if (r) break; } if (r || wait) break; } }
     if (!r) { if (el) el.hidden = true; return; }
     if (!el) { el = doc.createElement('div'); el.id = 'kwgd-ring'; el.setAttribute('aria-hidden', 'true'); doc.body.appendChild(el); }
     const pad = 6, w = Math.max(44, r.width + pad * 2), h = Math.max(44, r.height + pad * 2);
     el.hidden = false;
+    // The rest of the screen is dimmed a little, but not on top of a window or a villager's page that is already dimming it.
+    el.classList.toggle('kwgd-dim', !overlayUp());
     el.style.width = w + 'px'; el.style.height = h + 'px';
     el.style.transform = `translate(${Math.round(r.left + r.width / 2 - w / 2)}px, ${Math.round(r.top + r.height / 2 - h / 2)}px)`;
+    // The chip must not sit on the thing to press (a villager standing behind it): it steps to the other side.
+    const chip = doc.getElementById('kwgd-chip');
+    if (chip && !/^chip:/.test(names[0] || '') && Date.now() - (S.movedAt || 0) > 700) {
+      const c = chip.getBoundingClientRect(), m = 10;
+      if (!(r.right < c.left - m || r.left > c.right + m || r.bottom < c.top - m || r.top > c.bottom + m)) { chip.classList.toggle('kwgd-away'); S.movedAt = Date.now(); S.away = chip.classList.contains('kwgd-away'); }
+    }
   }
   function paint() {
     if (!doc || !doc.body) return;
@@ -245,36 +333,28 @@
     const g = S.g, show = g && g.state === 'active' && g.beat && !S.telling && gameShowing();
     doc.body.classList.toggle('kwgd-on', !!show);   // phones: the moment cards sit above the chip, not under it (css/guide.css)
     if (!show) { if (chip) chip.remove(); ring(); return; }
-    if (!chip) { chip = doc.createElement('div'); chip.id = 'kwgd-chip'; chip.setAttribute('role', 'status'); chip.setAttribute('aria-live', 'polite'); doc.body.appendChild(chip); }
+    if (!chip) { chip = doc.createElement('div'); chip.id = 'kwgd-chip'; chip.setAttribute('role', 'status'); chip.setAttribute('aria-live', 'polite'); if (S.away) chip.classList.add('kwgd-away'); doc.body.appendChild(chip); }
     const html = chipHtml(g, Date.now());
     if (chip.innerHTML !== html) chip.innerHTML = html;
     const h = chip.offsetHeight; if (h && h !== S.chipH) { S.chipH = h; doc.body.style.setProperty('--kwgd-h', h + 'px'); }
     ring();
   }
-  async function tick() {
+  // `pressed`: the player has just pressed something. While the elder is speaking only that moves the tour on
+  // (so a beat already satisfied does not cut him off mid-sentence).
+  async function tick(pressed) {
     const g = S.g;
-    if (!g || g.state !== 'active' || !g.beat || S.telling || S.busy || doc.hidden || !gameShowing()) return;
-    if (S.told !== g.beat.key) { speak(); return; }
+    if (!g || g.state !== 'active' || !g.beat || S.busy || doc.hidden || !gameShowing()) return;
+    if (S.telling && pressed !== true) return;
+    if (!S.telling && S.told !== g.beat.key) { speak(); return; }
     paint();
     const b = g.beat;
     if (!b.until) return;
     if (b.client) { const did = clientDid(b.until, page()); if (did) await send('/advance', { key: b.key, did }); return; }
-    if (b.until === 'errand:sent' || (b.until === 'errand:collected')) return;   // those have their own buttons
-    try { const d = await call('/check', {}); if (d.guide && d.guide.state === 'active' && d.guide.beat && (d.guide.beat.key !== b.key || JSON.stringify(d.guide.finish) !== JSON.stringify(g.finish))) take(d.guide); else if (d.guide && d.guide.state !== 'active') take(d.guide); } catch (_) { /* later */ }
-  }
-
-  // ── The errand's picker ─────────────────────────────────────────────────
-  function pickErrand() {
-    const W = global.KWWindow, g = S.g;
-    if (!W || !g) return;
-    let list = [];
-    try { list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData) ? citizensData : []).filter(c => (c.stage || c.life_stage || 'adult') !== 'child' && (c.life_stage || 'adult') !== 'deceased' && !c.active_quest); } catch (_) { list = []; }   // eslint-disable-line no-undef
-    W.close('guide-errand');
-    W.open({
-      id: 'guide-errand', icon: '🥾', size: 'S', title: 'Who goes?', subtitle: 'A short walk to the next valley: back in two minutes.',
-      render(body) { body.innerHTML = list.length ? '<ul class="kwgd-pick">' + list.slice(0, 12).map(c => `<li><button type="button" data-action="go" data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.role || 'forager')}</span></button></li>`).join('') + '</ul>' : '<p>Nobody is free to go just now.</p>'; },
-      actions: { async go(el) { W.close('guide-errand'); await send('/errand', { citizen_id: Number(el.dataset.id) }); if (typeof global.loadCitizens === 'function') { try { global.loadCitizens(); } catch (_) { /* later */ } } } },
-    });
+    // The moment the beat is waiting on: if no card is on the screen, ask again (it may have just been started).
+    if (b.key === 'moment' && !doc.querySelector('#kw-moments [data-kwm]') && global.KWMoments && global.KWMoments.load && Date.now() - (S.momentsAt || 0) > 4000) { S.momentsAt = Date.now(); try { global.KWMoments.load(); } catch (_) { /* later */ } }
+    if (pressed === true && Date.now() - (S.checkedAt || 0) < 1200) return;
+    S.checkedAt = Date.now();
+    try { const d = await call('/check', {}); if (d.guide && d.guide.state === 'active' && d.guide.beat && (d.guide.beat.key !== b.key || JSON.stringify(d.guide.finish) !== JSON.stringify(g.finish) || d.guide.beat.wait_until !== b.wait_until)) take(d.guide); else if (d.guide && d.guide.state !== 'active') take(d.guide); } catch (_) { /* later */ }
   }
 
   if (doc) {
@@ -285,11 +365,11 @@
       const k = b.getAttribute('data-kwgd');
       if (k === 'again') speak(true);
       else if (k === 'skip') skip();
-      else if (k === 'errand') pickErrand();
-      else if (k === 'collect') { await send('/errand/collect'); if (typeof global.loadCitizens === 'function') { try { global.loadCitizens(); } catch (_) { /* later */ } } }
       else if (k === 'finish') { const d = await send('/finish', { site_id: Number(b.getAttribute('data-site')) }); if (d) { for (const m of ['KWBuild', 'KWHood']) { try { const M = global[m]; if (M && (M.load || M.reload)) (M.load || M.reload)(); } catch (_) { /* later */ } } if (typeof global.refreshSettlementView === 'function') { try { global.refreshSettlementView(); } catch (_) { /* later */ } } } }
     });
-    S.timer = setInterval(tick, TICK_MS);
+    // The player pressed something in the game: ask at once whether that was the beat (not at the next poll).
+    doc.addEventListener('click', e => { if (!S.g || S.g.state !== 'active' || (e.target.closest && e.target.closest('.kws-layer, #kwgd-chip'))) return; clearTimeout(S.clickT); S.clickT = setTimeout(() => tick(true), 450); }, true);
+    S.timer = setInterval(() => tick(), TICK_MS);
     S.ringTimer = setInterval(() => { if (S.g && S.g.state === 'active') ring(); }, RING_MS);
     // Home opened. Someone new on this page (signed in after it loaded) gets their own tour, not the last player's.
     const token = () => { try { return global.localStorage.getItem('kw_token') || ''; } catch (_) { return ''; } };
