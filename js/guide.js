@@ -144,7 +144,13 @@
   }
 
   // ── Speaking ────────────────────────────────────────────────────────────
-  const gameShowing = () => { const s = doc.getElementById('screen-game'); return !!(s && s.classList.contains('active')); };
+  // The game is showing: its screen is up and the loading screen (with its "Start playing") is gone. The elder
+  // used to begin over the loading screen.
+  const gameShowing = () => {
+    const s = doc.getElementById('screen-game'), ls = doc.getElementById('loading-screen');
+    if (!(s && s.classList.contains('active'))) return false;
+    return !(ls && ls.style && ls.style.display && ls.style.display !== 'none');
+  };
   async function speak(again) {
     const g = S.g;
     if (!g || g.state !== 'active' || !g.beat || S.telling || !global.KWSay || !gameShowing()) { paint(); return; }
@@ -285,7 +291,9 @@
     });
     S.timer = setInterval(tick, TICK_MS);
     S.ringTimer = setInterval(() => { if (S.g && S.g.state === 'active') ring(); }, RING_MS);
-    global.addEventListener('kw:home', e => { if (e.detail && e.detail.open) setTimeout(() => (S.g ? tick() : load()), 600); });
+    // Home opened. Someone new on this page (signed in after it loaded) gets their own tour, not the last player's.
+    const token = () => { try { return global.localStorage.getItem('kw_token') || ''; } catch (_) { return ''; } };
+    global.addEventListener('kw:home', e => { if (!(e.detail && e.detail.open)) return; const t = token(), other = S.token !== undefined && S.token !== t; S.token = t; if (other) { S.g = null; S.told = null; } setTimeout(() => (S.g ? tick() : load()), 600); });
     // A one-off line the first time something happens, once the tour is over.
     const later = async key => { if (!S.g || S.g.state === 'active' || S.g.state === 'none' || !global.KWSay || (global.KWSay.isOpen && global.KWSay.isOpen())) return; try { const d = await call('/later', { key }); if (d.say) global.KWSay.tell({ character: characterUrl(d.elder.species), emoji: EMOJI[d.elder.species], speaker: d.elder.name, lines: d.say }); } catch (_) { /* later */ } };
     S.later = later;
