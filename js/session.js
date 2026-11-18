@@ -67,10 +67,12 @@
   function goAway() {
     if (S.away || !signedIn() || !inGame()) return;
     if (sessionOnly()) {   // a shared computer: signed out, and told why
-      const done = typeof global.logout === 'function' ? Promise.resolve(global.logout()).catch(() => {}) : Promise.resolve();
+      // logout() reloads the page; the line is carried over to the sign-in screen (js/main.js). The .then is for where it cannot reload.
+      const why = 'You were signed out after 15 minutes away. Sign in to carry on.';
+      const done = typeof global.logout === 'function' ? Promise.resolve(global.logout({ login: why })).catch(() => {}) : Promise.resolve();
       done.then(() => {
         if (typeof global.showScreen === 'function') global.showScreen('login');
-        if (typeof global.showMsg === 'function') global.showMsg('login-success', 'You were signed out after 15 minutes away. Sign in to carry on.');
+        if (typeof global.showMsg === 'function') global.showMsg('login-success', why);
       });
       return;
     }

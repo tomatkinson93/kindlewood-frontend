@@ -99,7 +99,8 @@
   // an arrow for "next". The game behind stays visible and usable.
   //
   //   const how = await KWSay.tell({ character: '/assets/…/elder.webp', emoji: '🐭', speaker: 'Old Bramble',
-  //                                  lines: ['…', '…'], skip: 'Skip the tour', count: '3 of 14' });
+  //                                  lines: ['…', '…'], skip: 'Skip the tour', count: '3 of 14',
+  //                                  note: 'You received 240 timber.', noteFrom: 1 });   // not speech: under the line, from that line on
   //   → 'done' (the last line was passed), 'skip', or null (closed)
   function tellHtml(o, i = 0) {
     const lines = o.lines || [], last = i >= lines.length - 1;
@@ -108,6 +109,7 @@
       <div class="kwst-box" role="dialog" aria-modal="false" aria-labelledby="kwst-name" aria-describedby="kwst-text" tabindex="0">
         <div class="kwst-name" id="kwst-name">${esc(o.speaker || '')}${o.count ? `<span class="kwst-count">${esc(o.count)}</span>` : ''}</div>
         <p class="kwst-text" id="kwst-text" aria-live="polite">${esc(lines[i] || '')}</p>
+        ${o.note && i >= (o.noteFrom || 0) ? `<p class="kwst-note" role="note">${esc(o.note)}</p>` : ''}
         <div class="kwst-foot">${o.skip ? `<button type="button" class="kwst-skip" data-kwst-skip>${esc(o.skip)}</button>` : '<span></span>'}
           <button type="button" class="kwst-next" data-kwst-next aria-label="${last ? 'Done' : 'Next'}">${last ? (o.done ? esc(o.done) + ' ' : '') : ''}<span class="kwst-arrow" aria-hidden="true">▼</span></button></div>
       </div>
@@ -133,17 +135,17 @@
         if (!el.contains(doc.activeElement) && doc.activeElement !== doc.body) return;   // typing elsewhere is left alone
         if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); next(); }
       };
-      current = { el, resolve, onKey, prev };
+      current = { el, resolve, onKey, prev, story: true };
       doc.addEventListener('keydown', onKey, true);
       el.addEventListener('click', e => {
         if (e.target.closest('[data-kwst-skip]')) { close('skip'); return; }
         if (e.target.closest('.kwst-box, .kwst-char')) next();
       });
       doc.body.appendChild(el);
-      doc.body.classList.add('kws-open');
+      // Not 'kws-open': that hides the moment cards, and a character may be saying "press the card".
       draw();
     });
   }
 
-  global.KWSay = { ask, tell, close: () => close(null), isOpen: () => !!current, _html: html, _tellHtml: tellHtml, OUTCOME_MS };
+  global.KWSay = { ask, tell, close: () => close(null), isOpen: () => !!current, isTelling: () => !!(current && current.story), _html: html, _tellHtml: tellHtml, OUTCOME_MS };
 })(typeof window !== 'undefined' ? window : globalThis);

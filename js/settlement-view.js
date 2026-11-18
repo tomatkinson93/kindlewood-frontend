@@ -359,14 +359,17 @@ function _injectSvStyles() {
   width: min(500px, 96vw);
   background: linear-gradient(160deg, #2a1e14 0%, #1e1510 100%);
   border: 1px solid rgba(180,140,80,0.45); border-bottom: none;
-  border-radius: 14px 14px 0 0; padding: 20px 20px 32px; z-index: 20;
+  border-radius: 14px 14px 0 0; padding: 0 20px 32px; z-index: 20;   /* the top padding is the heading's (below) */
   transition: transform 0.38s cubic-bezier(0.34,1.48,0.64,1);
   box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
   /* A new town's list is longer than the screen: the panel scrolls, and its heading (with the close button) stays. */
   max-height: min(calc(100% - 12px), 84vh); overflow-y: auto; overscroll-behavior: contain;
 }
 .sv-build-panel.open { transform: translateX(-50%) translateY(0); }
-.sv-bp-header { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 2; margin: -20px -20px 8px; padding: 20px 20px 8px; background: #2a1e14; border-radius: 14px 14px 0 0; }
+/* The heading stays while the panel scrolls. Its padding is the panel's top padding: a sticky box is kept inside
+   its parent's content area, so pulling it up with a negative margin left it 20px low, over the first line of text. */
+.sv-bp-header { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 2; margin: 0 -20px 8px; padding: 20px 20px 8px; background: #2a1e14; border-radius: 14px 14px 0 0; }
+.sv-build-panel > :first-child:not(.sv-bp-header) { margin-top: 20px; }
 .sv-bp-loc { font-size: 15px; font-weight: 700; color: #e8d090; }
 .sv-bp-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
 .sv-bp-tag.town     { background: rgba(180,130,60,0.18); color: #d4a860; border: 1px solid rgba(180,130,60,0.28); }
@@ -996,6 +999,7 @@ function _openBuildPanel(slot, occupant) {
   }
 
   panel.innerHTML = html;
+  panel.scrollTop = 0;   // a new panel starts at its top, not where the last one was scrolled to
   panel.classList.add('open');
 }
 
