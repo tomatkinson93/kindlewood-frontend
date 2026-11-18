@@ -17,6 +17,7 @@ check('1d. it stays signed in until the player signs out (being away does not de
 check('1e. the button cannot be pressed twice at once', /if \(btn\) btn\.disabled = true;/.test(M) && /finally \{ if \(btn\) btn\.disabled = false; \}/.test(M));
 
 console.log('2. Signing out');
+check('2d. signing out reloads the page, so nothing of the last player (their citizens, homes, tour) is left for the next; what there is to say is said on the fresh page', /location\.reload\(\); return;/.test(M) && /sessionStorage\.setItem\(SIGNED_OUT_NOTE, JSON\.stringify\(n\)\)/.test(M) && /if \(n\.login && !getStoredToken\(\)\) \{ showScreen\('login'\); showMsg\('login-success', n\.login\); \}/.test(M));
 check('2a. signing out tells the server (which deletes a test account) and says so', /apiFetch\('\/api\/auth\/logout', \{ method: 'POST' \}\)/.test(M) && /d\.test_account_deleted/.test(M) && /The test account was deleted\./.test(M));
 check('2b. nothing is deleted from here: the server decides what a test account is', !/DELETE|\/delete/.test(M.slice(M.indexOf('async function startTestAccount'), M.indexOf('let _loadGameLock'))));
 

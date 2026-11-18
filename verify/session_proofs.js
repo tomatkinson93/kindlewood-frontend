@@ -25,7 +25,7 @@ console.log('1. Keep me signed in');
     K._ended({ only: true, alive: true, seen: now - 16 * MIN, now }) === true && K._ended({ only: true, alive: true, seen: now - 2 * MIN, now }) === false);
   check('1f. the page checks before anything reads the token', H.indexOf("localStorage.getItem('kw_session_only') === '1'") > 0
     && H.indexOf("localStorage.getItem('kw_session_only') === '1'") < H.indexOf("try { t = localStorage.getItem('kw_token'); }") && /localStorage\.removeItem\('kw_token'\); localStorage\.removeItem\('kw_session_only'\)/.test(H));
-  check('1g. unticked: 15 minutes without input signs out, and says why', /if \(sessionOnly\(\)\) \{[\s\S]{0,200}global\.logout\(\)/.test(SJ) && /You were signed out after 15 minutes away/.test(SJ));
+  check('1g. unticked: 15 minutes without input signs out, and says why', /if \(sessionOnly\(\)\) \{[\s\S]{0,420}global\.logout\(\{ login: why \}\)/.test(SJ) && /You were signed out after 15 minutes away/.test(SJ));
 }
 
 console.log('2. Paused while nobody is there');

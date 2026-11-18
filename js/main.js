@@ -393,7 +393,22 @@ if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(offerTestAccount, 300)); else setTimeout(offerTestAccount, 300);
 }
 
-async function logout() {
+const SIGNED_OUT_NOTE = 'kw_signed_out_note';   // said once on the fresh page after signing out: { toast } or { login }
+if (typeof document !== 'undefined') {
+  const sayNote = () => {
+    try {
+      const raw = sessionStorage.getItem(SIGNED_OUT_NOTE);
+      if (!raw) return;
+      sessionStorage.removeItem(SIGNED_OUT_NOTE);
+      const n = JSON.parse(raw);
+      if (n.login && !getStoredToken()) { showScreen('login'); showMsg('login-success', n.login); }
+      if (n.toast && typeof showToastNotification === 'function') showToastNotification(n.toast, 'default');
+    } catch (e) { /* private mode */ }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(sayNote, 900)); else setTimeout(sayNote, 900);
+}
+// opts.login: a line for the sign-in screen on the fresh page (js/session.js: signed out after being away).
+async function logout(opts) {
   let wasTest = false;
   try {
     const res = await apiFetch('/api/auth/logout', { method: 'POST' });
@@ -403,7 +418,7 @@ async function logout() {
     console.error('logout error:', e);
   }
   try { localStorage.removeItem('kw_test_account'); } catch (e) { /* private mode */ }
-  if (wasTest && typeof showToastNotification === 'function') showToastNotification('🧪 The test account was deleted.', 'default');
+  try { const n = {}; if (wasTest) n.toast = '🧪 The test account was deleted.'; if (opts && opts.login) n.login = String(opts.login); if (n.toast || n.login) sessionStorage.setItem(SIGNED_OUT_NOTE, JSON.stringify(n)); } catch (e) { /* private mode */ }
 
   clearStoredToken();
   if (window.KWSession) KWSession.forget();
@@ -412,6 +427,10 @@ async function logout() {
   gameData = null;
   worldMapData = null;
   _loadGameLock = false;
+  // A clean page for whoever signs in next. Dozens of modules keep the last player's town in memory (their
+  // citizens, their homes, their tour): signing in as someone else on the same page showed "No bed for 88"
+  // in a brand-new camp and never started its tour. Reloading is the one reset that cannot miss a module.
+  try { if (typeof location !== 'undefined' && typeof location.reload === 'function') { location.reload(); return; } } catch (e) { /* fall through */ }
   showScreen('welcome');
 }
 
