@@ -78,6 +78,11 @@
 }
 #combat-modal .cm-dungeon-flee:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 
+/* ── Dev Tools → Dungeons: skull, land and seed in one row ──────── */
+.kwdg-dev-row { display: flex; flex-wrap: wrap; gap: var(--kw-s-3); align-items: end; margin: var(--kw-s-2) 0; }
+.kwdg-dev-row label { display: flex; flex-direction: column; gap: var(--kw-s-1); font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwdg-dev-row input { width: 110px; }
+
 /* ── Phones: two citizens a row, and the floor scrolls sideways ─── */
 @media (max-width: 640px) {
   .kwdg-party { grid-template-columns: repeat(2, minmax(0, 1fr)); }

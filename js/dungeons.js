@@ -15,7 +15,9 @@
 //  (battleResult) and for Flee (fleeFromBattle).
 //
 //  So far dungeons are started from Dev Tools only (devOpen: the 💀 Dungeons
-//  tab). Map and quest dungeons, the draft, events and supplies come later.
+//  tab): the hand-written test dungeons, or one made by the generator for a
+//  skull, a land and a seed. Map and quest dungeons, the draft, events and
+//  supplies come later.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -272,19 +274,26 @@
   }
 
   // ── Dev Tools → 💀 Dungeons ─────────────────────────────────────────────
-  const DEV = { data: null, wired: false };
-  function devHtml(d) {
+  // `pick`: the skull, land and seed last chosen, kept while the panel is redrawn.
+  const DEV = { data: null, wired: false, pick: { tier: '', land: '', seed: '' } };
+  function devHtml(d, pick) {
     if (!d) return '<div class="cheat-desc">Loading…</div>';
-    const run = d.run;
+    const run = d.run, p = pick || {};
     return `<div class="cheat-section-label">Dungeons</div>`
       + `<div class="cheat-desc">Dungeons are <b>${d.on ? 'ON' : 'off'}</b> for players. While off, only admins can play a run, started from here.</div>`
       + `<button type="button" class="cheat-all-btn" data-kwdg="switch" data-on="${d.on ? 0 : 1}">${d.on ? 'Turn dungeons off for players' : 'Turn dungeons on for players'}</button>`
       + `<div class="cheat-section-label" style="margin-top:10px">Test dungeons</div>`
       + `<div class="cheat-desc">Starts with the first ${d.party} adults who are free (${d.free_adults} free now). Each start is a fresh copy, so it can be played again.</div>`
       + (d.stories || []).map(s => `<button type="button" class="cheat-all-btn" data-kwdg="start" data-story="${esc(s.key)}"${run || d.free_adults < d.party ? ' disabled' : ''}>${esc(s.skull)} Start: ${esc(s.name)} (${s.floors} floor${s.floors === 1 ? '' : 's'})</button>`).join('')
+      + `<div class="cheat-section-label" style="margin-top:10px">Generated dungeons</div>`
+      + `<div class="cheat-desc">Made from a seed for a skull and a land (the same three always give the same dungeon). Leave the seed empty for a new one each time.</div>`
+      + `<div class="kwdg-dev-row"><label>Skull <select id="kwdg-dev-tier" class="ce-input">${(d.tiers || []).map(t => `<option value="${esc(t.key)}"${t.key === p.tier ? ' selected' : ''}>${esc(t.skull)} ${esc(t.name)}</option>`).join('')}</select></label>`
+      + `<label>Land <select id="kwdg-dev-land" class="ce-input">${(d.lands || []).map(l => `<option value="${esc(l)}"${l === p.land ? ' selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select></label>`
+      + `<label>Seed <input id="kwdg-dev-seed" class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" value="${esc(p.seed || '')}"></label></div>`
+      + `<button type="button" class="cheat-all-btn" data-kwdg="generate"${run || d.free_adults < d.party ? ' disabled' : ''}>Generate and start</button>`
       + `<div class="cheat-section-label" style="margin-top:10px">The run</div>`
       + (run
-        ? `<div class="cheat-desc">A party is in <b>${esc(run.dungeon.name)}</b>${run.pending ? ' (' + esc(run.pending.kind === 'battle' ? 'a fight is open' : 'a choice is waiting') + ')' : ''}.</div>`
+        ? `<div class="cheat-desc">A party is in <b>${esc(run.dungeon.name)}</b>${run.dungeon.generated ? ` (${esc(run.dungeon.skull)} ${esc(run.dungeon.terrain || '')}, seed ${esc(run.dungeon.seed)})` : ''}${run.pending ? ' (' + esc(run.pending.kind === 'battle' ? 'a fight is open' : 'a choice is waiting') + ')' : ''}.</div>`
           + `<button type="button" class="cheat-all-btn" data-kwdg="open">Open the path screen</button>`
           + `<button type="button" class="cheat-all-btn" data-kwdg="win"${run.can_flee ? '' : ' disabled'}>Win the open fight</button>`
           + `<button type="button" class="cheat-all-btn" data-kwdg="heal">Heal the party, everyone up</button>`
@@ -306,10 +315,14 @@
     if (!DEV.wired || DEV.el !== el) {
       DEV.wired = true; DEV.el = el;
       el.addEventListener('click', ev => { const t = ev.target.closest('[data-kwdg]'); if (t && !t.disabled) devAct(t); });
+      // What was chosen stays chosen when the panel is redrawn.
+      const keep = ev => { const k = { 'kwdg-dev-tier': 'tier', 'kwdg-dev-land': 'land', 'kwdg-dev-seed': 'seed' }[ev.target && ev.target.id]; if (k) DEV.pick[k] = ev.target.value; };
+      el.addEventListener('change', keep);
+      el.addEventListener('input', keep);
     }
-    el.innerHTML = devHtml(DEV.data);
+    el.innerHTML = devHtml(DEV.data, DEV.pick);
     try { DEV.data = await devCall('GET', 'status'); take(DEV.data); } catch (e) { DEV.data = null; el.innerHTML = `<div class="cheat-desc">⚠️ ${esc(e.message)}</div>`; return; }
-    el.innerHTML = devHtml(DEV.data);
+    el.innerHTML = devHtml(DEV.data, DEV.pick);
   }
   async function devAct(t) {
     const a = t.getAttribute('data-kwdg');
@@ -319,6 +332,13 @@
       if (a === 'switch') await devCall('POST', 'switch', { on: t.getAttribute('data-on') === '1' });
       else if (a === 'start') {
         const d = await devCall('POST', 'test', { story: t.getAttribute('data-story') });
+        S.on = true; take(d);
+        if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
+        return void open();
+      } else if (a === 'generate') {
+        const val = id => { const e = doc.getElementById(id); return e ? e.value : ''; };
+        const seed = parseInt(val('kwdg-dev-seed'), 10);
+        const d = await devCall('POST', 'generate', { tier: val('kwdg-dev-tier'), terrain: val('kwdg-dev-land'), seed: seed > 0 ? seed : undefined });
         S.on = true; take(d);
         if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
         return void open();

@@ -145,13 +145,19 @@ console.log('8. On the page');
 console.log('9. Dev Tools');
 {
   check('9a. a Dungeons tab in Dev Tools (from kindlewood-server)', /cheatSwitchTab\('ct-dungeons',this\);KWDungeon\.devOpen\(\)/.test(DEV) && /id="ct-dungeons-body"/.test(DEV));
-  const d = { on: false, party: 4, free_adults: 6, stories: [{ key: 'test_green', name: 'The Hollow under the Oak', skull: '🟢', floors: 1 }, { key: 'test_orange', name: 'The Stair below the Crag', skull: '🟠', floors: 2 }], run: null, last: null };
+  const d = { on: false, party: 4, free_adults: 6, tiers: [{ key: 'green', name: 'Easy', skull: '🟢' }, { key: 'purple', name: 'Nightmare', skull: '🟣' }], lands: ['forest', 'marsh'], stories: [{ key: 'test_green', name: 'The Hollow under the Oak', skull: '🟢', floors: 1 }, { key: 'test_orange', name: 'The Stair below the Crag', skull: '🟠', floors: 2 }], run: null, last: null };
   const html = K._devHtml(d);
   check('9b. it says dungeons are off for players and offers the switch', /Dungeons are <b>off<\/b> for players/.test(html) && /data-kwdg="switch" data-on="1">Turn dungeons on for players</.test(html));
   check('9c. a button for each test dungeon', /data-kwdg="start" data-story="test_green">🟢 Start: The Hollow under the Oak \(1 floor\)</.test(html) && /data-story="test_orange">🟠 Start: The Stair below the Crag \(2 floors\)</.test(html));
   check('9d. too few free adults: the start buttons are off', (K._devHtml({ ...d, free_adults: 3 }).match(/data-kwdg="start"[^>]* disabled/g) || []).length === 2);
   const live = K._devHtml({ ...d, on: true, run: run({ can_flee: true, pending: { kind: 'battle', quest_run_id: 1, room: 'fight' } }) });
   check('9e. with a run under way: open it, win the fight, heal, or leave it idle', ['open', 'win', 'heal', 'idle'].every(a => live.includes(`data-kwdg="${a}"`)) && /a fight is open/.test(live) && (live.match(/data-kwdg="start"[^>]* disabled/g) || []).length === 2);
+  check('9h. a generated dungeon: choose the skull and the land, give a seed or leave it, and start', /<select id="kwdg-dev-tier"[^>]*><option value="green">🟢 Easy<\/option><option value="purple">🟣 Nightmare<\/option>/.test(html) && /<select id="kwdg-dev-land"[^>]*><option value="forest">Forest<\/option><option value="marsh">Marsh<\/option>/.test(html) && /id="kwdg-dev-seed"[^>]*placeholder="any"/.test(html) && /data-kwdg="generate">Generate and start</.test(html));
+  check('9i. the choice is sent to the admin route; an empty seed is left to the server', /devCall\('POST', 'generate', \{ tier: val\('kwdg-dev-tier'\), terrain: val\('kwdg-dev-land'\), seed: seed > 0 \? seed : undefined \}\)/.test(J));
+  const made = run({ can_flee: false }); made.dungeon = { ...made.dungeon, generated: true, terrain: 'marsh', seed: 1234 };
+  check('9j. a generated run says its skull, land and seed, so it can be made again', /\(🟢 marsh, seed 1234\)/.test(K._devHtml({ ...d, on: true, run: made })) && (K._devHtml({ ...d, on: true, run: made }).match(/data-kwdg="generate"[^>]* disabled/) || []).length === 1);
+  const picked = K._devHtml(d, { tier: 'purple', land: 'marsh', seed: '77' });
+  check('9k. what was chosen stays chosen when the panel is redrawn', /<option value="purple" selected>/.test(picked) && /<option value="marsh" selected>/.test(picked) && /id="kwdg-dev-seed"[^>]*value="77"/.test(picked) && /el\.addEventListener\('change', keep\);\s*el\.addEventListener\('input', keep\);/.test(J) && /devHtml\(DEV\.data, DEV\.pick\)/.test(J));
   check('9f. one click listener, no inline handlers', /el\.addEventListener\('click', ev => \{ const t = ev\.target\.closest\('\[data-kwdg\]'\);/.test(J));
   check('9g. the admin routes are the ones used', /apiFetch\('\/api\/dungeons\/admin\/' \+ path/.test(J) && ["devCall('GET', 'status')", "devCall('POST', 'test'", "devCall('POST', 'win')", "devCall('POST', 'heal')", "devCall('POST', 'sweep', { idle_run: true })", "devCall('POST', 'switch'"].every(s => J.includes(s)));
 }
