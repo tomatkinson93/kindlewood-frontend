@@ -64,7 +64,7 @@
   }
   const SELECTOR = {
     villager: '#settlement-view .kwv-cit:not(.kwv-gone)',
-    'villager:marked': '#settlement-view .kwv-cit .kwv-mark',
+    'villager:marked': '#settlement-view .kwv-cit:not(.kwv-gone):has(.kwv-mark)',   // the villager, not the "!" above them: the mark takes no presses
     'menu:family': '.kwv-radial [data-kwv-act="family"]', 'menu:work': '.kwv-radial [data-kwv-act="work"], .kwv-radial [data-kwv-act="apprentice"]',
     'building:neighbourhood': '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .sv-building[data-kwh="neighbourhood"] .kwh-art',
     'signpost:town': '#sv-prop-signpost-hood .kwh-btn, #sv-prop-signpost-town .kwh-btn',
@@ -186,7 +186,8 @@
   // window), the view is led to the first, once, so there is always something to press.
   function find(name, strict) {
     const m = /^villager:(\d+)$/.exec(name);
-    const all = m ? doc.querySelectorAll(`#settlement-view .kwv-cit[data-cid="${m[1]}"]:not(.kwv-gone)`) : SELECTOR[name] ? doc.querySelectorAll(SELECTOR[name]) : [];
+    let all = [];
+    try { all = m ? doc.querySelectorAll(`#settlement-view .kwv-cit[data-cid="${m[1]}"]:not(.kwv-gone)`) : SELECTOR[name] ? doc.querySelectorAll(SELECTOR[name]) : []; } catch (_) { all = []; }   // an old browser without :has()
     if (!all.length) return null;
     // Behind an open window: the window's close button is the thing to press first.
     const W = global.KWWindow, covered = W && W.isOpen && W.isOpen() && !all[0].closest('.kww, #kwgd-chip, .kwp-bar, #kw-places');
@@ -230,10 +231,12 @@
     if (!doc || !doc.body) return;
     let chip = doc.getElementById('kwgd-chip');
     const g = S.g, show = g && g.state === 'active' && g.beat && !S.telling && gameShowing();
+    doc.body.classList.toggle('kwgd-on', !!show);   // phones: the moment cards sit above the chip, not under it (css/guide.css)
     if (!show) { if (chip) chip.remove(); ring(); return; }
     if (!chip) { chip = doc.createElement('div'); chip.id = 'kwgd-chip'; chip.setAttribute('role', 'status'); chip.setAttribute('aria-live', 'polite'); doc.body.appendChild(chip); }
     const html = chipHtml(g, Date.now());
     if (chip.innerHTML !== html) chip.innerHTML = html;
+    const h = chip.offsetHeight; if (h && h !== S.chipH) { S.chipH = h; doc.body.style.setProperty('--kwgd-h', h + 'px'); }
     ring();
   }
   async function tick() {

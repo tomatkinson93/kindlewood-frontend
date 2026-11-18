@@ -52,6 +52,8 @@
 #kwgd-chip .kwgd-small:hover, #kwgd-chip .kwgd-small:focus-visible { color: #fff; }
 #kwgd-chip .kwgd-n { flex: none; font-size: 11px; opacity: 0.55; }
 body.kw-shell #kwgd-chip { left: 8px; right: 8px; max-width: none; bottom: calc(var(--kw-tabbar-h, 56px) + var(--kw-safe-b, 0px) + 8px); flex-wrap: wrap; border-radius: 18px; }
+/* Phones: the waiting moments stand above the chip (they were under it, and could not be pressed). */
+body.kw-shell.kwgd-on #kw-moments { bottom: calc(var(--kw-tabbar-h, 56px) + var(--kw-safe-b, 0px) + var(--kwgd-h, 84px) + 16px); }
 body.kw-photo #kwgd-chip, body.kw-photo #kwgd-ring, body.sv-build-on.kw-shell #kwgd-chip .kwgd-n { display: none; }
 #kwgd-ring { position: fixed; left: 0; top: 0; z-index: calc(var(--z-window) + 30); pointer-events: none; border-radius: 14px; border: 3px solid #ffe08a; box-shadow: 0 0 0 4px rgba(255, 224, 138, 0.25), 0 0 22px rgba(255, 210, 90, 0.7); animation: kwgd-pulse 1.2s ease-in-out infinite; }
 #kwgd-ring[hidden] { display: none; }
