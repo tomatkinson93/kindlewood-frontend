@@ -47,6 +47,10 @@
       if (page.bmenu) return ['bmenu:enter'];
       return area === 'neighbourhood' && page.area === 'town' ? ['building:neighbourhood'] : ['tool:totown', 'signpost:town'];
     }
+    // A villager's page is open: the job is chosen there; for anything else it is in the way.
+    if (page.profile) return p === 'villager-menu:work' ? ['modal:role', 'modal:close'] : ['modal:close'];
+    // Villagers (and, on a phone, the moment cards) are hidden while building: Done comes first.
+    if (page.building && (/^villager/.test(p) || p === 'moment:first')) return ['tool:build'];
     if (p === 'villager:any') return [w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'villager-menu:family') return page.menu ? ['menu:family'] : [w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'villager-menu:work') return page.menu ? ['menu:work'] : [w.b ? `villager:${w.b}` : null, w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
@@ -70,6 +74,7 @@
     // The button that builds: a home's (the plot panel in the Neighbourhood), the Lumber Camp's row in Town's list, else the first.
     'panel:lumber': '#sv-build-panel.open .sv-bp-build-btn[onclick*="lumber_camp"]',
     'panel:build': '#sv-build-panel.open .kwn-build, #sv-build-panel.open .sv-bp-build-btn',
+    'modal:role': '#citizen-profile-modal.open .cp-role-select', 'modal:close': '#citizen-profile-modal.open .citizen-profile-close',
     'bmenu:enter': '.kwb-enter',
     'house:free': '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-slot[data-house]:not([data-free="0"]) .kwh-art',   // a home with a bed to spare
     house: '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-slot[data-house] .kwh-art',
@@ -158,20 +163,52 @@
     familiesWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('families')),
     houseWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('house')),
     area: global._svActiveAreaName ? global._svActiveAreaName() : 'town', place: global.KWPlaces && global.KWPlaces.shown ? global.KWPlaces.shown() : null,
+    profile: !!doc.querySelector('#citizen-profile-modal.open'),
     building: !!(global._svIsBuildMode && global._svIsBuildMode()), panel: !!doc.querySelector('#sv-build-panel.open'), bmenu: !!doc.querySelector('.kwb-enter'),
   });
-  function find(name) {
+  // On the screen means its middle is, with room for a finger: a sliver at the edge cannot be pressed.
+  const WAIT = 'wait', LED_MS = 3000;
+  const onScreen = r => { const x = r.left + r.width / 2, y = r.top + r.height / 2; return r.width > 2 && r.height > 2 && x > 24 && x < global.innerWidth - 24 && y > 24 && y < global.innerHeight - 24; };
+  // Brings something into view by scrolling only what a player could scroll themselves (the scene sideways, a
+  // list up and down). Not scrollIntoView: that also moves boxes that hide their overflow, and nothing moves them back.
+  function lead(el) {
+    try {
+      const r = el.getBoundingClientRect();
+      for (let a = el.parentElement; a && a !== doc.body; a = a.parentElement) {
+        const cs = global.getComputedStyle(a), b = a.getBoundingClientRect(), to = {};
+        if (/auto|scroll/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 4) to.left = a.scrollLeft + (r.left + r.width / 2) - (b.left + b.width / 2);
+        if (/auto|scroll/.test(cs.overflowY) && a.scrollHeight > a.clientHeight + 4) to.top = a.scrollTop + (r.top + r.height / 2) - (b.top + b.height / 2);
+        if (to.left != null || to.top != null) a.scrollTo({ ...to, behavior: 'smooth' });
+      }
+    } catch (_) { /* stays put */ }
+  }
+  // Of everything a name matches, the first that is on the screen. If none is (the town is wider than the
+  // window), the view is led to the first, once, so there is always something to press.
+  function find(name, strict) {
     const m = /^villager:(\d+)$/.exec(name);
-    const el = m ? doc.querySelector(`#settlement-view .kwv-cit[data-cid="${m[1]}"]:not(.kwv-gone)`) : SELECTOR[name] ? doc.querySelector(SELECTOR[name]) : null;
-    if (!el) return null;
+    const all = m ? doc.querySelectorAll(`#settlement-view .kwv-cit[data-cid="${m[1]}"]:not(.kwv-gone)`) : SELECTOR[name] ? doc.querySelectorAll(SELECTOR[name]) : [];
+    if (!all.length) return null;
     // Behind an open window: the window's close button is the thing to press first.
-    const W = global.KWWindow, covered = W && W.isOpen && W.isOpen() && !el.closest('.kww, #kwgd-chip, .kwp-bar, #kw-places');
-    const use = covered ? doc.querySelector('.kww:last-of-type .kww-close, .kww .kww-close') : el;
-    if (!use) return null;
-    const r = use.getBoundingClientRect();
-    if (!(r.width > 2 && r.height > 2 && r.bottom > 0 && r.top < global.innerHeight && r.right > 0 && r.left < global.innerWidth)) return null;
+    const W = global.KWWindow, covered = W && W.isOpen && W.isOpen() && !all[0].closest('.kww, #kwgd-chip, .kwp-bar, #kw-places');
+    if (covered) { const x = doc.querySelector('.kww:last-of-type .kww-close, .kww .kww-close'), r = x && x.getBoundingClientRect(); return r && onScreen(r) ? r : null; }
+    let use = null, r = null, any = false;
+    for (const el of all) {
+      const b = el.getBoundingClientRect();
+      if (!onScreen(b)) continue;
+      // Strict: not behind something else (a villager standing behind a building cannot be pressed).
+      if (strict && doc.elementFromPoint) { const hit = doc.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); if (hit && !(el.contains(hit) || hit.contains(el))) { any = true; continue; } }
+      use = el; r = b; break;
+    }
+    if (!use && any) return null;   // on the screen but behind something: the next name, or the second pass, takes it
+    if (!use) {
+      // Led there once; while the view travels nothing less exact is ringed in its place (the first Build
+      // button instead of the Lumber Camp's, further down the list).
+      const key = (S.g && S.g.beat ? S.g.beat.key : '') + '|' + name, now = Date.now();
+      if (S.led !== key && all[0].getBoundingClientRect().width > 2) { S.led = key; S.ledAt = now; lead(all[0]); }
+      return S.led === key && now - (S.ledAt || 0) < LED_MS ? WAIT : null;
+    }
     // A villager being pointed at stands still, so they are easy to press.
-    const cid = !covered && use.getAttribute && use.getAttribute('data-cid');
+    const cid = use.getAttribute && use.getAttribute('data-cid');
     if (cid && global.KWCast && global.KWCast.pause && Date.now() - (S.paused || 0) > 1500) { S.paused = Date.now(); global.KWCast.pause(Number(cid), 5000); }
     return r;
   }
@@ -179,7 +216,9 @@
     let el = doc.getElementById('kwgd-ring');
     const g = S.g, on = g && g.state === 'active' && g.beat && g.beat.point && !S.telling && gameShowing() && !(global.KWSay && global.KWSay.isOpen && global.KWSay.isOpen());
     let r = null;
-    if (on) for (const name of targets(g.beat.point, page(), g.beat.who, g.beat.area)) { r = find(name); if (r) break; }
+    // Two passes: first only what can be pressed where it stands, then anything on the screen.
+    if (on) { const names = targets(g.beat.point, page(), g.beat.who, g.beat.area); let wait = false;
+      for (const strict of [true, false]) { for (const name of names) { r = find(name, strict); if (r === WAIT) { r = null; wait = true; break; } if (r) break; } if (r || wait) break; } }
     if (!r) { if (el) el.hidden = true; return; }
     if (!el) { el = doc.createElement('div'); el.id = 'kwgd-ring'; el.setAttribute('aria-hidden', 'true'); doc.body.appendChild(el); }
     const pad = 6, w = Math.max(44, r.width + pad * 2), h = Math.max(44, r.height + pad * 2);
@@ -243,7 +282,7 @@
     S.later = later;
     global.addEventListener('kw:merchant', e => { if (e.detail && e.detail.here) later('merchant'); });
     // Something was built: a Tavern or a Guild Hall may have opened a place.
-    global.addEventListener('kw:built', () => { if (S.g && S.g.state !== 'active' && S.g.state !== 'none' && (!S.g.unlock.road || !S.g.unlock.clan)) setTimeout(load, 1500); });
+    global.addEventListener('kw:built', () => { if (S.g && S.g.state === 'active') { setTimeout(tick, 400); return; } if (S.g && S.g.state !== 'active' && S.g.state !== 'none' && (!S.g.unlock.road || !S.g.unlock.clan)) setTimeout(load, 1500); });
     global.addEventListener('kw:lost', e => { if (e.detail && e.detail.thing && !e.detail.thing.found) later('lost'); });
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', () => setTimeout(load, 2200)); else setTimeout(load, 2200);
   }
