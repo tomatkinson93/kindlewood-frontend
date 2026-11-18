@@ -117,8 +117,10 @@
   }
   function take(g) {
     if (!g) return;
-    const was = S.g && S.g.beat ? S.g.beat.key : null, before = S.g && S.g.unlock;
+    const was = S.g && S.g.beat ? S.g.beat.key : null, before = S.g && S.g.unlock, wasState = S.g ? S.g.state : null;
     S.g = g;
+    // The tour began or ended: the first-steps list hides during it and is the elder's "what next?" after (js/first-steps.js).
+    if (wasState !== g.state && global.KWFirstSteps && global.KWFirstSteps.load) { try { const r = global.KWFirstSteps.load(true); if (r && r.catch) r.catch(() => {}); } catch (_) { /* later */ } }
     // A place has just opened (a Tavern brings The Road, a Guild Hall The Clan): the elder says so, once.
     if (before && g.state !== 'active') { if (!before.road && g.unlock.road) setTimeout(() => S.later && S.later('road'), 800); else if (!before.clan && g.unlock.clan) setTimeout(() => S.later && S.later('clan'), 800); }
     if (global.KWPlaces && global.KWPlaces.setLocked) global.KWPlaces.setLocked({ road: !g.unlock.road, clan: !g.unlock.clan });

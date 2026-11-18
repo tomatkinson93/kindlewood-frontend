@@ -88,6 +88,7 @@ console.log('5. Around it');
 {
   check('5a. a town founded with the tour sees The Road and The Clan when the server says they are open', /KWPlaces\.setLocked\(\{ road: !g\.unlock\.road, clan: !g\.unlock\.clan \}\)/.test(J) && /locked\(p\.key\) \? '' :/.test(P) && /if \(!KEYS\.includes\(key\) \|\| locked\(key\)\) return;/.test(P));
   check('5b. the first-steps list is hidden during the tour and becomes the elder\'s "what next?" after', /if \(gs === 'active'\) return '';/.test(FS) && /: what next\?/.test(FS));
+  check('5g. the list is repainted the moment the tour begins or ends, not at the next visit', /if \(wasState !== g\.state && global\.KWFirstSteps && global\.KWFirstSteps\.load\)/.test(J));
   check('5c. Help has "Take the tour again"', /KWHelp\.replayTour\(\)/.test(HELP) && /function replayTour\(\)/.test(HELP) && /global\.KWGuide\.replay\(\)/.test(HELP));
   check('5d. a one-off line the first time a merchant comes or something is lost, once the tour is over', /later\('merchant'\)/.test(J) && /later\('lost'\)/.test(J) && /S\.g\.state === 'active' \|\| S\.g\.state === 'none'/.test(J));
   check('5f. when a Tavern or a Guild Hall opens a place, the elder says so once', /if \(!before\.road && g\.unlock\.road\) setTimeout\(\(\) => S\.later && S\.later\('road'\), 800\)/.test(J) && /!before\.clan && g\.unlock\.clan/.test(J));
