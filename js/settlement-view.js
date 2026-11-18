@@ -362,9 +362,11 @@ function _injectSvStyles() {
   border-radius: 14px 14px 0 0; padding: 20px 20px 32px; z-index: 20;
   transition: transform 0.38s cubic-bezier(0.34,1.48,0.64,1);
   box-shadow: 0 -10px 40px rgba(0,0,0,0.55);
+  /* A new town's list is longer than the screen: the panel scrolls, and its heading (with the close button) stays. */
+  max-height: min(calc(100% - 12px), 84vh); overflow-y: auto; overscroll-behavior: contain;
 }
 .sv-build-panel.open { transform: translateX(-50%) translateY(0); }
-.sv-bp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.sv-bp-header { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 2; margin: -20px -20px 8px; padding: 20px 20px 8px; background: #2a1e14; border-radius: 14px 14px 0 0; }
 .sv-bp-loc { font-size: 15px; font-weight: 700; color: #e8d090; }
 .sv-bp-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
 .sv-bp-tag.town     { background: rgba(180,130,60,0.18); color: #d4a860; border: 1px solid rgba(180,130,60,0.28); }

@@ -1062,5 +1062,10 @@ console.log('32. What is on their mind, and Follow (Part F.3, F.4)');
   check('32o. the card is a live region with a close button a thumb can hit', /aria-live="polite"/.test(E) && /\.kwv-follow-x \{ width: 32px; height: 32px;/.test(CSS));
 }
 
+console.log('33. The build panel on a new town');
+{
+  check('33a. a list longer than the screen scrolls inside the panel, and the heading with its close button stays put', /\.sv-build-panel \{[^}]*max-height: min\(calc\(100% - 12px\), 84vh\); overflow-y: auto; overscroll-behavior: contain;/.test(SVJ) && /\.sv-bp-header \{[^}]*position: sticky; top: 0;/.test(SVJ));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
