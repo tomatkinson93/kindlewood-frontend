@@ -42,6 +42,8 @@
   // `page`: { building (Build mode), menu (a villager's menu is open), panel (the build panel is open), houseWindow, area }.
   function targets(point, page, who, area) {
     const p = String(point || ''), w = who || {};
+    // Building time: something for this beat is being built and the elder's help is left. Finish now, on the chip.
+    if (page.finish && !page.panel && (p === 'tool:build' || p === 'plot:any')) return ['chip:finish'];
     // The beat happens in another part of Home: lead there first.
     if (area && page.area && page.area !== area && p !== 'building:neighbourhood') {
       if (page.bmenu) return ['bmenu:enter'];
@@ -79,6 +81,7 @@
     'house:free': '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-slot[data-house]:not([data-free="0"]) .kwh-art',   // a home with a bed to spare
     house: '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-slot[data-house] .kwh-art',
     'house:in': '.kww [data-action="in"]',
+    'chip:finish': '#kwgd-chip [data-kwgd="finish"]',
     'chip:errand': '#kwgd-chip [data-kwgd="errand"], #kwgd-chip [data-kwgd="collect"]',
     'place:families': '.kwp-place[data-place="families"]',
     moment: '#kw-moments [data-kwm]',
@@ -164,6 +167,7 @@
     houseWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('house')),
     area: global._svActiveAreaName ? global._svActiveAreaName() : 'town', place: global.KWPlaces && global.KWPlaces.shown ? global.KWPlaces.shown() : null,
     profile: !!doc.querySelector('#citizen-profile-modal.open'),
+    finish: !!(S.g && S.g.finish && S.g.finish.left > 0 && (S.g.finish.sites || []).length),
     building: !!(global._svIsBuildMode && global._svIsBuildMode()), panel: !!doc.querySelector('#sv-build-panel.open'), bmenu: !!doc.querySelector('.kwb-enter'),
   });
   // On the screen means its middle is, with room for a finger: a sliver at the edge cannot be pressed.
@@ -285,6 +289,9 @@
     S.later = later;
     global.addEventListener('kw:merchant', e => { if (e.detail && e.detail.here) later('merchant'); });
     // Something was built: a Tavern or a Guild Hall may have opened a place.
+    // A job was chosen in a villager's page: ask at once whether that was the beat, not at the next poll.
+    doc.addEventListener('change', e => { if (S.g && S.g.state === 'active' && e.target && e.target.closest && e.target.closest('.cp-role-select')) setTimeout(tick, 700); });
+    global.addEventListener('kw:build', () => { if (S.g && S.g.state === 'active' && Date.now() - (S.buildAsked || 0) > 1500) { S.buildAsked = Date.now(); setTimeout(tick, 300); } });
     global.addEventListener('kw:built', () => { if (S.g && S.g.state === 'active') { setTimeout(tick, 400); return; } if (S.g && S.g.state !== 'active' && S.g.state !== 'none' && (!S.g.unlock.road || !S.g.unlock.clan)) setTimeout(load, 1500); });
     global.addEventListener('kw:lost', e => { if (e.detail && e.detail.thing && !e.detail.thing.found) later('lost'); });
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', () => setTimeout(load, 2200)); else setTimeout(load, 2200);
