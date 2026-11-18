@@ -158,10 +158,15 @@ async function buildBuilding(id) {
       }
     }
 
-    // Refresh sidebar panel so Visit Tavern button appears immediately
+    // Refresh sidebar panel so Visit Tavern button appears immediately. Muted: a refresh the game makes must
+    // not open the panel over Home just because the player pressed Build a moment ago (js/context.js).
     if (typeof selectWorldTile === 'function' && window._lastSelectedTile) {
-      selectWorldTile(window._lastSelectedTile);
+      const again = () => selectWorldTile(window._lastSelectedTile);
+      if (window.KWContext && KWContext.mute) KWContext.mute(again); else again();
     }
+    // Built at once (no building time): the same word the builders give when they finish (js/construction.js),
+    // so the villagers cheer and a Tavern or Guild Hall opens its place.
+    try { window.dispatchEvent(new CustomEvent('kw:built', { detail: { site: { type: id, level: data.newLevel, kind: 'building' } } })); } catch (_) { /* old browser */ }
 
     // Special celebration for first Tavern build
     if (id === 'tavern' && data.newLevel === 1) {

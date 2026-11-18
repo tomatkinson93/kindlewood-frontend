@@ -53,6 +53,7 @@ console.log('3. Layout');
   check('3d. the tier card becomes a header strip; the 11-button grid goes', /if \(window\.KWPlaces\) \{\s*return '<div class="kwc-strip">/.test(MJ) && /window\.KWPlaces \? '<\/div>' : '<div class="sett-divider"><\/div>'/.test(MJ));
   check('3e. Home has a Build chip: it turns the scene\'s Build mode on and off (HOME_SCENE.md §2.3)', /key: 'build'[\s\S]{0,300}_svToggleBuildMode/.test(P));
   check('3f. phones keep the bottom sheet, above the Home scene when open', /body\.kw-shell #screen-game \.sidebar\.kw-open \{ z-index: var\(--z-float\); \}/.test(CSS) && /!isPhone\(\) && !muted/.test(J));
+  check('3h. a refresh the game makes after a build or a tier upgrade never opens the panel over Home', /KWContext\.mute\(again\); else again\(\);/.test(read('js/buildings.js')) && /KWContext\.mute\(again\); else again\(\);/.test(read('js/tier.js')) && !/^\s*selectWorldTile\(window\._lastSelectedTile\);/m.test(read('js/buildings.js')));
   check('3g. context.js and context.css are loaded', /js\/context\.js/.test(H) && /css\/context\.css/.test(H));
 }
 
