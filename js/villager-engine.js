@@ -1828,6 +1828,9 @@
     // During a raid nobody but the guards comes back out.
     if (v.state === 'indoors' && S.event === 'raid') { if (isGuard(v.c)) comeOut(v, now); return; }
     if (v.state === 'indoors') {
+      // The building they went into is gone (pulled down): out they come, where it stood. At night they were
+      // otherwise kept "in" until morning, inside nothing.
+      if (v.inside && !doorOf(v.inside) && !S.exits.some(e => e.key === v.inside)) { const at = { x: v.x, y: v.y }; comeOut(v, now); v.x = at.x; v.y = at.y; return; }
       // At work: in while working, out when the break or the day comes.
       if (workKey(v) && v.inside === workKey(v)) {
         if (working(v, now)) return;

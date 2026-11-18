@@ -1065,6 +1065,13 @@ console.log('32. What is on their mind, and Follow (Part F.3, F.4)');
 console.log('33. The build panel on a new town');
 {
   check('33a. a list longer than the screen scrolls inside the panel, and the heading with its close button stays put', /\.sv-build-panel \{[^}]*max-height: min\(calc\(100% - 12px\), 84vh\); overflow-y: auto; overscroll-behavior: contain;/.test(SVJ) && /\.sv-bp-header \{[^}]*position: sticky; top: 0;/.test(SVJ));
+  check('33b. the heading never sits on the first line of text: no negative top margin on a sticky box, and a panel opens at its top', /\.sv-bp-header \{[^}]*margin: 0 -20px 8px; padding: 20px 20px 8px;/.test(SVJ) && /\.sv-build-panel \{[^}]*padding: 0 20px 32px;/.test(SVJ) && /panel\.scrollTop = 0;/.test(SVJ));
+}
+
+console.log('34. A building pulled down with people inside');
+{
+  const E = read('js/villager-engine.js');
+  check('34a. whoever was inside comes out where it stood, at once (at night they were kept "in" until morning, inside nothing)', /if \(v\.inside && !doorOf\(v\.inside\) && !S\.exits\.some\(e => e\.key === v\.inside\)\) \{ const at = \{ x: v\.x, y: v\.y \}; comeOut\(v, now\); v\.x = at\.x; v\.y = at\.y; return; \}/.test(E));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
