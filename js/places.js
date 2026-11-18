@@ -55,6 +55,9 @@
       // move and open their manage panel. It reads "Done" while on.
       { key: 'build',    label: 'Build',    glyph: '🏗', onLabel: 'Done', onGlyph: '✓', on: () => fn('_svIsBuildMode') && global._svIsBuildMode(),
         run: () => { if (!svOpen()) call('openSettlementView'); call('_svToggleBuildMode'); } },
+      // In Build mode: the bar of decorations to place (js/decor.js). Pressed while it is open.
+      { key: 'decorate', label: 'Decorate', glyph: '🌷', unlock: () => !!global.KWDecor && fn('_svIsBuildMode') && global._svIsBuildMode(), on: () => !!(global.KWDecor && global.KWDecor.open),
+        run: () => { if (global.KWDecor) global.KWDecor.toggle(); } },
       // Nameplates on every building, on or off (the same setting as the
       // profile menu's Show names; N on the keyboard). Pressed while on.
       { key: 'names',    label: 'Names',    glyph: '🏷', on: () => !!(global.KWHome && global.KWHome.namesOn()),

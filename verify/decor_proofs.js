@@ -39,7 +39,8 @@ console.log('2. Drawing');
 
 console.log('3. Build mode');
 {
-  check('3a. the bar appears with Build mode and goes with it', /if \(window\.KWDecor\) KWDecor\.buildModeChanged\(\);/.test(SV) && /if \(!building\(\) \|\| !S\.data\) \{ if \(bar\) bar\.remove\(\);/.test(J));
+  check('3a. a Decorate chip beside Build opens the bar; it is shut by default, so nothing covers the plots, and goes with Build mode', /if \(window\.KWDecor\) KWDecor\.buildModeChanged\(\);/.test(SV) && /if \(!building\(\) \|\| !S\.data \|\| !S\.open\) \{ if \(bar\) bar\.remove\(\);/.test(J)
+    && /buildModeChanged\(\) \{ S\.placing = null; S\.picked = null; S\.open = false;/.test(J) && /key: 'decorate', label: 'Decorate', glyph: '🌷', unlock: \(\) => !!global\.KWDecor && fn\('_svIsBuildMode'\) && global\._svIsBuildMode\(\)/.test(read('js/places.js')));
   check('3b. costs in words, and what cannot be afforded says why', K._costLine({ stone: 30, timber: 10 }) === '30 stone + 10 timber' && K._costLine({ metal: 2 }) === '2 iron' && K._canAfford({ timber: 12 }, { timber: 12 }) && !K._canAfford({ timber: 12, stone: 1 }, { timber: 50 }) && /aria-disabled="true" title=/.test(J));
   check('3c. pick a thing, then tap open ground: never a building, a plot or another decoration', /t\.closest\('\.sv-slot, \.kwd-item, \.kwd-pop, \.sv-build-panel'\)\) return;/.test(J));
   check('3d. a drag that panned the view is not a tap', /Math\.hypot\(e\.clientX - S\.down\.x, e\.clientY - S\.down\.y\) > 8\) return;/.test(J));

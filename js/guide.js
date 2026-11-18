@@ -40,13 +40,18 @@
   }
   // Where to ring, most exact first: the list of things to look for, by what is on the page now.
   // `page`: { building (Build mode), menu (a villager's menu is open), panel (the build panel is open), houseWindow, area }.
-  function targets(point, page, who) {
+  function targets(point, page, who, area) {
     const p = String(point || ''), w = who || {};
+    // The beat happens in another part of Home: lead there first.
+    if (area && page.area && page.area !== area && p !== 'building:neighbourhood') {
+      if (page.bmenu) return ['bmenu:enter'];
+      return area === 'neighbourhood' && page.area === 'town' ? ['building:neighbourhood'] : ['tool:totown', 'signpost:town'];
+    }
     if (p === 'villager:any') return [w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'villager-menu:family') return page.menu ? ['menu:family'] : [w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'villager-menu:work') return page.menu ? ['menu:work'] : [w.b ? `villager:${w.b}` : null, w.a ? `villager:${w.a}` : null, 'villager'].filter(Boolean);
     if (p === 'building:neighbourhood') return page.bmenu ? ['bmenu:enter'] : page.area === 'town' ? ['building:neighbourhood'] : ['signpost:town'];
-    if (p === 'tool:build' || p === 'plot:any') return page.panel ? ['panel:lumber', 'panel:build'] : page.building ? ['plot'] : ['tool:build'];
+    if (p === 'tool:build' || p === 'plot:any') return page.panel ? ['panel:lumber', 'panel:build', 'plot'] : page.building ? ['plot'] : ['tool:build'];
     if (p === 'house:any') return page.houseWindow ? ['house:in'] : page.bmenu ? ['bmenu:enter'] : page.building ? ['tool:build'] : ['house:free', 'house'];
     if (p === 'guide:errand') return ['chip:errand'];
     if (p === 'place:families') return ['place:families'];
@@ -60,6 +65,7 @@
     'building:neighbourhood': '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .sv-building[data-kwh="neighbourhood"] .kwh-art',
     'signpost:town': '#sv-prop-signpost-hood .kwh-btn, #sv-prop-signpost-town .kwh-btn',
     'tool:build': '#kw-place-tools [data-tool="build"]',
+    'tool:totown': '#kw-place-tools [data-tool="totown"]',
     plot: '#settlement-view .sv-fg-layer:not(.sv-area-hidden) .kwn-stake, #settlement-view .sv-fg-layer:not(.sv-area-hidden) .sv-slot:not([hidden]) .sv-slot-empty:not(.locked)',
     // The button that builds: a home's (the plot panel in the Neighbourhood), the Lumber Camp's row in Town's list, else the first.
     'panel:lumber': '#sv-build-panel.open .sv-bp-build-btn[onclick*="lumber_camp"]',
@@ -152,7 +158,7 @@
     familiesWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('families')),
     houseWindow: !!(global.KWWindow && global.KWWindow.isOpen && global.KWWindow.isOpen('house')),
     area: global._svActiveAreaName ? global._svActiveAreaName() : 'town', place: global.KWPlaces && global.KWPlaces.shown ? global.KWPlaces.shown() : null,
-    building: !!(global._svIsBuildMode && global._svIsBuildMode()), panel: !!doc.querySelector('#sv-build-panel.open, .kwn-styles'), bmenu: !!doc.querySelector('.kwb-enter'),
+    building: !!(global._svIsBuildMode && global._svIsBuildMode()), panel: !!doc.querySelector('#sv-build-panel.open'), bmenu: !!doc.querySelector('.kwb-enter'),
   });
   function find(name) {
     const m = /^villager:(\d+)$/.exec(name);
@@ -173,7 +179,7 @@
     let el = doc.getElementById('kwgd-ring');
     const g = S.g, on = g && g.state === 'active' && g.beat && g.beat.point && !S.telling && gameShowing() && !(global.KWSay && global.KWSay.isOpen && global.KWSay.isOpen());
     let r = null;
-    if (on) for (const name of targets(g.beat.point, page(), g.beat.who)) { r = find(name); if (r) break; }
+    if (on) for (const name of targets(g.beat.point, page(), g.beat.who, g.beat.area)) { r = find(name); if (r) break; }
     if (!r) { if (el) el.hidden = true; return; }
     if (!el) { el = doc.createElement('div'); el.id = 'kwgd-ring'; el.setAttribute('aria-hidden', 'true'); doc.body.appendChild(el); }
     const pad = 6, w = Math.max(44, r.width + pad * 2), h = Math.max(44, r.height + pad * 2);
