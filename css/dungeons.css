@@ -1,0 +1,89 @@
+/* ═══════════════════════════════════════════════════════════
+   The dungeon path screen (js/dungeons.js; docs/DUNGEONS.md §9.4).
+   Inside a KWWindow. Tokens only: css/tokens.css.
+   ═══════════════════════════════════════════════════════════ */
+.kwdg { display: flex; flex-direction: column; gap: var(--kw-s-3); }
+.kwdg p { margin: 0; }
+.kwdg-intro { color: var(--kw-muted); font-size: var(--kw-fs-2); }
+.kwdg-scale { color: var(--kw-warn); white-space: nowrap; }
+.kwdg-hint { color: var(--kw-gold); font-size: var(--kw-fs-2); text-align: center; }
+
+/* ── The party: a name, a health bar, the numbers ───────────────── */
+.kwdg-party { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--kw-s-2); }
+.kwdg-member { background: var(--kw-panel-2); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); padding: var(--kw-s-2); min-width: 0; }
+.kwdg-member-name { font-size: var(--kw-fs-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwdg-member-hp { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwdg-mark { color: var(--kw-warn); }
+.kwdg-hp { height: 8px; margin: var(--kw-s-1) 0; border-radius: 4px; background: var(--kw-ink); overflow: hidden; }
+.kwdg-hp span { display: block; height: 100%; background: var(--kw-good); border-radius: 4px; }
+.kwdg-member.is-down { border-color: var(--kw-bad); }
+.kwdg-member.is-down .kwdg-member-name, .kwdg-member.is-down .kwdg-member-hp { color: var(--kw-bad); }
+
+/* ── The floor: rooms by step (left to right) and lane ──────────── */
+.kwdg-map-wrap { flex: none; overflow-x: auto; border-radius: var(--kw-radius); }
+.kwdg-map {
+  position: relative;
+  height: 250px; min-width: calc(var(--kwdg-steps, 5) * 76px);
+  background: var(--kw-ink); border: 1px solid var(--kw-line); border-radius: var(--kw-radius);
+}
+.kwdg-links { position: absolute; inset: 0; width: 100%; height: 100%; }
+.kwdg-links line { stroke: var(--kw-gold-dim); stroke-width: 2; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; opacity: .6; }
+.kwdg-links line.is-walked { stroke: var(--kw-good); stroke-dasharray: none; opacity: .8; }
+.kwdg-links line.is-open { stroke: var(--kw-gold); stroke-dasharray: none; opacity: 1; }
+.kwdg-room {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 62px; height: 62px; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: var(--kw-wood-2); color: var(--kw-cream);
+  border: 2px solid var(--kw-gold-dim); border-radius: 50%;
+  font-family: var(--kw-font-body); cursor: default;
+}
+.kwdg-room-ico { font-size: 20px; line-height: 1; }
+.kwdg-room-lbl { font-size: 10.5px; line-height: 1.1; color: var(--kw-muted); }
+.kwdg-room:disabled { opacity: .62; }
+.kwdg-room.is-passed { opacity: .8; border-color: var(--kw-good); }
+.kwdg-room.is-here { opacity: 1; border-color: var(--kw-cream); box-shadow: 0 0 0 4px var(--kw-line-2); }
+.kwdg-room.can-enter:not(:disabled) { cursor: pointer; border-color: var(--kw-gold); background: var(--kw-border); animation: kwdg-pulse 1.6s ease-in-out infinite; }
+.kwdg-room.can-enter:not(:disabled):hover { background: var(--kw-gold-dim); }
+.kwdg-room.can-enter:not(:disabled) .kwdg-room-lbl { color: var(--kw-gold); }
+.kwdg-room:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 3px; }
+.kwdg-room.kwdg-boss { width: 72px; height: 72px; border-color: var(--kw-bad); }
+.kwdg-room.kwdg-elite { border-style: double; border-width: 4px; }
+@keyframes kwdg-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--kw-line-2); } 50% { box-shadow: 0 0 0 7px transparent; } }
+@media (prefers-reduced-motion: reduce) { .kwdg-room.can-enter:not(:disabled) { animation: none; } }
+
+/* ── What the room wants, and the foot ──────────────────────────── */
+.kwdg-pending p { margin: var(--kw-s-2) 0; }
+.kwdg-btns { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); }
+.kwdg-option { display: flex; align-items: center; gap: var(--kw-s-3); margin: var(--kw-s-2) 0; }
+.kwdg-option .kw-btn { flex: none; }
+.kwdg-option span { color: var(--kw-muted); font-size: var(--kw-fs-2); }
+.kwdg-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-3); flex-wrap: wrap; padding-top: var(--kw-s-2); border-top: 1px solid var(--kw-line); }
+.kwdg-loot { font-size: var(--kw-fs-2); min-width: 0; }
+.kwdg-loot b { color: var(--kw-gold); font-weight: 600; }
+
+/* ── How it ended ───────────────────────────────────────────────── */
+.kwdg-end-title { margin: 0; font-family: var(--kw-font-title); font-size: var(--kw-fs-5); color: var(--kw-gold); }
+.kwdg-end .kw-box p { margin: var(--kw-s-1) 0; }
+.kwdg-injs { margin: var(--kw-s-1) 0 0; padding-left: var(--kw-s-4); }
+.kwdg-inj { margin: 2px 0; font-size: var(--kw-fs-2); }
+.kwdg-inj-fatal, .kwdg-inj-crippling { color: var(--kw-bad); }
+.kwdg-inj-wound, .kwdg-inj-scar { color: var(--kw-warn); }
+
+/* ── Flee on the battle screen (a dungeon fight only) ───────────── */
+#combat-modal .cm-dungeon-flee {
+  margin-right: var(--kw-s-2); padding: var(--kw-s-1) var(--kw-s-3); min-height: 30px;
+  background: var(--kw-bad-fill); color: var(--kw-on-bad); border: 1px solid var(--kw-bad); border-radius: var(--kw-radius);
+  font-family: var(--kw-font-body); font-size: var(--kw-fs-2); cursor: pointer;
+}
+#combat-modal .cm-dungeon-flee:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+
+/* ── Phones: two citizens a row, and the floor scrolls sideways ─── */
+@media (max-width: 640px) {
+  .kwdg-party { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kwdg-map { height: 230px; min-width: calc(var(--kwdg-steps, 5) * 64px); }
+  .kwdg-room { width: 54px; height: 54px; }
+  .kwdg-room.kwdg-boss { width: 60px; height: 60px; }
+  .kwdg-option { flex-direction: column; align-items: flex-start; gap: var(--kw-s-1); }
+  .kwdg-foot .kw-btn, .kwdg-btns .kw-btn { min-height: var(--kw-touch); }
+}

@@ -25,7 +25,7 @@ check('1d. no static dev.html in the site\'s files (the host serves the repo as 
 
 console.log('2. The markup (from kindlewood-server)');
 {
-  check('2a. Dev Tools markup: the backdrop, 14 tabs, their panels', /<div class="cheat-backdrop" id="cheat-modal">/.test(D) && (D.match(/class="cheat-tab( active)?"/g) || []).length === 14 && (D.match(/class="cheat-tab-panel"/g) || []).length >= 14);
+  check('2a. Dev Tools markup: the backdrop, 15 tabs, their panels', /<div class="cheat-backdrop" id="cheat-modal">/.test(D) && (D.match(/class="cheat-tab( active)?"/g) || []).length === 15 && (D.match(/class="cheat-tab-panel"/g) || []).length >= 14);
   check('2b. Dev Tools markup is a balanced fragment', (D.match(/<div/g) || []).length === (D.match(/<\/div>/g) || []).length && !/<html|<body/.test(D));
 }
 
