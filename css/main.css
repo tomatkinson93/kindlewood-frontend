@@ -11265,3 +11265,8 @@ body.kw-shell #screen-game .map-zoom-ctrls { display: none !important; }   /* ph
 }
 .ar-year { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 12px; color: var(--kw-gold, #e8c87a); margin: 0 2px 0 4px; }
 .ar-year:first-child { margin-left: 0; }
+
+/* The login screen's test account button (js/main.js startTestAccount). */
+.test-account { margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(107, 90, 69, 0.35); }
+.test-account .btn-secondary { width: 100%; }
+.test-account .keep-hint { margin: 8px 0 0; text-align: center; }

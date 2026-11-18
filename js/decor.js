@@ -2,8 +2,8 @@
 //  KWDecor — decorating and charm, and the lamplighter
 //  (docs/HOME_SCENE.md Part F, F.9 and F.6; step 23).
 //
-//  In Build mode a bar along the bottom offers small things to place in the
-//  scene: benches, lantern posts, flower beds, fence pieces, a well, a pond.
+//  In Build mode a Decorate chip opens a bar along the bottom with small
+//  things to place in the scene: benches, lantern posts, flower beds, fence pieces, a well, a pond.
 //  Pick one, then tap the ground. What is placed can be dragged somewhere
 //  else or removed (half the cost back). Together they give the town charm:
 //  up to +5 happiness for everyone.
@@ -200,7 +200,8 @@
     const v = view();
     if (!v) return;
     let bar = v.querySelector(':scope > .kwd-palette');
-    if (!building() || !S.data) { if (bar) bar.remove(); v.classList.remove('kwd-placing'); S.placing = null; return; }
+    // The bar opens from the Decorate chip beside Build (js/places.js); closed, nothing covers the plots.
+    if (!building() || !S.data || !S.open) { if (bar) bar.remove(); v.classList.remove('kwd-placing'); S.placing = null; return; }
     if (!bar) { bar = doc.createElement('div'); bar.className = 'kwd-palette'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Decorate'); v.appendChild(bar); }
     const st = stock(), full = S.data.decorations.length >= S.data.max, c = S.data.charm;
     const html = `<div class="kwd-pal-row"><span class="kwd-pal-title">Decorate</span>`
@@ -211,6 +212,10 @@
       }).join('') + `</div>`
       + `<div class="kwd-pal-foot" role="status">${S.placing ? `Tap the ground to place it. Tap ${esc((S.data.kinds.find(k => k.key === S.placing) || {}).label || 'it')} again, or press Esc, to stop.` : esc(c ? c.line : '')}</div>`;
     if (bar.innerHTML !== html) bar.innerHTML = html;
+    // A build panel (a plot's choices, a building's panel) uses the same strip of the screen: the bar steps aside for it.
+    const panel = v.querySelector('#sv-build-panel.open');
+    bar.hidden = !!panel;
+    if (panel && S.placing) { S.placing = null; v.classList.remove('kwd-placing'); }
     // The view is a little bigger than the window on some screens: keep the bar inside what shows.
     const r = v.getBoundingClientRect(), under = Math.max(0, Math.round(r.bottom - global.innerHeight)), side = Math.max(0, Math.round(-r.left));
     bar.style.setProperty('--kwd-under', under + 'px'); bar.style.setProperty('--kwd-side', side + 'px');
@@ -339,7 +344,10 @@
     // js/villager-engine.js: places to stop and things to walk round, in this part of Home.
     sceneParts: (area, w, h) => sceneParts(S.data && S.data.decorations, area, w, h, artOf),
     // js/settlement-view.js: Build mode was switched on or off.
-    buildModeChanged() { S.placing = null; S.picked = null; paint(true); palette(); },
+    buildModeChanged() { S.placing = null; S.picked = null; S.open = false; paint(true); palette(); },
+    // The Decorate chip (js/places.js): the bar of things to place, open or shut.
+    get open() { return !!S.open; },
+    toggle() { S.open = !S.open; if (!S.open) { S.placing = null; S.picked = null; } paint(true); palette(); if (global.KWPlaces && global.KWPlaces.refreshTools) global.KWPlaces.refreshTools(); return S.open; },
     onEvent: () => load(),   // changed on another device (js/realtime.js)
     _costLine: costLine, _canAfford: canAfford, _depthOf: depthOf, _placedScatter: placedScatter, _litAt: litAt, _round: round, _charmHtml: charmHtml, _sceneParts: sceneParts, _paint: paint,
   };

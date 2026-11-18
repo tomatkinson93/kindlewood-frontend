@@ -118,6 +118,7 @@
     const available = fnName => typeof resolve(fnName) === 'function';
     return `<div class="help-page">
       <p class="help-intro">New to Kindlewood, or wondering how something works? Pick a topic.</p>
+      ${global.KWGuide ? `<p class="help-tour"><button type="button" class="help-open" onclick="KWHelp.replayTour()">🌿 Take the tour again</button> <span class="help-tour-note">${global.KWGuide.view && global.KWGuide.view.elder ? global.KWGuide.view.elder.name : 'Your elder'} walks you through a first day. Nothing is given twice.</span></p>` : ''}
       ${TOPICS.map(t => `<details class="help-topic" id="help-${t.id}">
         <summary><span class="help-icon" aria-hidden="true">${t.icon}</span> ${t.title}</summary>
         <div class="help-body">${t.body}
@@ -150,5 +151,12 @@
     if (topic) { const d = document.getElementById('help-' + topic); if (d) { d.open = true; try { d.scrollIntoView({ block: 'start' }); } catch (_) { /* old browser */ } } }
   }
 
-  global.KWHelp = { open, go, TOPICS, html };
+  // The guide's tour again (js/guide.js): Help closes, Home opens, and the elder starts over.
+  function replayTour() {
+    if (typeof global.closeCommunity === 'function') global.closeCommunity();
+    if (global.KWPlaces && global.KWPlaces.go) global.KWPlaces.go('home');
+    if (global.KWGuide && global.KWGuide.replay) global.KWGuide.replay();
+  }
+
+  global.KWHelp = { open, go, replayTour, TOPICS, html };
 })(typeof window !== 'undefined' ? window : this);

@@ -861,7 +861,7 @@ console.log('24. The Neighbourhood scene');
   check('24m. each area has its own width; the pan, the track and the far strips follow the area showing',
     /var SV_AREA_W = \{ town: SV_WORLD_W, outskirts: SV_WORLD_W, neighbourhood: SV_WORLD_W \};/.test(S) && /world\.style\.width = _svWorldW\(\) \+ 'px';/.test(S) && /typeof where === 'number'/.test(S));
   check('24n. on phones the moment cards step aside in Build mode (they covered the build panel and took its taps)',
-    /classList\.toggle\('sv-building', _svBuildMode\)/.test(S) && /body\.kw-shell\.sv-building #kw-moments \{ display: none; \}/.test(read('css/mobile-shell.css'))
+    /classList\.toggle\('sv-build-on', _svBuildMode\)/.test(S) && !/body\.classList\.toggle\('sv-building'/.test(S) && /body\.kw-shell\.sv-build-on #kw-moments \{ display: none; \}/.test(read('css/mobile-shell.css'))
     && /body\.kw-shell #settlement-view \.sv-build-panel \{ position: fixed; \}/.test(read('css/mobile-shell.css')));
 }
 
@@ -1060,6 +1060,11 @@ console.log('32. What is on their mind, and Follow (Part F.3, F.4)');
   check('32n. any pan by the player, Esc or the card\'s close button ends it; so does leaving Home', /addEventListener\('wheel'/.test(E) && /Math\.abs\(e\.clientX - downX\) > 12/.test(E) && /addEventListener\('touchmove'/.test(E) && /e\.key !== 'Escape' \|\| F\.id == null/.test(E)
     && /data-kwv-unfollow/.test(E) && /if \(!\(e\.detail && e\.detail\.open\)\) stopFollow\(true\);/.test(E));
   check('32o. the card is a live region with a close button a thumb can hit', /aria-live="polite"/.test(E) && /\.kwv-follow-x \{ width: 32px; height: 32px;/.test(CSS));
+}
+
+console.log('33. The build panel on a new town');
+{
+  check('33a. a list longer than the screen scrolls inside the panel, and the heading with its close button stays put', /\.sv-build-panel \{[^}]*max-height: min\(calc\(100% - 12px\), 84vh\); overflow-y: auto; overscroll-behavior: contain;/.test(SVJ) && /\.sv-bp-header \{[^}]*position: sticky; top: 0;/.test(SVJ));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

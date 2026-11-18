@@ -350,6 +350,6 @@ async function doTierUpgradeFromModal() {
     closeTierUpgradeModal();
     await refreshResources();
     await loadBuildings();
-    if (window._lastSelectedTile) selectWorldTile(window._lastSelectedTile);
+    if (window._lastSelectedTile) { const again = () => selectWorldTile(window._lastSelectedTile); if (window.KWContext && KWContext.mute) KWContext.mute(again); else again(); }
   } catch(e) { showBuildToast('Upgrade failed.', 'error'); if(btn){btn.disabled=false;} }
 }

@@ -912,3 +912,5 @@ body.kw-photo #settlement-view .kwe { pointer-events: none; }
 #settlement-view .kwe > img, #settlement-view .kwe-roll > img { display: block; }
 #settlement-view .kwe-fire > img.kwe-flames { position: absolute; left: 50%; bottom: 6px; margin-left: 0; transform-origin: 50% 100%; max-width: 84px; height: auto !important; translate: -50% 0; }
 @media (prefers-reduced-motion: reduce) { #settlement-view .kwl-pic { animation: none; } }
+
+#settlement-view .kwd-palette[hidden] { display: none; }   /* a build panel is open (js/decor.js) */

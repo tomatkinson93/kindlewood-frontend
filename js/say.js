@@ -93,5 +93,57 @@
     });
   }
 
-  global.KWSay = { ask, close: () => close(null), isOpen: () => !!current, _html: html, OUTCOME_MS };
+  // ── Telling: a character speaks, a line at a time ───────────────────────
+  // The layout of a story scene: the character stands large at the lower
+  // left, and a parchment box across the bottom carries their name, one line, and
+  // an arrow for "next". The game behind stays visible and usable.
+  //
+  //   const how = await KWSay.tell({ character: '/assets/…/elder.webp', emoji: '🐭', speaker: 'Old Bramble',
+  //                                  lines: ['…', '…'], skip: 'Skip the tour', count: '3 of 14' });
+  //   → 'done' (the last line was passed), 'skip', or null (closed)
+  function tellHtml(o, i = 0) {
+    const lines = o.lines || [], last = i >= lines.length - 1;
+    return `<div class="kwst" data-kwst>
+      <div class="kwst-char" aria-hidden="true">${o.character ? `<img class="kwst-img" src="${esc(o.character)}" alt="" draggable="false">` : ''}<span class="kwst-emoji"${o.character ? ' hidden' : ''}>${esc(o.emoji || '🍂')}</span></div>
+      <div class="kwst-box" role="dialog" aria-modal="false" aria-labelledby="kwst-name" aria-describedby="kwst-text" tabindex="0">
+        <div class="kwst-name" id="kwst-name">${esc(o.speaker || '')}${o.count ? `<span class="kwst-count">${esc(o.count)}</span>` : ''}</div>
+        <p class="kwst-text" id="kwst-text" aria-live="polite">${esc(lines[i] || '')}</p>
+        <div class="kwst-foot">${o.skip ? `<button type="button" class="kwst-skip" data-kwst-skip>${esc(o.skip)}</button>` : '<span></span>'}
+          <button type="button" class="kwst-next" data-kwst-next aria-label="${last ? 'Done' : 'Next'}">${last ? (o.done ? esc(o.done) + ' ' : '') : ''}<span class="kwst-arrow" aria-hidden="true">▼</span></button></div>
+      </div>
+    </div>`;
+  }
+  function tell(o) {
+    const doc = global.document;
+    if (current) close(null);
+    if (!doc || !doc.body || !(o.lines || []).length) return Promise.resolve('done');
+    return new Promise(resolve => {
+      const el = doc.createElement('div');
+      el.className = 'kws-layer kws-story';
+      let i = 0;
+      const draw = () => {
+        el.innerHTML = tellHtml(o, i);
+        const img = el.querySelector('.kwst-img');   // no picture yet: the species' emoji stands in
+        if (img) img.addEventListener('error', () => { img.remove(); const e = el.querySelector('.kwst-emoji'); if (e) e.hidden = false; });
+        const box = el.querySelector('.kwst-box'); if (box) setTimeout(() => { try { box.focus({ preventScroll: true }); } catch (_) { /* gone */ } }, 0);
+      };
+      const next = () => { if (i < o.lines.length - 1) { i++; draw(); } else close('done'); };
+      const prev = doc.activeElement;
+      const onKey = e => {
+        if (!el.contains(doc.activeElement) && doc.activeElement !== doc.body) return;   // typing elsewhere is left alone
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); next(); }
+      };
+      current = { el, resolve, onKey, prev };
+      doc.addEventListener('keydown', onKey, true);
+      el.addEventListener('click', e => {
+        if (e.target.closest('[data-kwst-skip]')) { close('skip'); return; }
+        if (e.target.closest('.kwst-box, .kwst-char')) next();
+      });
+      doc.body.appendChild(el);
+      doc.body.classList.add('kws-open');
+      draw();
+    });
+  }
+
+  global.KWSay = { ask, tell, close: () => close(null), isOpen: () => !!current, _html: html, _tellHtml: tellHtml, OUTCOME_MS };
 })(typeof window !== 'undefined' ? window : globalThis);

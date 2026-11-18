@@ -124,7 +124,7 @@
   <link rel="preload" as="image" href="/assets/hero.webp" type="image/webp">
 
   <link rel="stylesheet" href="/css/tokens.css?v=h5aa3c0f1">
-  <link rel="stylesheet" href="/css/main.css?v=h34349f23">
+  <link rel="stylesheet" href="/css/main.css?v=hfd3cf0ff">
   <link rel="stylesheet" href="/css/card-hand-ui.css?v=h440c5c14">
   <link rel="stylesheet" href="/css/deck-feedback.css?v=h94c765de">
   <link rel="stylesheet" href="/css/hud-storybook.css?v=h603e58c0">
@@ -132,7 +132,7 @@
   <link rel="stylesheet" href="/css/carousel.css?v=h7a987398">
   <link rel="stylesheet" href="/css/hero.css?v=h42deb4df">
   <link rel="stylesheet" href="/css/mobile.css?v=h61063c43">
-  <link rel="stylesheet" href="/css/mobile-shell.css?v=h1e2feaf8">
+  <link rel="stylesheet" href="/css/mobile-shell.css?v=h85753439">
   <link rel="stylesheet" href="/css/clans.css?v=h0a034a65">
   <link rel="stylesheet" href="/css/market.css?v=hbe35ce88">
   <link rel="stylesheet" href="/css/careers.css?v=hcbc56171">
@@ -153,7 +153,8 @@
   <link rel="stylesheet" href="/css/first-steps.css?v=h05c0fe7a">
   <link rel="stylesheet" href="/css/modal-sizes.css?v=he7de3129">
   <link rel="stylesheet" href="/css/places.css?v=h379133cc"><!-- the five places; after mobile-shell.css -->
-  <link rel="stylesheet" href="/css/home-scene.css?v=hcb5db2f7"><!-- the Home scene: buildings are the buttons -->
+  <link rel="stylesheet" href="/css/home-scene.css?v=h536ed9ac"><!-- the Home scene: buildings are the buttons -->
+  <link rel="stylesheet" href="/css/guide.css?v=he205ece9"><!-- the guide's tour and the story-style dialogue -->
   <link rel="stylesheet" href="/css/context.css?v=h2f16fbe5"><!-- the context panel and the town card -->
   <link rel="stylesheet" href="/css/news.css?v=h9f48e0ed"><!-- the News window (the bell) -->
   <link rel="stylesheet" href="/css/hud.css?v=h891388c3"><!-- the top bar and the map's controls -->
@@ -453,6 +454,11 @@
       <hr class="divider-line">
       <button type="button" class="btn-secondary" onclick="showScreen('register')">Found a New Settlement</button>
       <div class="auth-switch">New to Kindlewood? <a onclick="showScreen('register')">Create your realm</a></div>
+      <!-- A fresh test account in one press (js/main.js startTestAccount); shown only while the server offers it. -->
+      <div class="test-account" id="login-test" hidden>
+        <button type="button" class="btn-secondary" id="login-test-btn" onclick="startTestAccount()">🧪 Play as a fresh test account</button>
+        <div class="keep-hint">A brand-new account with nothing to fill in. It is deleted when you sign out.</div>
+      </div>
     </form>
     </div>
   </div>
@@ -958,16 +964,16 @@
   <script defer src="/js/window.js?v=h199528b3"></script>
   <script defer src="/js/life.js?v=he5496c45"></script>
   <script defer src="/js/families.js?v=hb9287b84"></script>
-  <script defer src="/js/places.js?v=h28f5fe01"></script>
+  <script defer src="/js/places.js?v=h4053edad"></script>
   <script defer src="/js/context.js?v=hc2b076c0"></script>
   <script defer src="/js/news.js?v=h0410c42e"></script>
   <script defer src="/js/hud.js?v=ha3d269db"></script>
-  <script defer src="/js/dev-tools.js?v=ha3325923"></script>
-  <script defer src="/js/say.js?v=h44722f0b"></script>
-  <script defer src="/js/moments.js?v=h0f187aca"></script>
+  <script defer src="/js/dev-tools.js?v=h8aecde41"></script>
+  <script defer src="/js/say.js?v=haf32de07"></script>
+  <script defer src="/js/moments.js?v=h57237c90"></script>
   <script defer src="/js/journeys.js?v=hb8da9974"></script>
   <script defer src="/js/outposts.js?v=h6b2d1451"></script>
-  <script defer src="/js/first-steps.js?v=hc54da18c"></script>
+  <script defer src="/js/first-steps.js?v=hb4971806"></script>
   <script defer src="/js/a11y.js?v=hf4664c44"></script>
   <script defer src="/js/day-cycle.js?v=h2a3fee79"></script>
   <script defer src="/js/happening-effects.js?v=ha6050d7e"></script>
@@ -982,7 +988,7 @@
   <script defer src="/js/stores.js?v=hb038f9f4"></script>
   <script defer src="/js/famine.js?v=h07c5bb88"></script>
   <script defer src="/js/mail.js?v=h7629ef5a"></script>
-  <script defer src="/js/help.js?v=hd325abf1"></script>
+  <script defer src="/js/help.js?v=h8032b4bc"></script>
   <script defer src="/js/wonders.js?v=hd3487981"></script>
   <script defer src="/js/cards.js?v=h7ad2fa17"></script>
   <script defer src="/js/raids.js?v=h1b1908b4"></script>
@@ -993,7 +999,7 @@
   <script defer src="/js/research.js?v=h66718ac4"></script>
   <script defer src="/js/career-balance.js?v=hd74b710b"></script>
   <script defer src="/js/citizens.js?v=hf0ad957a"></script>
-  <script defer src="/js/buildings.js?v=h7e2d98e0"></script>
+  <script defer src="/js/buildings.js?v=h2f3c1223"></script>
   <script defer src="/js/expeditions.js?v=h704c5542"></script>
   <script defer src="/js/seasons.js?v=hf364c56c"></script>
   <script defer src="/js/hud-clock.js?v=h2d2586f2"></script>
@@ -1001,7 +1007,7 @@
   <script defer src="/js/timed-events.js?v=h4da64180"></script>
   <script defer src="/js/season-atmosphere.js?v=h97ee822e"></script>
   <script defer src="/js/dev-time.js?v=hfea8a326"></script>
-  <script defer src="/js/tier.js?v=h88eba9a6"></script>
+  <script defer src="/js/tier.js?v=he5845980"></script>
   <script defer src="/js/profile.js?v=hed6215cc"></script>
   <script defer src="/js/pixelart.js?v=h29e17404"></script>
   <!-- KWMap Phase 1 — renderer interface + controller (load between pixelart.js and main.js) -->
@@ -1024,8 +1030,8 @@
   <script defer src="/js/audio.js?v=h4da51adf"></script>
   <script defer src="/js/music.js?v=h8f50862f"></script>
   <script defer src="/js/settings-panel.js?v=h2c85832b"></script>
-  <script defer src="/js/session.js?v=he9e2a513"></script>
-  <script defer src="/js/main.js?v=hb73de2ee"></script>
+  <script defer src="/js/session.js?v=h13533e28"></script>
+  <script defer src="/js/main.js?v=h6711dce4"></script>
   <script defer src="/js/away-report.js?v=h3e412267"></script>
   <script defer src="/js/welcome-music-guard.js?v=h7ca91d4e"></script>
   <script defer src="/js/online.js?v=hfc9fb757"></script>
@@ -1495,25 +1501,26 @@
     </div>
   </div>
 
-    <script defer src="/js/settlement-view.js?v=h5c563c54"></script>
+    <script defer src="/js/settlement-view.js?v=h020044a5"></script>
     <script defer src="/js/home-scene.js?v=h00af4f3b"></script>
-    <script defer src="/js/neighbourhood.js?v=h832b7213"></script>
+    <script defer src="/js/neighbourhood.js?v=hcce045c0"></script>
     <script defer src="/js/social.js?v=hb847a43e"></script>
     <script defer src="/js/construction.js?v=h00e98a87"></script>
     <script defer src="/js/upkeep.js?v=h61598e22"></script>
     <script defer src="/js/building-menu.js?v=hd11bcdd5"></script>
     <script defer src="/js/home-ground.js?v=h25984c9e"></script>
     <script defer src="/js/villagers.js?v=h4afbc0a0"></script>
-    <script defer src="/js/villager-engine.js?v=h7ea6176a"></script>
+    <script defer src="/js/villager-engine.js?v=hdd7dd401"></script>
     <script defer src="/js/life-scenes.js?v=hbc46eaf8"></script>
     <script defer src="/js/home-ambient.js?v=hb97239fe"></script>
     <script defer src="/js/home-weather.js?v=h2abe04ae"></script>
     <script defer src="/js/lost.js?v=hce4daa4d"></script>
-    <script defer src="/js/decor.js?v=had08d90d"></script>
+    <script defer src="/js/decor.js?v=hbdac8f52"></script>
     <script defer src="/js/crier.js?v=hddac9336"></script>
     <script defer src="/js/photo.js?v=h56b4a947"></script>
     <script defer src="/js/merchant.js?v=hea40258a"></script>
     <script defer src="/js/scene-events.js?v=h3652dfae"></script>
+    <script defer src="/js/guide.js?v=haafe8738"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
   <symbol id="kw-i-food" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 27 V10"/><path d="M16 22 q-9 -3 -10 -13 q9 3 10 13"/><path d="M16 22 q9 -3 10 -13 q-9 3 -10 13"/><path d="M16 14 q-7 -3 -8 -10 q7 3 8 10"/><path d="M16 14 q7 -3 8 -10 q-7 3 -8 10"/></symbol>

@@ -424,7 +424,7 @@ body.kw-shell #settlement-view .sv-header {
 body.kw-shell #settlement-view .sv-build-panel { position: fixed; }
 /* In Build mode the moment cards step aside: they sat on the build panel and
    took its taps. They are back when building is done. */
-body.kw-shell.sv-building #kw-moments { display: none; }
+body.kw-shell.sv-build-on #kw-moments { display: none; }
 
 body.kw-shell .sv-back-btn {
   display: inline-flex; align-items: center; justify-content: center;

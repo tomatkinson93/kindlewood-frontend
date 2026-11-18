@@ -153,7 +153,7 @@
       const h = byPlot.get(plot), x = h ? null : siteAt.get(plot), p = lay.at(plot);
       if (x) { html += `<div class="sv-slot kwn-slot kwn-building" data-plot="${plot}" style="left:${p.xPct.toFixed(3)}%;top:${p.y}%">${siteHtml(x)}</div>`; continue; }
       if (!h && (!bm || !n.open.includes(plot))) continue;   // free plots are plain grass outside Build mode
-      html += `<div class="sv-slot kwn-slot${h ? '' : ' kwn-free'}" data-plot="${plot}"${h ? ` data-house="${h.id}"` : ''} style="left:${p.xPct.toFixed(3)}%;top:${p.y}%">${h ? houseHtml(h) : stakeHtml(plot)}</div>`;
+      html += `<div class="sv-slot kwn-slot${h ? '' : ' kwn-free'}" data-plot="${plot}"${h ? ` data-house="${h.id}" data-free="${Math.max(0, (Number(h.capacity) || 0) - (h.residents || []).length)}"` : ''} style="left:${p.xPct.toFixed(3)}%;top:${p.y}%">${h ? houseHtml(h) : stakeHtml(plot)}</div>`;
     }
     // More than one neighbourhood: a row of signs to pick between them.
     if (S.data.neighbourhoods.length > 1) {

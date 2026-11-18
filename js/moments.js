@@ -146,12 +146,14 @@
     }
   }
 
+  // Pressing a card opens it. Listened for from the first moment the page is up, not from start(): someone who
+  // signs in without a reload (a new player, a test account) never reached start(), and their cards did nothing.
+  if (global.document && global.document.addEventListener) global.document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-kwm]');
+    if (b) { e.preventDefault(); open(b.getAttribute('data-kwm')); }
+  });
   function start() {
     if (st.timer) return;
-    global.document.addEventListener('click', e => {
-      const b = e.target.closest && e.target.closest('[data-kwm]');
-      if (b) { e.preventDefault(); open(b.getAttribute('data-kwm')); }
-    });
     load();
     // The "time left" on each card, and a safety re-load now and then.
     st.timer = setInterval(() => { render(); }, 60000);
@@ -159,7 +161,15 @@
   }
   function openFirst() { if (st.list[0]) open(st.list[0].id); else load().then(() => { if (st.list[0]) open(st.list[0].id); }); }
 
-  if (global.document && typeof global.kwWhenReady === 'function') global.kwWhenReady(() => { if (global.localStorage && global.localStorage.getItem('kw_token')) start(); });
+  if (global.document && typeof global.kwWhenReady === 'function') global.kwWhenReady(() => { const tok = global.localStorage && global.localStorage.getItem('kw_token'); if (tok) { st.token = tok; start(); } });
+  // Signed in after the page loaded: Home opening is the first sign of it.
+  // Someone else signed in on the same page: their cards, not the last player's.
+  if (global.addEventListener) global.addEventListener('kw:home', e => {
+    const tok = e.detail && e.detail.open && global.localStorage ? global.localStorage.getItem('kw_token') : null;
+    if (!tok) return;
+    if (!st.timer) start(); else if (st.token !== tok) load();
+    st.token = tok;
+  });
 
   global.KWMoments = { load, open, answer, openFirst, onEvent, start, list: () => st.list.slice(), _stackHtml: stackHtml, _bellHtml: bellHtml, _sayOptions: sayOptions, _storeChanges: storeChanges };
 })(typeof window !== 'undefined' ? window : globalThis);

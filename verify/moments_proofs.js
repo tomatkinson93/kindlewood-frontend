@@ -67,5 +67,12 @@ console.log('4. What a moment changed shows at once; two devices stay in step');
   check('4d. answering one already settled (the other device was first) says so and removes the card', /if \(res\.status === 404\) \{ st\.list = st\.list\.filter\(x => x\.id !== m\.id\); render\(\); \}/.test(MJ));
 }
 
+console.log('9. After a fresh sign-in');
+{
+  const MJ = fs.readFileSync(path.join(__dirname, '..', 'js/moments.js'), 'utf8');
+  check('9a. a card opens when pressed whether or not the player was signed in when the page loaded', /signs in without a reload[\s\S]{0,200}document\.addEventListener\('click', e => \{\s*const b = e\.target\.closest && e\.target\.closest\('\[data-kwm\]'\);/.test(MJ) && !/function start\(\) \{\s*if \(st\.timer\) return;\s*global\.document\.addEventListener\('click'/.test(MJ));
+  check('9b. Home opening starts the cards for someone who signed in after the page loaded, and reloads them for a different player', /addEventListener\('kw:home', e => \{[\s\S]{0,260}if \(!st\.timer\) start\(\); else if \(st\.token !== tok\) load\(\);/.test(MJ));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

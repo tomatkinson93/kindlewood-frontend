@@ -364,12 +364,46 @@ async function submitLogin() {
   }
 }
 
-async function logout() {
+// A fresh test account in one press (the server's lib/test_accounts.js): no
+// form, a brand-new player. Signing out deletes it.
+async function startTestAccount() {
+  const btn = document.getElementById('login-test-btn');
+  if (btn) btn.disabled = true;
   try {
-    await apiFetch('/api/auth/logout', { method: 'POST' });
+    const res = await apiFetch('/api/auth/test-account', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.token) { showMsg('login-error', data.error || 'Could not make a test account.'); return; }
+    setStoredToken(data.token);
+    if (window.KWSession) KWSession.remember(true);   // it lasts until you sign out, which deletes it
+    try { localStorage.setItem('kw_test_account', '1'); } catch (e) { /* private mode */ }
+    showMsg('login-success', `A fresh test account: ${data.username}. Loading…`);
+    setTimeout(() => loadGame(true), 400);
+  } catch (err) {
+    console.error('startTestAccount error:', err);
+    showMsg('login-error', 'Could not reach the server. Please try again.');
+  } finally { if (btn) btn.disabled = false; }
+}
+// The button shows only while the server offers it (a switch in Dev Tools).
+async function offerTestAccount() {
+  const box = document.getElementById('login-test');
+  if (!box || typeof apiFetch !== 'function') return;
+  try { const res = await apiFetch('/api/auth/test-account'); const d = await res.json().catch(() => ({})); box.hidden = !(res.ok && d.available); } catch (e) { box.hidden = true; }
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(offerTestAccount, 300)); else setTimeout(offerTestAccount, 300);
+}
+
+async function logout() {
+  let wasTest = false;
+  try {
+    const res = await apiFetch('/api/auth/logout', { method: 'POST' });
+    const d = await res.json().catch(() => ({}));
+    wasTest = !!(d && d.test_account_deleted);
   } catch (e) {
     console.error('logout error:', e);
   }
+  try { localStorage.removeItem('kw_test_account'); } catch (e) { /* private mode */ }
+  if (wasTest && typeof showToastNotification === 'function') showToastNotification('🧪 The test account was deleted.', 'default');
 
   clearStoredToken();
   if (window.KWSession) KWSession.forget();
