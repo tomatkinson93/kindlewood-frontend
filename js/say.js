@@ -95,7 +95,7 @@
 
   // ── Telling: a character speaks, a line at a time ───────────────────────
   // The layout of a story scene: the character stands large at the lower
-  // left, and a dark box across the bottom carries their name, one line, and
+  // left, and a parchment box across the bottom carries their name, one line, and
   // an arrow for "next". The game behind stays visible and usable.
   //
   //   const how = await KWSay.tell({ character: '/assets/…/elder.webp', emoji: '🐭', speaker: 'Old Bramble',

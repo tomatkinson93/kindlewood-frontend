@@ -5,7 +5,7 @@
 //  session: a line or two, then one thing to do, which is ringed on the
 //  screen. The server holds which beat the player is on and decides when it
 //  is done (lib/guide.js there); this file shows the lines (KWSay.tell, the
-//  story layout: the character large at the lower left, a dark box with
+//  story layout: the character large at the lower left, a parchment box with
 //  their name and one line), keeps a small chip while it waits, rings the
 //  thing to press, and asks the server whether the beat is done.
 //
