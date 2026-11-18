@@ -52,7 +52,20 @@
   // same card plays it; a tap anywhere else deselects. Desktop click-to-play
   // is byte-for-byte unchanged (every branch below is gated on _isTouchInput).
   var _touchDeselectWired = false;
+  // Which kind of pointer the player is using right now. A desktop with a
+  // touch screen, or a browser that answers "(hover: none)" for it, must still
+  // get the one-click mouse behaviour when a mouse is in the hand: asking the
+  // device once made such desktops need a first "preview" click on every
+  // card. So the last real pointer decides, and the media query is only the
+  // answer before any pointer has moved.
+  var _lastPointer = null;   // 'mouse' | 'touch' | 'pen'
+  try {
+    ['pointerdown', 'pointermove'].forEach(function (t) {
+      document.addEventListener(t, function (e) { if (e && e.pointerType) _lastPointer = e.pointerType; }, true);
+    });
+  } catch (e) {}
   function _isTouchInput() {
+    if (_lastPointer) return _lastPointer === 'touch';
     return !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
   }
   function _clearTouchSelect(scope) {
