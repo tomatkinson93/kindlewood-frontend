@@ -119,6 +119,44 @@ console.log('6. How it ended');
   check('6h. a citizen who came back a better fighter is named', /Hazel came back a better fighter\./.test(end('cleared', { upgraded: [{ id: 1, name: 'Hazel', combat: 3 }] })));
 }
 
+console.log('10. Class decks');
+{
+  const C = (key, name, x = {}) => ({ key, name, cost: 1, type: 'attack', n: 1, text: 'Deal 16 damage', desc: 'A hard blow.', reach: 'the front creature', heal: false, once: false, honed: false, basic: false, ...x });
+  const deck = { cls: 'guard', label: 'Guard', icon: '🛡️', size: 11, cards: [C('g_strike', 'Strike', { n: 3, basic: true }), C('g_cover', 'Cover', { type: 'defense', text: 'Gain 14 block', reach: 'a friend', n: 2 }), C('g_strike_honed', 'Strike ✦', { honed: true, text: 'Deal 21 damage' })], spent: [] };
+  const party = run().party.map((m, i) => i === 0 ? { ...m, deck } : i === 1 ? { ...m, deck: { cls: 'villager', label: 'Villager', icon: '🧺', size: 9, cards: [C('v_swing', 'Swing', { n: 5, basic: true })], spent: [C('t_ration', 'Share Rations', { heal: true })] } } : m);
+  const card = K._cardHtml(C('g_strike', 'Strike', { n: 3 }));
+  check('10a. a card shows its cost, its name and copies, what it does and whom it reaches', />1<\/span>/.test(card) && /Strike <i>×3<\/i>/.test(card) && /Deal 16 damage/.test(card) && /the front creature/.test(card) && /aria-label="Strike, costs 1\. Deal 16 damage Reaches the front creature\."/.test(card));
+  check('10b. a heal says it is spent until the party rests; a once-a-fight card says so', /Spent until the party rests/.test(K._cardHtml(C('h_kindle', 'Kindle', { heal: true, type: 'support' }))) && /Once a fight/.test(K._cardHtml(C('g_hold_line', 'Hold the Line', { once: true }))) && /kwdg-card-support/.test(K._cardHtml(C('h_kindle', 'Kindle', { heal: true, type: 'support' }))));
+  check('10c. a card on offer is a button; a card being read is not', /^<button type="button" class="kwdg-card [^"]*" data-action="hone"/.test(K._cardHtml(C('a', 'A'), 'data-action="hone"')) && /^<div class="kwdg-card /.test(card));
+  const strip = K._partyHtml(party);
+  check('10d. each citizen in the party strip says their class and how many cards, and opens their deck', /data-action="deck" data-citizen="1" aria-expanded="false" aria-label="Hazel, Guard: see their 11 cards">🛡️ Guard · 11 cards</.test(strip) && /🧺 Villager · 9 cards/.test(strip) && (strip.match(/data-action="deck"/g) || []).length === 2);
+  const open1 = K._deckHtml(party[0]), open2 = K._deckHtml(party[1]);
+  check('10e. an open deck lists every card, the honed one marked', /Hazel, Guard: 11 cards/.test(open1) && (open1.match(/class="kwdg-card /g) || []).length === 3 && /kwdg-card kwdg-card-attack is-honed/.test(open1) && /is-basic/.test(open1));
+  check('10f. and says which heals are spent until the party rests', /Spent until the party rests: Share Rations\./.test(open2) && !/Spent until the party rests:/.test(open1));
+  const door = K._doorHtml({ kind: 'door', citizens: [{ id: 1, name: 'Hazel', done: false, cards: [C('g_cover', 'Cover'), C('g_heavy', 'Heavy Blow'), C('g_shove', 'Shove')] }, { id: 2, name: 'Bram', done: true, cards: [C('a_mark', 'Mark')] }] });
+  check('10g. at the door: three cards for each citizen who has not chosen, and a way to pass', (door.match(/data-action="pick-door" data-citizen="1" data-card="g_/g) || []).length === 3 && /data-action="pick-door" data-citizen="1" data-card="">Pass</.test(door) && /1 still to choose/.test(door));
+  check('10h. a citizen who has chosen shows as done, with nothing to press', /kwdg-pick-row is-done[\s\S]*?✓ Chosen/.test(door) && !/data-citizen="2"/.test(door));
+  const rew = K._rewardHtml({ kind: 'reward', offers: [{ index: 0, citizen: 1, name: 'Hazel', card: C('g_heavy', 'Heavy Blow') }, { index: 1, citizen: 2, name: 'Bram', card: C('a_mark', 'Mark') }, { index: 2, citizen: 3, name: 'Ivy', card: C('c_cleave', 'Cleave') }] });
+  check('10i. after a fight: three cards, each naming whose it would be, and a way to pass', (rew.match(/data-action="pick-reward" data-index="\d"/g) || []).length === 3 && /for Hazel/.test(rew) && /for Bram/.test(rew) && /for Ivy/.test(rew) && /data-action="pick-reward" data-index="">Pass</.test(rew));
+  const resting = run({ party, room_open: true, moves: [], pending: { kind: 'rest', options: [{ key: 'rest', label: 'Rest by the fire', text: 'Heal.' }, { key: 'hone', label: 'Hone a card', needs: 'card', text: 'One card.' }] } });
+  const restBox = K._pendingHtml(resting);
+  check('10j. a rest room: rest is sent at once; honing opens a chooser first', /data-action="choose" data-option="rest">Rest by the fire</.test(restBox) && /data-action="hone-open" data-option="hone">Hone a card</.test(restBox));
+  const hone = K._honeHtml(resting);
+  check('10k. the chooser shows each citizen\'s cards that are not honed yet, and a way back', /data-action="hone" data-citizen="1" data-card="g_strike"/.test(hone) && /data-action="hone" data-citizen="1" data-card="g_cover"/.test(hone) && !/data-card="g_strike_honed"/.test(hone) && /data-action="hone-cancel">Back</.test(hone));
+  check('10l. each choice is sent to the server and the screen redrawn from the answer', ["post('run/pick', { citizen_id: Number(el.getAttribute('data-citizen')), card: el.getAttribute('data-card') || null })", "post('run/pick', { index: i === '' ? null : Number(i) })", "post('run/choose', { option: 'hone', citizen_id: Number(el.getAttribute('data-citizen')), card: el.getAttribute('data-card') })"].every(x => J.includes(x)));
+  check('10m. a choice of cards comes before the path: the door and the reward are drawn where the room\'s choice would be', /if \(p\.kind === 'door'\) return doorHtml\(p\);\s*if \(p\.kind === 'reward'\) return rewardHtml\(p\);/.test(J));
+  const coll = { classes: [{ cls: 'guard', label: 'Guard', icon: '🛡️', pack: [{ ...C('g_strike', 'Strike', { n: 3, basic: true }), owned: true, prepared: true, unlock: false }, { ...C('g_cover', 'Cover', { n: 2 }), owned: true, prepared: false, unlock: false }], trades: [],
+    more: [{ ...C('g_stand_fast', 'Stand Fast'), owned: true, prepared: true, unlock: true }, { ...C('g_hammer', 'Hammer Blow'), owned: false, prepared: true, unlock: true, how: 'Watchtower level 3' }] }] };
+  const cw = K._collectionHtml(coll, 'guard');
+  check('10n. class cards: the pack, then what the town can unlock', /The Guard pack/.test(cw) && /Cards the town can unlock/.test(cw) && (cw.match(/kwdg-coll-row/g) || []).length === 4);
+  check('10o. a card that can be offered has a Prepared tick, on or off; a plain card has none', /data-action="prepare" data-card="g_cover"> Prepared/.test(cw) && /data-action="prepare" data-card="g_stand_fast" checked> Prepared/.test(cw) && !/data-card="g_strike"/.test(cw));
+  check('10p. a card not unlocked yet says how to get it, and has no tick', /is-locked[\s\S]*?🔒 Watchtower level 3/.test(cw) && !/data-card="g_hammer"/.test(cw));
+  check('10q. the tick is sent to the server and the list redrawn from the answer', /apiFetch\('\/api\/dungeons\/cards\/prepare', \{ method: 'POST'[^}]*\}[^)]*body: JSON\.stringify\(\{ card: el\.getAttribute\('data-card'\), prepared: !!el\.checked \}\)/.test(J) && /if \(res\.ok && d\.ok\) S\.cards = d;/.test(J));
+  const atDoor = K._runHtml(run({ moves: [], pending: { kind: 'door', citizens: [{ id: 1, name: 'Hazel', done: false, cards: [C('g_cover', 'Cover')] }] } }));
+  check('10s. a choice of cards is drawn above the floor; a room\'s own choice below it', atDoor.indexOf('kwdg-pick') < atDoor.indexOf('kwdg-map-wrap') && K._runHtml(resting).indexOf('kwdg-pending') > K._runHtml(resting).indexOf('kwdg-map-wrap'));
+  check('10r. the path screen and Dev Tools both open the class cards', /data-action="cards">🃏 Class cards</.test(K._runHtml(run())) && /data-kwdg="cards">Open the class cards</.test(K._devHtml({ on: false, party: 4, free_adults: 4, stories: [], tiers: [], lands: [], run: null, last: null })));
+}
+
 console.log('7. The battle screen');
 {
   check('7a. the server says at engage that a fight belongs to a dungeon run', /_battleDungeon = data\.dungeon_run_id \|\| null;/.test(CU));

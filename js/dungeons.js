@@ -10,6 +10,12 @@
 //  where the party may go, what a fight gave, how the run ended. Nothing here
 //  rolls, counts loot or changes health.
 //
+//  Every citizen has their own deck (docs/DUNGEON_CLASS_DECKS.md): the party
+//  strip opens each one. At the door each citizen keeps one card of three;
+//  after a fight the party keeps one of three; a rest room offers rest or
+//  honing a card. "Class cards" shows each class's pack, what the town has
+//  unlocked, and which cards are prepared (offered).
+//
 //  Fights open the ordinary battle screen (js/combat-ui.js) and come back
 //  here. That screen asks this file for the words of a dungeon fight's result
 //  (battleResult) and for Flee (fleeFromBattle).
@@ -24,7 +30,8 @@
   const doc = global.document;
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const toast = (m, t) => { if (typeof global.showToastNotification === 'function') global.showToastNotification(m, t || 'default'); };
-  const S = { on: false, run: null, last: null, busy: false, win: null };
+  // deckOf: the citizen whose deck is open; honing: choosing a card to hone at a rest.
+  const S = { on: false, run: null, last: null, busy: false, win: null, deckOf: null, honing: false, cards: null };
   const LANES = 3;
 
   // ── Words (pure) ────────────────────────────────────────────────────────
@@ -59,6 +66,58 @@
     return s + '.';
   }
 
+  // ── Cards (pure) ────────────────────────────────────────────────────────
+  // One card as the server describes it: what it costs, what it does in its
+  // holder's hands, whom it reaches. `attrs` makes it a button.
+  function cardHtml(c, attrs, extra) {
+    const tags = [c.heal ? 'Spent until the party rests' : '', c.once ? 'Once a fight' : ''].filter(Boolean);
+    const words = `${c.name}, costs ${c.cost}. ${c.text || c.desc || ''}${c.reach ? ' Reaches ' + c.reach + '.' : ''}${tags.length ? ' ' + tags.join('. ') + '.' : ''}`;
+    const inner = `<span class="kwdg-card-cost" aria-hidden="true">${esc(c.cost)}</span>`
+      + `<span class="kwdg-card-name">${esc(c.name)}${c.n > 1 ? ` <i>×${esc(c.n)}</i>` : ''}</span>`
+      + `<span class="kwdg-card-text">${esc(c.text || c.desc || '')}</span>`
+      + (c.reach ? `<span class="kwdg-card-reach">${esc(c.reach)}</span>` : '')
+      + tags.map(t => `<span class="kwdg-card-tag">${esc(t)}</span>`).join('')
+      + (extra || '');
+    const cls = `kwdg-card kwdg-card-${esc(c.type || 'attack')}${c.honed ? ' is-honed' : ''}${c.basic ? ' is-basic' : ''}`;
+    return attrs ? `<button type="button" class="${cls}" ${attrs} aria-label="${esc(words)}" title="${esc(c.desc || '')}">${inner}</button>`
+      : `<div class="${cls}" role="listitem" aria-label="${esc(words)}" title="${esc(c.desc || '')}">${inner}</div>`;
+  }
+  // A citizen's whole deck, opened from their place in the party strip.
+  function deckHtml(m) {
+    const d = m && m.deck;
+    if (!d) return '';
+    return `<div class="kw-box kwdg-deck" role="region" aria-label="${esc(m.name)}'s cards"><div class="kw-box-title">${esc(d.icon || '')} ${esc(m.name)}, ${esc(d.label)}: ${d.size} cards`
+      + `<button type="button" class="kw-btn quiet small kwdg-deck-close" data-action="deck" data-citizen="${esc(m.id)}">Close</button></div>`
+      + `<div class="kwdg-cards" role="list">${d.cards.map(c => cardHtml(c)).join('')}</div>`
+      + (d.spent.length ? `<p class="kw-note">Spent until the party rests: ${esc(list(d.spent.map(c => c.name)))}.</p>` : '') + `</div>`;
+  }
+  // At the door: one card each.
+  function doorHtml(p) {
+    const left = p.citizens.filter(c => !c.done).length;
+    return `<div class="kw-box kwdg-pending kwdg-pick"><div class="kw-box-title">🚪 At the door: one card each</div>`
+      + `<p>Each citizen may add one of these to their own deck for this dungeon. ${left} still to choose.</p>`
+      + p.citizens.map(c => `<div class="kwdg-pick-row${c.done ? ' is-done' : ''}"><div class="kwdg-pick-who">${esc(c.name)}</div>`
+        + (c.done ? `<div class="kwdg-pick-done">✓ Chosen</div>`
+          : `<div class="kwdg-cards" role="group" aria-label="Cards for ${esc(c.name)}">${c.cards.map(k => cardHtml(k, `data-action="pick-door" data-citizen="${esc(c.id)}" data-card="${esc(k.key)}"`)).join('')}`
+            + `<button type="button" class="kw-btn quiet small" data-action="pick-door" data-citizen="${esc(c.id)}" data-card="">Pass</button></div>`)
+        + `</div>`).join('') + `</div>`;
+  }
+  // After a fight: three cards, each for a different citizen; keep one.
+  function rewardHtml(p) {
+    return `<div class="kw-box kwdg-pending kwdg-pick"><div class="kw-box-title">🃏 From the fight: keep one card</div>`
+      + `<p>Each card is for the citizen named on it. The party keeps one.</p>`
+      + `<div class="kwdg-cards" role="group" aria-label="Cards on offer">${p.offers.map(o => cardHtml(o.card, `data-action="pick-reward" data-index="${esc(o.index)}"`, `<span class="kwdg-card-for">for ${esc(o.name)}</span>`)).join('')}</div>`
+      + `<div class="kwdg-btns"><button type="button" class="kw-btn quiet" data-action="pick-reward" data-index="">Pass</button></div></div>`;
+  }
+  // Honing, in place of resting: choose one card of one citizen.
+  function honeHtml(run) {
+    return `<div class="kw-box kwdg-pending kwdg-pick"><div class="kw-box-title">✦ Hone a card</div>`
+      + `<p>Choose one card. It becomes about a third stronger until the run ends. The party does not rest.</p>`
+      + (run.party || []).filter(m => m.deck).map(m => `<div class="kwdg-pick-row"><div class="kwdg-pick-who">${esc(m.name)}</div>`
+        + `<div class="kwdg-cards" role="group" aria-label="${esc(m.name)}'s cards">${m.deck.cards.filter(c => !c.honed).map(c => cardHtml(c, `data-action="hone" data-citizen="${esc(m.id)}" data-card="${esc(c.key)}"`)).join('')}</div></div>`).join('')
+      + `<div class="kwdg-btns"><button type="button" class="kw-btn quiet" data-action="hone-cancel">Back</button></div></div>`;
+  }
+
   // ── Markup (pure) ───────────────────────────────────────────────────────
   function partyHtml(party) {
     return `<div class="kwdg-party" role="list" aria-label="The party">${(party || []).map(m => {
@@ -67,7 +126,9 @@
       return `<div class="kwdg-member${m.down ? ' is-down' : ''}" role="listitem" aria-label="${esc(m.name)}: ${esc(state)}${m.was_down && !m.down ? ', went down earlier' : ''}">`
         + `<div class="kwdg-member-name">${esc(m.name)}${m.was_down ? ' <span class="kwdg-mark" title="Went down on this run: rolls for injury when it ends">✚</span>' : ''}</div>`
         + `<div class="kwdg-hp" aria-hidden="true"><span style="width:${w}%"></span></div>`
-        + `<div class="kwdg-member-hp">${m.down ? 'Down' : `${m.hp} / ${m.max}`}</div></div>`;
+        + `<div class="kwdg-member-hp">${m.down ? 'Down' : `${m.hp} / ${m.max}`}</div>`
+        + (m.deck ? `<button type="button" class="kwdg-member-deck" data-action="deck" data-citizen="${esc(m.id)}" aria-expanded="${S.deckOf === m.id}" aria-label="${esc(m.name)}, ${esc(m.deck.label)}: see their ${m.deck.size} cards">${esc(m.deck.icon || '🃏')} ${esc(m.deck.label)} · ${m.deck.size} cards</button>` : '')
+        + `</div>`;
     }).join('')}</div>`;
   }
   // The whole floor: rooms placed by step (left to right) and lane, with the links between them.
@@ -98,6 +159,9 @@
   function pendingHtml(run) {
     const p = run.pending;
     if (!p) return '';
+    if (p.kind === 'door') return doorHtml(p);
+    if (p.kind === 'reward') return rewardHtml(p);
+    if (p.kind === 'rest' && S.honing) return honeHtml(run);
     if (p.kind === 'battle') {
       const here = (run.rooms || []).find(r => r.current) || {};
       const who = list((here.enemies || []).map(e => e.name));
@@ -109,21 +173,26 @@
     }
     const title = p.kind === 'landing' ? '🪜 A landing between floors' : '🔥 A place to rest';
     return `<div class="kw-box kwdg-pending"><div class="kw-box-title">${title}</div>`
-      + (p.options || []).map(o => `<div class="kwdg-option"><button type="button" class="kw-btn primary" data-action="choose" data-option="${esc(o.key)}">${esc(o.label)}</button><span>${esc(o.text)}</span></div>`).join('')
+      + (p.options || []).map(o => `<div class="kwdg-option"><button type="button" class="kw-btn primary" data-action="${o.needs === 'card' ? 'hone-open' : 'choose'}" data-option="${esc(o.key)}">${esc(o.label)}</button><span>${esc(o.text)}</span></div>`).join('')
       + `</div>`;
   }
   function runHtml(run) {
     const d = run.dungeon, moves = (run.moves || []).length;
+    const cardsFirst = !!run.pending && (run.pending.kind === 'door' || run.pending.kind === 'reward');
     const hint = run.pending ? '' : moves ? `<p class="kwdg-hint">Choose the next room${moves > 1 ? ': there are ' + moves + ' ways on' : ''}.</p>` : '';
     return `<div class="kwdg">`
       + `<p class="kwdg-intro">${esc(d.intro)}${d.boss ? ` At the end: ${esc(d.boss)}.` : ''} <span class="kwdg-scale">Creatures here have +${pct(d.creatures.health)}% health and +${pct(d.creatures.strength)}% strength.</span></p>`
       + partyHtml(run.party)
+      + deckHtml((run.party || []).find(m => m.id === S.deckOf))
+      // A choice of cards is the thing to do now, so it comes before the floor; a room's own choice comes after it.
+      + (cardsFirst ? pendingHtml(run) : '')
       + mapHtml(run)
       + hint
-      + pendingHtml(run)
+      + (cardsFirst ? '' : pendingHtml(run))
       + `<div class="kwdg-foot"><div class="kwdg-loot" aria-live="polite"><b>Carried:</b> ${esc(lootLine(run.loot))}</div>`
+      + `<div class="kwdg-btns"><button type="button" class="kw-btn quiet" data-action="cards">🃏 Class cards</button>`
       + (run.can_leave ? `<button type="button" class="kw-btn" data-action="leave">↩ Turn back and keep it</button>` : '')
-      + `</div></div>`;
+      + `</div></div></div>`;
   }
   // How a finished run ended: what came home, what was lost, who was hurt.
   function endHtml(run) {
@@ -160,7 +229,7 @@
     if ('on' in d) S.on = !!d.on;
     if ('run' in d || 'last' in d) {
       const run = d.run || null, was = S.run;
-      if (run && run.status === 'active') { S.run = run; S.last = null; }
+      if (run && run.status === 'active') { S.run = run; S.last = null; if (!(run.pending && run.pending.kind === 'rest')) S.honing = false; }
       else {
         S.run = null;
         if (run) S.last = run; else if ('last' in d) S.last = d.last || null;
@@ -221,6 +290,17 @@
     },
     fight() { const p = S.run && S.run.pending; if (p && p.kind === 'battle') startBattle(p.quest_run_id); },
     async choose(el) { await post('run/choose', { option: el.getAttribute('data-option') }); },
+    // A citizen's deck, opened and closed from the party strip.
+    deck(el) { const id = Number(el.getAttribute('data-citizen')); S.deckOf = S.deckOf === id ? null : id; paint(); },
+    // At the door: keep a card for that citizen, or pass (no card).
+    async 'pick-door'(el) { await post('run/pick', { citizen_id: Number(el.getAttribute('data-citizen')), card: el.getAttribute('data-card') || null }); },
+    // After a fight: keep one of the three, or pass (no index).
+    async 'pick-reward'(el) { const i = el.getAttribute('data-index'); const d = await post('run/pick', { index: i === '' ? null : Number(i) }); if (d && d.took) toast(`🃏 ${d.took.card.name} added.`); },
+    // Honing: open the chooser, then send the card.
+    'hone-open'() { S.honing = true; paint(); },
+    'hone-cancel'() { S.honing = false; paint(); },
+    async hone(el) { const d = await post('run/choose', { option: 'hone', citizen_id: Number(el.getAttribute('data-citizen')), card: el.getAttribute('data-card') }); if (d) { S.honing = false; toast('✦ Honed.'); paint(); } },
+    cards() { openCards(); },
     async leave() {
       const run = S.run; if (!run) return;
       const ok = await confirmed({ title: 'Turn back?', message: `The party leaves ${run.dungeon.name} and keeps everything it has found: ${lootLine(run.loot, 'nothing so far')}. Your town cannot enter this dungeon again.`, ok: 'Turn back' });
@@ -249,6 +329,46 @@
       onClose() { S.win = null; },
     });
     return S.win;
+  }
+
+  // ── Class cards: what each class starts with, what the town has unlocked,
+  //    and what is prepared (offered at the door and after fights) ─────────
+  function collectionHtml(data, cls) {
+    const c = ((data && data.classes) || []).find(x => x.cls === cls) || ((data && data.classes) || [])[0];
+    if (!c) return '<p class="kw-empty">No class cards.</p>';
+    const toggle = k => k.basic ? '' : `<label class="kwdg-prep"><input type="checkbox" data-action="prepare" data-card="${esc(k.key)}"${k.prepared ? ' checked' : ''}${k.owned ? '' : ' disabled'}> Prepared</label>`;
+    const row = (k, lead) => `<div class="kwdg-coll-row${k.owned ? '' : ' is-locked'}" role="listitem">${cardHtml(k)}`
+      + `<div class="kwdg-coll-side">${lead || ''}${k.owned ? toggle(k) : `<span class="kwdg-locked">🔒 ${esc(k.how || 'Not unlocked yet')}</span>`}</div></div>`;
+    return `<div class="kwdg kwdg-coll">`
+      + `<p class="kwdg-intro">A ${esc(c.label)} walks into a dungeon with the pack below. At the door, and after each fight, they are offered cards from what is <b>prepared</b>: untick a card and it is never offered.</p>`
+      + `<div class="kw-box"><div class="kw-box-title">${esc(c.icon)} The ${esc(c.label)} pack</div><div role="list">${c.pack.map(k => row(k)).join('')}</div></div>`
+      + (c.trades.length ? `<div class="kw-box"><div class="kw-box-title">Trade cards: two copies, by the kind of job</div><div role="list">${c.trades.map(k => row(k, `<span class="kwdg-kind">${esc(k.kind)}</span>`)).join('')}</div></div>` : '')
+      + (c.more.length ? `<div class="kw-box"><div class="kw-box-title">${cls === 'villager' ? 'Plain cards any villager can be offered' : 'Cards the town can unlock'}</div><div role="list">${c.more.map(k => row(k)).join('')}</div></div>` : '')
+      + `</div>`;
+  }
+  async function loadCards() {
+    try { const res = await global.apiFetch('/api/dungeons/cards'); const d = await res.json(); if (res.ok && d.ok) S.cards = d; } catch (e) { /* keep what we have */ }
+    return S.cards;
+  }
+  async function openCards() {
+    await loadCards();
+    if (!global.KWWindow) return null;
+    const classes = (S.cards && S.cards.classes) || [];
+    return global.KWWindow.open({
+      id: 'dungeon-cards', title: 'Class cards', subtitle: 'What each class brings into a dungeon', icon: '🃏', size: 'L',
+      tabs: classes.map(c => ({ key: c.cls, label: c.label })), tab: classes[0] ? classes[0].cls : undefined,
+      render(body, state, w) { body.innerHTML = collectionHtml(S.cards, w && w.tab ? w.tab : (classes[0] || {}).cls); },
+      actions: {
+        async prepare(el, ev, w) {
+          try {
+            const res = await global.apiFetch('/api/dungeons/cards/prepare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card: el.getAttribute('data-card'), prepared: !!el.checked }) });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.ok) S.cards = d; else toast('⚠️ ' + (d.error || 'That did not work. Try again.'));
+          } catch (e) { toast('⚠️ Could not reach the server.'); }
+          if (w) w.refresh();
+        },
+      },
+    });
   }
 
   // ── The battle screen asks (js/combat-ui.js) ────────────────────────────
@@ -300,6 +420,9 @@
           + `<button type="button" class="cheat-all-btn" data-kwdg="idle">Leave it idle for a day (ends the run)</button>`
         : `<div class="cheat-desc">No party is in a dungeon.${d.last ? ' The last run: ' + esc((ENDINGS[d.last.status] || {}).title || d.last.status) + '.' : ''}</div>`
           + (d.last ? `<button type="button" class="cheat-all-btn" data-kwdg="open">See how the last run ended</button>` : ''))
+      + `<div class="cheat-section-label" style="margin-top:10px">Class cards</div>`
+      + `<div class="cheat-desc">Every citizen brings their own deck: the pack for their class, or the Villager pack. This shows each pack, what the town has unlocked, and what is prepared.</div>`
+      + `<button type="button" class="cheat-all-btn" data-kwdg="cards">Open the class cards</button>`
       + `<div class="cheat-desc" style="margin-top:10px">Creature health and strength per skull, rest healing, the flee share and idle hours are under 👪 Life → Dungeons.</div>`
       + `<div class="cheat-rel-feedback" id="kwdg-dev-msg" role="status"></div>`;
   }
@@ -329,6 +452,7 @@
     const say = m => { const e = doc.getElementById('kwdg-dev-msg'); if (e) e.textContent = m; };
     try {
       if (a === 'open') { if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu(); return void open(); }
+      if (a === 'cards') { if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu(); return void openCards(); }
       if (a === 'switch') await devCall('POST', 'switch', { on: t.getAttribute('data-on') === '1' });
       else if (a === 'start') {
         const d = await devCall('POST', 'test', { story: t.getAttribute('data-story') });
@@ -351,8 +475,9 @@
   }
 
   global.KWDungeon = {
-    open, load, flee, fleeFromBattle, battleResult, devOpen,
+    open, load, flee, fleeFromBattle, battleResult, devOpen, openCards,
     current: () => S.run,
+    _cardHtml: cardHtml, _deckHtml: deckHtml, _doorHtml: doorHtml, _rewardHtml: rewardHtml, _honeHtml: honeHtml, _collectionHtml: collectionHtml,
     _lootLine: lootLine, _subtitle: subtitle, _roomWords: roomWords, _partyHtml: partyHtml, _mapHtml: mapHtml,
     _pendingHtml: pendingHtml, _runHtml: runHtml, _endHtml: endHtml, _devHtml: devHtml, _take: take, _state: S, ENDINGS,
   };

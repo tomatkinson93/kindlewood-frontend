@@ -78,6 +78,61 @@
 }
 #combat-modal .cm-dungeon-flee:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 
+/* ── Cards (class decks: docs/DUNGEON_CLASS_DECKS.md) ───────────── */
+.kwdg-cards { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); align-items: stretch; }
+.kwdg-card {
+  position: relative; box-sizing: border-box;
+  width: 148px; min-height: 96px; padding: var(--kw-s-2) var(--kw-s-2) var(--kw-s-2) 34px;
+  display: flex; flex-direction: column; gap: 2px; text-align: left;
+  background: var(--kw-wood-2); color: var(--kw-cream);
+  border: 1px solid var(--kw-gold-dim); border-left: 4px solid var(--kw-bad); border-radius: var(--kw-radius);
+  font-family: var(--kw-font-body); font-size: var(--kw-fs-2);
+}
+.kwdg-card-defense { border-left-color: var(--kw-focus); }
+.kwdg-card-support { border-left-color: var(--kw-good); }
+.kwdg-card.is-honed { border-color: var(--kw-gold); box-shadow: 0 0 0 1px var(--kw-gold-dim) inset; }
+.kwdg-card.is-basic { opacity: .85; }
+button.kwdg-card { cursor: pointer; }
+button.kwdg-card:hover { background: var(--kw-border); border-color: var(--kw-gold); }
+button.kwdg-card:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwdg-card-cost {
+  position: absolute; left: 6px; top: 8px; width: 22px; height: 22px; line-height: 22px; text-align: center;
+  border-radius: 50%; background: var(--kw-gold-btn); color: var(--kw-on-gold); font-weight: 700; font-size: var(--kw-fs-1);
+}
+.kwdg-card-name { font-family: var(--kw-font-title); color: var(--kw-gold); font-size: var(--kw-fs-2); line-height: 1.15; }
+.kwdg-card-name i { font-style: normal; color: var(--kw-muted); font-family: var(--kw-font-body); }
+.kwdg-card-text { line-height: 1.2; }
+.kwdg-card-reach, .kwdg-card-tag, .kwdg-card-for { font-size: var(--kw-fs-1); color: var(--kw-muted); line-height: 1.2; }
+.kwdg-card-tag { color: var(--kw-warn); }
+.kwdg-card-for { margin-top: auto; color: var(--kw-cream); font-weight: 600; }
+
+/* A citizen's place in the party strip opens their deck. */
+.kwdg-member-deck {
+  margin-top: var(--kw-s-1); padding: 2px 0; width: 100%; text-align: left;
+  background: none; border: 0; color: var(--kw-gold); cursor: pointer;
+  font-family: var(--kw-font-body); font-size: var(--kw-fs-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kwdg-member-deck:hover { text-decoration: underline; }
+.kwdg-member-deck:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwdg-deck .kw-box-title { display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-2); }
+
+/* A choice of cards: at the door, after a fight, when honing. */
+.kwdg-pick-row { display: flex; gap: var(--kw-s-3); align-items: flex-start; padding: var(--kw-s-2) 0; border-top: 1px solid var(--kw-line); }
+.kwdg-pick-who { flex: none; width: 110px; padding-top: var(--kw-s-2); color: var(--kw-cream); font-weight: 600; overflow-wrap: anywhere; }
+.kwdg-pick-row.is-done { opacity: .7; }
+.kwdg-pick-done { padding-top: var(--kw-s-2); color: var(--kw-good); }
+.kwdg-pick .kwdg-cards .kw-btn { align-self: center; }
+
+/* The class cards window: each card with whether it is prepared. */
+.kwdg-coll-row { display: flex; gap: var(--kw-s-3); align-items: center; padding: var(--kw-s-1) 0; }
+.kwdg-coll-row .kwdg-card { flex: none; width: 220px; min-height: 0; }
+.kwdg-coll-row.is-locked .kwdg-card { opacity: .55; }
+.kwdg-coll-side { display: flex; flex-direction: column; gap: 2px; font-size: var(--kw-fs-2); color: var(--kw-muted); min-width: 0; }
+.kwdg-prep { display: inline-flex; align-items: center; gap: var(--kw-s-2); color: var(--kw-cream); cursor: pointer; min-height: 28px; }
+.kwdg-prep input { width: 18px; height: 18px; accent-color: var(--kw-gold-btn); }
+.kwdg-kind { text-transform: capitalize; color: var(--kw-gold); }
+.kwdg-locked { color: var(--kw-muted); }
+
 /* ── Dev Tools → Dungeons: skull, land and seed in one row ──────── */
 .kwdg-dev-row { display: flex; flex-wrap: wrap; gap: var(--kw-s-3); align-items: end; margin: var(--kw-s-2) 0; }
 .kwdg-dev-row label { display: flex; flex-direction: column; gap: var(--kw-s-1); font-size: var(--kw-fs-1); color: var(--kw-muted); }
@@ -91,4 +146,10 @@
   .kwdg-room.kwdg-boss { width: 60px; height: 60px; }
   .kwdg-option { flex-direction: column; align-items: flex-start; gap: var(--kw-s-1); }
   .kwdg-foot .kw-btn, .kwdg-btns .kw-btn { min-height: var(--kw-touch); }
+  .kwdg-card { width: calc(50% - var(--kw-s-1)); }
+  .kwdg-pick-row { flex-direction: column; gap: var(--kw-s-1); }
+  .kwdg-pick-who { width: auto; padding-top: 0; }
+  .kwdg-coll-row { flex-direction: column; align-items: stretch; }
+  .kwdg-coll-row .kwdg-card { width: 100%; }
+  .kwdg-prep { min-height: var(--kw-touch); }
 }
