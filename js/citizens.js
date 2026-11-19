@@ -19,7 +19,7 @@ const ROLE_ICONS = {
   farmer: '🌾', woodcutter: '🪓', fisher: '🎣', miner: '⛏',
   crafter: '🔨', scout: '🗺', soldier: '⚔️', idle: '💤',
   tavernkeep: '🍺', merchant: '⚖️', shopkeeper: '🏪',
-  forager: '🍄', archer: '🏹', porter: '🎒',
+  forager: '🍄', archer: '🏹', porter: '🎒', wizard: '🔮', hearthkeeper: '🔥',
 };
 const TRAIT_ICONS = {
   strong:'💪', quick:'⚡', hardy:'🛡', genius:'🧠', charming:'✨',

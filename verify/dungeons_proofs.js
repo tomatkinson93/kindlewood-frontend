@@ -200,5 +200,17 @@ console.log('9. Dev Tools');
   check('9g. the admin routes are the ones used', /apiFetch\('\/api\/dungeons\/admin\/' \+ path/.test(J) && ["devCall('GET', 'status')", "devCall('POST', 'test'", "devCall('POST', 'win')", "devCall('POST', 'heal')", "devCall('POST', 'sweep', { idle_run: true })", "devCall('POST', 'switch'"].every(s => J.includes(s)));
 }
 
+console.log('10. The class buildings in the Home scene');
+{
+  const SV = read('js/settlement-view.js'), VE = read('js/villager-engine.js'), CZ = read('js/citizens.js');
+  check('10a. the Hearth Shrine has a plot in Town and a look', /id:'town-shrine',\s+area:'town',[^}]*accepts:\['hearth_shrine'\]/.test(SV) && /hearth_shrine: *\{ emoji:/.test(SV));
+  check('10b. the Wizard\'s Tower has a plot in the Outskirts and a look', /id:'out-tower',\s+area:'outskirts',[^}]*accepts:\['wizard_tower'\]/.test(SV) && /wizard_tower: *\{ emoji:/.test(SV));
+  check('10c. Wizards and Hearthkeepers walk to their own buildings', /wizard: 'wizard_tower', hearthkeeper: 'hearth_shrine'/.test(VE));
+  check('10d. both jobs have an icon on a citizen\'s card', /wizard: '🔮', hearthkeeper: '🔥'/.test(CZ));
+  const slots = [...SV.matchAll(/\{ id:'([a-z-]+)',\s+area:'(town|outskirts)',\s+x:([\d.]+),\s+y:([\d.]+)/g)].map(m => ({ id: m[1], area: m[2], x: +m[3], y: +m[4] }));
+  const near = slots.filter(a => slots.some(b => b !== a && b.area === a.area && b.y === a.y && Math.abs(b.x - a.x) < 10));
+  check('10e. no two plots in a row stand closer than a tenth of the field', slots.length === 20 && near.length === 0, near.map(q => q.id).join());
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

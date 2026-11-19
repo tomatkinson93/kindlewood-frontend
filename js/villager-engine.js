@@ -50,7 +50,7 @@
   const CAP = { desktop: 14, phone: 8 };
   // A job's building (the server's ROLE_BUILDING_MAP, plus foragers).
   const ROLE_BUILDING = { farmer: 'farm', woodcutter: 'lumber_camp', scout: 'scout_post', miner: 'mine', fisher: 'fishing_post',
-    soldier: 'watchtower', archer: 'watchtower', tavernkeep: 'tavern', blacksmith: 'smithy', jeweller: 'jeweller',
+    soldier: 'watchtower', archer: 'watchtower', wizard: 'wizard_tower', hearthkeeper: 'hearth_shrine', tavernkeep: 'tavern', blacksmith: 'smithy', jeweller: 'jeweller',
     carpenter: 'workshop', smelter: 'smelter', scholar: 'library', forager: 'forager_hut' };
   const SPEED = { adult: 40, elder: 30, child: 55 };
   const IDLE_MS = [3000, 10000];

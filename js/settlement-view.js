@@ -51,6 +51,7 @@ const SV_SLOTS = [
   { id:'town-smithy',        area:'town',      x:39,  y:92, accepts:['smithy'],        label:'Forge Lane',    size:'md' },
   { id:'town-market',        area:'town',      x:58,  y:92, accepts:['market'],        label:'Market Row',    size:'md' },
   { id:'town-jeweller',      area:'town',      x:77,  y:92, accepts:['jeweller'],      label:'Gem Corner',    size:'md' },
+  { id:'town-shrine',        area:'town',      x:89,  y:92, accepts:['hearth_shrine'], label:'Ember Court',   size:'md' },
   // The Outskirts.
   { id:'out-watchtower',     area:'outskirts', x:10,  y:56, accepts:['watchtower'],    label:'The Palisade',  size:'md' },
   { id:'out-lumber',         area:'outskirts', x:28,  y:56, accepts:['lumber_camp'],   label:'The Woodlands', size:'md' },
@@ -61,6 +62,7 @@ const SV_SLOTS = [
   { id:'out-farm',           area:'outskirts', x:38,  y:92, accepts:['farm'],          label:'Open Fields',   size:'md' },
   { id:'out-fishing',        area:'outskirts', x:57,  y:92, accepts:['fishing_post'],  label:'Riverside',     size:'md' },
   { id:'out-smelter',        area:'outskirts', x:76,  y:92, accepts:['smelter'],       label:'Furnace Row',   size:'md' },
+  { id:'out-tower',          area:'outskirts', x:87,  y:92, accepts:['wizard_tower'],  label:'Lonely Rise',   size:'md' },
 ];
 
 // ── Building visual config ────────────────────────────────────────────────────
@@ -85,6 +87,8 @@ const SV_VISUALS = {
   library:       { emoji:'📚',        bodyColor:'#4f4a6a', roofColor:'#2f2b48', flavor:'Candles, ink and the scratch of quills.' },
   walls:         { emoji:'🧱',        bodyColor:'#6b6256', roofColor:'#4a433a', flavor:'Stakes, then stone, then more stone.' },
   watchtower:    { emoji:'🗼',        bodyColor:'#5e5040', roofColor:'#3c3226', flavor:'A lantern burns at the top all night.' },
+  hearth_shrine: { emoji:'🕯️',        bodyColor:'#8a5a3c', roofColor:'#a8442a', flavor:'The first fire, never let go out.' },
+  wizard_tower:  { emoji:'🔮',        bodyColor:'#4a4670', roofColor:'#2c2a52', flavor:'Odd lights in the top window, most nights.' },
   scout_post:    { emoji:'\u{1F5FA}️', bodyColor:'#5a5040', roofColor:'#3a3428', flavor:"The settlement's watchful eye." },
 };
 
