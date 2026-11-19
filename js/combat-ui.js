@@ -20,6 +20,9 @@
   let _battle = null;
   let _selectedAction = null;     // 'attack' | 'defend' | 'skill' (when waiting for target)
   let _pendingCard = null;        // { handIndex, card } when awaiting a card target
+  // Aiming, while a unit-targeting card is selected: the unit under the
+  // pointer (if the card can be played on it) and where the pointer is.
+  const _aim = { id: null, x: null, y: null, raf: 0 };
   let _animateNextDeal = false;   // animate the hand deal-in on the next render
   let _aiTimer = null;
   let _onUnsubscribe = null;
@@ -445,6 +448,7 @@
     if (_aiTimer) { clearTimeout(_aiTimer); _aiTimer = null; }
     if (_onUnsubscribe) { _onUnsubscribe(); _onUnsubscribe = null; }
     _pendingCard = null;
+    _applyAim();   // no card selected: the rings, the arrow and the line go
     if (typeof CardHandUI !== 'undefined') { try { CardHandUI.unmount(); } catch(e) {} }
     const modal = document.getElementById('combat-modal');
     if (modal) modal.style.display = 'none';
@@ -593,6 +597,7 @@
         <div class="cm-scene" id="cm-scene">
           <div class="cm-fog"></div>
           <div class="cm-vignette"></div>
+          <div class="cm-aim-banner" id="cm-aim-banner" role="status" aria-live="polite" style="display:none"></div>
           <div class="cm-scene-header">
             <div class="cm-scene-title" id="cm-scene-title">A Battle</div>
             <div class="cm-scene-round" id="cm-scene-round">Round 1</div>
@@ -634,6 +639,113 @@
       </div>
     `;
     document.body.appendChild(root);
+    // The aiming arrow: one path over the whole screen, never in the way of a click.
+    root.insertAdjacentHTML('beforeend', '<svg class="cm-aim" id="cm-aim" aria-hidden="true" focusable="false" style="display:none">'
+      + '<defs><marker id="cm-aim-head" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>'
+      + '<path class="cm-aim-line" d="" marker-end="url(#cm-aim-head)"/></svg>');
+    _wireAim(root);
+  }
+
+  // ── Aiming: who the selected card would hit ──────────────────────────────
+  // While a card that is played on a unit is selected:
+  //   - every unit it could be played on stands in a ring;
+  //   - the one under the pointer is marked as aimed, with anyone else the
+  //     card would hit along with it (the whole line for an area card, the
+  //     units behind for a piercing one);
+  //   - an arrow runs from the card to it (or to the pointer, until it is
+  //     over someone), and a line in the scene says who in words.
+  // Nothing here plays anything: a click still goes through combatSelectTarget.
+  function _aimHits(unitId) {
+    if (!_battle || !_pendingCard || !_pendingCard.targetsUnits || !unitId) return [];
+    const CC = window.CARD_COMBAT, Eng = E();
+    const cur = Eng && Eng.currentUnit(_battle);
+    const card = _pendingCard.card || {};
+    if (!CC || !CC.validTargets || !cur) return [unitId];
+    const valid = CC.validTargets(_battle, cur, card).map(u => u.id);
+    if (valid.indexOf(unitId) === -1) return [];
+    const D = window.CARD_REGISTRY || window.CARD_DEFS;
+    const mode = (D && D.targetMode) ? D.targetMode(card) : null;
+    if (mode && mode.aoe) return valid;
+    if (card.hit === 'pierce') {
+      const t = _battle.units.find(u => u.id === unitId);
+      const line = _battle.units.filter(u => u.side === t.side && !u.flags.downed && u.hp > 0).sort((a, b) => (a.pos || 0) - (b.pos || 0));
+      return line.slice(0, card.pierce_count != null ? card.pierce_count : line.length).map(u => u.id);
+    }
+    return [unitId];
+  }
+  function _aimLine(hitIds) {
+    const card = (_pendingCard && _pendingCard.card) || {};
+    const name = card.name || 'this card';
+    if (!hitIds.length) return '🎯 ' + name + ': choose a target';
+    const names = hitIds.map(id => { const u = _battle.units.find(x => x.id === id); return u ? u.name : ''; }).filter(Boolean);
+    const who = names.length > 3 ? names.length + ' targets' : names.length <= 1 ? (names[0] || '') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    return '🎯 ' + name + ' → ' + who;
+  }
+  function _applyAim() {
+    const modal = document.getElementById('combat-modal');
+    if (!modal) return;
+    const aiming = !!(_battle && _battle.status === 'active' && _pendingCard && _pendingCard.targetsUnits);
+    if (!aiming) _aim.id = null;
+    const hits = aiming ? _aimHits(_aim.id) : [];
+    if (aiming && _aim.id && !hits.length) _aim.id = null;
+    modal.classList.toggle('cm-aiming', aiming);
+    modal.querySelectorAll('.cm-bf-sprite, .cm-unit').forEach(n => {
+      const id = n.getAttribute('data-sprite-id') || n.getAttribute('data-unit-id');
+      n.classList.toggle('is-aimed', hits.indexOf(id) !== -1);
+    });
+    const banner = document.getElementById('cm-aim-banner');
+    if (banner) {
+      const text = aiming ? _aimLine(hits) : '';
+      if (banner.textContent !== text) banner.textContent = text;
+      banner.style.display = aiming ? '' : 'none';
+      banner.classList.toggle('is-locked', hits.length > 0);
+    }
+    _drawAimArrow(aiming, hits);
+  }
+  // The arrow: from the top of the selected card to the aimed unit's sprite,
+  // or to the pointer while it is over nobody.
+  function _drawAimArrow(aiming, hits) {
+    const svg = document.getElementById('cm-aim');
+    if (!svg) return;
+    const cardEl = aiming ? document.querySelector('#combat-modal .kw-card.kw-card-pending') : null;
+    let to = null, locked = false;
+    if (aiming && _aim.id && hits.length) {
+      const sp = document.querySelector('#combat-modal .cm-bf-sprite[data-sprite-id="' + _aim.id + '"]');
+      if (sp) { const r = sp.getBoundingClientRect(); to = { x: r.left + r.width / 2, y: r.top + r.height * 0.55 }; locked = true; }
+    }
+    if (!to && aiming && _aim.x != null) to = { x: _aim.x, y: _aim.y };
+    if (!cardEl || !to) { svg.style.display = 'none'; return; }
+    const c = cardEl.getBoundingClientRect();
+    const from = { x: c.left + c.width / 2, y: c.top + 6 };
+    if (!locked && to.y > from.y - 20) { svg.style.display = 'none'; return; }   // the pointer is still down among the cards
+    const mx = (from.x + to.x) / 2, my = Math.min(from.y, to.y) - Math.max(40, Math.abs(to.x - from.x) * 0.18);
+    const path = svg.querySelector('.cm-aim-line');   // not the arrowhead's own path, which comes first
+    path.setAttribute('d', 'M' + from.x.toFixed(1) + ' ' + from.y.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + to.x.toFixed(1) + ' ' + to.y.toFixed(1));
+    const t = locked ? _battle.units.find(u => u.id === _aim.id) : null;
+    svg.setAttribute('class', 'cm-aim' + (locked ? ' is-locked' : '') + (t && t.side === 'player' ? ' is-ally' : ''));
+    svg.style.display = '';
+  }
+  function _wireAim(root) {
+    const pick = e => {
+      const n = e.target && e.target.closest ? e.target.closest('.cm-bf-sprite.is-targetable, .cm-unit.is-targetable') : null;
+      return n ? (n.getAttribute('data-sprite-id') || n.getAttribute('data-unit-id')) : null;
+    };
+    const over = e => { if (!_pendingCard || !_pendingCard.targetsUnits) return; const id = pick(e); if (id && id !== _aim.id) { _aim.id = id; _applyAim(); } };
+    const out = e => {
+      if (!_aim.id) return;
+      const to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('.cm-bf-sprite.is-targetable, .cm-unit.is-targetable') : null;
+      const toId = to ? (to.getAttribute('data-sprite-id') || to.getAttribute('data-unit-id')) : null;
+      if (toId !== _aim.id) { _aim.id = toId; _applyAim(); }
+    };
+    root.addEventListener('mouseover', over);
+    root.addEventListener('focusin', over);
+    root.addEventListener('mouseout', out);
+    root.addEventListener('focusout', out);
+    root.addEventListener('mousemove', e => {
+      _aim.x = e.clientX; _aim.y = e.clientY;
+      if (!_pendingCard || !_pendingCard.targetsUnits || _aim.raf) return;
+      _aim.raf = requestAnimationFrame(() => { _aim.raf = 0; _drawAimArrow(!!(_pendingCard && _pendingCard.targetsUnits), _aimHits(_aim.id)); });
+    });
   }
 
   function _showModal(sceneKey) {
@@ -688,6 +800,10 @@
       _animateNextDeal = false;
       _updateEndTurnButton();
     }
+    // Who the selected card is aimed at (the hand redraws on the next frame,
+    // so the arrow is placed again once the selected card is in its place).
+    _applyAim();
+    if (_pendingCard && _pendingCard.targetsUnits) requestAnimationFrame(() => requestAnimationFrame(_applyAim));
   }
 
   // The End Turn button lives in the initiative row (built once in the modal).
@@ -1020,7 +1136,9 @@
     const targetClass = isTargetable ? ' is-targetable' : '';
     const defendClass = unit.flags.defending ? ' is-defending' : '';
 
-    const onClick = isTargetable ? `onclick="combatSelectTarget('${unit.id}')"` : '';
+    const onClick = isTargetable
+      ? `onclick="combatSelectTarget('${unit.id}')" tabindex="0" role="button" aria-label="Play the selected card on ${_escapeHtml(unit.name)}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();combatSelectTarget('${unit.id}')}"`
+      : '';
 
     // Portrait. For citizens we show the species sprite (/assets/sprites/
     // <species>.png) and fall back to the initial medallion if the image is
@@ -1174,8 +1292,9 @@
     if (_battle.uses_cards) {
       if (_pendingCard) {
         const cardName = _pendingCard.card && _pendingCard.card.name ? _pendingCard.card.name : 'card';
-        root.innerHTML = '<div class="cm-actor-prompt cm-targeting">Choose a target for <b>' +
-          _escapeHtml(cardName) + '</b> \u2014 or click the card again to cancel.</div>';
+        root.innerHTML = _pendingCard.targetsUnits
+          ? '<div class="cm-actor-prompt cm-targeting">Choose a target for <b>' + _escapeHtml(cardName) + '</b> \u2014 or click the card again to cancel.</div>'
+          : '<div class="cm-actor-prompt cm-targeting">Click <b>' + _escapeHtml(cardName) + '</b> again to play it \u2014 or pick another card.</div>';
       } else {
         root.innerHTML = `<div class="cm-actor-prompt"><b>${_escapeHtml(cur.name)}</b>'s turn — play cards below.</div>`;
       }

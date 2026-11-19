@@ -433,7 +433,7 @@ console.log('14. The new look (docs/ART_GUIDE.md)');
     && /\.sv-build-mode \.sv-slot \{ touch-action: none; \}/.test(CSS));
   check('14h. the far strips pan a little slower (the only depth), and only with the pan', /pan: 0\.45/.test(S2) && /pan: 0\.75/.test(S2) && /el\.dataset\.pan/.test(S2));
   const slots = [...S2.matchAll(/\{ id:'([a-z-]+)',\s+area:'(town|outskirts)',\s+x:([\d.]+),\s+y:([\d.]+)/g)].map(m => ({ id: m[1], area: m[2], x: +m[3], y: +m[4] }));
-  check('14i. slots for a flat field: two rows, feet in the meadow (back row under the tree line)', slots.length === 18 && slots.every(q => q.y >= 50 && q.y <= 95 && q.x > 2 && q.x < 98)
+  check('14i. slots for a flat field: two rows, feet in the meadow (back row under the tree line)', slots.length === 20 && slots.every(q => q.y >= 50 && q.y <= 95 && q.x > 2 && q.x < 98)
     && new Set(slots.map(q => q.y)).size === 2 && /\.sv-world \.sv-slot \{ transform: translate\(-50%, -100%\); \}/.test(CSS));
   check('14j. the old hand-made layout is not carried over (new keys)', /'sv_slot_positions_v2'/.test(S2) && /'sv_slot_sizes_v2'/.test(S2));
   check('14k. smooth art: buildings are never pixelated; only villagers are', !/kwh-native \{ image-rendering: pixelated/.test(CSS) && /image-rendering: pixelated/.test(VJ));

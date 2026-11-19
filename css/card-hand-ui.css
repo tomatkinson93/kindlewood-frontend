@@ -193,6 +193,71 @@
   box-shadow: 0 0 0 3px #ffe6a3, 0 0 26px #f4c95daa !important;
 }
 
+/* ── Aiming (js/combat-ui.js _applyAim) ────────────────────────────────
+   A card that is played on a unit is selected. Every unit it could be played
+   on stands in a ring on the ground; the one under the pointer (and anyone
+   else the card would hit with it) is marked as aimed; an arrow runs from the
+   card to it; and a line at the top of the scene says who, in words. */
+#combat-modal .cm-bf-sprite.is-targetable::after {
+  content: ''; position: absolute; left: 50%; bottom: -8px;
+  width: 72%; max-width: 150px; height: 18px; transform: translateX(-50%);
+  border: 2px dashed var(--kw-gold); border-radius: 50%;
+  opacity: .75; pointer-events: none;
+}
+#combat-modal .cm-bf-sprite.is-aimed { animation: none; transform: translateY(-4px) scale(1.08); }
+#combat-modal .cm-bf-sprite.face-left.is-aimed {
+  filter: drop-shadow(0 0 14px var(--kw-bad)) drop-shadow(0 0 4px var(--kw-cream)) drop-shadow(0 8px 10px rgba(0,0,0,.6));
+}
+#combat-modal .cm-bf-sprite.face-right.is-aimed {
+  filter: drop-shadow(0 0 14px var(--kw-good)) drop-shadow(0 0 4px var(--kw-cream)) drop-shadow(0 8px 10px rgba(0,0,0,.6));
+}
+#combat-modal .cm-bf-sprite.is-aimed::after {
+  border: 4px solid var(--kw-bad); opacity: 1; height: 22px; bottom: -10px; width: 80%; max-width: 168px;
+  box-shadow: 0 0 14px var(--kw-bad), inset 0 0 8px var(--kw-bad);
+}
+#combat-modal .cm-bf-sprite.face-right.is-aimed::after {
+  border-color: var(--kw-good); box-shadow: 0 0 14px var(--kw-good), inset 0 0 8px var(--kw-good);
+}
+/* The aimed unit's info card says so too. */
+#combat-modal .cm-unit.is-aimed {
+  animation: none;
+  box-shadow: 0 0 0 3px var(--kw-bad), 0 0 26px var(--kw-bad) !important;
+}
+#combat-modal .cm-side-player .cm-unit.is-aimed, #combat-modal .cm-unit.is-aimed.is-ally {
+  box-shadow: 0 0 0 3px var(--kw-good), 0 0 26px var(--kw-good) !important;
+}
+#combat-modal .cm-unit.is-targetable:focus-visible { outline: 3px solid var(--kw-focus); outline-offset: 3px; }
+/* The arrow from the selected card. */
+#combat-modal .cm-aim {
+  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 8000; overflow: visible;
+}
+#combat-modal .cm-aim .cm-aim-line {
+  fill: none; stroke: var(--kw-gold); stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 3 12; opacity: .75;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,.8));
+}
+#combat-modal .cm-aim marker path { fill: var(--kw-gold); stroke: none; opacity: 1; filter: none; }
+#combat-modal .cm-aim.is-locked .cm-aim-line { stroke: var(--kw-bad); stroke-dasharray: none; stroke-width: 6; opacity: 1; }
+#combat-modal .cm-aim.is-locked marker path { fill: var(--kw-bad); }
+#combat-modal .cm-aim.is-locked.is-ally .cm-aim-line { stroke: var(--kw-good); }
+#combat-modal .cm-aim.is-locked.is-ally marker path { fill: var(--kw-good); }
+/* Who, in words. */
+#combat-modal .cm-aim-banner {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+  z-index: 6; max-width: 70%;
+  padding: 6px 16px; border-radius: 999px;
+  background: var(--kw-ink); color: var(--kw-gold);
+  border: 1px solid var(--kw-gold-dim);
+  font-family: var(--kw-font-body); font-size: var(--kw-fs-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+#combat-modal .cm-aim-banner.is-locked { color: var(--kw-cream); border-color: var(--kw-bad); box-shadow: 0 0 12px var(--kw-bad); }
+@media (prefers-reduced-motion: reduce) {
+  #combat-modal .cm-bf-sprite.is-targetable, #combat-modal .cm-unit.is-targetable { animation: none; }
+}
+
 /* ── Pile buttons (Draw / Discard / Exhaust) ───────────────────────────── */
 .kw-pile-btn {
   background: rgba(40,33,20,.7); border: 1px solid #50432a; color: #d8c9a0;
