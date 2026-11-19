@@ -80,6 +80,7 @@
 
 /* ── Cards (class decks: docs/DUNGEON_CLASS_DECKS.md) ───────────── */
 .kwdg-cards { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); align-items: stretch; }
+.kwdg-cards + .kwdg-btns { margin-top: var(--kw-s-3); }
 .kwdg-card {
   position: relative; box-sizing: border-box;
   width: 148px; min-height: 96px; padding: var(--kw-s-2) var(--kw-s-2) var(--kw-s-2) 34px;

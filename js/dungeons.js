@@ -30,7 +30,7 @@
   const doc = global.document;
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const toast = (m, t) => { if (typeof global.showToastNotification === 'function') global.showToastNotification(m, t || 'default'); };
-  // deckOf: the citizen whose deck is open; honing: choosing a card to hone at a rest.
+  // deckOf: the citizen whose deck is open; honing: choosing a card to hone (at a rest, or in place of a fight's card).
   const S = { on: false, run: null, last: null, busy: false, win: null, deckOf: null, honing: false, cards: null };
   const LANES = 3;
 
@@ -107,12 +107,16 @@
     return `<div class="kw-box kwdg-pending kwdg-pick"><div class="kw-box-title">🃏 From the fight: keep one card</div>`
       + `<p>Each card is for the citizen named on it. The party keeps one.</p>`
       + `<div class="kwdg-cards" role="group" aria-label="Cards on offer">${p.offers.map(o => cardHtml(o.card, `data-action="pick-reward" data-index="${esc(o.index)}"`, `<span class="kwdg-card-for">for ${esc(o.name)}</span>`)).join('')}</div>`
-      + `<div class="kwdg-btns"><button type="button" class="kw-btn quiet" data-action="pick-reward" data-index="">Pass</button></div></div>`;
+      + `<div class="kwdg-btns">${p.can_hone ? `<button type="button" class="kw-btn" data-action="hone-open">✦ Hone a card instead</button>` : ''}`
+      + `<button type="button" class="kw-btn quiet" data-action="pick-reward" data-index="">Pass</button></div>`
+      + (p.can_hone ? `<p class="kw-note">Honing makes a card the party already holds about a third stronger until the run ends, in place of a new card.</p>` : '') + `</div>`;
   }
-  // Honing, in place of resting: choose one card of one citizen.
+  // Honing: choose one card of one citizen. At a rest room the party rests as
+  // well; after a fight it is in place of the card on offer.
   function honeHtml(run) {
+    const reward = !!(run.pending && run.pending.kind === 'reward');
     return `<div class="kw-box kwdg-pending kwdg-pick"><div class="kw-box-title">✦ Hone a card</div>`
-      + `<p>Choose one card. It becomes about a third stronger until the run ends. The party does not rest.</p>`
+      + `<p>Choose one card. It becomes about a third stronger until the run ends. ${reward ? 'The party takes no new card from this fight.' : 'The party rests as well.'}</p>`
       + (run.party || []).filter(m => m.deck).map(m => `<div class="kwdg-pick-row"><div class="kwdg-pick-who">${esc(m.name)}</div>`
         + `<div class="kwdg-cards" role="group" aria-label="${esc(m.name)}'s cards">${m.deck.cards.filter(c => !c.honed).map(c => cardHtml(c, `data-action="hone" data-citizen="${esc(m.id)}" data-card="${esc(c.key)}"`)).join('')}</div></div>`).join('')
       + `<div class="kwdg-btns"><button type="button" class="kw-btn quiet" data-action="hone-cancel">Back</button></div></div>`;
@@ -159,9 +163,9 @@
   function pendingHtml(run) {
     const p = run.pending;
     if (!p) return '';
+    if ((p.kind === 'rest' || (p.kind === 'reward' && p.can_hone)) && S.honing) return honeHtml(run);
     if (p.kind === 'door') return doorHtml(p);
     if (p.kind === 'reward') return rewardHtml(p);
-    if (p.kind === 'rest' && S.honing) return honeHtml(run);
     if (p.kind === 'battle') {
       const here = (run.rooms || []).find(r => r.current) || {};
       const who = list((here.enemies || []).map(e => e.name));
@@ -229,7 +233,7 @@
     if ('on' in d) S.on = !!d.on;
     if ('run' in d || 'last' in d) {
       const run = d.run || null, was = S.run;
-      if (run && run.status === 'active') { S.run = run; S.last = null; if (!(run.pending && run.pending.kind === 'rest')) S.honing = false; }
+      if (run && run.status === 'active') { S.run = run; S.last = null; if (!(run.pending && (run.pending.kind === 'rest' || run.pending.kind === 'reward'))) S.honing = false; }
       else {
         S.run = null;
         if (run) S.last = run; else if ('last' in d) S.last = d.last || null;
@@ -299,7 +303,12 @@
     // Honing: open the chooser, then send the card.
     'hone-open'() { S.honing = true; paint(); },
     'hone-cancel'() { S.honing = false; paint(); },
-    async hone(el) { const d = await post('run/choose', { option: 'hone', citizen_id: Number(el.getAttribute('data-citizen')), card: el.getAttribute('data-card') }); if (d) { S.honing = false; toast('✦ Honed.'); paint(); } },
+    async hone(el) {
+      const what = { citizen_id: Number(el.getAttribute('data-citizen')), card: el.getAttribute('data-card') };
+      const reward = !!(S.run && S.run.pending && S.run.pending.kind === 'reward');
+      const d = reward ? await post('run/pick', { hone: what }) : await post('run/choose', { option: 'hone', ...what });
+      if (d) { S.honing = false; toast(reward ? '✦ Honed.' : '✦ Rested, and honed.'); paint(); }
+    },
     cards() { openCards(); },
     async leave() {
       const run = S.run; if (!run) return;
