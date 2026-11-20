@@ -1,5 +1,7 @@
 {
   "creatures": {},
   "sounds": {},
-  "music": []
+  "music": [
+    "meadow-gambit.mp3"
+  ]
 }
