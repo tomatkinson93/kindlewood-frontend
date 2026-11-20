@@ -1,15 +1,15 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   The tactics battle prototype (js/tactics.js, docs/TACTICS_PROTOTYPE.md).
+   The tactics battle prototype (js/tactics.js, docs/TACTICS.md).
    A full-screen scene: the board on a canvas, a strip above, a panel below.
    Tokens only. The board's own colours are drawn by the canvas.
    ══════════════════════════════════════════════════════════════════════════ */
 .kwtc {
   position: fixed; inset: 0; z-index: var(--z-window);
-  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top" "board" "panel";
   background: var(--kw-ink); color: var(--kw-cream);
   font-family: var(--kw-font-body); font-size: var(--kw-fs-3);
 }
-.kwtc-top { display: flex; align-items: center; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border-bottom: 1px solid var(--kw-line); background: var(--kw-wood); }
+.kwtc-top { grid-area: top; display: flex; align-items: center; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border-bottom: 1px solid var(--kw-line); background: var(--kw-wood); }
 .kwtc-title { display: flex; flex-direction: column; min-width: 0; }
 .kwtc-title b { font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwtc-title span { font-size: var(--kw-fs-1); color: var(--kw-muted); }
@@ -21,7 +21,7 @@
 .kwtc-chip.is-now { width: 38px; height: 38px; font-size: var(--kw-fs-4); border-color: var(--kw-focus); box-shadow: 0 0 0 2px var(--kw-line-2); }
 .kwtc-x { flex: none; }
 
-.kwtc-board { position: relative; min-height: 0; overflow: hidden; }
+.kwtc-board { grid-area: board; position: relative; min-height: 0; overflow: hidden; }
 .kwtc-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
 .kwtc-canvas:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: -2px; }
 .kwtc-banner {
@@ -32,6 +32,11 @@
 .kwtc-banner.is-on { opacity: 1; }
 .kwtc-turnview { position: absolute; right: var(--kw-s-3); bottom: var(--kw-s-3); display: flex; gap: var(--kw-s-2); }
 .kwtc-turnview .kw-btn { min-width: var(--kw-touch); min-height: var(--kw-touch); font-size: var(--kw-fs-4); line-height: 1; }
+/* Which way to face: four arrows set out as they point on the board. */
+.kwtc-faces { display: grid; grid-template-areas: "tl tr" "bl br"; gap: var(--kw-s-2); }
+.kwtc-face { min-width: 64px; min-height: 48px; font-size: var(--kw-fs-5); line-height: 1; }
+.kwtc-face.is-tl { grid-area: tl; } .kwtc-face.is-tr { grid-area: tr; } .kwtc-face.is-bl { grid-area: bl; } .kwtc-face.is-br { grid-area: br; }
+.kwtc-face.is-on { background: var(--kw-gold-btn); border-color: var(--kw-gold); color: var(--kw-on-gold); }
 .kwtc-end { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--kw-s-4); background: var(--kw-scrim); }
 .kwtc-end[hidden] { display: none; }
 .kwtc-end-box { max-width: 460px; width: 100%; text-align: center; box-shadow: var(--kw-shadow); }
@@ -39,7 +44,7 @@
 .kwtc-end-box .kwtc-confirm { justify-content: center; }
 
 .kwtc-panel {
-  display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); grid-template-areas: "who acts" "hint hint"; gap: var(--kw-s-2) var(--kw-s-3);
+  grid-area: panel; display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); grid-template-areas: "who acts" "hint hint"; gap: var(--kw-s-2) var(--kw-s-3);
   padding: var(--kw-s-3); border-top: 1px solid var(--kw-line); background: var(--kw-panel);
 }
 .kwtc-who { grid-area: who; min-width: 0; }
@@ -101,5 +106,24 @@
   .kwtc-turn .kw-btn, .kwtc-confirm .kw-btn { min-height: var(--kw-touch); }
   .kwtc-hint { min-height: 56px; }
   .kwtc-panel { min-height: 300px; }
+}
+/* A phone on its side: the board on the left at full height, the panel a column on the right. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .kwtc { grid-template-columns: minmax(0, 1fr) minmax(240px, 38%); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top top" "board panel"; }
+  .kwtc-top { gap: var(--kw-s-2); padding: 2px var(--kw-s-2); }
+  .kwtc-title b { font-size: var(--kw-fs-2); max-width: 26vw; }
+  .kwtc-title span, .kwtc-round { display: none; }
+  .kwtc-chip { width: 24px; height: 24px; font-size: var(--kw-fs-1); }
+  .kwtc-chip.is-now { width: 28px; height: 28px; font-size: var(--kw-fs-2); }
+  .kwtc-panel { grid-template-columns: minmax(0, 1fr); grid-template-areas: "who" "acts" "hint"; align-content: start; min-height: 0; overflow-y: auto; padding: var(--kw-s-2); gap: var(--kw-s-1); border-top: 0; border-left: 1px solid var(--kw-line); }
+  .kwtc-card { padding: 2px var(--kw-s-2); }
+  .kwtc-card-facts { display: none; }
+  .kwtc-act { flex: 1 1 45%; max-width: none; min-height: var(--kw-touch); grid-template-areas: "i n" "i t"; padding: 2px var(--kw-s-1); column-gap: var(--kw-s-1); }
+  .kwtc-act-r, .kwtc-act kbd { display: none; }
+  .kwtc-act-i { font-size: var(--kw-fs-4); }
+  .kwtc-turn .kw-btn, .kwtc-confirm .kw-btn { min-height: var(--kw-touch); }
+  .kwtc-hint { min-height: 0; font-size: var(--kw-fs-1); }
+  .kwtc-turnview { right: var(--kw-s-2); bottom: var(--kw-s-2); gap: var(--kw-s-1); }
+  .kwtc-banner { top: var(--kw-s-1); font-size: var(--kw-fs-2); }
 }
 @media (prefers-reduced-motion: reduce) { .kwtc-banner { transition: none; } }

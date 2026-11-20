@@ -159,5 +159,5 @@
 
 /* ── Phone density (<=480px) ───────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .btn-cheat { display: none; }          /* cheat menu still reachable via More */
+  .btn-cheat { display: none; }          /* Dev Tools is in the profile menu (#pm-devtools) */
 }

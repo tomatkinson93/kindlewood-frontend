@@ -261,6 +261,8 @@
 
   // ── Expose ─────────────────────────────────────────────────────────────
   global.preloadAllAudio = preloadAll;
+  // More tracks for a category, from files that are known to exist (js/tactics.js reads a manifest).
+  global.registerMusic   = (category, urls) => { if (category && Array.isArray(urls) && urls.length) TRACKS[category] = urls.slice(); };
   global.playMusic       = playMusic;
   global.stopMusic       = stopMusic;
   global.playMenuMusic   = playMenuMusic;

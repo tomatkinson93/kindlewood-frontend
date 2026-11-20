@@ -1,4 +1,4 @@
-// Proofs for the tactics battle prototype (docs/TACTICS_PROTOTYPE.md):
+// Proofs for the tactics battle prototype (docs/TACTICS.md):
 // the rules in js/tactics-engine.js, and the screen's wiring in js/tactics.js.
 //   node verify/tactics_proofs.js
 'use strict';
@@ -55,6 +55,13 @@ console.log('2. Turns and moving');
   check('2g. a unit may pass a friend but not stop there, and cannot pass a foe', R2.get('4,6').stop === false && R2.has('5,6') && !R2.has('3,7'));
   E.unit(st, 'a').st.slow = 2;
   check('2h. a slowed unit walks one step less', E.moveOf(E.unit(st, 'a')) === 2);
+  // Facing at the end of a turn.
+  st = battle([man('a', { agility: 12 })], [man('x', { agility: 5 })]);
+  put(st, 'a', 3, 6, 'n'); put(st, 'x', 6, 6, 's');
+  check('2i. left to itself a unit ends its turn watching the nearest foe', E.facingFor(st, E.unit(st, 'a')) === 'e' && (E.endTurn(st), E.unit(st, 'a').face === 'e'));
+  E.endTurn(st);
+  const turned = E.endTurn(st, 'w');
+  check('2j. …or the way its player chooses', E.unit(st, 'a').face === 'w' && turned.some(e => e.type === 'face' && e.face === 'w') && (E.endTurn(st), E.endTurn(st, 'sideways'), E.unit(st, 'a').face === 'e'));
 }
 
 console.log('3. Reach, facing and height');
@@ -178,6 +185,27 @@ console.log('7. The screen');
     && /SLOTS = \['Front, left', 'Front, right', 'Back, left', 'Back, right'\]/.test(J) && ["sel('level'", "sel('tier'", "sel('terrain'", "sel('fight'"].every(x => J.includes(x)));
   check('7l. nothing is saved: the two sides come from the admin route and the battle lives in memory', /apiFetch\('\/api\/tactics\/admin\/setup'/.test(J) && (J.match(/apiFetch\(/g) || []).length === 2);
   check('7m. on a phone the panel stacks and buttons are big enough to tap', /@media \(max-width: 640px\)[\s\S]*?\.kwtc-panel \{ grid-template-columns: minmax\(0, 1fr\);[\s\S]*?min-height: var\(--kw-touch\)/.test(CSS));
+}
+
+console.log('8. Facing, zoom, a phone on its side, art and sound');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), HTML = read('index.html');
+  check('8a. ending a turn asks which way to face: from the End turn button, and by itself once the move and the action are both used',
+    /else if \(k === 'end'\) askFacing\(\);/.test(J) && /st\.turn\.moved && st\.turn\.acted\) return askFacing\(\);/.test(J) && /await play\(E\(\)\.endTurn\(S\.state, face\)\);/.test(J));
+  check('8b. the way shown first is towards the nearest foe; the citizen turns to show the way chosen', /aimFace\(e\.facingFor\(S\.state, u\)\);/.test(J) && /S\.view\[u\.id\]\.face = dir;/.test(J));
+  check('8c. four arrows on the board and four buttons below, set out as they point; one tap ends the turn that way', /function drawFaceArrows/.test(J) && /data-kwt="face" data-dir="\$\{d\}"/.test(J) && /if \(S\.mode === 'face'\) \{ const d = faceAt\(q\.x, q\.y\); if \(d\) \{ sfx\('confirm'\); endTurn\(d\); \} return; \}/.test(J)
+    && /\.kwtc-faces \{ display: grid; grid-template-areas: "tl tr" "bl br";/.test(CSS));
+  check('8d. zoom: two fingers pinch, the wheel, + and − buttons and keys; the point under the fingers stays put', /function zoomAt\(z, sx, sy\)/.test(J) && /P\.pinch = \{ d: Math\.hypot/.test(J) && /addEventListener\('wheel'/.test(J) && /data-kwt="zoom-in"/.test(J) && /data-kwt="zoom-out"/.test(J) && /ev\.key === '\+'/.test(J));
+  check('8e. one finger (or the mouse) drags the zoomed board, and a drag is never a tap', /if \(!P\.drag && Math\.hypot\(dx, dy\) > \(S\.pointer === 'mouse' \? 6 : 10\)\) P\.drag = true;/.test(J) && /const tapped = !P\.drag && ev\.type === 'pointerup';/.test(J));
+  check('8f. zoomed all the way out the board is centred again', /if \(G\.zoom <= 1\.001\) \{ G\.px = 0; G\.py = 0; \}/.test(J));
+  check('8g. a phone on its side: the board at full height, the panel a column beside it', /@media \(orientation: landscape\) and \(max-height: 520px\) \{\s*\.kwtc \{ grid-template-columns: minmax\(0, 1fr\) minmax\(240px, 38%\);[^}]*grid-template-areas: "top top" "board panel";/.test(CSS));
+  const P = require(path.join(ROOT, 'scripts', 'pack_tactics.js'));
+  const built = P.build(), onDisk = JSON.parse(read('assets/tactics/manifest.json'));
+  check('8h. the list of art and sound is the packer\'s, and it is up to date', JSON.stringify(built) === JSON.stringify(onDisk) && Array.isArray(built.music) && typeof built.creatures === 'object' && typeof built.sounds === 'object');
+  check('8i. a creature with art is drawn from it (front or back view, mirrored), one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /away && a\.back \? a\.back : a\.front/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
+  check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\], file = own \? 'tactics\/' \+ own : STAND_IN\[name\];/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
+  check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const list = boss && forBoss\.length \? forBoss : \(rest\.length \? rest : all\);/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
+  check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
