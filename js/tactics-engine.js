@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  tactics-engine — a tactical battle on a small isometric map
-//  (docs/TACTICS_PROTOTYPE.md). A prototype, started from Dev Tools.
+//  (docs/TACTICS.md). A prototype, started from Dev Tools.
 //
 //  Pure: no DOM, no clock, no Math.random. A battle is a plain object and
 //  every change goes through move / use / endTurn, so the same seed and the

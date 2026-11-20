@@ -925,6 +925,8 @@ scattered as scenery. Clouds, smoke and the emote strip are not wired yet
 
 ### What to make, in order (updated 2026-11-17)
 
+**For battles, see `docs/TACTICS_ASSETS.md` (2026-11-20):** creature pictures, the mouse's battle animations and class looks, sounds and battle music, each with prompts and file names. Its own order of work is at its top. The list below is for the Home scene.
+
 Everything on this list has a stand-in in the game today, so the order is by
 how much each improves what the player sees.
 

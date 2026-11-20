@@ -456,7 +456,7 @@
     el.innerHTML = devHtml(DEV.data, DEV.pick);
     try { DEV.data = await devCall('GET', 'status'); take(DEV.data); } catch (e) { DEV.data = null; el.innerHTML = `<div class="cheat-desc">⚠️ ${esc(e.message)}</div>`; return; }
     el.innerHTML = devHtml(DEV.data, DEV.pick);
-    // The tactics battle prototype has its own box here (js/tactics.js).
+    // The tactics battle has its own box here (js/tactics.js).
     if (global.KWTactics && global.KWTactics.devMount) global.KWTactics.devMount(doc.getElementById('kwt-dev-box'));
   }
   async function devAct(t) {

@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════
-//  tactics — the tactics battle prototype's screen (docs/TACTICS_PROTOTYPE.md).
+//  tactics — the tactics battle's screen (docs/TACTICS.md).
 //
 //  A full-screen scene: an isometric board drawn on a canvas, the party's
 //  citizens as their villager sprites, creatures as their icons. The rules
@@ -155,7 +155,6 @@
     ASSETS.loaded = true;
     return global.fetch('/assets/tactics/manifest.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).catch(() => null).then(j => {
       if (j) { ASSETS.creatures = j.creatures || {}; ASSETS.sounds = j.sounds || {}; ASSETS.music = j.music || []; }
-      if (ASSETS.music.length && typeof global.registerMusic === 'function') global.registerMusic('TACTICS', ASSETS.music.map(f => '/assets/audio/tactics/music/' + f));
       return ASSETS;
     });
   }
@@ -170,7 +169,11 @@
   function music(on) {
     try {
       if (!on) { if (typeof global.stopMusic === 'function') global.stopMusic(); return; }
-      if (typeof global.playMusic === 'function') global.playMusic(ASSETS.music.length ? 'TACTICS' : 'BATTLE');
+      // Its own tracks when there are any, else the card battles'. A file whose name starts "boss" is kept for boss fights.
+      const boss = !!(S.setup && S.setup.fight === 'boss'), all = ASSETS.music, forBoss = all.filter(f => /^boss/i.test(f)), rest = all.filter(f => !/^boss/i.test(f));
+      const list = boss && forBoss.length ? forBoss : (rest.length ? rest : all);
+      if (list.length && typeof global.registerMusic === 'function') global.registerMusic('TACTICS', list.map(f => '/assets/audio/tactics/music/' + f));
+      if (typeof global.playMusic === 'function') global.playMusic(list.length && typeof global.registerMusic === 'function' ? 'TACTICS' : 'BATTLE');
     } catch (e) { /* no sound is fine */ }
   }
   // The sound of an ability landing, from who uses it and what it is.
@@ -288,7 +291,7 @@
     } else {
       const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v);
       if (art) {
-        const z = 46 * k / art.h, dw = art.w * z, dh = art.h * z;
+        const z = 0.62 * k, dw = art.w * z, dh = art.h * z;      // the same pixel size as the villagers, so a big creature is big
         c.imageSmoothingEnabled = false;
         c.save(); c.translate(p.x, p.y + bob * 0.5); if (art.flip) c.scale(-1, 1);
         c.drawImage(art.img, -dw / 2, -dh * art.foot, dw, dh);
@@ -488,7 +491,7 @@
   function shell() {
     const s = S.setup;
     return `<header class="kwtc-top">`
-      + `<div class="kwtc-title"><b>⚔ ${esc(s.name || 'A battle')}</b><span>${esc(s.skull || '')} ${esc(land(s.land))} · seed ${esc(s.seed)} · prototype</span></div>`
+      + `<div class="kwtc-title"><b>⚔ ${esc(s.name || 'A battle')}</b><span>${esc(s.skull || '')} ${esc(land(s.land))} · seed ${esc(s.seed)} · practice field</span></div>`
       + `<div class="kwtc-order" aria-label="Who acts next"></div>`
       + `<button type="button" class="kw-btn quiet kwtc-x" data-kwt="close" aria-label="Leave the battle">✕</button></header>`
       + `<div class="kwtc-board"><canvas class="kwtc-canvas" tabindex="0" aria-label="The battlefield. Arrow keys move the cursor, Enter chooses, Escape cancels."></canvas>`
@@ -652,6 +655,7 @@
   }
   function cancel() {
     if (S.mode === 'face') { const u = E().current(S.state); if (u && S.view[u.id]) S.view[u.id].face = u.face; }
+    if (S.mode !== 'idle' || S.pick) sfx('cancel');
     S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.faceAim = null; paint();
   }
   function commit() {
@@ -855,7 +859,7 @@
     } catch (e) { toast('⚠️ ' + e.message); }
   }
 
-  // ── Dev Tools → 💀 Dungeons → the tactics prototype ───────────────────────
+  // ── Dev Tools → 💀 Dungeons → the tactics battle ──────────────────────────
   const DEV = { options: null, pick: null };
   const SLOTS = ['Front, left', 'Front, right', 'Back, left', 'Back, right'];
   function loadPick() {
@@ -866,9 +870,9 @@
     return DEV.pick;
   }
   function devHtml(o, p) {
-    if (!o) return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle (prototype)</div><div class="cheat-desc">Loading…</div>`;
+    if (!o) return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle</div><div class="cheat-desc">Loading…</div>`;
     const sel = (id, list, val, label) => `<label>${esc(label)} <select class="ce-input" data-kwt-dev="${id}">${list.map(x => `<option value="${esc(x.key)}"${x.key === val ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>`;
-    return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle (prototype)</div>`
+    return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle</div>`
       + `<div class="cheat-desc">A battle on a small board: walk, face, strike from behind or from above. It uses four of your grown-up citizens with the classes chosen here, costs nothing and changes nothing.</div>`
       + `<div class="kwdg-dev-row">${SLOTS.map((s, i) => sel('class' + i, o.classes.map(c => ({ key: c.key, label: `${c.icon} ${c.label}` })), p.classes[i], s)).join('')}</div>`
       + `<div class="kwdg-dev-row">${sel('level', o.levels, p.level, 'Their level')}${sel('tier', o.tiers.map(t => ({ key: t.key, label: `${t.skull} ${t.name}` })), p.tier, 'Skull')}`
@@ -907,7 +911,7 @@
         const res = await global.apiFetch('/api/tactics/admin/options');
         const d = await res.json().catch(() => ({}));
         if (res.ok && d.ok) { DEV.options = d; box.innerHTML = devHtml(d, p); }
-        else box.innerHTML = `<div class="cheat-desc">⚠️ ${esc(d.error || 'The tactics prototype could not be loaded.')}</div>`;
+        else box.innerHTML = `<div class="cheat-desc">⚠️ ${esc(d.error || 'The tactics battle could not be loaded.')}</div>`;
       } catch (e) { box.innerHTML = `<div class="cheat-desc">⚠️ ${esc(e.message)}</div>`; }
     }
   }

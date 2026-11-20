@@ -1,4 +1,4 @@
-// Proofs for the tactics battle prototype (docs/TACTICS_PROTOTYPE.md):
+// Proofs for the tactics battle prototype (docs/TACTICS.md):
 // the rules in js/tactics-engine.js, and the screen's wiring in js/tactics.js.
 //   node verify/tactics_proofs.js
 'use strict';
@@ -204,7 +204,7 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   check('8h. the list of art and sound is the packer\'s, and it is up to date', JSON.stringify(built) === JSON.stringify(onDisk) && Array.isArray(built.music) && typeof built.creatures === 'object' && typeof built.sounds === 'object');
   check('8i. a creature with art is drawn from it (front or back view, mirrored), one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /away && a\.back \? a\.back : a\.front/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
   check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\], file = own \? 'tactics\/' \+ own : STAND_IN\[name\];/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
-  check('8k. music: its own tracks when there are any, else the card battles\'; it stops when the battle ends or is left', /global\.playMusic\(ASSETS\.music\.length \? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
+  check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const list = boss && forBoss\.length \? forBoss : \(rest\.length \? rest : all\);/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
 }
 
