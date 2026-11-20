@@ -205,6 +205,13 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   check('8i. a creature with art is drawn from it (front or back view, mirrored), one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /away && a\.back \? a\.back : a\.front/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
   check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\], file = own \? 'tactics\/' \+ own : STAND_IN\[name\];/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
   check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const list = boss && forBoss\.length \? forBoss : \(rest\.length \? rest : all\);/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
+  // A phone that loaded the game before a sheet was re-packed kept the old picture (every row the front pose), so
+  // every citizen was drawn facing the camera whatever way they looked. Sheets now carry a stamp of their contents.
+  const VJ = JSON.parse(read('assets/sprites/villagers/villagers.json')), sha = f => require('crypto').createHash('sha1').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 8);
+  const stale = [];
+  for (const [sp, v] of Object.entries(VJ.species)) for (const [an, a] of Object.entries(v.anims)) if (!a.v || a.v !== sha('assets/sprites/villagers/' + a.file)) stale.push(sp + ' ' + an);
+  check('8m. every villager sheet carries a stamp of its contents, and the stamps are up to date', stale.length === 0, stale.join(', '));
+  check('8n. the game asks for sheet?v=stamp, and the packers write the stamps', /BASE \+ a\.file \+ \(a\.v \? '\?v=' \+ a\.v : ''\)/.test(read('js/villagers.js')) && /meta\.anims\[anim\]\.v = /.test(read('scripts/pack_sprites.js')) && /const stamped = \(dir, f\) => f \+ '\?v=' \+/.test(read('scripts/pack_tactics.js')));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
 }
 

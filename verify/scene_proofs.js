@@ -143,7 +143,7 @@ console.log('5. The packer');
   let threw = '';
   try { P.packSpecies({ walk_e: walkE, walk_w: gif(10, 10, [new Array(100).fill(0)]) }); } catch (e) { threw = e.message; }
   check('5k. frames of different sizes are refused with a clear message', /differ in size/.test(threw), threw);
-  check('5l. no dependencies: only Node built-ins', !/require\('(?!fs|path|zlib)/.test(read('scripts/pack_sprites.js')));
+  check('5l. no dependencies: only Node built-ins', !/require\('(?!fs|path|zlib|crypto)/.test(read('scripts/pack_sprites.js')));
 }
 
 // ── Step 3: buildings are the buttons (js/home-scene.js) ─────────────────

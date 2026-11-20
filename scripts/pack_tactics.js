@@ -16,6 +16,8 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const list = (dir, re) => { try { return fs.readdirSync(path.join(ROOT, dir)).filter(f => re.test(f)).sort(); } catch (e) { return []; } };
+// file → "file?v=stamp", the stamp from its contents: a file that is replaced is fetched afresh, not taken from a cache.
+const stamped = (dir, f) => f + '?v=' + require('crypto').createHash('sha1').update(fs.readFileSync(path.join(ROOT, dir, f))).digest('hex').slice(0, 8);
 // A PNG's size, from its header.
 function pngSize(file) {
   const b = fs.readFileSync(file);
@@ -28,13 +30,13 @@ function build() {
     const m = f.match(/^([a-z0-9_]+)_(front|back)\.png$/), size = pngSize(path.join(ROOT, 'assets/sprites/creatures', f));
     if (!size) continue;
     const c = creatures[m[1]] = creatures[m[1]] || {};
-    c[m[2]] = f;
+    c[m[2]] = stamped('assets/sprites/creatures', f);
     if (m[2] === 'front') { c.w = size.w; c.h = size.h; }
   }
   for (const k of Object.keys(creatures)) if (!creatures[k].front) delete creatures[k];   // a back view alone is no use
   const sounds = {};
-  for (const f of list('assets/audio/tactics', /\.(mp3|ogg|wav)$/)) sounds[f.replace(/\.[a-z0-9]+$/, '')] = f;
-  return { creatures, sounds, music: list('assets/audio/tactics/music', /\.(mp3|ogg)$/) };
+  for (const f of list('assets/audio/tactics', /\.(mp3|ogg|wav)$/)) sounds[f.replace(/\.[a-z0-9]+$/, '')] = stamped('assets/audio/tactics', f);
+  return { creatures, sounds, music: list('assets/audio/tactics/music', /\.(mp3|ogg)$/).map(f => stamped('assets/audio/tactics/music', f)) };
 }
 if (require.main === module) {
   const out = build();
