@@ -212,6 +212,11 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   for (const [sp, v] of Object.entries(VJ.species)) for (const [an, a] of Object.entries(v.anims)) if (!a.v || a.v !== sha('assets/sprites/villagers/' + a.file)) stale.push(sp + ' ' + an);
   check('8m. every villager sheet carries a stamp of its contents, and the stamps are up to date', stale.length === 0, stale.join(', '));
   check('8n. the game asks for sheet?v=stamp, and the packers write the stamps', /BASE \+ a\.file \+ \(a\.v \? '\?v=' \+ a\.v : ''\)/.test(read('js/villagers.js')) && /meta\.anims\[anim\]\.v = /.test(read('scripts/pack_sprites.js')) && /const stamped = \(dir, f\) => f \+ '\?v=' \+/.test(read('scripts/pack_tactics.js')));
+  check('8o. into a battle: a spiral closes over the screen, the battle is named on it, a circle opens; nothing acts until it has lifted',
+    /function drawSwirl\(C, p\)/.test(J) && /function drawIris\(C, p\)/.test(J) && /open\(setup, new Promise\(r => \{ lifted = r; \}\)\);/.test(J)
+    && /Promise\.all\(\[hold \|\| Promise\.resolve\(\), loadAssets\(\)\]\)\.then\(\(\) => \{ if \(S\.open && S\.el === el && !S\.ended\) \{ music\(true\); nextTurn\(\); \} \}\);/.test(J));
+  check('8p. with reduced motion the screen goes dark and shows the board: no spiral', /const closing = still\(\) \? \(C\.el\.classList\.add\('is-solid'\), wait\(60\)\) : animate\(620, p => drawSwirl\(C, p\)\);/.test(J) && /if \(!still\(\)\) await animate\(560, p => drawIris\(C, p\)\);/.test(J));
+  check('8q. leaving fades the scene out; a second start while one is coming up is ignored', /S\.el\.classList\.add\('is-leaving'\);/.test(J) && /\.kwtc\.is-leaving \{ opacity: 0; \}/.test(CSS) && /if \(entering\) return null;/.test(J));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
 }
 

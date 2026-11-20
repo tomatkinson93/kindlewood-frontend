@@ -159,7 +159,7 @@
     });
   }
   // name → a sound that exists today, used until assets/audio/tactics/<name>.mp3 is there.
-  const STAND_IN = { select: 'card_click.wav', confirm: 'next.wav', melee: 'stab.wav', arrow: 'stab.wav', magic: 'stab.wav', bite: 'stab.wav',
+  const STAND_IN = { start: 'tension.wav', select: 'card_click.wav', confirm: 'next.wav', melee: 'stab.wav', arrow: 'stab.wav', magic: 'stab.wav', bite: 'stab.wav',
     down_foe: 'splat.wav', down_friend: 'fail.wav', victory: 'success.mp3', defeat: 'fail.wav' };
   function sfx(name) {
     if (typeof global.playSfx !== 'function') return;
@@ -712,7 +712,8 @@
     syncView();
     S.started = now();
   }
-  function open(setup) {
+  // `hold`: a promise the first turn waits on (the curtain lifting), so nothing happens unseen.
+  function open(setup, hold) {
     if (!E()) return toast('⚠️ The battle engine did not load.');
     close(true);
     begin(setup);
@@ -725,7 +726,7 @@
       const b = ev.target.closest('[data-kwt]');
       if (!b || b.disabled) return;
       const k = b.getAttribute('data-kwt');
-      if (k === 'close') close();
+      if (k === 'close') leave();
       else if (k === 'face') { sfx('confirm'); endTurn(b.getAttribute('data-dir')); }
       else if (k === 'face-ok') { sfx('confirm'); endTurn(S.faceAim); }
       else if (k === 'zoom-in') zoomBy(1.35);
@@ -797,16 +798,15 @@
     if (global.ResizeObserver) { S.watch = new global.ResizeObserver(() => layout()); S.watch.observe(S.canvas.parentNode); }
     layout(); paint();
     if (global.KWVillagers && global.KWVillagers.load) global.KWVillagers.load();
-    loadAssets().then(() => { if (S.open && !S.ended) music(true); });
     loop();
     S.canvas.focus();
-    nextTurn();
+    Promise.all([hold || Promise.resolve(), loadAssets()]).then(() => { if (S.open && S.el === el && !S.ended) { music(true); nextTurn(); } });
   }
   function rotate(by) { S.rot = (S.rot + by + 4) & 3; S.hover = null; layout(); say('The view is turned.'); }
   function onKey(ev) {
     const e = E(), st = S.state;
     if (!st) return;
-    if (ev.key === 'Escape') { ev.preventDefault(); if (S.mode !== 'idle' || S.pick || S.info) cancel(); else close(); return; }
+    if (ev.key === 'Escape') { ev.preventDefault(); if (S.mode !== 'idle' || S.pick || S.info) cancel(); else leave(); return; }
     if (ev.key === '+' || ev.key === '=') { ev.preventDefault(); return zoomBy(1.35); }
     if (ev.key === '-' || ev.key === '_') { ev.preventDefault(); return zoomBy(1 / 1.35); }
     if (ev.target && ev.target.closest && ev.target.closest('button') && (ev.key === 'Enter' || ev.key === ' ')) return;
@@ -845,18 +845,99 @@
     if (!res.ok || !d.ok) throw new Error(d.error || 'The battle could not be set up.');
     return d;
   }
+  // ── Into a battle, and out of one ─────────────────────────────────────────
+  // A dark spiral closes over whatever was on screen, the battle's name is
+  // shown on it, and then a circle opens onto the board. With reduced motion
+  // the screen simply goes dark and then shows the board.
+  const DARK = '#1d150d';
+  function curtain() {
+    const el = doc.createElement('div');
+    el.className = 'kwtc-curtain';
+    el.innerHTML = '<canvas aria-hidden="true"></canvas><div class="kwtc-curtain-title" role="status"></div>';
+    doc.body.appendChild(el);
+    const cv = el.firstChild, dpr = Math.min(2, global.devicePixelRatio || 1);
+    cv.width = Math.max(1, Math.round(global.innerWidth * dpr)); cv.height = Math.max(1, Math.round(global.innerHeight * dpr));
+    return { el, c: cv.getContext('2d'), w: cv.width, h: cv.height, title: el.lastChild };
+  }
+  // Run draw(p) for p from 0 to 1 over ms.
+  function animate(ms, draw) {
+    return new Promise(resolve => {
+      const t0 = now();
+      const step = () => { const p = Math.min(1, (now() - t0) / ms); draw(p); if (p < 1) global.requestAnimationFrame(step); else resolve(); };
+      step();
+    });
+  }
+  // Nine curved blades turn and widen from the middle until they meet.
+  function drawSwirl(C, p) {
+    const c = C.c, cx = C.w / 2, cy = C.h / 2, R = Math.hypot(C.w, C.h) / 2 + 4, N = 9, STEPS = 22;
+    c.clearRect(0, 0, C.w, C.h);
+    c.fillStyle = DARK;
+    if (p >= 1) return void c.fillRect(0, 0, C.w, C.h);
+    const wide = p * p * (2 * Math.PI / N), spin = p * Math.PI * 1.25, twist = 2.6;
+    for (let i = 0; i < N; i++) {
+      const a0 = i * 2 * Math.PI / N + spin;
+      c.beginPath(); c.moveTo(cx, cy);
+      for (let k = 1; k <= STEPS; k++) { const r = R * k / STEPS, a = a0 + twist * k / STEPS; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+      for (let k = STEPS; k >= 1; k--) { const r = R * k / STEPS, a = a0 + wide + twist * k / STEPS; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+      c.closePath(); c.fill();
+    }
+  }
+  // A circle opens from the middle.
+  function drawIris(C, p) {
+    const c = C.c, R = Math.hypot(C.w, C.h) / 2 + 4, q = 1 - Math.pow(1 - p, 3);
+    c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, C.w, C.h);
+    c.fillStyle = DARK; c.fillRect(0, 0, C.w, C.h);
+    c.globalCompositeOperation = 'destination-out';
+    c.beginPath(); c.arc(C.w / 2, C.h / 2, R * q, 0, 6.3); c.fill();
+    c.globalCompositeOperation = 'source-over';
+  }
+  const FIGHT = { fight: 'A fight', elite: 'An elite fight', boss: 'The boss' };
+  let entering = false;
+  // Bring up a battle from a promise of its two sides.
+  async function enter(setupPromise) {
+    if (entering) return null;
+    entering = true;
+    const C = curtain();
+    try {
+      loadAssets().then(() => sfx('start'));
+      const closing = still() ? (C.el.classList.add('is-solid'), wait(60)) : animate(620, p => drawSwirl(C, p));
+      const [setup] = await Promise.all([setupPromise, closing]);
+      C.el.classList.add('is-solid');
+      // The screen is dark: Dev Tools, where the battle was started, is put away behind it.
+      if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
+      C.title.innerHTML = `<b>⚔ ${esc(setup.name || 'A battle')}</b><span>${esc(setup.skull || '')} ${esc(land(setup.land))} · ${esc(FIGHT[setup.fight] || 'A fight')}</span>`;
+      C.title.classList.add('is-on');
+      let lifted;
+      open(setup, new Promise(r => { lifted = r; }));
+      await new Promise(r => global.setTimeout(r, 900));      // long enough to read the name, with or without motion
+      C.title.classList.remove('is-on');
+      C.el.classList.remove('is-solid');
+      if (!still()) await animate(560, p => drawIris(C, p));
+      C.el.remove();
+      lifted();
+      return setup;
+    } catch (e) { C.el.remove(); throw e; }
+    finally { entering = false; }
+  }
   // Start a battle: { classes, level, tier, terrain, seed, fight }.
   async function start(opts) {
-    const setup = await fetchSetup(opts);
-    S.opts = opts || {};
-    open(setup);
+    const setup = await enter(fetchSetup(opts));
+    if (setup) S.opts = opts || {};
     return setup;
   }
   async function restart(fresh) {
     try {
       if (fresh) return void await start({ ...(S.opts || {}), seed: undefined });
-      open(S.setup);
+      await enter(Promise.resolve(S.setup));
     } catch (e) { toast('⚠️ ' + e.message); }
+  }
+  // Leaving: the scene fades, then goes.
+  function leave() {
+    if (!S.open || !S.el || S.leaving) return;
+    S.leaving = true;
+    music(false);
+    S.el.classList.add('is-leaving');
+    global.setTimeout(() => { S.leaving = false; close(); }, still() ? 0 : 300);
   }
 
   // ── Dev Tools → 💀 Dungeons → the tactics battle ──────────────────────────
@@ -917,7 +998,7 @@
   }
 
   global.KWTactics = {
-    start, open, close, devMount,
+    start, open, close, leave, devMount,
     // For the proofs and the browser checks.
     _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
