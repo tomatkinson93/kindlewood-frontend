@@ -11,8 +11,10 @@
 //  what it would do); on a touch screen the first tap shows what it would do
 //  and a second tap (or Confirm) does it.
 //
-//  Started from Dev Tools → 💀 Dungeons (devMount). Nothing is saved: the two
-//  sides come from /api/tactics/admin/setup and the battle lives in memory.
+//  Started from Dev Tools → 💀 Dungeons (devMount). The server keeps the
+//  battle (/api/tactics/battles): every choice is played here at once and
+//  sent there in order, where the same rules check it. A battle left
+//  part-played is picked up where it was.
 //
 //  Exports: KWTactics { start, close, devMount, _state, _geom, _tapTile, … }.
 // ══════════════════════════════════════════════════════════════════════════
@@ -446,9 +448,9 @@
   }
   const say = text => { const h = S.el && S.el.querySelector('.kwtc-log'); if (h) h.textContent = text; };
   async function play(events) {
-    const e = E(), name = id => (e.unit(S.state, id) || {}).name || '';
+    const e = E(), name = id => (e.unit(S.state, id) || {}).name || '', epoch = S.epoch;
     for (const ev of events || []) {
-      if (!S.open) return;
+      if (!S.open || S.epoch !== epoch) return;
       const v = S.view[ev.id];
       if (ev.type === 'move') {
         v.walking = true; sfx('step');
@@ -483,6 +485,7 @@
       else if (ev.type === 'round') { S.round = ev.n; paintTop(); }
       else if (ev.type === 'turn') { paintTop(); await wait(90); }
     }
+    if (S.epoch !== epoch) return;
     syncView();
   }
 
@@ -571,6 +574,7 @@
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
       + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
+      + `<button type="button" class="kw-btn quiet" data-kwt="auto" title="The party fights the rest of the battle by itself">Let them fight</button>`
       + `<button type="button" class="kw-btn" data-kwt="end">End turn</button></div>`;
     let text = '';
     if (a) {
@@ -609,26 +613,101 @@
     if (S.busy || !E().current(S.state)) return;
     S.busy = true; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.faceAim = null;
     paintPanel();
-    await play(E().endTurn(S.state, face));
+    const ev = E().endTurn(S.state, face);
+    send(E().DIRS[face] ? { t: 'end', face } : { t: 'end' });
+    await play(ev);
     S.busy = false;
     await nextTurn();
   }
   // Creatures take their turns by themselves until it is a citizen's.
   async function nextTurn() {
-    const e = E(), st = S.state;
-    for (let guard = 0; guard < 60 && S.open; guard++) {
+    const e = E(), st = S.state, epoch = S.epoch;
+    for (let guard = 0; guard < 60 && S.open && S.epoch === epoch; guard++) {
       if (st.status !== 'active') return finish();
       const u = e.current(st);
       if (u.side === 'player') { S.cursor = { x: u.x, y: u.y }; S.mode = 'idle'; paint(); say(`${u.name}'s turn.`); sfx('turn'); return; }
       S.busy = true; paint();
       await wait(260);
+      if (S.epoch !== epoch) return;
       await play(e.aiTurn(st));
+      if (S.epoch !== epoch) return;
       S.busy = false;
     }
+  }
+
+  // ── The server keeps the battle (lib/tactics_battles.js) ──────────────────
+  // Every choice is played here at once, so the screen never waits, and sent
+  // to the server in order. The server plays it with the same rules. If it
+  // refuses one, or the two sides ever disagree, the screen is put back to
+  // the battle as the server has it.
+  const jsonOf = async res => res.json().catch(() => ({}));
+  function send(action) {
+    const b = S.battle;
+    if (!b || !b.id) return;
+    const n = b.n++, mark = action.t === 'end' ? null : E().checksum(S.state);
+    b.queue = b.queue.then(async () => {
+      if (S.battle !== b || b.stale) return;
+      try {
+        const res = await global.apiFetch(`/api/tactics/battles/${b.id}/act`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n, action }) });
+        const d = await jsonOf(res);
+        if (!res.ok || !d.ok) return resync(b, d.battle);
+        b.saved = d.battle.count; b.status = d.battle.status;
+        if (mark && d.battle.count === n + 1 && d.battle.check !== mark) return resync(b, d.battle);
+        noteSaved();
+      } catch (e) { return resync(b, null); }
+    });
+  }
+  // Put the screen back to the battle as the server has it.
+  async function resync(b, battle) {
+    if (S.battle !== b) return;
+    b.stale = true;
+    try {
+      if (!battle) { const d = await jsonOf(await global.apiFetch(`/api/tactics/battles/${b.id}`)); battle = d.battle; }
+    } catch (e) { battle = null; }
+    if (S.battle !== b || !S.open) return;
+    if (!battle) { toast('⚠️ The battle could not be reached. What happens now is not being saved.'); b.id = null; return; }
+    S.epoch++;
+    const r = E().replay(S.setup, battle.actions);
+    S.state = r.state;
+    S.battle = { id: b.id, n: battle.actions.length, saved: battle.actions.length, status: battle.status, queue: Promise.resolve() };
+    S.busy = false; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.faceAim = null; S.floats = [];
+    for (const k of Object.keys(S.view)) delete S.view[k];
+    syncView();
+    toast('The battle was put back to where the server has it.');
+    if (S.state.status !== 'active') return finish();
+    nextTurn();
+  }
+  // The end screen says whether the result reached the server.
+  function noteSaved() {
+    const b = S.battle, line = S.el && S.el.querySelector('.kwtc-saved');
+    if (!line || !b) return;
+    const done = b.id && b.saved === b.n && b.status && b.status !== 'active';
+    line.textContent = !b.id ? 'This battle was not saved.' : done ? '✓ The result is recorded.' : 'Recording the result…';
+  }
+  // The party fights the rest by itself: the mind chooses for every citizen, at once, with no animation.
+  function autoFinish() {
+    const e = E(), st = S.state;
+    if (!st || S.busy || st.status !== 'active') return;
+    S.epoch++; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.faceAim = null;
+    for (let guard = 0; guard < 600 && st.status === 'active'; guard++) {
+      const u = e.current(st);
+      if (u.side !== 'player') { e.aiTurn(st); continue; }      // only at the very start; afterwards 'end' settles them
+      const keep = st.r, p = e.plan(st);
+      st.r = keep;                                               // looking ahead must not use up the battle's dice
+      const list = [];
+      if (p && p.to && !st.turn.moved && (p.to.x !== u.x || p.to.y !== u.y)) list.push({ t: 'move', x: p.to.x, y: p.to.y });
+      if (p && p.ability && !st.turn.acted) list.push({ t: 'use', key: p.ability, x: p.x, y: p.y });
+      list.push({ t: 'end' });
+      for (const a of list) { if (st.status !== 'active') break; if (e.apply(st, a)) send(a); }
+    }
+    for (const k of Object.keys(S.view)) delete S.view[k];
+    syncView();
+    if (st.status !== 'active') finish(); else nextTurn();
   }
   async function doMove(x, y) {
     const ev = E().move(S.state, x, y);
     if (!ev) return;
+    send({ t: 'move', x, y });
     S.busy = true; S.pick = null; paintPanel();
     await play(ev);
     S.busy = false; S.cursor = { x, y };
@@ -637,6 +716,7 @@
   async function doUse(x, y) {
     const key = S.ability, ev = E().use(S.state, key, x, y);
     if (!ev) return;
+    send({ t: 'use', key, x, y });
     S.busy = true; S.pick = null; S.mode = 'idle'; S.ability = null; paintPanel();
     await play(ev);
     S.busy = false;
@@ -698,9 +778,11 @@
     box.innerHTML = `<div class="kw-box kwtc-end-box"><div class="kw-box-title">${won ? '🏆 The field is yours' : '💀 The party is down'}</div>`
       + `<p>${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
       + `<p>${won ? `${left.length} of 4 still standing${left.length ? ': ' + left.map(u => `${esc(u.name)} ${u.hp}/${u.maxHp}`).join(', ') : ''}.` : 'Nothing is lost: this is a practice field.'}</p>`
+      + `<p class="kwtc-saved kw-note" role="status"></p>`
       + `<div class="kwtc-confirm"><button type="button" class="kw-btn primary" data-kwt="again">Same battle again</button><button type="button" class="kw-btn" data-kwt="new">A new field</button><button type="button" class="kw-btn quiet" data-kwt="close">Leave</button></div></div>`;
     box.hidden = false;
     paint();
+    noteSaved();
     const b = box.querySelector('button'); if (b) b.focus();
   }
 
@@ -708,7 +790,11 @@
   function begin(setup) {
     const e = E();
     S.setup = setup; S.view = {}; S.floats = []; S.rot = 0; G.zoom = 1; G.px = 0; G.py = 0; S.faceAim = null; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
-    S.state = e.createBattle({ seed: setup.seed, land: setup.land, party: setup.party, enemies: setup.enemies });
+    // A battle picked up again is played back to where it was; a new one starts with the creatures yet to move.
+    const done = Array.isArray(setup.actions) ? setup.actions : [];
+    S.state = done.length ? e.replay(setup, done).state : e.createBattle({ seed: setup.seed, land: setup.land, party: setup.party, enemies: setup.enemies });
+    S.battle = { id: setup.battle_id || null, n: done.length, saved: done.length, status: 'active', queue: Promise.resolve() };
+    S.epoch = (S.epoch || 0) + 1;
     syncView();
     S.started = now();
   }
@@ -733,7 +819,8 @@
       else if (k === 'zoom-out') zoomBy(1 / 1.35);
       else if (k === 'ability') choose(b.getAttribute('data-key'));
       else if (k === 'end') askFacing();
-      else if (k === 'undo') { if (E().undoMove(S.state)) { syncView(); S.pick = null; paint(); } }
+      else if (k === 'undo') { if (E().undoMove(S.state)) { send({ t: 'undo' }); syncView(); S.pick = null; paint(); } }
+      else if (k === 'auto') autoFinish();
       else if (k === 'confirm') { sfx('confirm'); commit(); }
       else if (k === 'cancel' || k === 'back') cancel();
       else if (k === 'rot-l') rotate(-1);
@@ -839,11 +926,18 @@
     if (S.el && S.el.parentNode) S.el.parentNode.removeChild(S.el);
     S.el = null; S.canvas = null; S.ctx = null; S.state = quiet ? S.state : null;
   }
-  async function fetchSetup(opts) {
-    const res = await global.apiFetch('/api/tactics/admin/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opts || {}) });
-    const d = await res.json().catch(() => ({}));
+  // A battle as the screen takes it: the two sides, with the server's id and the choices so far.
+  const asSetup = battle => ({ ...battle.setup, battle_id: battle.id, actions: battle.actions || [] });
+  // Ask the server for a new battle: { classes, level, tier, terrain, seed, fight }.
+  async function fetchBattle(opts) {
+    const res = await global.apiFetch('/api/tactics/battles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opts || {}) });
+    const d = await jsonOf(res);
     if (!res.ok || !d.ok) throw new Error(d.error || 'The battle could not be set up.');
-    return d;
+    return asSetup(d.battle);
+  }
+  // The town's open battle, if it has one (to pick up after a reload).
+  async function openBattle() {
+    try { const d = await jsonOf(await global.apiFetch('/api/tactics/battles/current')); return d && d.ok && d.battle ? d.battle : null; } catch (e) { return null; }
   }
   // ── Into a battle, and out of one ─────────────────────────────────────────
   // A dark spiral closes over whatever was on screen, the battle's name is
@@ -921,14 +1015,19 @@
   }
   // Start a battle: { classes, level, tier, terrain, seed, fight }.
   async function start(opts) {
-    const setup = await enter(fetchSetup(opts));
+    const setup = await enter(fetchBattle(opts));
     if (setup) S.opts = opts || {};
     return setup;
   }
+  // Pick up the town's open battle where it was left.
+  async function resume(battle) {
+    const b = battle || await openBattle();
+    return b ? enter(Promise.resolve(asSetup(b))) : null;
+  }
   async function restart(fresh) {
     try {
-      if (fresh) return void await start({ ...(S.opts || {}), seed: undefined });
-      await enter(Promise.resolve(S.setup));
+      // The same battle again is a new battle on the same seed: the same field and the same creatures.
+      await start({ ...(S.opts || {}), seed: fresh ? undefined : S.setup.seed, tier: (S.opts || {}).tier || S.setup.tier, terrain: (S.opts || {}).terrain || S.setup.land });
     } catch (e) { toast('⚠️ ' + e.message); }
   }
   // Leaving: the scene fades, then goes.
@@ -936,12 +1035,15 @@
     if (!S.open || !S.el || S.leaving) return;
     S.leaving = true;
     music(false);
+    // Walking out of a battle that is not over ends it on the server too.
+    const b = S.battle;
+    if (b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
     S.el.classList.add('is-leaving');
     global.setTimeout(() => { S.leaving = false; close(); }, still() ? 0 : 300);
   }
 
   // ── Dev Tools → 💀 Dungeons → the tactics battle ──────────────────────────
-  const DEV = { options: null, pick: null };
+  const DEV = { options: null, pick: null, open: null };
   const SLOTS = ['Front, left', 'Front, right', 'Back, left', 'Back, right'];
   function loadPick() {
     if (DEV.pick) return DEV.pick;
@@ -960,6 +1062,7 @@
       + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}`
       + `<label>Seed <input class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" data-kwt-dev="seed" value="${esc(p.seed || '')}"></label></div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
+      + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
       + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
   }
   // Fill the box Dev Tools gives us, and keep what was chosen.
@@ -977,30 +1080,33 @@
       };
       box.addEventListener('change', keep); box.addEventListener('input', keep);
       box.addEventListener('click', async ev => {
-        const b = ev.target.closest('[data-kwt-dev="start"]');
+        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"]');
         if (!b) return;
         const msg = box.querySelector('[data-kwt-dev="msg"]');
         try {
+          if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
           await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, seed: seed > 0 ? seed : undefined });
           if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
         } catch (e) { if (msg) msg.textContent = '⚠️ ' + e.message; }
       });
     }
+    // Each time the tab is shown: is a battle open?
+    if (DEV.options) openBattle().then(o => { DEV.open = o; box.innerHTML = devHtml(DEV.options, p); });
     if (!DEV.options) {
       try {
         const res = await global.apiFetch('/api/tactics/admin/options');
         const d = await res.json().catch(() => ({}));
-        if (res.ok && d.ok) { DEV.options = d; box.innerHTML = devHtml(d, p); }
+        if (res.ok && d.ok) { DEV.options = d; DEV.open = await openBattle(); box.innerHTML = devHtml(d, p); }
         else box.innerHTML = `<div class="cheat-desc">⚠️ ${esc(d.error || 'The tactics battle could not be loaded.')}</div>`;
       } catch (e) { box.innerHTML = `<div class="cheat-desc">⚠️ ${esc(e.message)}</div>`; }
     }
   }
 
   global.KWTactics = {
-    start, open, close, leave, devMount,
+    start, resume, open, close, leave, devMount,
     // For the proofs and the browser checks.
-    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx,
+    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

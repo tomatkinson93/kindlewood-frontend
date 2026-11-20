@@ -183,7 +183,7 @@ console.log('7. The screen');
   check('7j. reduced motion: no walking tweens, no bobbing, short waits', /const still = \(\) =>/.test(J) && /if \(still\(\) \|\| ms <= 0\) \{ Object\.assign\(v, to\); return resolve\(\); \}/.test(J));
   check('7k. started from Dev Tools: a box in the Dungeons tab, a class for each of the four, their level, the skull, the land and the fight', /<div id="kwt-dev-box"><\/div>/.test(D) && /KWTactics\.devMount\(doc\.getElementById\('kwt-dev-box'\)\)/.test(D)
     && /SLOTS = \['Front, left', 'Front, right', 'Back, left', 'Back, right'\]/.test(J) && ["sel('level'", "sel('tier'", "sel('terrain'", "sel('fight'"].every(x => J.includes(x)));
-  check('7l. nothing is saved: the two sides come from the admin route and the battle lives in memory', /apiFetch\('\/api\/tactics\/admin\/setup'/.test(J) && (J.match(/apiFetch\(/g) || []).length === 2);
+  check('7l. the two sides and the battle come from the server; a bare setup is no longer asked for', /apiFetch\('\/api\/tactics\/battles', \{ method: 'POST'/.test(J) && !/admin\/setup/.test(J));
   check('7m. on a phone the panel stacks and buttons are big enough to tap', /@media \(max-width: 640px\)[\s\S]*?\.kwtc-panel \{ grid-template-columns: minmax\(0, 1fr\);[\s\S]*?min-height: var\(--kw-touch\)/.test(CSS));
 }
 
@@ -191,7 +191,7 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
 {
   const J = read('js/tactics.js'), CSS = read('css/tactics.css'), HTML = read('index.html');
   check('8a. ending a turn asks which way to face: from the End turn button, and by itself once the move and the action are both used',
-    /else if \(k === 'end'\) askFacing\(\);/.test(J) && /st\.turn\.moved && st\.turn\.acted\) return askFacing\(\);/.test(J) && /await play\(E\(\)\.endTurn\(S\.state, face\)\);/.test(J));
+    /else if \(k === 'end'\) askFacing\(\);/.test(J) && /st\.turn\.moved && st\.turn\.acted\) return askFacing\(\);/.test(J) && /const ev = E\(\)\.endTurn\(S\.state, face\);/.test(J));
   check('8b. the way shown first is towards the nearest foe; the citizen turns to show the way chosen', /aimFace\(e\.facingFor\(S\.state, u\)\);/.test(J) && /S\.view\[u\.id\]\.face = dir;/.test(J));
   check('8c. four arrows on the board and four buttons below, set out as they point; one tap ends the turn that way', /function drawFaceArrows/.test(J) && /data-kwt="face" data-dir="\$\{d\}"/.test(J) && /if \(S\.mode === 'face'\) \{ const d = faceAt\(q\.x, q\.y\); if \(d\) \{ sfx\('confirm'\); endTurn\(d\); \} return; \}/.test(J)
     && /\.kwtc-faces \{ display: grid; grid-template-areas: "tl tr" "bl br";/.test(CSS));
@@ -218,6 +218,42 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   check('8p. with reduced motion the screen goes dark and shows the board: no spiral', /const closing = still\(\) \? \(C\.el\.classList\.add\('is-solid'\), wait\(60\)\) : animate\(620, p => drawSwirl\(C, p\)\);/.test(J) && /if \(!still\(\)\) await animate\(560, p => drawIris\(C, p\)\);/.test(J));
   check('8q. leaving fades the scene out; a second start while one is coming up is ignored', /S\.el\.classList\.add\('is-leaving'\);/.test(J) && /\.kwtc\.is-leaving \{ opacity: 0; \}/.test(CSS) && /if \(entering\) return null;/.test(J));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
+}
+
+console.log('9. The server keeps the battle');
+{
+  const J = read('js/tactics.js');
+  const party = [man('a', { agility: 12 }), man('b', { agility: 11, abilities: [strike({ key: 'bow', min: 2, max: 4 })] }), man('c'), man('d')];
+  const foes = [man('x', { maxHp: 30 }), man('y', { maxHp: 30 }), man('z', { maxHp: 30 })];
+  const setup = { seed: 21, land: 'hills', party, enemies: foes };
+  // Play a battle, writing down only what the party chose; then play the list again.
+  const st = E.replay(setup, []).state, log = [];
+  for (let g = 0; g < 400 && st.status === 'active'; g++) {
+    const u = E.current(st), keep = st.r, p = E.plan(st); st.r = keep;
+    const acts = [];
+    if (p && p.to && (p.to.x !== u.x || p.to.y !== u.y)) acts.push({ t: 'move', x: p.to.x, y: p.to.y });
+    if (p && p.ability) acts.push({ t: 'use', key: p.ability, x: p.x, y: p.y });
+    acts.push({ t: 'end', face: 'ensw'[g % 4] });
+    for (const a of acts) if (st.status === 'active' && E.apply(st, a)) log.push(a);
+  }
+  const again = E.replay(setup, log);
+  check('9a. a battle is its two sides and the player\'s choices: played again, it comes out the same', st.status !== 'active' && again.bad === -1 && E.checksum(again.state) === E.checksum(st) && log.length > 10, `${log.length} choices, ${st.status}`);
+  check('9b. creatures need no entries: after "end" they act until a citizen\'s turn', log.every(a => ['move', 'use', 'undo', 'end'].includes(a.t)) && E.current(E.replay(setup, log.slice(0, 3)).state).side === 'player');
+  check('9c. a choice the rules refuse stops the replay there', E.replay(setup, [{ t: 'move', x: 0, y: 0 }]).bad === 0 && E.replay(setup, log.slice(0, 2).concat([{ t: 'use', key: 'nothing', x: 1, y: 1 }])).bad === 2 && E.apply(E.replay(setup, []).state, { t: 'fly' }) === null);
+  const one = E.replay(setup, log.slice(0, 5)).state, two = E.replay(setup, log.slice(0, 5)).state, moved = E.replay(setup, log.slice(0, 6)).state;
+  check('9d. the fingerprint is the same for the same board and differs once anything has changed', E.checksum(one) === E.checksum(two) && E.checksum(one) !== E.checksum(moved));
+  const res = E.resultOf(st);
+  check('9e. the result says who won, the rounds and each citizen\'s health', res.status === st.status && res.rounds === st.round && res.party.length === 4 && res.party.every(x => x.hp >= 0 && x.maxHp > 0 && typeof x.down === 'boolean'));
+  check('9f. the screen plays each choice at once and sends it in order; the server\'s answer is checked against its own board',
+    /const n = b\.n\+\+, mark = action\.t === 'end' \? null : E\(\)\.checksum\(S\.state\);/.test(J) && /b\.queue = b\.queue\.then\(async \(\) =>/.test(J) && /if \(mark && d\.battle\.count === n \+ 1 && d\.battle\.check !== mark\) return resync\(b, d\.battle\);/.test(J));
+  check('9g. every kind of choice is sent: a move, an ability, a move taken back, the end of a turn with its facing',
+    ["send({ t: 'move', x, y });", "send({ t: 'use', key, x, y });", "send({ t: 'undo' });", "send(E().DIRS[face] ? { t: 'end', face } : { t: 'end' });"].every(x => J.includes(x)));
+  check('9h. refused, or out of step, the screen is put back to the battle as the server has it', /if \(!res\.ok \|\| !d\.ok\) return resync\(b, d\.battle\);/.test(J) && /const r = E\(\)\.replay\(S\.setup, battle\.actions\);/.test(J) && /S\.epoch\+\+;/.test(J));
+  check('9i. a battle left part-played is picked up where it was', /S\.state = done\.length \? e\.replay\(setup, done\)\.state :/.test(J) && /data-kwt-dev="resume"/.test(J) && /apiFetch\('\/api\/tactics\/battles\/current'\)/.test(J));
+  check('9j. the end screen says whether the result reached the server; walking out of an unfinished battle ends it there', /'✓ The result is recorded\.'/.test(J) && /\/leave`, \{ method: 'POST' \}/.test(J));
+  check('9k. "Let them fight": the mind plays the party to the end through the same choices, looking ahead without using up the battle\'s dice', /function autoFinish\(\)/.test(J) && /const keep = st\.r, p = e\.plan\(st\);\s*st\.r = keep;/.test(J) && /if \(e\.apply\(st, a\)\) send\(a\);/.test(J));
+  const server = path.join(ROOT, '..', 'kindlewood-server', 'lib', 'tactics_engine.js');
+  if (fs.existsSync(server)) check('9l. the server runs the same rules, byte for byte', fs.readFileSync(server, 'utf8') === read('js/tactics-engine.js'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
