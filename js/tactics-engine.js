@@ -20,7 +20,8 @@
 //              tile further for each level it stands above its target (two
 //              at most). A melee attack needs the target within one level.
 //    Facing    a hit from the side does a quarter more, from behind half as
-//              much again. A unit ends its turn facing the nearest foe.
+//              much again. A unit ends its turn facing the way its player
+//              chooses; a creature (or a unit left to itself) the nearest foe.
 //    Height    a hit from higher ground does 15% more.
 //    Block     soaks damage until the start of the bearer's next turn.
 //    Weak / vulnerable / slow  drop by one at the start of the bearer's turn.
@@ -463,13 +464,19 @@
       return;
     }
   }
-  function endTurn(state) {
+  // The way a unit would turn if left to itself: towards the nearest foe.
+  function facingFor(state, u) {
+    const foe = nearestFoe(state, u);
+    return foe ? dirOf(u.x, u.y, foe.x, foe.y, u.face) : u.face;
+  }
+  // End the turn. `face` (n, e, s, w): the way the unit ends up looking; left
+  // out, it watches the nearest foe.
+  function endTurn(state, face) {
     const u = current(state);
     if (!u) return null;
     const ev = [];
-    // A unit ends its turn watching the nearest foe.
-    const foe = nearestFoe(state, u);
-    if (foe) { const f = dirOf(u.x, u.y, foe.x, foe.y, u.face); if (f !== u.face) { u.face = f; ev.push({ type: 'face', id: u.id, face: f }); } }
+    const f = DIRS[face] ? face : facingFor(state, u);
+    if (f !== u.face) { u.face = f; ev.push({ type: 'face', id: u.id, face: f }); }
     advance(state, ev);
     return ev;
   }
@@ -580,6 +587,6 @@
     createBattle, current, unit, unitAt, living, heightOf, moveOf, computeOrder,
     reach, pathTo, move, undoMove,
     ability, canUse, isRanged, targetTiles, rangeTiles, touched, forecast, sideOfHit, hitOf, use,
-    endTurn, plan, aiTurn, autoplay,
+    endTurn, facingFor, plan, aiTurn, autoplay,
   };
 });

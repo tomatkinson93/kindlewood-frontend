@@ -131,7 +131,7 @@
   <link rel="stylesheet" href="/css/hud-clock.css?v=hadf3f072">
   <link rel="stylesheet" href="/css/carousel.css?v=h7a987398">
   <link rel="stylesheet" href="/css/hero.css?v=h42deb4df">
-  <link rel="stylesheet" href="/css/mobile.css?v=h61063c43">
+  <link rel="stylesheet" href="/css/mobile.css?v=hb9ae775d">
   <link rel="stylesheet" href="/css/mobile-shell.css?v=h85753439">
   <link rel="stylesheet" href="/css/clans.css?v=h0a034a65">
   <link rel="stylesheet" href="/css/market.css?v=hbe35ce88">
@@ -154,7 +154,7 @@
   <link rel="stylesheet" href="/css/modal-sizes.css?v=he7de3129">
   <link rel="stylesheet" href="/css/places.css?v=h379133cc"><!-- the five places; after mobile-shell.css -->
   <link rel="stylesheet" href="/css/dungeons.css?v=ha7e28ad1"><!-- the dungeon path screen; in a KWWindow -->
-  <link rel="stylesheet" href="/css/tactics.css?v=hb837b3f8"><!-- the tactics battle prototype; full screen -->
+  <link rel="stylesheet" href="/css/tactics.css?v=h525952d0"><!-- the tactics battle prototype; full screen -->
   <link rel="stylesheet" href="/css/home-scene.css?v=h536ed9ac"><!-- the Home scene: buildings are the buttons -->
   <link rel="stylesheet" href="/css/guide.css?v=h8dcef6db"><!-- the guide's tour and the story-style dialogue -->
   <link rel="stylesheet" href="/css/context.css?v=h2f16fbe5"><!-- the context panel and the town card -->
@@ -670,6 +670,8 @@
             <button class="profile-menu-item" id="pm-feedback" onclick="openFeedback(); closeProfileMenu()">🐞 Feedback</button>
             <div class="profile-menu-divider"></div>
             <button class="profile-menu-item" onclick="openSettingsPopover(); closeProfileMenu()">⚙️ Settings</button>
+            <!-- Admins only (js/buildings.js _syncCheatButton). On a phone the ⚗ in the top bar is hidden, so this is the way in. -->
+            <button class="profile-menu-item kw-admin-only" id="pm-devtools" style="display:none" onclick="openCheatMenu(); closeProfileMenu()">⚗ Dev Tools</button>
             <button class="profile-menu-item" onclick="showCommunityTab('help'); closeProfileMenu()">❓ Help</button>
             <div class="profile-menu-divider"></div>
             <button class="profile-menu-item logout-item" onclick="logout()">🚪 Log Out</button>
@@ -1001,7 +1003,7 @@
   <script defer src="/js/research.js?v=h66718ac4"></script>
   <script defer src="/js/career-balance.js?v=hd74b710b"></script>
   <script defer src="/js/citizens.js?v=h0e012c5e"></script>
-  <script defer src="/js/buildings.js?v=h2f3c1223"></script>
+  <script defer src="/js/buildings.js?v=h0a024b63"></script>
   <script defer src="/js/expeditions.js?v=h704c5542"></script>
   <script defer src="/js/seasons.js?v=hf364c56c"></script>
   <script defer src="/js/hud-clock.js?v=h2d2586f2"></script>
@@ -1029,7 +1031,7 @@
   <script defer src="/js/kwmap-iso.js?v=h8d6ae842"></script>
   <script defer src="/js/kwmap-decor.js?v=hfd8be0f3"></script>
   <script defer src="/js/kwmap-tileactions.js?v=hbcf5f1f6"></script>
-  <script defer src="/js/audio.js?v=h4da51adf"></script>
+  <script defer src="/js/audio.js?v=h89151b38"></script>
   <script defer src="/js/music.js?v=h8f50862f"></script>
   <script defer src="/js/settings-panel.js?v=h2c85832b"></script>
   <script defer src="/js/session.js?v=hebfee659"></script>
@@ -1522,8 +1524,8 @@
     <script defer src="/js/photo.js?v=h56b4a947"></script>
     <script defer src="/js/merchant.js?v=hea40258a"></script>
     <script defer src="/js/dungeons.js?v=h53319e75"></script><!-- the dungeon path screen (docs/DUNGEONS.md) -->
-    <script defer src="/js/tactics-engine.js?v=he5324293"></script><!-- the tactics battle rules (docs/TACTICS_PROTOTYPE.md) -->
-    <script defer src="/js/tactics.js?v=hde46c4aa"></script><!-- the tactics battle screen, from Dev Tools -->
+    <script defer src="/js/tactics-engine.js?v=hbf477251"></script><!-- the tactics battle rules (docs/TACTICS_PROTOTYPE.md) -->
+    <script defer src="/js/tactics.js?v=h4eb6c485"></script><!-- the tactics battle screen, from Dev Tools -->
     <script defer src="/js/scene-events.js?v=h3652dfae"></script>
     <script defer src="/js/guide.js?v=h94150873"></script>
 <!-- Kindlewood UI icon sprite (storybook theme) -->

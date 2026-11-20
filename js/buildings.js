@@ -345,7 +345,7 @@ function _kwIsAdmin() {
 }
 function _syncCheatButton() {
   const admin = _kwIsAdmin();
-  document.querySelectorAll('.btn-cheat').forEach(b => { b.style.display = admin ? '' : 'none'; });
+  document.querySelectorAll('.btn-cheat, .kw-admin-only').forEach(b => { b.style.display = admin ? '' : 'none'; });
   // Admins only: fetch Dev Tools now, so ⚗ opens at once (js/dev-tools.js).
   if (admin && window.KWDevTools) KWDevTools.load().catch(() => {});
   if (!admin) document.getElementById('cheat-modal')?.classList.remove('open');

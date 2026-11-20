@@ -25,11 +25,14 @@
   const now = () => (global.performance ? global.performance.now() : Date.now());
   const still = () => !!(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // mode: 'idle' (choose where to walk or what to do) or 'target' (an ability is chosen).
+  // mode: 'idle' (choose where to walk or what to do), 'target' (an ability is chosen) or
+  // 'face' (the turn is ending: which way to look; faceAim is the way shown).
   // pick: the tile tapped once and waiting for a second tap. info: a unit being looked at.
   const S = { open: false, setup: null, opts: null, state: null, view: {}, floats: [], mode: 'idle', ability: null, pick: null, hover: null, cursor: null,
-    info: null, busy: false, pointer: 'mouse', rot: 0, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
-  const G = { tw: 64, th: 32, lift: 16, scale: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+    info: null, busy: false, pointer: 'mouse', rot: 0, faceAim: null, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
+  // scale = base (the whole board fits) × zoom (1 to ZOOM_MAX); px, py: how far the board has been dragged.
+  const G = { tw: 64, th: 32, lift: 16, scale: 1, base: 1, zoom: 1, px: 0, py: 0, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+  const ZOOM_MAX = 3.2;
 
   // ── The board's colours (drawn on a canvas, so they live here) ────────────
   const GROUND = {
@@ -76,14 +79,29 @@
     const peak = Math.max(...m.tiles.map(t => t.h));
     const bw = (m.w + m.h) * G.tw / 2, head = 58, foot = 22;
     const bh = (m.w + m.h) * G.th / 2 + peak * G.lift + head + foot;
-    G.scale = Math.max(0.45, Math.min(2.4, Math.min((cw - 8) / bw, (ch - 8) / bh)));
+    G.base = Math.max(0.3, Math.min(2.4, Math.min((cw - 8) / bw, (ch - 8) / bh)));
+    G.scale = G.base * G.zoom;
     G.dpr = Math.min(2, global.devicePixelRatio || 1);
     G.w = cw; G.h = ch;
-    S.canvas.width = Math.round(cw * G.dpr); S.canvas.height = Math.round(ch * G.dpr);
-    S.canvas.style.width = cw + 'px'; S.canvas.style.height = ch + 'px';
-    G.ox = (cw - bw * G.scale) / 2 + ((S.rot & 1) ? m.w : m.h) * G.tw / 2 * G.scale;
-    G.oy = (ch - bh * G.scale) / 2 + (head + peak * G.lift) * G.scale;
+    const pw = Math.round(cw * G.dpr), ph = Math.round(ch * G.dpr);
+    if (S.canvas.width !== pw || S.canvas.height !== ph) { S.canvas.width = pw; S.canvas.height = ph; S.canvas.style.width = cw + 'px'; S.canvas.style.height = ch + 'px'; }
+    // Dragging: the board may slide until its middle is a quarter of the box from an edge, and no further.
+    const lx = Math.max(0, (bw * G.scale - cw) / 2 + cw * 0.25), ly = Math.max(0, (bh * G.scale - ch) / 2 + ch * 0.25);
+    if (G.zoom <= 1.001) { G.px = 0; G.py = 0; }
+    G.px = Math.max(-lx, Math.min(lx, G.px)); G.py = Math.max(-ly, Math.min(ly, G.py));
+    G.ox = (cw - bw * G.scale) / 2 + ((S.rot & 1) ? m.w : m.h) * G.tw / 2 * G.scale + G.px;
+    G.oy = (ch - bh * G.scale) / 2 + (head + peak * G.lift) * G.scale + G.py;
   }
+  // Zoom to z, keeping the point of the board under (sx, sy) where it is.
+  function zoomAt(z, sx, sy) {
+    const z0 = G.zoom, z1 = Math.max(1, Math.min(ZOOM_MAX, z));
+    if (Math.abs(z1 - z0) < 1e-4) return;
+    const cx = G.w / 2 + G.px, cy = G.h / 2 + G.py;
+    G.px = sx - (sx - cx) * z1 / z0 - G.w / 2; G.py = sy - (sy - cy) * z1 / z0 - G.h / 2;
+    G.zoom = z1;
+    layout();
+  }
+  const zoomBy = f => zoomAt(G.zoom * f, G.w / 2, G.h / 2);
   // Every tile, the farthest from the viewer first (as the board is turned now).
   function tilesByDepth() {
     const m = S.state.map, out = [];
@@ -127,6 +145,44 @@
     return body.upper ? body : face;
   }
 
+  // ── What art and sound there is (assets/tactics/manifest.json) ───────────
+  // Written by scripts/pack_tactics.js from the files in assets/sprites/
+  // creatures and assets/audio/tactics. Whatever is missing has a stand-in:
+  // a creature's icon, an older sound, the card battles' music.
+  const ASSETS = { loaded: false, creatures: {}, sounds: {}, music: [] };
+  function loadAssets() {
+    if (ASSETS.loaded || typeof global.fetch !== 'function') return Promise.resolve(ASSETS);
+    ASSETS.loaded = true;
+    return global.fetch('/assets/tactics/manifest.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).catch(() => null).then(j => {
+      if (j) { ASSETS.creatures = j.creatures || {}; ASSETS.sounds = j.sounds || {}; ASSETS.music = j.music || []; }
+      if (ASSETS.music.length && typeof global.registerMusic === 'function') global.registerMusic('TACTICS', ASSETS.music.map(f => '/assets/audio/tactics/music/' + f));
+      return ASSETS;
+    });
+  }
+  // name → a sound that exists today, used until assets/audio/tactics/<name>.mp3 is there.
+  const STAND_IN = { select: 'card_click.wav', confirm: 'next.wav', melee: 'stab.wav', arrow: 'stab.wav', magic: 'stab.wav', bite: 'stab.wav',
+    down_foe: 'splat.wav', down_friend: 'fail.wav', victory: 'success.mp3', defeat: 'fail.wav' };
+  function sfx(name) {
+    if (typeof global.playSfx !== 'function') return;
+    const own = ASSETS.sounds[name], file = own ? 'tactics/' + own : STAND_IN[name];
+    if (file) global.playSfx(file);
+  }
+  function music(on) {
+    try {
+      if (!on) { if (typeof global.stopMusic === 'function') global.stopMusic(); return; }
+      if (typeof global.playMusic === 'function') global.playMusic(ASSETS.music.length ? 'TACTICS' : 'BATTLE');
+    } catch (e) { /* no sound is fine */ }
+  }
+  // The sound of an ability landing, from who uses it and what it is.
+  function soundOf(u, ev) {
+    if (ev.kind === 'block') return 'block';
+    if (ev.kind === 'heal') return 'heal';
+    if (ev.kind === 'buff') return 'buff';
+    if (ev.kind === 'debuff') return 'debuff';
+    if (u.side === 'enemy') return 'bite';
+    return u.cls === 'archer' ? 'arrow' : (u.cls === 'wizard' || u.cls === 'hearthkeeper') ? 'magic' : 'melee';
+  }
+
   // ── Sprites ───────────────────────────────────────────────────────────────
   const IMG = {};
   function sheet(url) {
@@ -141,6 +197,17 @@
     if (!s) return null;
     const img = sheet(s.url);
     return img ? { img, s, frame: still() ? 0 : Math.floor(t / s.ms) % s.frames } : null;
+  }
+
+  // A creature's picture, if it has one: the front view when it looks towards
+  // the viewer, the back view when it looks away; mirrored for the other two ways.
+  function creatureArt(u, v) {
+    const a = ASSETS.creatures[u.key];
+    if (!a || !a.front) return null;
+    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), away = tv[0] < 0 || tv[1] < 0;
+    const img = sheet('/assets/sprites/creatures/' + (away && a.back ? a.back : a.front));
+    // The front view is drawn looking down and to the left; the back view up and to the right.
+    return img ? { img, flip: away ? tv[0] < 0 : tv[0] > 0, w: a.w || img.naturalWidth, h: a.h || img.naturalHeight, foot: a.foot || 0.9 } : null;
   }
 
   // ── Drawing ───────────────────────────────────────────────────────────────
@@ -198,9 +265,9 @@
     // An arrowhead on the ground, pointing where it looks (its back is the other way).
     const fl = Math.hypot(fx, fy) || 1, ux = fx / fl, uy = fy / fl;
     c.fillStyle = TEAM[u.side]; c.beginPath();
-    c.moveTo(p.x + fx + ux * 9 * k, p.y + fy + uy * 9 * k);
-    c.lineTo(p.x + fx - uy * 5 * k, p.y + fy + ux * 5 * k);
-    c.lineTo(p.x + fx + uy * 5 * k, p.y + fy - ux * 5 * k);
+    c.moveTo(p.x + fx + ux * 12 * k, p.y + fy + uy * 12 * k);
+    c.lineTo(p.x + fx - ux * 1 * k - uy * 4 * k, p.y + fy - uy * 1 * k + ux * 4 * k);
+    c.lineTo(p.x + fx - ux * 1 * k + uy * 4 * k, p.y + fy - uy * 1 * k - ux * 4 * k);
     c.closePath(); c.fill();
     c.strokeStyle = 'rgba(20,12,6,0.7)'; c.lineWidth = 1; c.stroke();
     // The body.
@@ -219,9 +286,17 @@
       c.fillStyle = CLASS_COLOUR[u.cls] || CLASS_COLOUR.villager; c.beginPath(); c.arc(p.x, p.y - 16 * k, 12 * k, 0, 6.3); c.fill();
       c.font = `${Math.round(15 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(u.icon || '•', p.x, p.y - 15 * k);
     } else {
-      const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k;
-      c.font = `${Math.round(28 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
-      c.fillText(u.icon || '👹', p.x, p.y + 2 * k + bob);
+      const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v);
+      if (art) {
+        const z = 46 * k / art.h, dw = art.w * z, dh = art.h * z;
+        c.imageSmoothingEnabled = false;
+        c.save(); c.translate(p.x, p.y + bob * 0.5); if (art.flip) c.scale(-1, 1);
+        c.drawImage(art.img, -dw / 2, -dh * art.foot, dw, dh);
+        c.restore();
+      } else {
+        c.font = `${Math.round(28 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+        c.fillText(u.icon || '👹', p.x, p.y + 2 * k + bob);
+      }
     }
     if ('filter' in c) c.filter = 'none';
     // Health, block, class and what ails it.
@@ -240,12 +315,42 @@
     }
     c.restore();
   }
+  // Choosing a facing: four arrows round the unit, the chosen one gold.
+  function faceSpots() {
+    const e = E(), u = e.current(S.state);
+    if (!u) return [];
+    const h = e.heightOf(S.state, u.x, u.y), k = G.scale;
+    return e.DIR_KEYS.map(d => {
+      const p = tileXY(u.x + e.DIRS[d][0] * 0.95, u.y + e.DIRS[d][1] * 0.95, h);
+      return { dir: d, x: p.x, y: p.y + G.th / 2 * k };
+    });
+  }
+  function faceAt(px, py) {
+    let best = null;
+    for (const f of faceSpots()) { const d = Math.hypot(px - f.x, py - f.y); if (d <= 24 * G.scale && (!best || d < best.d)) best = { d, dir: f.dir }; }
+    return best ? best.dir : null;
+  }
+  function drawFaceArrows(c) {
+    const e = E(), u = e.current(S.state), k = G.scale;
+    if (!u) return;
+    const me = standXY(u.x, u.y);
+    for (const f of faceSpots()) {
+      const on = f.dir === S.faceAim, dx = f.x - me.x, dy = f.y - me.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      c.fillStyle = on ? '#ffd27a' : 'rgba(30,20,10,0.72)'; c.strokeStyle = on ? '#2a1d0c' : '#ffd27a'; c.lineWidth = 1.5;
+      c.beginPath(); c.ellipse(f.x, f.y, 15 * k, 9 * k, 0, 0, 6.3); c.fill(); c.stroke();
+      // A chevron pointing away from the unit: long and narrow, so its direction cannot be mistaken.
+      c.strokeStyle = on ? '#2a1d0c' : '#ffd27a'; c.lineWidth = Math.max(2, 2.6 * k); c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath();
+      c.moveTo(f.x - ux * 3 * k - uy * 5 * k, f.y - uy * 3 * k + ux * 5 * k); c.lineTo(f.x + ux * 7 * k, f.y + uy * 7 * k); c.lineTo(f.x - ux * 3 * k + uy * 5 * k, f.y - uy * 3 * k - ux * 5 * k);
+      c.moveTo(f.x - ux * 8 * k, f.y - uy * 8 * k); c.lineTo(f.x + ux * 7 * k, f.y + uy * 7 * k);
+      c.stroke(); c.lineCap = 'butt'; c.lineJoin = 'miter';
+    }
+  }
   // What each tile is tinted with just now.
   function tints() {
     const out = {}, add = (x, y, col) => { (out[x + ',' + y] = out[x + ',' + y] || []).push(col); };
     const e = E(), st = S.state, u = e.current(st);
     if (S.info && S.info.side === 'enemy' && !S.info.down) for (const n of e.reach(st, S.info).values()) add(n.x, n.y, TINT.danger);
-    if (!u || u.side !== 'player' || S.busy) return out;
+    if (!u || u.side !== 'player' || S.busy || S.mode === 'face') return out;
     if (S.mode === 'idle' && !st.turn.moved && !S.info) {
       const R = e.reach(st, u);
       for (const n of R.values()) if (n.stop && n.cost) add(n.x, n.y, TINT.move);
@@ -285,6 +390,7 @@
       for (const q of row) { const tile = m.tiles[q.y * m.w + q.x]; if (tile.t === 'tree' || tile.t === 'rock') drawProp(c, q.x, q.y, tile); }
       for (const v of units) if (Math.ceil(depth(v.x, v.y) - 0.01) === d) drawUnit(c, v, t);
     }
+    if (S.mode === 'face' && !S.busy) drawFaceArrows(c);
     // Numbers that rise from a unit and fade.
     S.floats = S.floats.filter(f => t - f.t0 < 1000);
     for (const f of S.floats) {
@@ -342,7 +448,7 @@
       if (!S.open) return;
       const v = S.view[ev.id];
       if (ev.type === 'move') {
-        v.walking = true;
+        v.walking = true; sfx('step');
         for (let i = 1; i < ev.path.length; i++) {
           v.face = e.DIR_KEYS.find(d => e.DIRS[d][0] === ev.path[i].x - ev.path[i - 1].x && e.DIRS[d][1] === ev.path[i].y - ev.path[i - 1].y) || v.face;
           await tween(v, { x: ev.path[i].x, y: ev.path[i].y }, 150);
@@ -351,6 +457,7 @@
       } else if (ev.type === 'face') v.face = ev.face;
       else if (ev.type === 'use') {
         banner(`${name(ev.id)}: ${ev.icon || ''} ${ev.name}`); say(`${name(ev.id)} uses ${ev.name}.`);
+        sfx(soundOf(e.unit(S.state, ev.id), ev));
         if (ev.x !== Math.round(v.x) || ev.y !== Math.round(v.y)) {
           const dx = Math.sign(ev.x - v.x) * 0.22, dy = Math.sign(ev.y - v.y) * 0.22;
           await tween(v, { lx: dx, ly: dy }, 90); await tween(v, { lx: 0, ly: 0 }, 110);
@@ -366,10 +473,10 @@
       } else if (ev.type === 'block') { v.block = ev.block; float(v, '🛡 +' + ev.amount, '#9fd0ff'); await wait(220); }
       else if (ev.type === 'heal') { v.hp = ev.hp; float(v, '+' + ev.amount, '#a8e890', true); await wait(260); }
       else if (ev.type === 'status') { v.st[ev.name] = ev.now; float(v, (STATUS[ev.name] || [ev.name])[0] + ' ' + ev.amount, '#fff3d6'); await wait(180); }
-      else if (ev.type === 'push') { await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
+      else if (ev.type === 'push') { if (!ev.step) sfx('push'); await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
       else if (ev.type === 'poison') { v.hp = ev.hp; float(v, '☠ −' + ev.amount, '#c8e070', true); await wait(300); }
       else if (ev.type === 'skip') { float(v, 'Stunned', '#fff3d6'); say(`${name(ev.id)} is stunned and loses the turn.`); await wait(420); }
-      else if (ev.type === 'down') { say(`${name(ev.id)} is down.`); await tween(v, { alpha: 0 }, 380); v.gone = true; }
+      else if (ev.type === 'down') { say(`${name(ev.id)} is down.`); sfx(e.unit(S.state, ev.id).side === 'enemy' ? 'down_foe' : 'down_friend'); await tween(v, { alpha: 0 }, 380); v.gone = true; }
       else if (ev.type === 'round') { S.round = ev.n; paintTop(); }
       else if (ev.type === 'turn') { paintTop(); await wait(90); }
     }
@@ -386,7 +493,8 @@
       + `<button type="button" class="kw-btn quiet kwtc-x" data-kwt="close" aria-label="Leave the battle">✕</button></header>`
       + `<div class="kwtc-board"><canvas class="kwtc-canvas" tabindex="0" aria-label="The battlefield. Arrow keys move the cursor, Enter chooses, Escape cancels."></canvas>`
       + `<div class="kwtc-banner" aria-hidden="true"></div>`
-      + `<div class="kwtc-turnview"><button type="button" class="kw-btn" data-kwt="rot-l" aria-label="Turn the view left" title="Turn the view (Q)">⟲</button><button type="button" class="kw-btn" data-kwt="rot-r" aria-label="Turn the view right" title="Turn the view (R)">⟳</button></div>`
+      + `<div class="kwtc-turnview"><button type="button" class="kw-btn" data-kwt="zoom-out" aria-label="Zoom out" title="Zoom out (−)">−</button><button type="button" class="kw-btn" data-kwt="zoom-in" aria-label="Zoom in" title="Zoom in (+)">＋</button>`
+      + `<button type="button" class="kw-btn" data-kwt="rot-l" aria-label="Turn the view left" title="Turn the view (Q)">⟲</button><button type="button" class="kw-btn" data-kwt="rot-r" aria-label="Turn the view right" title="Turn the view (R)">⟳</button></div>`
       + `<div class="kwtc-end" hidden></div></div>`
       + `<footer class="kwtc-panel"><div class="kwtc-who"></div><div class="kwtc-acts"></div><div class="kwtc-hint"></div><div class="kwtc-log kw-sr" role="status" aria-live="polite"></div></footer>`;
   }
@@ -443,6 +551,14 @@
       return;
     }
     if (u.side !== 'player' || S.busy) { acts.innerHTML = ''; hint.textContent = u.side === 'player' ? '' : `${u.name} is taking a turn…`; return; }
+    if (S.mode === 'face') {
+      // Four arrows, laid out as the board is turned: each button is the way the arrow on the board points.
+      const where = d => { const f = turn(e.DIRS[d][0], e.DIRS[d][1]); return f[0] > 0 ? ['↘', 'br', 'down and right'] : f[0] < 0 ? ['↖', 'tl', 'up and left'] : f[1] > 0 ? ['↙', 'bl', 'down and left'] : ['↗', 'tr', 'up and right']; };
+      acts.innerHTML = `<div class="kwtc-faces" role="group" aria-label="Which way to face">` + e.DIR_KEYS.map(d => { const w = where(d); return `<button type="button" class="kw-btn kwtc-face is-${w[1]}${d === S.faceAim ? ' is-on' : ''}" data-kwt="face" data-dir="${d}" aria-label="Face ${w[2]}" aria-pressed="${d === S.faceAim}">${w[0]}</button>`; }).join('') + `</div>`
+        + `<div class="kwtc-turn"><button type="button" class="kw-btn quiet" data-kwt="cancel">Back</button><button type="button" class="kw-btn primary" data-kwt="face-ok">End turn facing this way</button></div>`;
+      hint.innerHTML = `<div><b>Which way should ${esc(u.name)} face?</b> Tap an arrow. A hit from the side does a quarter more, from behind half as much again.</div>`;
+      return;
+    }
     const a = S.mode === 'target' ? e.ability(u, S.ability) : null;
     acts.innerHTML = (u.abilities || []).map((x, i) => {
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
@@ -469,14 +585,28 @@
     const e = E(), st = S.state;
     if (st.status !== 'active') return finish();
     const u = e.current(st);
-    if (u && u.side === 'player' && st.turn.moved && st.turn.acted) return endTurn();
+    if (u && u.side === 'player' && st.turn.moved && st.turn.acted) return askFacing();
     paint();
   }
-  async function endTurn() {
+  // The turn is ending: ask which way to look. The way shown first is towards the nearest foe.
+  function askFacing() {
+    const e = E(), u = e.current(S.state);
+    if (S.busy || !u || u.side !== 'player') return;
+    S.mode = 'face'; S.ability = null; S.pick = null; S.info = null;
+    aimFace(e.facingFor(S.state, u));
+  }
+  function aimFace(dir) {
+    const u = E().current(S.state);
+    if (!u || !E().DIRS[dir]) return;
+    S.faceAim = dir;
+    if (S.view[u.id]) S.view[u.id].face = dir;      // the citizen turns to show it
+    paint();
+  }
+  async function endTurn(face) {
     if (S.busy || !E().current(S.state)) return;
-    S.busy = true; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null;
+    S.busy = true; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.faceAim = null;
     paintPanel();
-    await play(E().endTurn(S.state));
+    await play(E().endTurn(S.state, face));
     S.busy = false;
     await nextTurn();
   }
@@ -486,7 +616,7 @@
     for (let guard = 0; guard < 60 && S.open; guard++) {
       if (st.status !== 'active') return finish();
       const u = e.current(st);
-      if (u.side === 'player') { S.cursor = { x: u.x, y: u.y }; S.mode = 'idle'; paint(); say(`${u.name}'s turn.`); return; }
+      if (u.side === 'player') { S.cursor = { x: u.x, y: u.y }; S.mode = 'idle'; paint(); say(`${u.name}'s turn.`); sfx('turn'); return; }
       S.busy = true; paint();
       await wait(260);
       await play(e.aiTurn(st));
@@ -515,12 +645,15 @@
     const a = e.ability(u, key);
     if (!a || !e.canUse(st, u, a).ok) return;
     if (S.mode === 'target' && S.ability === key && S.pick) return void doUse(S.pick.x, S.pick.y);
-    S.mode = 'target'; S.ability = key; S.info = null;
+    S.mode = 'target'; S.ability = key; S.info = null; sfx('select');
     // An ability with only one place to go is aimed already: Confirm does it.
     S.pick = (a.target === 'self' || a.shape === 'around') ? { x: u.x, y: u.y } : null;
     paint();
   }
-  function cancel() { S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; paint(); }
+  function cancel() {
+    if (S.mode === 'face') { const u = E().current(S.state); if (u && S.view[u.id]) S.view[u.id].face = u.face; }
+    S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.faceAim = null; paint();
+  }
   function commit() {
     if (S.busy || !S.pick) return;
     if (S.mode === 'target') return void doUse(S.pick.x, S.pick.y);
@@ -554,7 +687,8 @@
   function finish() {
     const st = S.state, box = S.el && S.el.querySelector('.kwtc-end');
     if (!box || S.ended) return;
-    S.ended = now(); S.busy = false;
+    S.ended = now(); S.busy = false; S.mode = 'idle';
+    music(false); sfx(st.status === 'victory' ? 'victory' : 'defeat');
     const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory';
     const left = st.units.filter(u => u.side === 'player' && !u.down);
     box.innerHTML = `<div class="kw-box kwtc-end-box"><div class="kw-box-title">${won ? '🏆 The field is yours' : '💀 The party is down'}</div>`
@@ -569,7 +703,7 @@
   // ── Opening and closing ───────────────────────────────────────────────────
   function begin(setup) {
     const e = E();
-    S.setup = setup; S.view = {}; S.floats = []; S.rot = 0; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
+    S.setup = setup; S.view = {}; S.floats = []; S.rot = 0; G.zoom = 1; G.px = 0; G.py = 0; S.faceAim = null; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
     S.state = e.createBattle({ seed: setup.seed, land: setup.land, party: setup.party, enemies: setup.enemies });
     syncView();
     S.started = now();
@@ -588,30 +722,70 @@
       if (!b || b.disabled) return;
       const k = b.getAttribute('data-kwt');
       if (k === 'close') close();
+      else if (k === 'face') { sfx('confirm'); endTurn(b.getAttribute('data-dir')); }
+      else if (k === 'face-ok') { sfx('confirm'); endTurn(S.faceAim); }
+      else if (k === 'zoom-in') zoomBy(1.35);
+      else if (k === 'zoom-out') zoomBy(1 / 1.35);
       else if (k === 'ability') choose(b.getAttribute('data-key'));
-      else if (k === 'end') endTurn();
+      else if (k === 'end') askFacing();
       else if (k === 'undo') { if (E().undoMove(S.state)) { syncView(); S.pick = null; paint(); } }
-      else if (k === 'confirm') commit();
+      else if (k === 'confirm') { sfx('confirm'); commit(); }
       else if (k === 'cancel' || k === 'back') cancel();
       else if (k === 'rot-l') rotate(-1);
       else if (k === 'rot-r') rotate(1);
       else if (k === 'again') restart(false);
       else if (k === 'new') restart(true);
     });
-    const at = ev => { const r = S.canvas.getBoundingClientRect(); return tileAtPoint(ev.clientX - r.left, ev.clientY - r.top); };
+    // One finger or the mouse: a tap chooses, a drag slides the board. Two fingers: pinch to zoom. The wheel zooms too.
+    const xy = ev => { const r = S.canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+    const P = { down: new Map(), drag: false, pinch: null, start: null };
+    S.canvas.addEventListener('pointerdown', ev => {
+      S.pointer = ev.pointerType === 'mouse' ? 'mouse' : 'touch';
+      try { S.canvas.setPointerCapture(ev.pointerId); } catch (e) { /* not capturable */ }
+      const q = xy(ev);
+      P.down.set(ev.pointerId, q);
+      if (P.down.size === 1) { P.drag = false; P.start = { x: q.x, y: q.y, px: G.px, py: G.py }; }
+      else if (P.down.size === 2) { const [a, b] = [...P.down.values()]; P.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: G.zoom }; P.drag = true; }
+    });
     S.canvas.addEventListener('pointermove', ev => {
       S.pointer = ev.pointerType === 'mouse' ? 'mouse' : 'touch';
+      const q = xy(ev);
+      if (P.down.has(ev.pointerId)) {
+        P.down.set(ev.pointerId, q);
+        if (P.pinch && P.down.size >= 2) {
+          const [a, b] = [...P.down.values()];
+          return zoomAt(P.pinch.zoom * Math.hypot(a.x - b.x, a.y - b.y) / P.pinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        }
+        if (P.start && P.down.size === 1) {
+          const dx = q.x - P.start.x, dy = q.y - P.start.y;
+          if (!P.drag && Math.hypot(dx, dy) > (S.pointer === 'mouse' ? 6 : 10)) P.drag = true;
+          if (P.drag) { G.px = P.start.px + dx; G.py = P.start.py + dy; layout(); }
+        }
+        return;
+      }
       if (S.pointer !== 'mouse') return;
-      const t = at(ev), was = S.hover;
+      if (S.mode === 'face') { const d = faceAt(q.x, q.y); if (d && d !== S.faceAim) aimFace(d); return; }
+      const t = tileAtPoint(q.x, q.y), was = S.hover;
       S.hover = t;
       if ((t && t.x) !== (was && was.x) || (t && t.y) !== (was && was.y)) paintPanel();
     });
     S.canvas.addEventListener('pointerleave', () => { S.hover = null; });
-    S.canvas.addEventListener('pointerup', ev => {
-      S.pointer = ev.pointerType === 'mouse' ? 'mouse' : 'touch';
-      const t = at(ev);
+    const lift = ev => {
+      if (!P.down.has(ev.pointerId)) return;
+      const q = xy(ev);
+      P.down.delete(ev.pointerId);
+      if (P.down.size < 2) P.pinch = null;
+      if (P.down.size === 1) { const r = [...P.down.values()][0]; P.start = { x: r.x, y: r.y, px: G.px, py: G.py }; return; }   // one finger stays down after a pinch: it drags, it does not tap
+      const tapped = !P.drag && ev.type === 'pointerup';
+      P.drag = false; P.start = null;
+      if (!tapped) return;
+      if (S.mode === 'face') { const d = faceAt(q.x, q.y); if (d) { sfx('confirm'); endTurn(d); } return; }
+      const t = tileAtPoint(q.x, q.y);
       if (t) tapTile(t.x, t.y, S.pointer === 'mouse');
-    });
+    };
+    S.canvas.addEventListener('pointerup', lift);
+    S.canvas.addEventListener('pointercancel', lift);
+    S.canvas.addEventListener('wheel', ev => { ev.preventDefault(); const q = xy(ev); zoomAt(G.zoom * Math.exp(-ev.deltaY * 0.0016), q.x, q.y); }, { passive: false });
     el.addEventListener('keydown', onKey);
     // The board is laid out again whenever its box changes size (the window, or the panel below growing).
     S.onResize = () => { layout(); };
@@ -619,6 +793,7 @@
     if (global.ResizeObserver) { S.watch = new global.ResizeObserver(() => layout()); S.watch.observe(S.canvas.parentNode); }
     layout(); paint();
     if (global.KWVillagers && global.KWVillagers.load) global.KWVillagers.load();
+    loadAssets().then(() => { if (S.open && !S.ended) music(true); });
     loop();
     S.canvas.focus();
     nextTurn();
@@ -627,13 +802,17 @@
   function onKey(ev) {
     const e = E(), st = S.state;
     if (!st) return;
-    if (ev.key === 'Escape') { ev.preventDefault(); if (S.mode === 'target' || S.pick || S.info) cancel(); else close(); return; }
+    if (ev.key === 'Escape') { ev.preventDefault(); if (S.mode !== 'idle' || S.pick || S.info) cancel(); else close(); return; }
+    if (ev.key === '+' || ev.key === '=') { ev.preventDefault(); return zoomBy(1.35); }
+    if (ev.key === '-' || ev.key === '_') { ev.preventDefault(); return zoomBy(1 / 1.35); }
     if (ev.target && ev.target.closest && ev.target.closest('button') && (ev.key === 'Enter' || ev.key === ' ')) return;
     if (ev.key === 'q' || ev.key === 'Q') { ev.preventDefault(); return rotate(-1); }
     if (ev.key === 'r' || ev.key === 'R') { ev.preventDefault(); return rotate(1); }
     // The arrows follow the board as it is turned: up is away from the viewer, to the right.
     const arrow = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[ev.key];
     const move = arrow ? turn(arrow[0], arrow[1], true) : null;
+    if (move && S.mode === 'face') { ev.preventDefault(); return aimFace(e.DIR_KEYS.find(d => e.DIRS[d][0] === move[0] && e.DIRS[d][1] === move[1])); }
+    if (S.mode === 'face' && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); sfx('confirm'); return endTurn(S.faceAim); }
     if (move) {
       ev.preventDefault();
       const c = S.cursor || { x: 0, y: 0 };
@@ -644,10 +823,11 @@
     if ((ev.key === 'Enter' || ev.key === ' ') && S.cursor) { ev.preventDefault(); return tapTile(S.cursor.x, S.cursor.y, true); }
     const u = e.current(st);
     if (/^[1-9]$/.test(ev.key) && u && u.side === 'player') { const a = (u.abilities || [])[Number(ev.key) - 1]; if (a) { ev.preventDefault(); choose(a.key); } }
-    if ((ev.key === 'e' || ev.key === 'E') && u && u.side === 'player') { ev.preventDefault(); endTurn(); }
+    if ((ev.key === 'e' || ev.key === 'E') && u && u.side === 'player') { ev.preventDefault(); askFacing(); }
   }
   function close(quiet) {
     if (!S.open && !S.el) return;
+    if (S.open) music(false);
     S.open = false;
     global.cancelAnimationFrame(S.raf);
     if (S.onResize) global.removeEventListener('resize', S.onResize);
@@ -735,7 +915,7 @@
   global.KWTactics = {
     start, open, close, devMount,
     // For the proofs and the browser checks.
-    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view,
+    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
