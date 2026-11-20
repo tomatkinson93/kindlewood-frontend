@@ -212,10 +212,12 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   for (const [sp, v] of Object.entries(VJ.species)) for (const [an, a] of Object.entries(v.anims)) if (!a.v || a.v !== sha('assets/sprites/villagers/' + a.file)) stale.push(sp + ' ' + an);
   check('8m. every villager sheet carries a stamp of its contents, and the stamps are up to date', stale.length === 0, stale.join(', '));
   check('8n. the game asks for sheet?v=stamp, and the packers write the stamps', /BASE \+ a\.file \+ \(a\.v \? '\?v=' \+ a\.v : ''\)/.test(read('js/villagers.js')) && /meta\.anims\[anim\]\.v = /.test(read('scripts/pack_sprites.js')) && /const stamped = \(dir, f\) => f \+ '\?v=' \+/.test(read('scripts/pack_tactics.js')));
-  check('8o. into a battle: a spiral closes over the screen, the battle is named on it, a circle opens; nothing acts until it has lifted',
-    /function drawSwirl\(C, p\)/.test(J) && /function drawIris\(C, p\)/.test(J) && /open\(setup, new Promise\(r => \{ lifted = r; \}\)\);/.test(J)
+  check('8o. into a battle: something closes over the screen, the battle is named on it, it opens; nothing acts until it has lifted',
+    /open\(setup, new Promise\(r => \{ lifted = r; \}\)\);/.test(J) && /animate\(T\.inMs, p => T\.cover\(C, p\)\)/.test(J) && /await animate\(T\.outMs, p => T\.reveal\(C, p\)\);/.test(J)
     && /Promise\.all\(\[hold \|\| Promise\.resolve\(\), loadAssets\(\)\]\)\.then\(\(\) => \{ if \(S\.open && S\.el === el && !S\.ended\) \{ music\(true\); nextTurn\(\); \} \}\);/.test(J));
-  check('8p. with reduced motion the screen goes dark and shows the board: no spiral', /const closing = still\(\) \? \(C\.el\.classList\.add\('is-solid'\), wait\(60\)\) : animate\(620, p => drawSwirl\(C, p\)\);/.test(J) && /if \(!still\(\)\) await animate\(560, p => drawIris\(C, p\)\);/.test(J));
+  check('8p. five ways in to choose from in Dev Tools (the fade is the default), or none; with reduced motion the screen only goes dark',
+    ['fade: {', 'page: {', 'tiles: {', 'leaves: {', 'iris: {', 'none: {'].every(x => J.includes(x)) && /key: ENTRANCES\[key\] \? key : 'fade'/.test(J) && /sel\('entrance'/.test(J)
+    && /const closing = quiet \? \(C\.el\.classList\.add\('is-solid'\), wait\(60\)\) : animate/.test(J) && !/drawSwirl/.test(J));
   check('8q. leaving fades the scene out; a second start while one is coming up is ignored', /S\.el\.classList\.add\('is-leaving'\);/.test(J) && /\.kwtc\.is-leaving \{ opacity: 0; \}/.test(CSS) && /if \(entering\) return null;/.test(J));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
 }
@@ -254,6 +256,28 @@ console.log('9. The server keeps the battle');
   check('9k. "Let them fight": the mind plays the party to the end through the same choices, looking ahead without using up the battle\'s dice', /function autoFinish\(\)/.test(J) && /const keep = st\.r, p = e\.plan\(st\);\s*st\.r = keep;/.test(J) && /if \(e\.apply\(st, a\)\) send\(a\);/.test(J));
   const server = path.join(ROOT, '..', 'kindlewood-server', 'lib', 'tactics_engine.js');
   if (fs.existsSync(server)) check('9l. the server runs the same rules, byte for byte', fs.readFileSync(server, 'utf8') === read('js/tactics-engine.js'));
+}
+
+console.log('10. A steady screen, and things that fly');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css');
+  check('10a. the panel is one fixed height, so the board above it never moves', /\.kwtc-panel \{ height: 196px; align-content: start; overflow-y: auto; \}/.test(CSS) && /\.kwtc-panel \{ height: 316px; \}/.test(CSS));
+  check('10b. what an action would do, and its Confirm, float over the board; the hint below is one steady line with no buttons', /function paintAsk\(\)/.test(J) && /\.kwtc-ask \{ position: absolute;/.test(CSS)
+    && !/hint\.innerHTML = [^;]*data-kwt="confirm"/.test(J));
+  check('10c. moving the pointer redraws only that floating box, and only when it changes', /if \(\(t && t\.x\) !== \(was && was\.x\) \|\| \(t && t\.y\) !== \(was && was\.y\)\) paintAsk\(\);/.test(J) && /if \(box\._html === html\) return;/.test(J));
+  check('10d. a canvas that is resized is drawn at once: never an empty frame', /if \(resized && S\.ctx\) draw\(now\(\)\);/.test(J));
+  // Effects: every look has a painter, and every ability in a kit has a look that suits it.
+  const look = src => [...src.matchAll(/(\w+): '(\w+)'/g)].map(m => m[2]);
+  const LOOKS = look(J.slice(J.indexOf('const LOOK = {'), J.indexOf('const FLIES')));
+  const LAND = look(J.slice(J.indexOf('const LANDS_AS'), J.indexOf('function lookOf')));
+  const painters = [...J.slice(J.indexOf('const PAINT = {'), J.indexOf('function drawFx')).matchAll(/^    (\w+)\(c, f, p, k/gm)].map(m => m[1]);
+  const missing = [...new Set(LOOKS.concat(LAND, ['shield', 'heal', 'cheer', 'reticle', 'droop', 'bubbles', 'stars', 'dust', 'boom', 'ice', 'slash']))].filter(k => !painters.includes(k) && k !== 'bite');
+  check('10e. every effect named has a painter', missing.length === 0 && painters.length >= 28, missing.join(', ') || `${painters.length} painters`);
+  check('10f. an arrow for the Archer, fire and frost for the Wizard, a shield for a ward, a glow for healing', /a_shoot: 'arrow'/.test(J) && /w_bolt: 'fire'/.test(J) && /w_burst: 'fireburst'/.test(J) && /w_chill: 'frost'/.test(J) && /h_ward: 'shield'/.test(J) && /h_kindle: 'heal'/.test(J));
+  check('10g. what flies is waited for, so the hit lands when it arrives; a burst blooms where it lands', /if \(FLIES\[look\] && !still\(\)\) await launch\(look,/.test(J) && /if \(look === 'fireburst'\) fx\('boom', to, 460\);/.test(J));
+  check('10h. an ability with no look of its own takes one from what it does', /return far \? \(u\.side === 'enemy' \? 'hex' : 'spark'\) : \(u\.side === 'enemy' \? 'bite' : 'slash'\);/.test(J));
+  check('10i. with reduced motion no effect is drawn and nothing is waited for', /function fx\(kind, at, ms, more\) \{\s*if \(still\(\)\) return;/.test(J));
+  check('10j. no stand-in sound for going in (the old one was the fishing reel)', !/tension\.wav/.test(J));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

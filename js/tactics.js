@@ -30,7 +30,7 @@
   // mode: 'idle' (choose where to walk or what to do), 'target' (an ability is chosen) or
   // 'face' (the turn is ending: which way to look; faceAim is the way shown).
   // pick: the tile tapped once and waiting for a second tap. info: a unit being looked at.
-  const S = { open: false, setup: null, opts: null, state: null, view: {}, floats: [], mode: 'idle', ability: null, pick: null, hover: null, cursor: null,
+  const S = { open: false, setup: null, opts: null, state: null, view: {}, floats: [], fx: [], cast: null, shake: 0, mode: 'idle', ability: null, pick: null, hover: null, cursor: null,
     info: null, busy: false, pointer: 'mouse', rot: 0, faceAim: null, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
   // scale = base (the whole board fits) × zoom (1 to ZOOM_MAX); px, py: how far the board has been dragged.
   const G = { tw: 64, th: 32, lift: 16, scale: 1, base: 1, zoom: 1, px: 0, py: 0, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
@@ -86,13 +86,16 @@
     G.dpr = Math.min(2, global.devicePixelRatio || 1);
     G.w = cw; G.h = ch;
     const pw = Math.round(cw * G.dpr), ph = Math.round(ch * G.dpr);
-    if (S.canvas.width !== pw || S.canvas.height !== ph) { S.canvas.width = pw; S.canvas.height = ph; S.canvas.style.width = cw + 'px'; S.canvas.style.height = ch + 'px'; }
+    const resized = S.canvas.width !== pw || S.canvas.height !== ph;
+    if (resized) { S.canvas.width = pw; S.canvas.height = ph; S.canvas.style.width = cw + 'px'; S.canvas.style.height = ch + 'px'; }
     // Dragging: the board may slide until its middle is a quarter of the box from an edge, and no further.
     const lx = Math.max(0, (bw * G.scale - cw) / 2 + cw * 0.25), ly = Math.max(0, (bh * G.scale - ch) / 2 + ch * 0.25);
     if (G.zoom <= 1.001) { G.px = 0; G.py = 0; }
     G.px = Math.max(-lx, Math.min(lx, G.px)); G.py = Math.max(-ly, Math.min(ly, G.py));
     G.ox = (cw - bw * G.scale) / 2 + ((S.rot & 1) ? m.w : m.h) * G.tw / 2 * G.scale + G.px;
     G.oy = (ch - bh * G.scale) / 2 + (head + peak * G.lift) * G.scale + G.py;
+    // Resizing a canvas wipes it: draw at once, so there is never an empty frame (it showed as a flash).
+    if (resized && S.ctx) draw(now());
   }
   // Zoom to z, keeping the point of the board under (sx, sy) where it is.
   function zoomAt(z, sx, sy) {
@@ -161,7 +164,7 @@
     });
   }
   // name → a sound that exists today, used until assets/audio/tactics/<name>.mp3 is there.
-  const STAND_IN = { start: 'tension.wav', select: 'card_click.wav', confirm: 'next.wav', melee: 'stab.wav', arrow: 'stab.wav', magic: 'stab.wav', bite: 'stab.wav',
+  const STAND_IN = { select: 'card_click.wav', confirm: 'next.wav', melee: 'stab.wav', arrow: 'stab.wav', magic: 'stab.wav', bite: 'stab.wav',
     down_foe: 'splat.wav', down_friend: 'fail.wav', victory: 'success.mp3', defeat: 'fail.wav' };
   function sfx(name) {
     if (typeof global.playSfx !== 'function') return;
@@ -377,10 +380,12 @@
     if (!c || !st) return;
     c.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
     c.clearRect(0, 0, G.w, G.h);
+    const jolt = S.shake && t < S.shake && !still() ? (S.shake - t) / 180 : 0;
     // Behind the board: dusk above, dark earth below.
     const sky = c.createLinearGradient(0, 0, 0, G.h);
     sky.addColorStop(0, '#31465c'); sky.addColorStop(0.55, '#3a3a36'); sky.addColorStop(1, '#1d150d');
     c.fillStyle = sky; c.fillRect(0, 0, G.w, G.h);
+    if (jolt) c.translate(Math.sin(t / 14) * 3 * jolt * G.scale, Math.cos(t / 11) * 2 * jolt * G.scale);      // a heavy blow jolts the board
     const m = st.map, tint = tints(), k = G.scale;
     const units = Object.values(S.view).filter(v => !v.gone), order = tilesByDepth();
     for (let d = 0, i = 0; d <= m.w + m.h - 2; d++) {
@@ -395,6 +400,7 @@
       for (const q of row) { const tile = m.tiles[q.y * m.w + q.x]; if (tile.t === 'tree' || tile.t === 'rock') drawProp(c, q.x, q.y, tile); }
       for (const v of units) if (Math.ceil(depth(v.x, v.y) - 0.01) === d) drawUnit(c, v, t);
     }
+    drawFx(c, t);
     if (S.mode === 'face' && !S.busy) drawFaceArrows(c);
     // Numbers that rise from a unit and fade.
     S.floats = S.floats.filter(f => t - f.t0 < 1000);
@@ -412,6 +418,194 @@
     if (!S.open) return;
     draw(now());
     S.raf = global.requestAnimationFrame(loop);
+  }
+
+  // ── Effects: what flies and what bursts ───────────────────────────────────
+  // Arrows, bolts, slashes, shields, sparkles: drawn by code on the board,
+  // from what the ability is. S.fx holds whatever is in flight or fading:
+  // { kind, from, to | at (board places, fractions allowed), t0, ms, seed }.
+  // With reduced motion none of it is drawn; the numbers still appear.
+  //
+  // LOOK: ability → how it looks. Anything not listed is read from what it
+  // does: a blow beside the user is a slash (a bite, from a creature), a hit
+  // from afar a spark, block a shield, healing a glow, a boon a cheer, a
+  // curse a mark.
+  const LOOK = {
+    a_shoot: 'arrow', a_part: 'arrow', a_pierce: 'arrow', a_aimed: 'arrow', a_mark: 'reticle', t_spot: 'reticle',
+    w_spark: 'spark', w_bolt: 'fire', w_burst: 'fireburst', w_chill: 'frost', h_cinder: 'ember',
+    w_ward: 'shield', h_ward: 'shield', h_steady: 'ward_ring', h_kindle: 'heal', t_ration: 'heal', t_drink: 'heal', h_bold: 'cheer',
+    hex: 'hex', venom: 'venom', mend: 'heal', shriek: 'wail', howl: 'wail',
+  };
+  const FLIES = { arrow: 1, spark: 1, fire: 1, fireburst: 1, frost: 1, ember: 1, hex: 1, venom: 1 };
+  const LANDS_AS = { arrow: 'puff', spark: 'flare', fire: 'flare', fireburst: 'flare', ember: 'flare', frost: 'ice', hex: 'hexpop', venom: 'splat', slash: 'slash', bite: 'claw', wail: 'claw' };
+  function lookOf(u, ev) {
+    if (LOOK[ev.key]) return LOOK[ev.key];
+    if (ev.kind === 'block') return 'shield';
+    if (ev.kind === 'heal') return 'heal';
+    if (ev.kind === 'buff') return 'cheer';
+    if (ev.kind === 'debuff') return 'reticle';
+    const far = Math.abs(ev.x - u.x) + Math.abs(ev.y - u.y) > 1;
+    return far ? (u.side === 'enemy' ? 'hex' : 'spark') : (u.side === 'enemy' ? 'bite' : 'slash');
+  }
+  function fx(kind, at, ms, more) {
+    if (still()) return;
+    S.fx.push(Object.assign({ kind, at: { x: at.x, y: at.y }, t0: now(), ms, seed: Math.random() }, more || {}));
+  }
+  // A point above a board place: `up` pixels (at scale 1) above the ground there.
+  const above = (m, up) => { const p = standXY(m.x, m.y); return { x: p.x, y: p.y - up * G.scale }; };
+  const mix = (a, b, p) => ({ x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p });
+  // Where something in flight is: from chest to chest, lifted in an arc.
+  function flight(f, p) {
+    const A = above(f.at, 24), B = above(f.to, 20), q = mix(A, B, p);
+    q.y -= Math.sin(Math.PI * p) * Math.min(46, f.far * (f.arc || 6)) * G.scale;
+    return q;
+  }
+  function glow(c, x, y, r, inner, outer) {
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, inner); g.addColorStop(0.45, outer); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill();
+  }
+  const PAINT = {
+    arrow(c, f, p, k) {
+      const a = flight(f, p), b = flight(f, Math.min(1, p + 0.04)), ang = Math.atan2(b.y - a.y, b.x - a.x);
+      c.save(); c.translate(a.x, a.y); c.rotate(ang);
+      c.strokeStyle = '#6b4a2e'; c.lineWidth = 2 * k; c.beginPath(); c.moveTo(-9 * k, 0); c.lineTo(6 * k, 0); c.stroke();
+      c.fillStyle = '#e6e0d2'; c.beginPath(); c.moveTo(10 * k, 0); c.lineTo(4 * k, -3 * k); c.lineTo(4 * k, 3 * k); c.closePath(); c.fill();
+      c.strokeStyle = '#f4efe2'; c.lineWidth = 1.5 * k; c.beginPath(); c.moveTo(-9 * k, 0); c.lineTo(-12 * k, -3 * k); c.moveTo(-9 * k, 0); c.lineTo(-12 * k, 3 * k); c.stroke();
+      c.restore();
+    },
+    orb(c, f, p, k, r, inner, outer, tail) {
+      for (let i = 5; i >= 1; i--) { const q = flight(f, Math.max(0, p - i * 0.045)); c.globalAlpha = 0.5 * (1 - i / 6); c.fillStyle = tail; c.beginPath(); c.arc(q.x, q.y, r * k * (1 - i / 9), 0, 6.3); c.fill(); }
+      c.globalAlpha = 1;
+      const a = flight(f, p); glow(c, a.x, a.y, r * 2.4 * k, inner, outer);
+    },
+    fire(c, f, p, k) { PAINT.orb(c, f, p, k, 5, '#fff6c0', '#ff8a2a', '#ff7a2a'); },
+    fireburst(c, f, p, k) { PAINT.orb(c, f, p, k, 7, '#fff6c0', '#ff6a1a', '#ff5a1a'); },
+    ember(c, f, p, k) { PAINT.orb(c, f, p, k, 4, '#ffe9a8', '#ff9a4a', '#ffa860'); },
+    hex(c, f, p, k) { f.arc = 3; PAINT.orb(c, f, p, k, 5, '#f3dcff', '#a368e8', '#8d54d4'); },
+    venom(c, f, p, k) { f.arc = 11; PAINT.orb(c, f, p, k, 4.5, '#eaffc0', '#7fc93a', '#6cb42c'); },
+    frost(c, f, p, k) {
+      for (let i = 4; i >= 0; i--) {
+        const q = flight(f, Math.max(0, p - i * 0.05)), r = (6 - i) * k;
+        c.globalAlpha = 1 - i / 5; c.fillStyle = i ? '#bfe6ff' : '#f2fbff';
+        c.beginPath(); c.moveTo(q.x, q.y - r); c.lineTo(q.x + r * 0.6, q.y); c.lineTo(q.x, q.y + r); c.lineTo(q.x - r * 0.6, q.y); c.closePath(); c.fill();
+      }
+      c.globalAlpha = 1;
+    },
+    spark(c, f, p, k) {      // a jagged line that leaps the gap and fades
+      const A = above(f.at, 24), B = above(f.to, 20), reach = Math.min(1, p * 1.8), n = 6;
+      c.globalAlpha = p < 0.55 ? 1 : Math.max(0, 1 - (p - 0.55) / 0.45);
+      for (const [w, col] of [[5, 'rgba(255,240,150,0.35)'], [2, '#fffbe0']]) {
+        c.strokeStyle = col; c.lineWidth = w * k; c.lineJoin = 'round'; c.beginPath(); c.moveTo(A.x, A.y);
+        for (let i = 1; i <= n; i++) { const q = mix(A, B, reach * i / n), j = i === n ? 0 : (Math.sin(f.seed * 40 + i * 7.3) * 7 * k); c.lineTo(q.x + j, q.y - j * 0.6); }
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    },
+    // What lands: at a place, growing and fading.
+    slash(c, f, p, k) {
+      const a = above(f.at, 20), start = -2.4 + f.seed * 0.8, sweep = 2.2 * Math.min(1, p * 1.6);
+      c.globalAlpha = 1 - p; c.strokeStyle = '#ffffff'; c.lineCap = 'round';
+      for (const [r, w] of [[17, 3.5], [12, 2]]) { c.lineWidth = w * k; c.beginPath(); c.arc(a.x, a.y, r * k, start, start + sweep); c.stroke(); }
+      c.lineCap = 'butt'; c.globalAlpha = 1;
+    },
+    claw(c, f, p, k) {
+      const a = above(f.at, 20), len = 22 * k * Math.min(1, p * 2);
+      c.globalAlpha = 1 - p * p; c.strokeStyle = '#ff6a55'; c.lineWidth = 2.6 * k; c.lineCap = 'round';
+      for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(a.x - 8 * k + i * 6 * k, a.y - 10 * k); c.lineTo(a.x - 8 * k + i * 6 * k + len * 0.7, a.y - 10 * k + len); c.stroke(); }
+      c.lineCap = 'butt'; c.globalAlpha = 1;
+    },
+    burst(c, f, p, k, ring, core, rays) {
+      const a = above(f.at, f.low ? 4 : 18), r = (6 + 30 * p * (f.big || 1)) * k;
+      c.globalAlpha = (1 - p) * 0.55; c.fillStyle = core; c.beginPath(); c.arc(a.x, a.y, r * 0.8, 0, 6.3); c.fill();
+      c.globalAlpha = 1 - p; c.strokeStyle = ring; c.lineWidth = 3 * k * (1 - p * 0.6); c.beginPath(); c.arc(a.x, a.y, r, 0, 6.3); c.stroke();
+      c.lineWidth = 2 * k;
+      for (let i = 0; i < rays; i++) { const t = f.seed * 6 + i * 6.283 / rays; c.beginPath(); c.moveTo(a.x + Math.cos(t) * r * 0.7, a.y + Math.sin(t) * r * 0.7); c.lineTo(a.x + Math.cos(t) * r * 1.25, a.y + Math.sin(t) * r * 1.25); c.stroke(); }
+      c.globalAlpha = 1;
+    },
+    puff(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.45 }), p, k, '#f4efe2', 'rgba(255,255,255,0.5)', 0); },
+    flare(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.7 }), p, k, '#ffb347', '#ffd98a', 7); },
+    boom(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 1.5, low: true }), p, k, '#ff9a3c', '#ffc76a', 10); },
+    ice(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.8 }), p, k, '#cfeeff', '#eaf8ff', 6); },
+    hexpop(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.7 }), p, k, '#b77cf0', '#dcc0ff', 5); },
+    splat(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.6 }), p, k, '#8fd24a', '#c8f09a', 5); },
+    shield(c, f, p, k) {
+      const a = above(f.at, 22), s = (0.55 + 0.55 * Math.min(1, p * 1.7)) * k;
+      c.save(); c.translate(a.x, a.y); c.scale(s, s); c.globalAlpha = (1 - p) * 0.9;
+      c.beginPath(); c.moveTo(-13, -14); c.lineTo(13, -14); c.lineTo(13, 2); c.quadraticCurveTo(13, 14, 0, 20); c.quadraticCurveTo(-13, 14, -13, 2); c.closePath();
+      c.fillStyle = 'rgba(120,180,255,0.45)'; c.fill(); c.strokeStyle = '#e6f3ff'; c.lineWidth = 2.2; c.stroke();
+      c.beginPath(); c.moveTo(0, -14); c.lineTo(0, 20); c.moveTo(-13, -2); c.lineTo(13, -2); c.strokeStyle = 'rgba(230,243,255,0.6)'; c.lineWidth = 1.4; c.stroke();
+      c.restore();
+    },
+    rising(c, f, p, k, col, draw) {      // small things rising round a unit
+      const a = above(f.at, 8);
+      for (let i = 0; i < 6; i++) {
+        const ph = (p + i * 0.13) % 1, x = a.x + Math.sin(f.seed * 9 + i * 2.1) * 13 * k, y = a.y - ph * 38 * k;
+        c.globalAlpha = Math.sin(Math.PI * ph) * (1 - p * 0.5); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 2 * k; c.lineCap = 'round';
+        draw(x, y, 4 * k);
+      }
+      c.lineCap = 'butt'; c.globalAlpha = 1;
+    },
+    heal(c, f, p, k) {
+      const g = above(f.at, 0);
+      c.globalAlpha = (1 - p) * 0.8; c.strokeStyle = '#a8e890'; c.lineWidth = 2.5 * k; c.beginPath(); c.ellipse(g.x, g.y, (10 + 16 * p) * k, (5 + 8 * p) * k, 0, 0, 6.3); c.stroke();
+      PAINT.rising(c, f, p, k, '#b8f0a0', (x, y, r) => { c.beginPath(); c.moveTo(x - r, y); c.lineTo(x + r, y); c.moveTo(x, y - r); c.lineTo(x, y + r); c.stroke(); });
+    },
+    cheer(c, f, p, k) { PAINT.rising(c, f, p, k, '#ffd27a', (x, y, r) => { c.beginPath(); c.moveTo(x - r, y + r * 0.6); c.lineTo(x, y - r * 0.6); c.lineTo(x + r, y + r * 0.6); c.stroke(); }); },
+    bubbles(c, f, p, k) { PAINT.rising(c, f, p, k, '#9fdc5a', (x, y, r) => { c.beginPath(); c.arc(x, y, r * 0.6, 0, 6.3); c.stroke(); }); },
+    droop(c, f, p, k) {
+      const a = above(f.at, 44);
+      for (let i = 0; i < 3; i++) {
+        const ph = (p + i * 0.2) % 1, x = a.x + (i - 1) * 9 * k, y = a.y + ph * 26 * k;
+        c.globalAlpha = Math.sin(Math.PI * ph); c.strokeStyle = '#c79af0'; c.lineWidth = 2 * k; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(x - 4 * k, y - 3 * k); c.lineTo(x, y + 3 * k); c.lineTo(x + 4 * k, y - 3 * k); c.stroke();
+      }
+      c.lineCap = 'butt'; c.globalAlpha = 1;
+    },
+    reticle(c, f, p, k) {
+      const a = above(f.at, 20), r = (30 - 18 * Math.min(1, p * 1.5)) * k;
+      c.globalAlpha = p < 0.7 ? 1 : (1 - p) / 0.3; c.strokeStyle = '#ff6a55'; c.lineWidth = 2 * k;
+      c.beginPath(); c.arc(a.x, a.y, r, 0, 6.3); c.stroke();
+      c.beginPath(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { c.moveTo(a.x + dx * r * 0.6, a.y + dy * r * 0.6); c.lineTo(a.x + dx * r * 1.35, a.y + dy * r * 1.35); } c.stroke();
+      c.globalAlpha = 1;
+    },
+    stars(c, f, p, k) {
+      const a = above(f.at, 46);
+      c.fillStyle = '#ffe27a'; c.globalAlpha = 1 - p * p;
+      for (let i = 0; i < 3; i++) { const t = p * 5 + i * 2.094, x = a.x + Math.cos(t) * 12 * k, y = a.y + Math.sin(t) * 4 * k; c.beginPath(); for (let j = 0; j < 5; j++) { const q = j * 1.2566 - 1.5708, r = j % 2 ? 2 * k : 4.5 * k; c.lineTo(x + Math.cos(q) * r, y + Math.sin(q) * r); const q2 = q + 0.628; c.lineTo(x + Math.cos(q2) * 2 * k, y + Math.sin(q2) * 2 * k); } c.closePath(); c.fill(); }
+      c.globalAlpha = 1;
+    },
+    dust(c, f, p, k) {
+      const a = above(f.at, 2);
+      c.fillStyle = '#d8cdb8';
+      for (let i = 0; i < 6; i++) { const t = i * 1.047 + f.seed * 3, d = (6 + 22 * p) * k; c.globalAlpha = (1 - p) * 0.7; c.beginPath(); c.arc(a.x + Math.cos(t) * d, a.y + Math.sin(t) * d * 0.5 - p * 6 * k, (5 - 3 * p) * k, 0, 6.3); c.fill(); }
+      c.globalAlpha = 1;
+    },
+    // A ring that spreads over the ground from someone: a ward on all friends, a howl at all foes.
+    ring(c, f, p, k, col) {
+      const g = above(f.at, 0), r = (f.tiles || 2) * G.tw * 0.5 * p * k;
+      c.globalAlpha = (1 - p) * 0.9; c.strokeStyle = col; c.lineWidth = 3 * k;
+      c.beginPath(); c.ellipse(g.x, g.y, r, r * 0.5, 0, 0, 6.3); c.stroke();
+      c.globalAlpha = (1 - p) * 0.4; c.beginPath(); c.ellipse(g.x, g.y, r * 0.7, r * 0.35, 0, 0, 6.3); c.stroke();
+      c.globalAlpha = 1;
+    },
+    ward_ring(c, f, p, k) { PAINT.ring(c, f, p, k, '#9fd0ff'); },
+    wail(c, f, p, k) { PAINT.ring(c, f, p, k, '#ff8a70'); },
+  };
+  function drawFx(c, t) {
+    S.fx = S.fx.filter(f => t - f.t0 < f.ms);
+    for (const f of S.fx) {
+      const paint = PAINT[f.kind];
+      if (paint) paint(c, f, Math.max(0, Math.min(1, (t - f.t0) / f.ms)), G.scale);
+    }
+  }
+  // Something leaves the user for a place and is waited for; then what it does on arriving.
+  async function launch(look, from, to) {
+    const far = Math.hypot(to.x - from.x, to.y - from.y), ms = look === 'spark' ? 260 : Math.max(200, Math.min(520, 95 * far));
+    fx(look, from, ms, { to: { x: to.x, y: to.y }, far });
+    await wait(look === 'spark' ? 150 : ms);
+    if (look === 'fireburst') fx('boom', to, 460);
+    if (look === 'frost') fx('ice', to, 380);
   }
 
   // ── Showing what the engine did ───────────────────────────────────────────
@@ -463,25 +657,39 @@
       else if (ev.type === 'use') {
         banner(`${name(ev.id)}: ${ev.icon || ''} ${ev.name}`); say(`${name(ev.id)} uses ${ev.name}.`);
         sfx(soundOf(e.unit(S.state, ev.id), ev));
-        if (ev.x !== Math.round(v.x) || ev.y !== Math.round(v.y)) {
+        const look = lookOf({ x: Math.round(v.x), y: Math.round(v.y), side: e.unit(S.state, ev.id).side }, ev), aimed = ev.x !== Math.round(v.x) || ev.y !== Math.round(v.y);
+        S.cast = look;
+        if (aimed) {
           const dx = Math.sign(ev.x - v.x) * 0.22, dy = Math.sign(ev.y - v.y) * 0.22;
-          await tween(v, { lx: dx, ly: dy }, 90); await tween(v, { lx: 0, ly: 0 }, 110);
-        } else await wait(160);
+          await tween(v, { lx: dx, ly: dy }, 90);
+          // What flies is waited for, so the hit lands when it arrives.
+          if (FLIES[look] && !still()) await launch(look, { x: v.x, y: v.y }, { x: ev.x, y: ev.y });
+          await tween(v, { lx: 0, ly: 0 }, 110);
+        } else {
+          if (look === 'ward_ring' || look === 'wail') fx(look, v, 520, { tiles: 2.4 });
+          await wait(160);
+        }
       } else if (ev.type === 'hit') {
         v.flash = now() + 240; v.hp = ev.hp;
+        fx(LANDS_AS[S.cast] || 'slash', v, 300);
+        if (ev.dmg >= 20 || ev.side === 'back') S.shake = now() + 180;
         float(v, '−' + ev.dmg, '#ffd9d0', true);
         if (ev.side !== 'front') float(v, ev.side === 'back' ? 'From behind!' : 'Flanked', '#ffd27a');
         if (ev.blocked) float(v, 'blocked ' + ev.blocked, '#9fd0ff');
         v.block = Math.max(0, (v.block || 0) - ev.blocked);
         say(`${name(ev.id)} takes ${ev.dmg}${ev.side === 'back' ? ', struck from behind' : ev.side === 'side' ? ', flanked' : ''}.`);
         await wait(360);
-      } else if (ev.type === 'block') { v.block = ev.block; float(v, '🛡 +' + ev.amount, '#9fd0ff'); await wait(220); }
-      else if (ev.type === 'heal') { v.hp = ev.hp; float(v, '+' + ev.amount, '#a8e890', true); await wait(260); }
-      else if (ev.type === 'status') { v.st[ev.name] = ev.now; float(v, (STATUS[ev.name] || [ev.name])[0] + ' ' + ev.amount, '#fff3d6'); await wait(180); }
+      } else if (ev.type === 'block') { v.block = ev.block; fx('shield', v, 520); float(v, '🛡 +' + ev.amount, '#9fd0ff'); await wait(220); }
+      else if (ev.type === 'heal') { v.hp = ev.hp; fx('heal', v, 800); float(v, '+' + ev.amount, '#a8e890', true); await wait(300); }
+      else if (ev.type === 'status') {
+        v.st[ev.name] = ev.now;
+        fx({ bold: 'cheer', vulnerable: 'reticle', weak: 'droop', slow: 'ice', poison: 'bubbles', stun: 'stars' }[ev.name] || 'droop', v, 700);
+        float(v, (STATUS[ev.name] || [ev.name])[0] + ' ' + ev.amount, '#fff3d6'); await wait(180);
+      }
       else if (ev.type === 'push') { if (!ev.step) sfx('push'); await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
-      else if (ev.type === 'poison') { v.hp = ev.hp; float(v, '☠ −' + ev.amount, '#c8e070', true); await wait(300); }
-      else if (ev.type === 'skip') { float(v, 'Stunned', '#fff3d6'); say(`${name(ev.id)} is stunned and loses the turn.`); await wait(420); }
-      else if (ev.type === 'down') { say(`${name(ev.id)} is down.`); sfx(e.unit(S.state, ev.id).side === 'enemy' ? 'down_foe' : 'down_friend'); await tween(v, { alpha: 0 }, 380); v.gone = true; }
+      else if (ev.type === 'poison') { v.hp = ev.hp; fx('bubbles', v, 700); float(v, '☠ −' + ev.amount, '#c8e070', true); await wait(300); }
+      else if (ev.type === 'skip') { fx('stars', v, 900); float(v, 'Stunned', '#fff3d6'); say(`${name(ev.id)} is stunned and loses the turn.`); await wait(420); }
+      else if (ev.type === 'down') { say(`${name(ev.id)} is down.`); sfx(e.unit(S.state, ev.id).side === 'enemy' ? 'down_foe' : 'down_friend'); fx('dust', v, 520); await tween(v, { alpha: 0 }, 380); v.gone = true; }
       else if (ev.type === 'round') { S.round = ev.n; paintTop(); }
       else if (ev.type === 'turn') { paintTop(); await wait(90); }
     }
@@ -498,7 +706,7 @@
       + `<div class="kwtc-order" aria-label="Who acts next"></div>`
       + `<button type="button" class="kw-btn quiet kwtc-x" data-kwt="close" aria-label="Leave the battle">✕</button></header>`
       + `<div class="kwtc-board"><canvas class="kwtc-canvas" tabindex="0" aria-label="The battlefield. Arrow keys move the cursor, Enter chooses, Escape cancels."></canvas>`
-      + `<div class="kwtc-banner" aria-hidden="true"></div>`
+      + `<div class="kwtc-banner" aria-hidden="true"></div><div class="kwtc-ask"></div>`
       + `<div class="kwtc-turnview"><button type="button" class="kw-btn" data-kwt="zoom-out" aria-label="Zoom out" title="Zoom out (−)">−</button><button type="button" class="kw-btn" data-kwt="zoom-in" aria-label="Zoom in" title="Zoom in (+)">＋</button>`
       + `<button type="button" class="kw-btn" data-kwt="rot-l" aria-label="Turn the view left" title="Turn the view (Q)">⟲</button><button type="button" class="kw-btn" data-kwt="rot-r" aria-label="Turn the view right" title="Turn the view (R)">⟳</button></div>`
       + `<div class="kwtc-end" hidden></div></div>`
@@ -574,18 +782,33 @@
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
       + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
-      + `<button type="button" class="kw-btn quiet" data-kwt="auto" title="The party fights the rest of the battle by itself">Let them fight</button>`
+      + (a || S.pick ? `<button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button>`
+        : `<button type="button" class="kw-btn quiet" data-kwt="auto" title="The party fights the rest of the battle by itself">Let them fight</button>`)
       + `<button type="button" class="kw-btn" data-kwt="end">End turn</button></div>`;
-    let text = '';
-    if (a) {
-      const tile = S.pick || (S.pointer === 'mouse' ? S.hover : null), fore = tile ? forecastHtml(u, a, tile) : '';
-      if (fore && S.pick) text = fore + `<div class="kwtc-confirm"><button type="button" class="kw-btn primary" data-kwt="confirm">Confirm</button><button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button></div>`;
-      else text = (fore || `<div><b>${esc(a.name)}</b>: ${esc(a.desc || effectText(a))} Choose a marked target.</div>`) + `<div class="kwtc-confirm"><button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button></div>`;
-    } else if (S.pick) text = `<div>Walk here?</div><div class="kwtc-confirm"><button type="button" class="kw-btn primary" data-kwt="confirm">Move here</button><button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button></div>`;
-    else text = `<div>${esc(u.name)}'s turn. ${st.turn.moved ? '' : 'Blue tiles: where to walk. '}${st.turn.acted ? 'The action is used.' : 'Choose an action below.'}</div>`;
-    hint.innerHTML = text;
+    // One steady line of guidance. What an action would do, and the buttons that confirm it, float over
+    // the board (paintAsk), so this panel keeps its height and the board never jumps.
+    hint.innerHTML = a ? `<div><b>${esc(a.name)}</b>: ${esc(a.desc || effectText(a))} ${a.target === 'self' || a.shape === 'around' ? 'Confirm to use it.' : 'Choose a marked target.'}</div>`
+      : `<div>${esc(u.name)}'s turn. ${st.turn.moved ? '' : 'Blue tiles: where to walk. '}${st.turn.acted ? 'The action is used.' : 'Choose an action below.'}</div>`;
   }
-  function paint() { paintTop(); paintPanel(); }
+  // What the chosen action would do to whoever is under the pointer (or was tapped), with Confirm on a
+  // touch screen; or "Walk here?". Drawn over the top of the board; redrawn only when it changes.
+  function paintAsk() {
+    const box = S.el && S.el.querySelector('.kwtc-ask');
+    if (!box || !S.state) return;
+    const e = E(), st = S.state, u = e.current(st);
+    let html = '';
+    if (u && u.side === 'player' && !S.busy && st.status === 'active') {
+      const ok = label => `<div class="kwtc-confirm"><button type="button" class="kw-btn primary" data-kwt="confirm">${label}</button><button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button></div>`;
+      if (S.mode === 'target' && S.ability) {
+        const a = e.ability(u, S.ability), tile = S.pick || (S.pointer === 'mouse' ? S.hover : null), fore = tile ? forecastHtml(u, a, tile) : '';
+        if (fore) html = fore + (S.pick ? ok('Confirm') : '');
+      } else if (S.mode === 'idle' && S.pick) html = `<div class="kwtc-fore"><div>Walk here?</div></div>` + ok('Move here');
+    }
+    if (box._html === html) return;
+    box._html = html;
+    box.innerHTML = html ? `<div class="kwtc-ask-box">${html}</div>` : '';
+  }
+  function paint() { paintTop(); paintPanel(); paintAsk(); }
 
   // ── Taking a turn ─────────────────────────────────────────────────────────
   async function afterAction() {
@@ -789,7 +1012,7 @@
   // ── Opening and closing ───────────────────────────────────────────────────
   function begin(setup) {
     const e = E();
-    S.setup = setup; S.view = {}; S.floats = []; S.rot = 0; G.zoom = 1; G.px = 0; G.py = 0; S.faceAim = null; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
+    S.setup = setup; S.view = {}; S.floats = []; S.fx = []; S.cast = null; S.shake = 0; S.rot = 0; G.zoom = 1; G.px = 0; G.py = 0; S.faceAim = null; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
     // A battle picked up again is played back to where it was; a new one starts with the creatures yet to move.
     const done = Array.isArray(setup.actions) ? setup.actions : [];
     S.state = done.length ? e.replay(setup, done).state : e.createBattle({ seed: setup.seed, land: setup.land, party: setup.party, enemies: setup.enemies });
@@ -859,9 +1082,9 @@
       if (S.mode === 'face') { const d = faceAt(q.x, q.y); if (d && d !== S.faceAim) aimFace(d); return; }
       const t = tileAtPoint(q.x, q.y), was = S.hover;
       S.hover = t;
-      if ((t && t.x) !== (was && was.x) || (t && t.y) !== (was && was.y)) paintPanel();
+      if ((t && t.x) !== (was && was.x) || (t && t.y) !== (was && was.y)) paintAsk();
     });
-    S.canvas.addEventListener('pointerleave', () => { S.hover = null; });
+    S.canvas.addEventListener('pointerleave', () => { S.hover = null; paintAsk(); });
     const lift = ev => {
       if (!P.down.has(ev.pointerId)) return;
       const q = xy(ev);
@@ -908,7 +1131,7 @@
       ev.preventDefault();
       const c = S.cursor || { x: 0, y: 0 };
       S.cursor = { x: Math.max(0, Math.min(st.map.w - 1, c.x + move[0])), y: Math.max(0, Math.min(st.map.h - 1, c.y + move[1])) };
-      S.hover = S.cursor; S.pointer = 'mouse'; paintPanel();
+      S.hover = S.cursor; S.pointer = 'mouse'; paintAsk();
       return;
     }
     if ((ev.key === 'Enter' || ev.key === ' ') && S.cursor) { ev.preventDefault(); return tapTile(S.cursor.x, S.cursor.y, true); }
@@ -940,10 +1163,12 @@
     try { const d = await jsonOf(await global.apiFetch('/api/tactics/battles/current')); return d && d.ok && d.battle ? d.battle : null; } catch (e) { return null; }
   }
   // ── Into a battle, and out of one ─────────────────────────────────────────
-  // A dark spiral closes over whatever was on screen, the battle's name is
-  // shown on it, and then a circle opens onto the board. With reduced motion
-  // the screen simply goes dark and then shows the board.
-  const DARK = '#1d150d';
+  // Something closes over whatever was on screen, the battle's name is shown
+  // on it, and it opens onto the board. There are several ways of doing it
+  // (ENTRANCES), chosen in Dev Tools while the owner decides which suits the
+  // game; 'fade' is the quiet default. With reduced motion the screen simply
+  // goes dark and then shows the board.
+  const DARK = '#1d150d', PAPER = '#eadcbd';
   function curtain() {
     const el = doc.createElement('div');
     el.className = 'kwtc-curtain';
@@ -951,7 +1176,7 @@
     doc.body.appendChild(el);
     const cv = el.firstChild, dpr = Math.min(2, global.devicePixelRatio || 1);
     cv.width = Math.max(1, Math.round(global.innerWidth * dpr)); cv.height = Math.max(1, Math.round(global.innerHeight * dpr));
-    return { el, c: cv.getContext('2d'), w: cv.width, h: cv.height, title: el.lastChild };
+    return { el, c: cv.getContext('2d'), w: cv.width, h: cv.height, dpr, title: el.lastChild };
   }
   // Run draw(p) for p from 0 to 1 over ms.
   function animate(ms, draw) {
@@ -961,29 +1186,78 @@
       step();
     });
   }
-  // Nine curved blades turn and widen from the middle until they meet.
-  function drawSwirl(C, p) {
-    const c = C.c, cx = C.w / 2, cy = C.h / 2, R = Math.hypot(C.w, C.h) / 2 + 4, N = 9, STEPS = 22;
-    c.clearRect(0, 0, C.w, C.h);
-    c.fillStyle = DARK;
-    if (p >= 1) return void c.fillRect(0, 0, C.w, C.h);
-    const wide = p * p * (2 * Math.PI / N), spin = p * Math.PI * 1.25, twist = 2.6;
-    for (let i = 0; i < N; i++) {
-      const a0 = i * 2 * Math.PI / N + spin;
-      c.beginPath(); c.moveTo(cx, cy);
-      for (let k = 1; k <= STEPS; k++) { const r = R * k / STEPS, a = a0 + twist * k / STEPS; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
-      for (let k = STEPS; k >= 1; k--) { const r = R * k / STEPS, a = a0 + wide + twist * k / STEPS; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
-      c.closePath(); c.fill();
-    }
-  }
-  // A circle opens from the middle.
-  function drawIris(C, p) {
-    const c = C.c, R = Math.hypot(C.w, C.h) / 2 + 4, q = 1 - Math.pow(1 - p, 3);
-    c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, C.w, C.h);
-    c.fillStyle = DARK; c.fillRect(0, 0, C.w, C.h);
-    c.globalCompositeOperation = 'destination-out';
-    c.beginPath(); c.arc(C.w / 2, C.h / 2, R * q, 0, 6.3); c.fill();
-    c.globalCompositeOperation = 'source-over';
+  const ease = p => 1 - Math.pow(1 - p, 3), clamp01 = v => Math.max(0, Math.min(1, v));
+  const rnd = (i, k) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+  // Each way in: cover(C, p) draws it closing (p = 1: nothing shows through);
+  // reveal(C, p) draws it opening (p = 1: nothing is left). `paper`: the title sits on parchment.
+  const ENTRANCES = {
+    fade: { label: 'A fade through dark', inMs: 260, outMs: 340,
+      cover(C, p) { const c = C.c; c.clearRect(0, 0, C.w, C.h); c.globalAlpha = p; c.fillStyle = DARK; c.fillRect(0, 0, C.w, C.h); c.globalAlpha = 1; },
+      reveal(C, p) { this.cover(C, 1 - p); } },
+    page: { label: 'A page turning', paper: true, inMs: 520, outMs: 520,
+      // A sheet of parchment sweeps in from the right behind a slanted edge, and leaves to the left.
+      sheet(C, left, right, slant) {
+        const c = C.c;
+        c.clearRect(0, 0, C.w, C.h);
+        c.fillStyle = PAPER; c.beginPath(); c.moveTo(left + slant, 0); c.lineTo(right + slant, 0); c.lineTo(right - slant, C.h); c.lineTo(left - slant, C.h); c.closePath(); c.fill();
+        for (const x of [left, right]) {      // the shadow each edge throws on what is under it
+          if (x <= -C.w * 0.4 || x >= C.w * 1.4) continue;
+          const dir = x === left ? -1 : 1, g = c.createLinearGradient(x, 0, x + dir * 46 * C.dpr, 0);
+          g.addColorStop(0, 'rgba(20,12,6,0.45)'); g.addColorStop(1, 'rgba(20,12,6,0)');
+          c.fillStyle = g; c.beginPath(); c.moveTo(x + slant, 0); c.lineTo(x + slant + dir * 46 * C.dpr, 0); c.lineTo(x - slant + dir * 46 * C.dpr, C.h); c.lineTo(x - slant, C.h); c.closePath(); c.fill();
+        }
+      },
+      cover(C, p) { const sl = C.w * 0.12; this.sheet(C, (C.w + sl * 2) * (1 - ease(p)) - sl, C.w + sl * 2, p >= 1 ? 0 : sl); },
+      reveal(C, p) { const sl = C.w * 0.12; this.sheet(C, -sl * 2, (C.w + sl * 2) * (1 - ease(p)) - sl, p <= 0 ? 0 : sl); } },
+    tiles: { label: 'Tiles turning over', inMs: 620, outMs: 620,
+      // The screen turns dark tile by tile, as the board's own diamonds, in a wave from the middle.
+      wave(C, grow) {
+        const c = C.c, tw = 112 * C.dpr, th = tw / 2, far = Math.hypot(C.w, C.h) / 2;
+        c.clearRect(0, 0, C.w, C.h); c.fillStyle = DARK;
+        for (let j = -1; j * th / 2 < C.h + th; j++) for (let i = -1; i * tw < C.w + tw; i++) {
+          const x = i * tw + (j % 2 ? tw / 2 : 0), y = j * th / 2, q = grow(Math.hypot(x - C.w / 2, y - C.h / 2) / far);
+          if (q <= 0) continue;
+          const w = tw / 2 * q * 1.02, h = th / 2 * q * 1.02;
+          c.beginPath(); c.moveTo(x, y - h); c.lineTo(x + w, y); c.lineTo(x, y + h); c.lineTo(x - w, y); c.closePath(); c.fill();
+        }
+      },
+      cover(C, p) { this.wave(C, d => clamp01(p * 2 - d)); },
+      reveal(C, p) { this.wave(C, d => 1 - clamp01(p * 2 - d)); } },
+    leaves: { label: 'Leaves blowing across', inMs: 760, outMs: 640,
+      // A gust of autumn leaves crosses the screen as it darkens behind them; another carries the dark away.
+      gust(C, t, dark, fade) {
+        const c = C.c, cols = ['#c8642a', '#d9982e', '#8a9a3c', '#a8442a', '#e0b050'];
+        c.clearRect(0, 0, C.w, C.h);
+        c.globalAlpha = dark; c.fillStyle = DARK; c.fillRect(0, 0, C.w, C.h);
+        for (let i = 0; i < 110; i++) {
+          const along = (t * (0.9 + rnd(i, 1) * 0.8) + rnd(i, 2)) % 1.3, x = C.w * (-0.15 + along), y = C.h * rnd(i, 3) + Math.sin(t * 9 + i) * 26 * C.dpr;
+          const r = (9 + rnd(i, 4) * 15) * C.dpr;
+          c.save(); c.translate(x, y); c.rotate(t * 7 * (rnd(i, 5) - 0.5) * 2 + i);
+          c.globalAlpha = fade; c.fillStyle = cols[i % cols.length];
+          c.beginPath(); c.moveTo(-r, 0); c.quadraticCurveTo(0, -r * 0.7, r, 0); c.quadraticCurveTo(0, r * 0.7, -r, 0); c.fill();
+          c.strokeStyle = 'rgba(60,30,10,0.45)'; c.lineWidth = Math.max(1, C.dpr); c.beginPath(); c.moveTo(-r * 0.8, 0); c.lineTo(r * 0.8, 0); c.stroke();
+          c.restore();
+        }
+        c.globalAlpha = 1;
+      },
+      cover(C, p) { this.gust(C, p, clamp01((p - 0.2) / 0.7), clamp01(p * 5)); },
+      reveal(C, p) { this.gust(C, 1 + p, 1 - clamp01(p / 0.6), 1 - clamp01((p - 0.5) / 0.5)); } },
+    iris: { label: 'A closing circle', inMs: 440, outMs: 500,
+      hole(C, r) {
+        const c = C.c;
+        c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, C.w, C.h); c.fillStyle = DARK; c.fillRect(0, 0, C.w, C.h);
+        if (r > 0) { c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.arc(C.w / 2, C.h / 2, r, 0, 6.3); c.fill(); c.globalCompositeOperation = 'source-over'; }
+      },
+      cover(C, p) { this.hole(C, (Math.hypot(C.w, C.h) / 2 + 4) * (1 - ease(p))); },
+      reveal(C, p) { this.hole(C, (Math.hypot(C.w, C.h) / 2 + 4) * ease(p)); } },
+    none: { label: 'Nothing: straight in' },
+  };
+  // The way in that is chosen (Dev Tools → Going in), else the fade.
+  function entrance() {
+    let key = null;
+    try { key = global.localStorage.getItem('kwt_entrance'); } catch (e) { /* private window */ }
+    key = key || loadPick().entrance;
+    return { key: ENTRANCES[key] ? key : 'fade', ...(ENTRANCES[key] || ENTRANCES.fade) };
   }
   const FIGHT = { fight: 'A fight', elite: 'An elite fight', boss: 'The boss' };
   let entering = false;
@@ -991,22 +1265,27 @@
   async function enter(setupPromise) {
     if (entering) return null;
     entering = true;
-    const C = curtain();
+    const T = entrance();
+    if (T.key === 'none') {      // straight in: no curtain, no title card
+      try { const setup = await setupPromise; if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu(); open(setup); return setup; }
+      finally { entering = false; }
+    }
+    const C = curtain(), quiet = still();
     try {
       loadAssets().then(() => sfx('start'));
-      const closing = still() ? (C.el.classList.add('is-solid'), wait(60)) : animate(620, p => drawSwirl(C, p));
+      const closing = quiet ? (C.el.classList.add('is-solid'), wait(60)) : animate(T.inMs, p => T.cover(C, p));
       const [setup] = await Promise.all([setupPromise, closing]);
-      C.el.classList.add('is-solid');
-      // The screen is dark: Dev Tools, where the battle was started, is put away behind it.
+      if (!quiet) T.cover(C, 1);
+      // The screen is covered: Dev Tools, where the battle was started, is put away behind it.
       if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
       C.title.innerHTML = `<b>⚔ ${esc(setup.name || 'A battle')}</b><span>${esc(setup.skull || '')} ${esc(land(setup.land))} · ${esc(FIGHT[setup.fight] || 'A fight')}</span>`;
+      C.title.classList.toggle('is-paper', !!T.paper && !quiet);
       C.title.classList.add('is-on');
       let lifted;
       open(setup, new Promise(r => { lifted = r; }));
-      await new Promise(r => global.setTimeout(r, 900));      // long enough to read the name, with or without motion
+      await new Promise(r => global.setTimeout(r, 700));      // long enough to read the name, with or without motion
       C.title.classList.remove('is-on');
-      C.el.classList.remove('is-solid');
-      if (!still()) await animate(560, p => drawIris(C, p));
+      if (quiet) C.el.classList.remove('is-solid'); else await animate(T.outMs, p => T.reveal(C, p));
       C.el.remove();
       lifted();
       return setup;
@@ -1049,7 +1328,7 @@
     if (DEV.pick) return DEV.pick;
     let saved = null;
     try { saved = JSON.parse(global.localStorage.getItem('kwt_dev_pick') || 'null'); } catch (e) { /* private window */ }
-    DEV.pick = Object.assign({ classes: ['guard', 'hearthkeeper', 'archer', 'wizard'], level: 'skull', tier: 'green', terrain: 'forest', fight: 'first', seed: '' }, saved || {});
+    DEV.pick = Object.assign({ classes: ['guard', 'hearthkeeper', 'archer', 'wizard'], level: 'skull', tier: 'green', terrain: 'forest', fight: 'first', seed: '', entrance: 'fade' }, saved || {});
     return DEV.pick;
   }
   function devHtml(o, p) {
@@ -1060,7 +1339,8 @@
       + `<div class="kwdg-dev-row">${SLOTS.map((s, i) => sel('class' + i, o.classes.map(c => ({ key: c.key, label: `${c.icon} ${c.label}` })), p.classes[i], s)).join('')}</div>`
       + `<div class="kwdg-dev-row">${sel('level', o.levels, p.level, 'Their level')}${sel('tier', o.tiers.map(t => ({ key: t.key, label: `${t.skull} ${t.name}` })), p.tier, 'Skull')}`
       + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}`
-      + `<label>Seed <input class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" data-kwt-dev="seed" value="${esc(p.seed || '')}"></label></div>`
+      + `<label>Seed <input class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" data-kwt-dev="seed" value="${esc(p.seed || '')}"></label>`
+      + `${sel('entrance', Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label })), p.entrance || 'fade', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
       + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
       + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
@@ -1106,7 +1386,7 @@
   global.KWTactics = {
     start, resume, open, close, leave, devMount,
     // For the proofs and the browser checks.
-    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync,
+    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _curtain: curtain,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
