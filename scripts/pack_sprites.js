@@ -292,6 +292,8 @@ function main(argv) {
       const file = `${key}_${anim}.png`;
       fs.writeFileSync(path.join(outDir, file), png);
       meta.anims[anim].file = file;
+      // A stamp of the sheet's contents: the game asks for file?v=stamp, so a changed sheet is never served from an old cache.
+      meta.anims[anim].v = require('crypto').createHash('sha1').update(png).digest('hex').slice(0, 8);
     }
     json.species[key] = meta;
     const notes = Object.entries(meta.anims).map(([a, m]) => `${a}: ${m.frames} frames × ${m.ms} ms` + (m.mirrored.length ? `, mirrored ${m.mirrored.join(' ').toUpperCase()}` : '') + (m.borrowed.length ? `, borrowed ${m.borrowed.join(' ').toUpperCase()}` : ''));

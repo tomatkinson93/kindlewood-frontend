@@ -56,7 +56,9 @@
     let d = dir, flip = false;
     if (!has(d) && MIRROR[d] && has(MIRROR[d])) { d = MIRROR[d]; flip = true; }
     if (!has(d)) d = (a.dirs && a.dirs[0]) || 's';
-    return { species: key, anim: animKey, url: a.url || (BASE + a.file), row: order.indexOf(d), flip,
+    // `v` is the sheet's own stamp (scripts/pack_sprites.js): a sheet that has been re-packed is fetched afresh,
+    // never taken from a phone's cache of the old one.
+    return { species: key, anim: animKey, url: a.url || (BASE + a.file + (a.v ? '?v=' + a.v : '')), row: order.indexOf(d), flip,
       frames: a.frames, ms: a.ms || 200, w: sp.frame.w, h: sp.frame.h, foot: sp.foot || { x: sp.frame.w / 2, y: sp.frame.h } };
   }
 

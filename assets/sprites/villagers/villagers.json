@@ -28,7 +28,8 @@
             "ne"
           ],
           "borrowed": [],
-          "file": "mouse_idle.png"
+          "file": "mouse_idle.png",
+          "v": "7aec2695"
         },
         "walk": {
           "frames": 6,
@@ -39,7 +40,8 @@
             "nw"
           ],
           "borrowed": [],
-          "file": "mouse_walk.png"
+          "file": "mouse_walk.png",
+          "v": "02b1fc28"
         }
       }
     }

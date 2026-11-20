@@ -574,6 +574,58 @@
     return ev;
   }
 
+  // ── A battle as a list of the player's choices ────────────────────────────
+  // The server stores a battle as its two sides and what the player chose,
+  // in order, and gets the whole battle back by playing them again:
+  //   { t: 'move', x, y } · { t: 'use', key, x, y } · { t: 'undo' } · { t: 'end', face }
+  // Creatures need no entries: their mind is part of the rules, so both sides
+  // reach the same turns from the same choices.
+
+  // Creatures act until it is a citizen's turn (or the battle is over). → events.
+  function settle(state) {
+    const ev = [];
+    for (let guard = 0; guard < 200 && state.status === 'active'; guard++) {
+      const u = current(state);
+      if (!u || u.side === 'player') break;
+      ev.push(...aiTurn(state));
+    }
+    return ev;
+  }
+  // One of the player's choices. → the events, or null if the rules refuse it.
+  function apply(state, a) {
+    const u = current(state);
+    if (!a || !u || u.side !== 'player' || state.status !== 'active') return null;
+    if (a.t === 'move') return move(state, Number(a.x), Number(a.y));
+    if (a.t === 'use') return use(state, String(a.key), Number(a.x), Number(a.y));
+    if (a.t === 'undo') return undoMove(state) ? [{ type: 'undo', id: u.id }] : null;
+    if (a.t === 'end') { const ev = endTurn(state, a.face); return ev ? ev.concat(settle(state)) : null; }
+    return null;
+  }
+  // The battle as it stands after these choices. `bad`: the index of the first
+  // choice the rules refused (the battle stops there), or -1.
+  function replay(setup, actions) {
+    const state = createBattle({ seed: setup.seed, land: setup.land, party: setup.party, enemies: setup.enemies });
+    settle(state);
+    let bad = -1;
+    const list = actions || [];
+    for (let i = 0; i < list.length; i++) { if (!apply(state, list[i])) { bad = i; break; } }
+    return { state, bad };
+  }
+  // A fingerprint of the board: who stands where, how hurt, and whose turn.
+  // The same on both sides if they agree, which is all it is for.
+  function checksum(state) {
+    let h = 2166136261;
+    const text = [state.status, state.round, state.index, state.turn.moved ? 1 : 0, state.turn.acted ? 1 : 0, state.r >>> 0]
+      .concat(state.units.map(u => [u.id, u.x, u.y, u.face, u.hp, u.block, u.down ? 1 : 0, STATUSES.map(k => u.st[k] || 0).join('.')].join(','))).join('|');
+    for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16);
+  }
+  // How it ended, for the record: the party's health and who is down.
+  function resultOf(state) {
+    return { status: state.status, rounds: state.round, turns: state.stats.turns,
+      party: state.units.filter(u => u.side === 'player').map(u => ({ id: u.id, citizen_id: u.citizen_id || null, hp: Math.max(0, u.hp), maxHp: u.maxHp, down: !!u.down })) };
+  }
+
   // Play a whole battle with the mind on both sides (tests and tuning).
   function autoplay(opts, maxTurns) {
     const state = createBattle(opts);
@@ -588,5 +640,6 @@
     reach, pathTo, move, undoMove,
     ability, canUse, isRanged, targetTiles, rangeTiles, touched, forecast, sideOfHit, hitOf, use,
     endTurn, facingFor, plan, aiTurn, autoplay,
+    settle, apply, replay, checksum, resultOf,
   };
 });
