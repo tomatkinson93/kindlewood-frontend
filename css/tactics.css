@@ -1,0 +1,105 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   The tactics battle prototype (js/tactics.js, docs/TACTICS_PROTOTYPE.md).
+   A full-screen scene: the board on a canvas, a strip above, a panel below.
+   Tokens only. The board's own colours are drawn by the canvas.
+   ══════════════════════════════════════════════════════════════════════════ */
+.kwtc {
+  position: fixed; inset: 0; z-index: var(--z-window);
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--kw-ink); color: var(--kw-cream);
+  font-family: var(--kw-font-body); font-size: var(--kw-fs-3);
+}
+.kwtc-top { display: flex; align-items: center; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border-bottom: 1px solid var(--kw-line); background: var(--kw-wood); }
+.kwtc-title { display: flex; flex-direction: column; min-width: 0; }
+.kwtc-title b { font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-title span { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-order { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--kw-s-1); min-width: 0; overflow: hidden; }
+.kwtc-round { font-size: var(--kw-fs-1); color: var(--kw-muted); margin-right: var(--kw-s-2); white-space: nowrap; }
+.kwtc-chip { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--kw-gold-dim); background: var(--kw-wood-2); font-size: var(--kw-fs-3); line-height: 1; }
+.kwtc-chip.is-enemy { border-color: var(--kw-bad); }
+.kwtc-chip.is-player { border-color: var(--kw-gold-deep); }
+.kwtc-chip.is-now { width: 38px; height: 38px; font-size: var(--kw-fs-4); border-color: var(--kw-focus); box-shadow: 0 0 0 2px var(--kw-line-2); }
+.kwtc-x { flex: none; }
+
+.kwtc-board { position: relative; min-height: 0; overflow: hidden; }
+.kwtc-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+.kwtc-canvas:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: -2px; }
+.kwtc-banner {
+  position: absolute; left: 50%; top: var(--kw-s-3); transform: translateX(-50%); pointer-events: none;
+  padding: var(--kw-s-1) var(--kw-s-4); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: var(--kw-panel);
+  font-family: var(--kw-font-title); font-size: var(--kw-fs-3); color: var(--kw-gold); white-space: nowrap; opacity: 0; transition: opacity .18s ease;
+}
+.kwtc-banner.is-on { opacity: 1; }
+.kwtc-turnview { position: absolute; right: var(--kw-s-3); bottom: var(--kw-s-3); display: flex; gap: var(--kw-s-2); }
+.kwtc-turnview .kw-btn { min-width: var(--kw-touch); min-height: var(--kw-touch); font-size: var(--kw-fs-4); line-height: 1; }
+.kwtc-end { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--kw-s-4); background: var(--kw-scrim); }
+.kwtc-end[hidden] { display: none; }
+.kwtc-end-box { max-width: 460px; width: 100%; text-align: center; box-shadow: var(--kw-shadow); }
+.kwtc-end-box p { margin: var(--kw-s-2) 0; }
+.kwtc-end-box .kwtc-confirm { justify-content: center; }
+
+.kwtc-panel {
+  display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); grid-template-areas: "who acts" "hint hint"; gap: var(--kw-s-2) var(--kw-s-3);
+  padding: var(--kw-s-3); border-top: 1px solid var(--kw-line); background: var(--kw-panel);
+}
+.kwtc-who { grid-area: who; min-width: 0; }
+/* The panel keeps its height from turn to turn, so the board does not jump. */
+.kwtc-panel { min-height: 186px; align-content: start; }
+.kwtc-acts { grid-area: acts; display: flex; flex-wrap: wrap; gap: var(--kw-s-2); align-content: flex-start; min-width: 0; }
+.kwtc-hint { grid-area: hint; min-height: 44px; font-size: var(--kw-fs-2); color: var(--kw-cream); }
+.kwtc-log { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.kwtc-card { padding: var(--kw-s-2) var(--kw-s-3); border-radius: var(--kw-radius); border: 1px solid var(--kw-line); background: var(--kw-panel-2); }
+.kwtc-card.is-enemy { border-color: var(--kw-bad); }
+.kwtc-card-name { display: flex; align-items: baseline; gap: var(--kw-s-2); }
+.kwtc-card-name b { font-family: var(--kw-font-title); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-card-name span { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--kwtc-class, var(--kw-gold)); align-self: center; }
+.kwtc-bar { position: relative; height: 16px; margin: var(--kw-s-1) 0; border-radius: var(--kw-s-1); background: var(--kw-ink); overflow: hidden; }
+.kwtc-bar i { position: absolute; inset: 0 auto 0 0; background: var(--kw-good); }
+.kwtc-card.is-enemy .kwtc-bar i { background: var(--kw-bad); }
+.kwtc-bar em { position: relative; display: block; text-align: center; font-style: normal; font-size: var(--kw-fs-1); line-height: 16px; color: var(--kw-on-bad); }
+.kwtc-card-facts { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-ail { margin-left: var(--kw-s-1); padding: 0 var(--kw-s-1); border-radius: var(--kw-s-1); background: var(--kw-wood-2); color: var(--kw-warn); }
+
+.kwtc-act {
+  position: relative; flex: 1 1 150px; max-width: 220px; min-height: 58px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "i n" "i t" "i r"; column-gap: var(--kw-s-2);
+  align-items: center; text-align: left; padding: var(--kw-s-1) var(--kw-s-2); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2);
+  background: var(--kw-wood-2); color: var(--kw-cream); font: inherit; cursor: pointer;
+}
+.kwtc-act:hover:not(:disabled) { background: var(--kw-border); }
+.kwtc-act:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwtc-act:disabled { opacity: .5; cursor: default; }
+.kwtc-act.is-on { border-color: var(--kw-focus); box-shadow: 0 0 0 2px var(--kw-line-2); }
+.kwtc-act.is-quick { border-style: dashed; }
+.kwtc-act-i { grid-area: i; font-size: var(--kw-fs-5); line-height: 1; }
+.kwtc-act-n { grid-area: n; font-family: var(--kw-font-title); font-size: var(--kw-fs-2); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-act-t { grid-area: t; font-size: var(--kw-fs-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-act-r { grid-area: r; font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-act kbd { position: absolute; top: 2px; right: var(--kw-s-1); font: inherit; font-size: var(--kw-fs-1); color: var(--kw-gold-dim); }
+.kwtc-turn { flex: 1 1 100%; display: flex; gap: var(--kw-s-2); justify-content: flex-end; }
+.kwtc-confirm { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); margin-top: var(--kw-s-1); }
+.kwtc-fore { padding: var(--kw-s-1) var(--kw-s-2); border-left: 3px solid var(--kw-gold-deep); background: var(--kw-hover); border-radius: var(--kw-s-1); }
+.kwtc-fore b { color: var(--kw-gold); }
+.kwtc-kit { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--kw-s-1) var(--kw-s-3); font-size: var(--kw-fs-1); }
+.kwtc-kit-a b { color: var(--kw-gold); }
+.kwtc-kit-a i { color: var(--kw-muted); }
+
+/* A phone: the card and the buttons stack, three buttons a row, no key hints. */
+@media (max-width: 640px) {
+  .kwtc-top { gap: var(--kw-s-2); padding: var(--kw-s-1) var(--kw-s-2); }
+  .kwtc-title b { font-size: var(--kw-fs-3); max-width: 34vw; }
+  .kwtc-title span { display: none; }
+  .kwtc-chip { width: 26px; height: 26px; font-size: var(--kw-fs-2); }
+  .kwtc-chip.is-now { width: 32px; height: 32px; }
+  .kwtc-round { display: none; }
+  .kwtc-panel { grid-template-columns: minmax(0, 1fr); grid-template-areas: "who" "acts" "hint"; padding: var(--kw-s-2); gap: var(--kw-s-2); }
+  .kwtc-card { padding: var(--kw-s-1) var(--kw-s-2); }
+  .kwtc-act { flex: 1 1 30%; max-width: none; min-height: var(--kw-touch); grid-template-areas: "i n" "i t"; padding: var(--kw-s-1); column-gap: var(--kw-s-1); }
+  .kwtc-act-r, .kwtc-act kbd { display: none; }
+  .kwtc-act-i { font-size: var(--kw-fs-4); }
+  .kwtc-turn .kw-btn, .kwtc-confirm .kw-btn { min-height: var(--kw-touch); }
+  .kwtc-hint { min-height: 56px; }
+  .kwtc-panel { min-height: 300px; }
+}
+@media (prefers-reduced-motion: reduce) { .kwtc-banner { transition: none; } }

@@ -433,6 +433,7 @@
       + `<div class="cheat-desc">Every citizen brings their own deck: the pack for their class, or the Villager pack. This shows each pack, what the town has unlocked, and what is prepared.</div>`
       + `<button type="button" class="cheat-all-btn" data-kwdg="cards">Open the class cards</button>`
       + `<div class="cheat-desc" style="margin-top:10px">Creature health and strength per skull, rest healing, the flee share and idle hours are under 👪 Life → Dungeons.</div>`
+      + `<div id="kwt-dev-box"></div>`
       + `<div class="cheat-rel-feedback" id="kwdg-dev-msg" role="status"></div>`;
   }
   async function devCall(method, path, body) {
@@ -455,6 +456,8 @@
     el.innerHTML = devHtml(DEV.data, DEV.pick);
     try { DEV.data = await devCall('GET', 'status'); take(DEV.data); } catch (e) { DEV.data = null; el.innerHTML = `<div class="cheat-desc">⚠️ ${esc(e.message)}</div>`; return; }
     el.innerHTML = devHtml(DEV.data, DEV.pick);
+    // The tactics battle prototype has its own box here (js/tactics.js).
+    if (global.KWTactics && global.KWTactics.devMount) global.KWTactics.devMount(doc.getElementById('kwt-dev-box'));
   }
   async function devAct(t) {
     const a = t.getAttribute('data-kwdg');
