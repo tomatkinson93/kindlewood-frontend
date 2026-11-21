@@ -280,5 +280,17 @@ console.log('10. A steady screen, and things that fly');
   check('10j. no stand-in sound for going in (the old one was the fishing reel)', !/tension\.wav/.test(J));
 }
 
+console.log('11. A dungeon on the board');
+{
+  const J = read('js/tactics.js'), D = read('js/dungeons.js');
+  check('11a. Dev Tools starts a dungeon with its fights on the board (the default) or with cards', /id="kwdg-dev-combat"/.test(D) && /combat: DEV\.pick\.combat === 'cards' \? 'cards' : 'board'/.test(D) && /pick: \{ tier: '', land: '', seed: '', combat: 'board' \}/.test(D));
+  check('11b. the dungeon\'s Fight opens the room\'s battle on the board; a card run still opens the card battle', /if \(!p\.board\) return startBattle\(p\.quest_run_id\);/.test(D) && /global\.KWTactics\.openById\(p\.battle_id\)/.test(D));
+  check('11c. on a board run the path screen has no class-cards button', /run\.combat === 'board' \? '' : `<button type="button" class="kw-btn quiet" data-action="cards">/.test(D));
+  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
+  check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
+  check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
+  check('11g. the practice box does not offer to pick up a dungeon\'s battle', /d\.battle\.source !== 'dungeon' \? d\.battle : null/.test(J));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

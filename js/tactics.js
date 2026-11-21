@@ -875,6 +875,7 @@
         const d = await jsonOf(res);
         if (!res.ok || !d.ok) return resync(b, d.battle);
         b.saved = d.battle.count; b.status = d.battle.status;
+        if (d.dungeon) b.dungeon = d.dungeon;      // a dungeon's battle that has ended: the run after it, what was found
         if (mark && d.battle.count === n + 1 && d.battle.check !== mark) return resync(b, d.battle);
         noteSaved();
       } catch (e) { return resync(b, null); }
@@ -906,6 +907,12 @@
     if (!line || !b) return;
     const done = b.id && b.saved === b.n && b.status && b.status !== 'active';
     line.textContent = !b.id ? 'This battle was not saved.' : done ? '✓ The result is recorded.' : 'Recording the result…';
+    // In a dungeon: what the fight gave, and whether the run goes on.
+    const found = S.el.querySelector('.kwtc-found'), dn = b.dungeon;
+    if (found && dn) {
+      const f = dn.found, bits = f ? [f.wealth ? `${f.wealth} wealth` : ''].concat((f.items || []).map(i => `${i.qty} × ${i.name || i.item}`)).filter(Boolean) : [];
+      found.textContent = (bits.length ? `Found: ${bits.join(', ')}. ` : '') + (dn.ended ? (dn.run && dn.run.status === 'cleared' ? 'The dungeon is cleared!' : '') : 'The way on is open.');
+    }
   }
   // The party fights the rest by itself: the mind chooses for every citizen, at once, with no animation.
   function autoFinish() {
@@ -996,13 +1003,18 @@
     if (!box || S.ended) return;
     S.ended = now(); S.busy = false; S.mode = 'idle';
     music(false); sfx(st.status === 'victory' ? 'victory' : 'defeat');
-    const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory';
-    const left = st.units.filter(u => u.side === 'player' && !u.down);
+    const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon;
+    const left = st.units.filter(u => u.side === 'player' && !u.down), all = st.units.filter(u => u.side === 'player').length;
     box.innerHTML = `<div class="kw-box kwtc-end-box"><div class="kw-box-title">${won ? '🏆 The field is yours' : '💀 The party is down'}</div>`
       + `<p>${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
-      + `<p>${won ? `${left.length} of 4 still standing${left.length ? ': ' + left.map(u => `${esc(u.name)} ${u.hp}/${u.maxHp}`).join(', ') : ''}.` : 'Nothing is lost: this is a practice field.'}</p>`
+      + `<p>${won ? `${left.length} of ${all} still standing${left.length ? ': ' + left.map(u => `${esc(u.name)} ${u.hp}/${u.maxHp}`).join(', ') : ''}.` : inDungeon ? 'The dungeon run is over.' : 'Nothing is lost: this is a practice field.'}</p>`
+      + (inDungeon ? `<p class="kwtc-found" role="status"></p>` : '')
       + `<p class="kwtc-saved kw-note" role="status"></p>`
-      + `<div class="kwtc-confirm"><button type="button" class="kw-btn primary" data-kwt="again">Same battle again</button><button type="button" class="kw-btn" data-kwt="new">A new field</button><button type="button" class="kw-btn quiet" data-kwt="close">Leave</button></div></div>`;
+      // A dungeon's battle is not fought again from here: the only way on is back to the dungeon.
+      + `<div class="kwtc-confirm">` + (inDungeon
+        ? `<button type="button" class="kw-btn primary" data-kwt="close">${won ? 'Back to the dungeon' : 'See how it ended'}</button>`
+        : `<button type="button" class="kw-btn primary" data-kwt="again">Same battle again</button><button type="button" class="kw-btn" data-kwt="new">A new field</button><button type="button" class="kw-btn quiet" data-kwt="close">Leave</button>`)
+      + `</div></div>`;
     box.hidden = false;
     paint();
     noteSaved();
@@ -1160,7 +1172,7 @@
   }
   // The town's open battle, if it has one (to pick up after a reload).
   async function openBattle() {
-    try { const d = await jsonOf(await global.apiFetch('/api/tactics/battles/current')); return d && d.ok && d.battle ? d.battle : null; } catch (e) { return null; }
+    try { const d = await jsonOf(await global.apiFetch('/api/tactics/battles/current')); return d && d.ok && d.battle && d.battle.source !== 'dungeon' ? d.battle : null; } catch (e) { return null; }
   }
   // ── Into a battle, and out of one ─────────────────────────────────────────
   // Something closes over whatever was on screen, the battle's name is shown
@@ -1303,6 +1315,12 @@
     const b = battle || await openBattle();
     return b ? enter(Promise.resolve(asSetup(b))) : null;
   }
+  // Open one of the town's battles by its id (the dungeon's "Fight" does this), part-played or not.
+  async function openById(id) {
+    const d = await jsonOf(await global.apiFetch(`/api/tactics/battles/${id}`));
+    if (!d || !d.ok || !d.battle) throw new Error((d && d.error) || 'That battle could not be reached.');
+    return enter(Promise.resolve(asSetup(d.battle)));
+  }
   async function restart(fresh) {
     try {
       // The same battle again is a new battle on the same seed: the same field and the same creatures.
@@ -1315,10 +1333,12 @@
     S.leaving = true;
     music(false);
     // Walking out of a battle that is not over ends it on the server too.
-    const b = S.battle;
-    if (b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
+    // (A dungeon's battle is only stepped away from: it stays open, and fleeing is done from the dungeon's own screen.)
+    const b = S.battle, inDungeon = !!(S.setup && S.setup.dungeon);
+    if (!inDungeon && b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
     S.el.classList.add('is-leaving');
-    global.setTimeout(() => { S.leaving = false; close(); }, still() ? 0 : 300);
+    const after = inDungeon && b ? b.queue : Promise.resolve();
+    global.setTimeout(() => { S.leaving = false; close(); if (inDungeon) after.then(() => { if (global.KWDungeon && global.KWDungeon.open) global.KWDungeon.open(); }); }, still() ? 0 : 300);
   }
 
   // ── Dev Tools → 💀 Dungeons → the tactics battle ──────────────────────────
@@ -1384,7 +1404,7 @@
   }
 
   global.KWTactics = {
-    start, resume, open, close, leave, devMount,
+    start, resume, openById, open, close, leave, devMount,
     // For the proofs and the browser checks.
     _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _curtain: curtain,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
