@@ -11,7 +11,7 @@
 }
 .kwtc { transition: opacity .3s ease; }
 .kwtc.is-leaving { opacity: 0; }
-/* Into a battle: a spiral drawn on a canvas closes over the screen, the battle's name shows, a circle opens. */
+/* Into a battle: something drawn on a canvas closes over the screen, the battle's name shows, and it opens. */
 .kwtc-curtain { position: fixed; inset: 0; z-index: var(--z-confirm); }
 .kwtc-curtain canvas { display: block; width: 100%; height: 100%; }
 .kwtc-curtain.is-solid { background: var(--kw-ink); }
@@ -19,6 +19,8 @@
 .kwtc-curtain-title.is-on { opacity: 1; }
 .kwtc-curtain-title b { font-family: var(--kw-font-title); font-size: var(--kw-fs-5); color: var(--kw-gold); }
 .kwtc-curtain-title span { font-size: var(--kw-fs-3); color: var(--kw-muted); }
+.kwtc-curtain-title.is-paper b { color: var(--kw-on-gold); }
+.kwtc-curtain-title.is-paper span { color: var(--kw-border); }
 .kwtc-top { grid-area: top; display: flex; align-items: center; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border-bottom: 1px solid var(--kw-line); background: var(--kw-wood); }
 .kwtc-title { display: flex; flex-direction: column; min-width: 0; }
 .kwtc-title b { font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -43,7 +45,7 @@
 .kwtc-turnview { position: absolute; right: var(--kw-s-3); bottom: var(--kw-s-3); display: flex; gap: var(--kw-s-2); }
 .kwtc-turnview .kw-btn { min-width: var(--kw-touch); min-height: var(--kw-touch); font-size: var(--kw-fs-4); line-height: 1; }
 /* Which way to face: four arrows set out as they point on the board. */
-.kwtc-faces { display: grid; grid-template-areas: "tl tr" "bl br"; gap: var(--kw-s-2); }
+.kwtc-faces { display: flex; gap: var(--kw-s-2); }      /* a row of four here; two by two on a phone (below) */
 .kwtc-face { min-width: 64px; min-height: 48px; font-size: var(--kw-fs-5); line-height: 1; }
 .kwtc-face.is-tl { grid-area: tl; } .kwtc-face.is-tr { grid-area: tr; } .kwtc-face.is-bl { grid-area: bl; } .kwtc-face.is-br { grid-area: br; }
 .kwtc-face.is-on { background: var(--kw-gold-btn); border-color: var(--kw-gold); color: var(--kw-on-gold); }
@@ -58,8 +60,15 @@
   padding: var(--kw-s-3); border-top: 1px solid var(--kw-line); background: var(--kw-panel);
 }
 .kwtc-who { grid-area: who; min-width: 0; }
-/* The panel keeps its height from turn to turn, so the board does not jump. */
-.kwtc-panel { min-height: 186px; align-content: start; }
+/* The panel is one fixed height in every mode, so the board above it never moves (it used to grow and
+   shrink with the text, and the board jumped and flashed). Anything longer scrolls inside it. */
+.kwtc-panel { height: 196px; align-content: start; overflow-y: auto; }
+.kwtc-hint { overflow: hidden; }
+/* What an action would do, and its Confirm, float over the top of the board. */
+.kwtc-ask { position: absolute; left: var(--kw-s-3); right: var(--kw-s-3); top: var(--kw-s-3); display: flex; justify-content: center; pointer-events: none; }
+.kwtc-ask-box { pointer-events: auto; max-width: 560px; padding: var(--kw-s-2) var(--kw-s-3); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: var(--kw-panel); box-shadow: var(--kw-shadow); font-size: var(--kw-fs-2); }
+.kwtc-ask-box .kwtc-fore { background: none; border-left: 0; padding: 0; }
+.kwtc-ask-box .kwtc-confirm { justify-content: center; }
 .kwtc-acts { grid-area: acts; display: flex; flex-wrap: wrap; gap: var(--kw-s-2); align-content: flex-start; min-width: 0; }
 .kwtc-hint { grid-area: hint; min-height: 44px; font-size: var(--kw-fs-2); color: var(--kw-cream); }
 .kwtc-log { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -114,8 +123,10 @@
   .kwtc-act-r, .kwtc-act kbd { display: none; }
   .kwtc-act-i { font-size: var(--kw-fs-4); }
   .kwtc-turn .kw-btn, .kwtc-confirm .kw-btn { min-height: var(--kw-touch); }
-  .kwtc-hint { min-height: 56px; }
-  .kwtc-panel { min-height: 300px; }
+  .kwtc-hint { min-height: 0; height: 56px; }
+  .kwtc-panel { height: 316px; }
+  .kwtc-faces { display: grid; grid-template-areas: "tl tr" "bl br"; }
+  .kwtc-ask { left: var(--kw-s-2); right: var(--kw-s-2); top: var(--kw-s-2); }
 }
 /* A phone on its side: the board on the left at full height, the panel a column on the right. */
 @media (orientation: landscape) and (max-height: 520px) {
@@ -125,7 +136,8 @@
   .kwtc-title span, .kwtc-round { display: none; }
   .kwtc-chip { width: 24px; height: 24px; font-size: var(--kw-fs-1); }
   .kwtc-chip.is-now { width: 28px; height: 28px; font-size: var(--kw-fs-2); }
-  .kwtc-panel { grid-template-columns: minmax(0, 1fr); grid-template-areas: "who" "acts" "hint"; align-content: start; min-height: 0; overflow-y: auto; padding: var(--kw-s-2); gap: var(--kw-s-1); border-top: 0; border-left: 1px solid var(--kw-line); }
+  .kwtc-panel { grid-template-columns: minmax(0, 1fr); grid-template-areas: "who" "acts" "hint"; align-content: start; height: auto; min-height: 0; overflow-y: auto; padding: var(--kw-s-2); gap: var(--kw-s-1); border-top: 0; border-left: 1px solid var(--kw-line); }
+  .kwtc-faces { display: grid; grid-template-areas: "tl tr" "bl br"; }
   .kwtc-card { padding: 2px var(--kw-s-2); }
   .kwtc-card-facts { display: none; }
   .kwtc-act { flex: 1 1 45%; max-width: none; min-height: var(--kw-touch); grid-template-areas: "i n" "i t"; padding: 2px var(--kw-s-1); column-gap: var(--kw-s-1); }

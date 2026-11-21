@@ -194,7 +194,7 @@
       + hint
       + (cardsFirst ? '' : pendingHtml(run))
       + `<div class="kwdg-foot"><div class="kwdg-loot" aria-live="polite"><b>Carried:</b> ${esc(lootLine(run.loot))}</div>`
-      + `<div class="kwdg-btns"><button type="button" class="kw-btn quiet" data-action="cards">🃏 Class cards</button>`
+      + `<div class="kwdg-btns">${run.combat === 'board' ? '' : `<button type="button" class="kw-btn quiet" data-action="cards">🃏 Class cards</button>`}`
       + (run.can_leave ? `<button type="button" class="kw-btn" data-action="leave">↩ Turn back and keep it</button>` : '')
       + `</div></div></div>`;
   }
@@ -292,7 +292,15 @@
       if (d.found) toast('🎁 Found: ' + lootLine(d.found, 'nothing'));
       if (d.quest_run_id) startBattle(d.quest_run_id);
     },
-    fight() { const p = S.run && S.run.pending; if (p && p.kind === 'battle') startBattle(p.quest_run_id); },
+    fight() {
+      const p = S.run && S.run.pending;
+      if (!p || p.kind !== 'battle') return;
+      if (!p.board) return startBattle(p.quest_run_id);
+      // A fight on the board (docs/TACTICS.md): the path screen steps aside and comes back when the battle is left.
+      if (!global.KWTactics || !global.KWTactics.openById) return toast('⚠️ The battle screen is not loaded.');
+      if (S.win) { const w = S.win; S.win = null; try { w.close(); } catch (e) { /* gone */ } }
+      global.KWTactics.openById(p.battle_id).catch(e => { toast('⚠️ ' + e.message); open(); });
+    },
     async choose(el) { await post('run/choose', { option: el.getAttribute('data-option') }); },
     // A citizen's deck, opened and closed from the party strip.
     deck(el) { const id = Number(el.getAttribute('data-citizen')); S.deckOf = S.deckOf === id ? null : id; paint(); },
@@ -404,13 +412,14 @@
 
   // ── Dev Tools → 💀 Dungeons ─────────────────────────────────────────────
   // `pick`: the skull, land and seed last chosen, kept while the panel is redrawn.
-  const DEV = { data: null, wired: false, pick: { tier: '', land: '', seed: '' } };
+  const DEV = { data: null, wired: false, pick: { tier: '', land: '', seed: '', combat: 'board' } };
   function devHtml(d, pick) {
     if (!d) return '<div class="cheat-desc">Loading…</div>';
     const run = d.run, p = pick || {};
     return `<div class="cheat-section-label">Dungeons</div>`
       + `<div class="cheat-desc">Dungeons are <b>${d.on ? 'ON' : 'off'}</b> for players. While off, only admins can play a run, started from here.</div>`
       + `<button type="button" class="cheat-all-btn" data-kwdg="switch" data-on="${d.on ? 0 : 1}">${d.on ? 'Turn dungeons off for players' : 'Turn dungeons on for players'}</button>`
+      + `<div class="kwdg-dev-row"><label>Fights <select id="kwdg-dev-combat" class="ce-input"><option value="board"${p.combat !== 'cards' ? ' selected' : ''}>On the board (tactics)</option><option value="cards"${p.combat === 'cards' ? ' selected' : ''}>With cards (the old way)</option></select></label></div>`
       + `<div class="cheat-section-label" style="margin-top:10px">Test dungeons</div>`
       + `<div class="cheat-desc">Starts with the first ${d.party} adults who are free (${d.free_adults} free now). Each start is a fresh copy, so it can be played again.</div>`
       + (d.stories || []).map(s => `<button type="button" class="cheat-all-btn" data-kwdg="start" data-story="${esc(s.key)}"${run || d.free_adults < d.party ? ' disabled' : ''}>${esc(s.skull)} Start: ${esc(s.name)} (${s.floors} floor${s.floors === 1 ? '' : 's'})</button>`).join('')
@@ -449,7 +458,7 @@
       DEV.wired = true; DEV.el = el;
       el.addEventListener('click', ev => { const t = ev.target.closest('[data-kwdg]'); if (t && !t.disabled) devAct(t); });
       // What was chosen stays chosen when the panel is redrawn.
-      const keep = ev => { const k = { 'kwdg-dev-tier': 'tier', 'kwdg-dev-land': 'land', 'kwdg-dev-seed': 'seed' }[ev.target && ev.target.id]; if (k) DEV.pick[k] = ev.target.value; };
+      const keep = ev => { const k = { 'kwdg-dev-tier': 'tier', 'kwdg-dev-land': 'land', 'kwdg-dev-seed': 'seed', 'kwdg-dev-combat': 'combat' }[ev.target && ev.target.id]; if (k) DEV.pick[k] = ev.target.value; };
       el.addEventListener('change', keep);
       el.addEventListener('input', keep);
     }
@@ -467,14 +476,14 @@
       if (a === 'cards') { if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu(); return void openCards(); }
       if (a === 'switch') await devCall('POST', 'switch', { on: t.getAttribute('data-on') === '1' });
       else if (a === 'start') {
-        const d = await devCall('POST', 'test', { story: t.getAttribute('data-story') });
+        const d = await devCall('POST', 'test', { story: t.getAttribute('data-story'), combat: DEV.pick.combat === 'cards' ? 'cards' : 'board' });
         S.on = true; take(d);
         if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
         return void open();
       } else if (a === 'generate') {
         const val = id => { const e = doc.getElementById(id); return e ? e.value : ''; };
         const seed = parseInt(val('kwdg-dev-seed'), 10);
-        const d = await devCall('POST', 'generate', { tier: val('kwdg-dev-tier'), terrain: val('kwdg-dev-land'), seed: seed > 0 ? seed : undefined });
+        const d = await devCall('POST', 'generate', { tier: val('kwdg-dev-tier'), terrain: val('kwdg-dev-land'), seed: seed > 0 ? seed : undefined, combat: DEV.pick.combat === 'cards' ? 'cards' : 'board' });
         S.on = true; take(d);
         if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
         return void open();
