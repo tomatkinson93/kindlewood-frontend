@@ -97,6 +97,8 @@
 .kwtc-act.is-on { border-color: var(--kw-focus); box-shadow: 0 0 0 2px var(--kw-line-2); }
 .kwtc-act.is-quick { border-style: dashed; }
 .kwtc-act-i { grid-area: i; font-size: var(--kw-fs-5); line-height: 1; }
+/* An ability's own picture (assets/tactics/icons), in place of its emoji: pixel art, drawn crisp at the emoji's size. */
+.kwtc-ic { width: 1.25em; height: 1.25em; vertical-align: -0.25em; image-rendering: pixelated; }
 .kwtc-act-n { grid-area: n; font-family: var(--kw-font-title); font-size: var(--kw-fs-2); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwtc-act-t { grid-area: t; font-size: var(--kw-fs-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwtc-act-r { grid-area: r; font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

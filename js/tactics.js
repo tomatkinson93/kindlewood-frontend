@@ -154,12 +154,12 @@
   // Written by scripts/pack_tactics.js from the files in assets/sprites/
   // creatures and assets/audio/tactics. Whatever is missing has a stand-in:
   // a creature's icon, an older sound, the card battles' music.
-  const ASSETS = { loaded: false, creatures: {}, sounds: {}, music: [] };
+  const ASSETS = { loaded: false, creatures: {}, sounds: {}, music: [], icons: {} };
   function loadAssets() {
     if (ASSETS.loaded || typeof global.fetch !== 'function') return Promise.resolve(ASSETS);
     ASSETS.loaded = true;
     return global.fetch('/assets/tactics/manifest.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).catch(() => null).then(j => {
-      if (j) { ASSETS.creatures = j.creatures || {}; ASSETS.sounds = j.sounds || {}; ASSETS.music = j.music || []; }
+      if (j) { ASSETS.creatures = j.creatures || {}; ASSETS.sounds = j.sounds || {}; ASSETS.music = j.music || []; ASSETS.icons = j.icons || {}; }
       return ASSETS;
     });
   }
@@ -181,14 +181,22 @@
       if (typeof global.playMusic === 'function') global.playMusic(list.length && typeof global.registerMusic === 'function' ? 'TACTICS' : 'BATTLE');
     } catch (e) { /* no sound is fine */ }
   }
-  // The sound of an ability landing, from who uses it and what it is.
-  function soundOf(u, ev) {
+  // The sound of an ability, from what it is and what it looks like.
+  const SOUND_OF = { arrow: 'arrow', stone: 'arrow', dart: 'arrow',
+    spark: 'magic', fire: 'magic', fireburst: 'magic', frost: 'magic', ember: 'magic', hex: 'magic', venom: 'magic', gale: 'magic', thunder: 'magic', spores: 'magic', curse: 'magic', vial: 'magic', sand: 'magic',
+    slash: 'melee', thrust: 'melee', smash: 'melee', quake: 'melee', boulder: 'melee', claw: 'bite', bite: 'bite', wail: 'bite' };
+  function soundOf(u, ev, look) {
     if (ev.kind === 'block') return 'block';
     if (ev.kind === 'heal') return 'heal';
     if (ev.kind === 'buff') return 'buff';
     if (ev.kind === 'debuff') return 'debuff';
-    if (u.side === 'enemy') return 'bite';
-    return u.cls === 'archer' ? 'arrow' : (u.cls === 'wizard' || u.cls === 'hearthkeeper') ? 'magic' : 'melee';
+    return SOUND_OF[look] || (u.side === 'enemy' ? 'bite' : 'melee');
+  }
+  // An ability's picture: its own icon when there is one (assets/tactics/icons/<key>.png), else its emoji.
+  // A foe's ability with no picture of its own takes the one for how it looks (look_<look>.png).
+  function ico(a) {
+    const file = ASSETS.icons && (ASSETS.icons[a.key] || (a.look && ASSETS.icons['look_' + a.look]));
+    return file ? `<img class="kwtc-ic" src="/assets/tactics/icons/${esc(file)}" alt="" draggable="false">` : esc(a.icon || '•');
   }
 
   // ── Sprites ───────────────────────────────────────────────────────────────
@@ -436,9 +444,17 @@
     w_ward: 'shield', h_ward: 'shield', h_steady: 'ward_ring', h_kindle: 'heal', t_ration: 'heal', t_drink: 'heal', h_bold: 'cheer',
     hex: 'hex', venom: 'venom', mend: 'heal', shriek: 'wail', howl: 'wail',
   };
-  const FLIES = { arrow: 1, spark: 1, fire: 1, fireburst: 1, frost: 1, ember: 1, hex: 1, venom: 1 };
-  const LANDS_AS = { arrow: 'puff', spark: 'flare', fire: 'flare', fireburst: 'flare', ember: 'flare', frost: 'ice', hex: 'hexpop', venom: 'splat', slash: 'slash', bite: 'claw', wail: 'claw' };
+  const FLIES = { arrow: 1, spark: 1, fire: 1, fireburst: 1, frost: 1, ember: 1, hex: 1, venom: 1,
+    stone: 1, dart: 1, vial: 1, gale: 1, sand: 1, spores: 1, curse: 1, boulder: 1, thunder: 1 };
+  const LANDS_AS = { arrow: 'puff', spark: 'flare', fire: 'flare', fireburst: 'flare', ember: 'flare', frost: 'ice', hex: 'hexpop', venom: 'splat', slash: 'slash', bite: 'claw', wail: 'claw', claw: 'claw',
+    stone: 'puff', dart: 'puff', vial: 'splat', gale: 'gust', sand: 'puff', spores: 'splat', curse: 'hexpop', boulder: 'thud', thunder: 'flare', thrust: 'poke', smash: 'thud', quake: 'thud' };
+  // What an area ability leaves over the place it lands, and the ring one spreads when it is used around oneself.
+  const BLOOMS = { fireburst: ['boom', 460], frost: ['ice', 380], spores: ['cloud', 620], curse: ['murk', 560], boulder: ['crack', 460], thunder: ['crack', 420] };
+  const RINGS = { ward_ring: '#9fd0ff', wail: '#ff8a70', spores: '#9fdc5a', smash: '#f4efe2', quake: '#d8c39a', cheer: '#ffd27a', curse: '#b77cf0' };
   function lookOf(u, ev) {
+    // A foe's ability says how it looks (lib/tactics_foes.js on the server); a class ability is in the table above.
+    const own = (u.abilities || []).find(x => x.key === ev.key);
+    if (own && own.look) return own.look;
     if (LOOK[ev.key]) return LOOK[ev.key];
     if (ev.kind === 'block') return 'shield';
     if (ev.kind === 'heal') return 'heal';
@@ -484,6 +500,47 @@
     ember(c, f, p, k) { PAINT.orb(c, f, p, k, 4, '#ffe9a8', '#ff9a4a', '#ffa860'); },
     hex(c, f, p, k) { f.arc = 3; PAINT.orb(c, f, p, k, 5, '#f3dcff', '#a368e8', '#8d54d4'); },
     venom(c, f, p, k) { f.arc = 11; PAINT.orb(c, f, p, k, 4.5, '#eaffc0', '#7fc93a', '#6cb42c'); },
+    sand(c, f, p, k) { f.arc = 2; PAINT.orb(c, f, p, k, 3.5, '#fff1c9', '#d9b877', '#cfa860'); },
+    spores(c, f, p, k) { f.arc = 8; PAINT.orb(c, f, p, k, 5, '#f0ffd0', '#8fbf4a', '#7aa83c'); },
+    curse(c, f, p, k) { f.arc = 4; PAINT.orb(c, f, p, k, 6, '#e9d0ff', '#6a3fa8', '#55308c'); },
+    // Something solid thrown: a stone, a boulder, a little bottle.
+    lump(c, f, p, k, r, fill, shine) {
+      const a = flight(f, p);
+      c.fillStyle = fill; c.strokeStyle = '#2a180c'; c.lineWidth = 1.2 * k; c.beginPath(); c.arc(a.x, a.y, r * k, 0, 6.3); c.fill(); c.stroke();
+      c.fillStyle = shine; c.beginPath(); c.arc(a.x - r * 0.3 * k, a.y - r * 0.35 * k, r * 0.35 * k, 0, 6.3); c.fill();
+    },
+    stone(c, f, p, k) { f.arc = 9; PAINT.lump(c, f, p, k, 3.2, '#8d8678', '#c9c3b4'); },
+    boulder(c, f, p, k) { f.arc = 13; PAINT.lump(c, f, p, k, 7.5, '#7d766a', '#b3ac9c'); },
+    vial(c, f, p, k) { f.arc = 12; PAINT.lump(c, f, p, k, 3.8, '#6fcdb8', '#e6fff8'); },
+    dart(c, f, p, k) {
+      f.arc = 2;
+      const a = flight(f, p), b = flight(f, Math.min(1, p + 0.04)), ang = Math.atan2(b.y - a.y, b.x - a.x);
+      c.save(); c.translate(a.x, a.y); c.rotate(ang);
+      c.strokeStyle = '#3d4a2a'; c.lineWidth = 1.6 * k; c.beginPath(); c.moveTo(-6 * k, 0); c.lineTo(5 * k, 0); c.stroke();
+      c.fillStyle = '#d6f09a'; c.beginPath(); c.moveTo(8 * k, 0); c.lineTo(4 * k, -2 * k); c.lineTo(4 * k, 2 * k); c.closePath(); c.fill();
+      c.fillStyle = '#c0524a'; c.fillRect(-8 * k, -1.6 * k, 3 * k, 3.2 * k);
+      c.restore();
+    },
+    gale(c, f, p, k) {      // three pale curls of wind, one behind another
+      f.arc = 1;
+      c.strokeStyle = '#eaf6ff'; c.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const q = flight(f, Math.max(0, p - i * 0.09)), t = p * 14 + i * 2;
+        c.globalAlpha = 0.9 - i * 0.25; c.lineWidth = (2.4 - i * 0.5) * k;
+        c.beginPath(); c.arc(q.x, q.y, (5 + i * 2) * k, t, t + 3.6); c.stroke();
+      }
+      c.lineCap = 'butt'; c.globalAlpha = 1;
+    },
+    thunder(c, f, p, k) {      // a bolt out of the sky onto the place
+      const B = above(f.to, 16), A = { x: B.x + 14 * k, y: B.y - 150 * k }, reach = Math.min(1, p * 2.4), n = 7;
+      c.globalAlpha = p < 0.5 ? 1 : Math.max(0, 1 - (p - 0.5) / 0.5);
+      for (const [w, col] of [[7, 'rgba(190,220,255,0.4)'], [2.6, '#ffffff']]) {
+        c.strokeStyle = col; c.lineWidth = w * k; c.lineJoin = 'round'; c.beginPath(); c.moveTo(A.x, A.y);
+        for (let i = 1; i <= n; i++) { const q = mix(A, B, reach * i / n), j = i === n ? 0 : (Math.sin(f.seed * 40 + i * 5.1) * 10 * k); c.lineTo(q.x + j, q.y); }
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    },
     frost(c, f, p, k) {
       for (let i = 4; i >= 0; i--) {
         const q = flight(f, Math.max(0, p - i * 0.05)), r = (6 - i) * k;
@@ -529,6 +586,17 @@
     ice(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.8 }), p, k, '#cfeeff', '#eaf8ff', 6); },
     hexpop(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.7 }), p, k, '#b77cf0', '#dcc0ff', 5); },
     splat(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.6 }), p, k, '#8fd24a', '#c8f09a', 5); },
+    gust(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.75 }), p, k, '#eaf6ff', 'rgba(255,255,255,0.45)', 0); },
+    thud(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 0.9, low: true }), p, k, '#e8dcc0', '#fff4dc', 6); },
+    crack(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 1.4, low: true }), p, k, '#b89a6a', '#e2cfa8', 9); },
+    cloud(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 1.5, low: true }), p, k, '#9fdc5a', 'rgba(170,220,110,0.55)', 0); PAINT.bubbles(c, f, p, k); },
+    murk(c, f, p, k) { PAINT.burst(c, Object.assign(f, { big: 1.5, low: true }), p, k, '#b77cf0', 'rgba(140,90,200,0.5)', 0); },
+    poke(c, f, p, k) {      // a spear point: one straight flash through the place
+      const a = above(f.at, 20), t = -0.5 + f.seed * 0.4, len = 22 * k * Math.min(1, p * 2.2);
+      c.globalAlpha = 1 - p; c.strokeStyle = '#ffffff'; c.lineWidth = 3 * k; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(a.x - Math.cos(t) * len, a.y - Math.sin(t) * len); c.lineTo(a.x + Math.cos(t) * len * 0.5, a.y + Math.sin(t) * len * 0.5); c.stroke();
+      c.lineCap = 'butt'; c.globalAlpha = 1;
+    },
     shield(c, f, p, k) {
       const a = above(f.at, 22), s = (0.55 + 0.55 * Math.min(1, p * 1.7)) * k;
       c.save(); c.translate(a.x, a.y); c.scale(s, s); c.globalAlpha = (1 - p) * 0.9;
@@ -589,8 +657,8 @@
       c.globalAlpha = (1 - p) * 0.4; c.beginPath(); c.ellipse(g.x, g.y, r * 0.7, r * 0.35, 0, 0, 6.3); c.stroke();
       c.globalAlpha = 1;
     },
-    ward_ring(c, f, p, k) { PAINT.ring(c, f, p, k, '#9fd0ff'); },
-    wail(c, f, p, k) { PAINT.ring(c, f, p, k, '#ff8a70'); },
+    ward_ring(c, f, p, k) { PAINT.ring(c, f, p, k, f.col || '#9fd0ff'); },
+    wail(c, f, p, k) { PAINT.ring(c, f, p, k, f.col || '#ff8a70'); },
   };
   function drawFx(c, t) {
     S.fx = S.fx.filter(f => t - f.t0 < f.ms);
@@ -601,11 +669,10 @@
   }
   // Something leaves the user for a place and is waited for; then what it does on arriving.
   async function launch(look, from, to) {
-    const far = Math.hypot(to.x - from.x, to.y - from.y), ms = look === 'spark' ? 260 : Math.max(200, Math.min(520, 95 * far));
+    const far = Math.hypot(to.x - from.x, to.y - from.y), quick = look === 'spark' || look === 'thunder', ms = quick ? 280 : Math.max(200, Math.min(520, 95 * far));
     fx(look, from, ms, { to: { x: to.x, y: to.y }, far });
-    await wait(look === 'spark' ? 150 : ms);
-    if (look === 'fireburst') fx('boom', to, 460);
-    if (look === 'frost') fx('ice', to, 380);
+    await wait(quick ? 150 : ms);
+    if (BLOOMS[look]) fx(BLOOMS[look][0], to, BLOOMS[look][1]);
   }
 
   // ── Showing what the engine did ───────────────────────────────────────────
@@ -656,8 +723,9 @@
       } else if (ev.type === 'face') v.face = ev.face;
       else if (ev.type === 'use') {
         banner(`${name(ev.id)}: ${ev.icon || ''} ${ev.name}`); say(`${name(ev.id)} uses ${ev.name}.`);
-        sfx(soundOf(e.unit(S.state, ev.id), ev));
-        const look = lookOf({ x: Math.round(v.x), y: Math.round(v.y), side: e.unit(S.state, ev.id).side }, ev), aimed = ev.x !== Math.round(v.x) || ev.y !== Math.round(v.y);
+        const user = e.unit(S.state, ev.id);
+        const look = lookOf({ x: Math.round(v.x), y: Math.round(v.y), side: user.side, abilities: user.abilities }, ev), aimed = ev.x !== Math.round(v.x) || ev.y !== Math.round(v.y);
+        sfx(soundOf(user, ev, look));
         S.cast = look;
         if (aimed) {
           const dx = Math.sign(ev.x - v.x) * 0.22, dy = Math.sign(ev.y - v.y) * 0.22;
@@ -666,7 +734,7 @@
           if (FLIES[look] && !still()) await launch(look, { x: v.x, y: v.y }, { x: ev.x, y: ev.y });
           await tween(v, { lx: 0, ly: 0 }, 110);
         } else {
-          if (look === 'ward_ring' || look === 'wail') fx(look, v, 520, { tiles: 2.4 });
+          if (RINGS[look]) fx('wail', v, 520, { tiles: 2.4, col: RINGS[look] });
           await wait(160);
         }
       } else if (ev.type === 'hit') {
@@ -759,7 +827,7 @@
     const look = S.info && !S.info.down ? S.info : u;
     who.innerHTML = unitCard(look, S.view[look.id]);
     if (S.info && S.info !== u) {
-      acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${esc(a.icon)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}</div>`
+      acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -778,7 +846,7 @@
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
       const why = !can.ok ? (can.why === 'cooldown' ? `ready in ${can.turns}` : can.why === 'spent' ? 'used up' : 'done') : none ? 'no one in reach' : '';
       return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
-        + `<span class="kwtc-act-i" aria-hidden="true">${esc(x.icon)}</span><span class="kwtc-act-n">${esc(x.name)}</span>`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
       + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
@@ -1264,12 +1332,21 @@
       reveal(C, p) { this.hole(C, (Math.hypot(C.w, C.h) / 2 + 4) * ease(p)); } },
     none: { label: 'Nothing: straight in' },
   };
-  // The way in that is chosen (Dev Tools → Going in), else the fade.
+  // The way in: a different one each battle, picked from all of them, unless
+  // one is asked for (Dev Tools → Going in). Which one is the screen's own
+  // business, so it is not drawn from the battle's seed.
+  const WAYS = Object.keys(ENTRANCES).filter(k => k !== 'none');
+  let lastWay = null;
   function entrance() {
     let key = null;
-    try { key = global.localStorage.getItem('kwt_entrance'); } catch (e) { /* private window */ }
-    key = key || loadPick().entrance;
-    return { key: ENTRANCES[key] ? key : 'fade', ...(ENTRANCES[key] || ENTRANCES.fade) };
+    try { key = global.localStorage.getItem('kwt_way'); } catch (e) { /* private window */ }
+    key = key || loadPick().way;
+    if (!ENTRANCES[key]) {
+      const pool = WAYS.filter(k => k !== lastWay);
+      key = pool[Math.floor(Math.random() * pool.length)] || 'fade';
+    }
+    lastWay = key;
+    return { key, ...ENTRANCES[key] };
   }
   const FIGHT = { fight: 'A fight', elite: 'An elite fight', boss: 'The boss' };
   let entering = false;
@@ -1348,7 +1425,7 @@
     if (DEV.pick) return DEV.pick;
     let saved = null;
     try { saved = JSON.parse(global.localStorage.getItem('kwt_dev_pick') || 'null'); } catch (e) { /* private window */ }
-    DEV.pick = Object.assign({ classes: ['guard', 'hearthkeeper', 'archer', 'wizard'], level: 'skull', tier: 'green', terrain: 'forest', fight: 'first', seed: '', entrance: 'fade' }, saved || {});
+    DEV.pick = Object.assign({ classes: ['guard', 'hearthkeeper', 'archer', 'wizard'], level: 'skull', tier: 'green', terrain: 'forest', fight: 'first', seed: '', way: 'any' }, saved || {});
     return DEV.pick;
   }
   function devHtml(o, p) {
@@ -1358,9 +1435,9 @@
       + `<div class="cheat-desc">A battle on a small board: walk, face, strike from behind or from above. It uses four of your grown-up citizens with the classes chosen here, costs nothing and changes nothing.</div>`
       + `<div class="kwdg-dev-row">${SLOTS.map((s, i) => sel('class' + i, o.classes.map(c => ({ key: c.key, label: `${c.icon} ${c.label}` })), p.classes[i], s)).join('')}</div>`
       + `<div class="kwdg-dev-row">${sel('level', o.levels, p.level, 'Their level')}${sel('tier', o.tiers.map(t => ({ key: t.key, label: `${t.skull} ${t.name}` })), p.tier, 'Skull')}`
-      + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}`
+      + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}${sel('band', o.bands || [{ key: '', label: 'Whoever lives in that land' }], p.band || '', 'Whose')}`
       + `<label>Seed <input class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" data-kwt-dev="seed" value="${esc(p.seed || '')}"></label>`
-      + `${sel('entrance', Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label })), p.entrance || 'fade', 'Going in')}</div>`
+      + `${sel('way', [{ key: 'any', label: 'A different one each time' }].concat(Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label }))), p.way || 'any', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
       + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
       + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
@@ -1386,7 +1463,7 @@
         try {
           if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
-          await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, seed: seed > 0 ? seed : undefined });
+          await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });
           if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
         } catch (e) { if (msg) msg.textContent = '⚠️ ' + e.message; }
       });
@@ -1406,7 +1483,7 @@
   global.KWTactics = {
     start, resume, openById, open, close, leave, devMount,
     // For the proofs and the browser checks.
-    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _curtain: curtain,
+    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _way: entrance, _curtain: curtain,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

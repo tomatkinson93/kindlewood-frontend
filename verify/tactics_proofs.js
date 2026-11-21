@@ -215,8 +215,9 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   check('8o. into a battle: something closes over the screen, the battle is named on it, it opens; nothing acts until it has lifted',
     /open\(setup, new Promise\(r => \{ lifted = r; \}\)\);/.test(J) && /animate\(T\.inMs, p => T\.cover\(C, p\)\)/.test(J) && /await animate\(T\.outMs, p => T\.reveal\(C, p\)\);/.test(J)
     && /Promise\.all\(\[hold \|\| Promise\.resolve\(\), loadAssets\(\)\]\)\.then\(\(\) => \{ if \(S\.open && S\.el === el && !S\.ended\) \{ music\(true\); nextTurn\(\); \} \}\);/.test(J));
-  check('8p. five ways in to choose from in Dev Tools (the fade is the default), or none; with reduced motion the screen only goes dark',
-    ['fade: {', 'page: {', 'tiles: {', 'leaves: {', 'iris: {', 'none: {'].every(x => J.includes(x)) && /key: ENTRANCES\[key\] \? key : 'fade'/.test(J) && /sel\('entrance'/.test(J)
+  check('8p. five ways in, a different one each battle (never the one before, never "none") unless Dev Tools asks for one; with reduced motion the screen only goes dark',
+    ['fade: {', 'page: {', 'tiles: {', 'leaves: {', 'iris: {', 'none: {'].every(x => J.includes(x)) && /const WAYS = Object\.keys\(ENTRANCES\)\.filter\(k => k !== 'none'\);/.test(J)
+    && /const pool = WAYS\.filter\(k => k !== lastWay\);/.test(J) && /sel\('way', \[\{ key: 'any', label: 'A different one each time' \}\]/.test(J) && /way: 'any' \}/.test(J)
     && /const closing = quiet \? \(C\.el\.classList\.add\('is-solid'\), wait\(60\)\) : animate/.test(J) && !/drawSwirl/.test(J));
   check('8q. leaving fades the scene out; a second start while one is coming up is ignored', /S\.el\.classList\.add\('is-leaving'\);/.test(J) && /\.kwtc\.is-leaving \{ opacity: 0; \}/.test(CSS) && /if \(entering\) return null;/.test(J));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
@@ -274,7 +275,7 @@ console.log('10. A steady screen, and things that fly');
   const missing = [...new Set(LOOKS.concat(LAND, ['shield', 'heal', 'cheer', 'reticle', 'droop', 'bubbles', 'stars', 'dust', 'boom', 'ice', 'slash']))].filter(k => !painters.includes(k) && k !== 'bite');
   check('10e. every effect named has a painter', missing.length === 0 && painters.length >= 28, missing.join(', ') || `${painters.length} painters`);
   check('10f. an arrow for the Archer, fire and frost for the Wizard, a shield for a ward, a glow for healing', /a_shoot: 'arrow'/.test(J) && /w_bolt: 'fire'/.test(J) && /w_burst: 'fireburst'/.test(J) && /w_chill: 'frost'/.test(J) && /h_ward: 'shield'/.test(J) && /h_kindle: 'heal'/.test(J));
-  check('10g. what flies is waited for, so the hit lands when it arrives; a burst blooms where it lands', /if \(FLIES\[look\] && !still\(\)\) await launch\(look,/.test(J) && /if \(look === 'fireburst'\) fx\('boom', to, 460\);/.test(J));
+  check('10g. what flies is waited for, so the hit lands when it arrives; a burst blooms where it lands', /if \(FLIES\[look\] && !still\(\)\) await launch\(look,/.test(J) && /if \(BLOOMS\[look\]\) fx\(BLOOMS\[look\]\[0\], to, BLOOMS\[look\]\[1\]\);/.test(J) && /fireburst: \['boom', 460\]/.test(J));
   check('10h. an ability with no look of its own takes one from what it does', /return far \? \(u\.side === 'enemy' \? 'hex' : 'spark'\) : \(u\.side === 'enemy' \? 'bite' : 'slash'\);/.test(J));
   check('10i. with reduced motion no effect is drawn and nothing is waited for', /function fx\(kind, at, ms, more\) \{\s*if \(still\(\)\) return;/.test(J));
   check('10j. no stand-in sound for going in (the old one was the fishing reel)', !/tension\.wav/.test(J));
@@ -290,6 +291,25 @@ console.log('11. A dungeon on the board');
   check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
   check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
   check('11g. the practice box does not offer to pick up a dungeon\'s battle', /d\.battle\.source !== 'dungeon' \? d\.battle : null/.test(J));
+}
+
+console.log('12. The foes of the board, and art that can be dropped in');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), P = read('scripts/pack_tactics.js');
+  check('12a. a foe\'s ability says how it looks, and the screen draws that', /const own = \(u\.abilities \|\| \[\]\)\.find\(x => x\.key === ev\.key\);\s*if \(own && own\.look\) return own\.look;/.test(J));
+  const paints = (J.match(/const PAINT = \{([\s\S]*?)\n  \};/) || [])[1] || '';
+  const looks = ['slash', 'claw', 'stone', 'dart', 'vial', 'sand', 'heal', 'shield', 'smash', 'cheer', 'wail', 'arrow', 'spark', 'gale', 'quake', 'thunder', 'hex', 'boulder', 'spores', 'thrust', 'curse'];
+  const flies = (J.match(/const FLIES = \{([\s\S]*?)\};/) || [])[1] || '', lands = (J.match(/const LANDS_AS = \{([\s\S]*?)\};/) || [])[1] || '', rings = (J.match(/const RINGS = \{([\s\S]*?)\};/) || [])[1] || '';
+  const drawn = k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints) || new RegExp(`\\b${k}:`).test(lands) || new RegExp(`\\b${k}:`).test(rings);
+  check('12b. every look a foe can have (lib/tactics_foes.js on the server) is drawn: in flight, on landing, or as a ring', looks.every(drawn), looks.filter(k => !drawn(k)).join(' ') || `${looks.length} looks`);
+  check('12c. what flies has a painter, and so has what it lands as', (flies.match(/[a-z_]+(?=:)/g) || []).every(k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints))
+    && [...new Set((lands.match(/'[a-z_]+'/g) || []).map(x => x.slice(1, -1)))].every(k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints)));
+  check('12d. the sound follows the look: a stone or a dart sounds as an arrow, a spell as magic, a blade as a blade', /const SOUND_OF = \{ arrow: 'arrow', stone: 'arrow', dart: 'arrow',/.test(J) && /return SOUND_OF\[look\] \|\| \(u\.side === 'enemy' \? 'bite' : 'melee'\);/.test(J));
+  check('12e. an ability shows its own picture when assets/tactics/icons has one (a foe\'s: the one for its look), else its emoji', /const file = ASSETS\.icons && \(ASSETS\.icons\[a\.key\] \|\| \(a\.look && ASSETS\.icons\['look_' \+ a\.look\]\)\);/.test(J) && /<span class="kwtc-act-i" aria-hidden="true">\$\{ico\(x\)\}<\/span>/.test(J)
+    && /\.kwtc-ic \{[^}]*image-rendering: pixelated;/.test(CSS) && /list\('assets\/tactics\/icons', \/\^\[a-z0-9_\]\+\\\.png\$\/\)/.test(P));
+  check('12f. Dev Tools can ask for one band\'s showcase fight', /sel\('band', o\.bands \|\|/.test(J) && /band: p\.band \|\| undefined/.test(J));
+  let manifest = null; try { manifest = JSON.parse(read('assets/tactics/manifest.json')); } catch (e) { /* none */ }
+  check('12g. the manifest lists ability icons beside creatures, sounds and music', !!manifest && typeof manifest.icons === 'object' && typeof manifest.creatures === 'object');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
