@@ -123,7 +123,7 @@
       const t = m.tiles[q.y * m.w + q.x], p = tileXY(q.x, q.y, t.h);
       if (Math.abs(px - p.x) / (G.tw / 2 * k) + Math.abs(py - (p.y + G.th / 2 * k)) / (G.th / 2 * k) <= 1) { face = { x: q.x, y: q.y }; break; }
     }
-    const units = Object.values(S.view).filter(v => !v.gone).sort((a, b) => depth(b.x, b.y) - depth(a.x, a.y));
+    const units = Object.values(S.view).filter(v => !v.gone && !v.lying).sort((a, b) => depth(b.x, b.y) - depth(a.x, a.y));
     for (const v of units) {
       const p = standXY(v.x, v.y);
       if (Math.abs(px - p.x) <= 13 * k && py <= p.y + 6 * k && py >= p.y - 44 * k) { body = { x: Math.round(v.x), y: Math.round(v.y), upper: py < p.y - 11 * k }; break; }
@@ -267,7 +267,32 @@
       c.strokeStyle = 'rgba(30,25,20,0.4)'; c.stroke();
     }
   }
+  // A fallen citizen: lying on their side where they fell, greyed, in a broken ring.
+  function drawFallen(c, v, t) {
+    const k = G.scale, u = E().unit(S.state, v.id), p = standXY(v.x, v.y);
+    c.save();
+    c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(p.x, p.y, 17 * k, 8 * k, 0, 0, 6.3); c.fill();
+    c.strokeStyle = TEAM[u.side]; c.lineWidth = 1.6 * Math.max(1, k * 0.8); c.setLineDash([4 * k, 4 * k]);
+    c.beginPath(); c.ellipse(p.x, p.y, 17 * k, 8 * k, 0, 0, 6.3); c.stroke(); c.setLineDash([]);
+    const sp = spriteOf(v, 0);
+    if ('filter' in c) c.filter = 'grayscale(0.7) brightness(0.85)';
+    if (sp) {
+      const s = sp.s, z = 0.62 * k;
+      c.imageSmoothingEnabled = false;
+      c.translate(p.x - 15 * k, p.y - 3 * k); c.rotate(Math.PI / 2);      // feet to the left, head to the right
+      c.drawImage(sp.img, 0, s.row * s.h, s.w, s.h, -s.foot.x * z, -s.foot.y * z, s.w * z, s.h * z);
+    } else {
+      c.fillStyle = CLASS_COLOUR[u.cls] || CLASS_COLOUR.villager; c.beginPath(); c.ellipse(p.x, p.y - 5 * k, 14 * k, 7 * k, 0, 0, 6.3); c.fill();
+    }
+    c.restore();
+    c.save();
+    c.font = `bold ${Math.round(Math.max(9, 9.5 * k))}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 3; c.strokeStyle = 'rgba(20,12,6,0.85)'; c.strokeText('Down', p.x, p.y - 22 * k);
+    c.fillStyle = '#ffd9d0'; c.fillText('Down', p.x, p.y - 22 * k);
+    c.restore();
+  }
   function drawUnit(c, v, t) {
+    if (v.lying) return drawFallen(c, v, t);
     const k = G.scale, u = E().unit(S.state, v.id), p = standXY(v.x + (v.lx || 0), v.y + (v.ly || 0));
     const active = E().current(S.state) === u && !S.busy;
     c.save();
@@ -697,7 +722,7 @@
   function syncView() {
     for (const u of S.state.units) {
       const v = S.view[u.id] || (S.view[u.id] = { id: u.id, seed: Math.random() * 6 });
-      Object.assign(v, { x: u.x, y: u.y, face: u.face, hp: u.hp, block: u.block, st: { ...u.st }, gone: u.down, alpha: u.down ? 0 : 1, walking: false, lx: 0, ly: 0 });
+      Object.assign(v, { x: u.x, y: u.y, face: u.face, hp: u.hp, block: u.block, st: { ...u.st }, gone: u.down && u.side !== 'player', lying: u.down && u.side === 'player', alpha: u.down && u.side !== 'player' ? 0 : 1, walking: false, lx: 0, ly: 0 });
     }
   }
   function banner(text) {
@@ -757,7 +782,14 @@
       else if (ev.type === 'push') { if (!ev.step) sfx('push'); await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
       else if (ev.type === 'poison') { v.hp = ev.hp; fx('bubbles', v, 700); float(v, '☠ −' + ev.amount, '#c8e070', true); await wait(300); }
       else if (ev.type === 'skip') { fx('stars', v, 900); float(v, 'Stunned', '#fff3d6'); say(`${name(ev.id)} is stunned and loses the turn.`); await wait(420); }
-      else if (ev.type === 'down') { say(`${name(ev.id)} is down.`); sfx(e.unit(S.state, ev.id).side === 'enemy' ? 'down_foe' : 'down_friend'); fx('dust', v, 520); await tween(v, { alpha: 0 }, 380); v.gone = true; }
+      else if (ev.type === 'down') {
+        const foe = e.unit(S.state, ev.id).side === 'enemy';
+        say(`${name(ev.id)} is down.`); sfx(foe ? 'down_foe' : 'down_friend'); fx('dust', v, 520);
+        // A creature is gone; a citizen lies where they fell, and can be healed back up.
+        if (foe) { await tween(v, { alpha: 0 }, 380); v.gone = true; }
+        else { v.hp = 0; v.block = 0; v.st = {}; v.lying = true; float(v, 'Down', '#ffd9d0', true); await wait(380); }
+      }
+      else if (ev.type === 'raise') { v.lying = false; v.st = {}; fx('cheer', v, 800); float(v, 'Back up!', '#ffd27a', true); say(`${name(ev.id)} is back on their feet.`); await wait(260); }
       else if (ev.type === 'round') { S.round = ev.n; paintTop(); }
       else if (ev.type === 'turn') { paintTop(); await wait(90); }
     }
@@ -815,7 +847,7 @@
       const bits = [];
       if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ' from behind (+50%)' : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
       if (l.block) bits.push(`<b>${l.block} block</b>`);
-      if (l.heal != null) bits.push(`<b>heals ${l.heal}</b>`);
+      if (l.heal != null) bits.push(l.raise ? `<b>stands back up with ${l.heal}</b>` : `<b>heals ${l.heal}</b>`);
       for (const k of Object.keys(l.fx)) bits.push(k === 'push' ? 'pushed back' : k === 'bold' ? `next attack +${l.fx[k]}` : `${(STATUS[k] || [k])[0].toLowerCase()} ${l.fx[k]}`);
       return `<div>${esc(l.name)}: ${bits.join(', ')}</div>`;
     }).join('') + `</div>`;
@@ -1076,6 +1108,8 @@
     box.innerHTML = `<div class="kw-box kwtc-end-box"><div class="kw-box-title">${won ? '🏆 The field is yours' : '💀 The party is down'}</div>`
       + `<p>${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
       + `<p>${won ? `${left.length} of ${all} still standing${left.length ? ': ' + left.map(u => `${esc(u.name)} ${u.hp}/${u.maxHp}`).join(', ') : ''}.` : inDungeon ? 'The dungeon run is over.' : 'Nothing is lost: this is a practice field.'}</p>`
+      // Who is down comes along: a rest stands them up, and so does a heal in the next fight.
+      + (inDungeon && won && left.length < all ? `<p class="kwtc-fallen">${esc(st.units.filter(u => u.side === 'player' && u.down).map(u => u.name).join(' and '))} ${all - left.length === 1 ? 'is' : 'are'} down, and will be carried on. A rest stands them up; so does healing them in the next fight.</p>` : '')
       + (inDungeon ? `<p class="kwtc-found" role="status"></p>` : '')
       + `<p class="kwtc-saved kw-note" role="status"></p>`
       // A dungeon's battle is not fought again from here: the only way on is back to the dungeon.
