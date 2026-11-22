@@ -95,6 +95,7 @@
 .kwtc-xp-note { font-size: var(--kw-fs-1); color: var(--kw-muted); }
 .kwtc-up { align-self: flex-start; padding: 0 var(--kw-s-2); border-radius: var(--kw-radius); background: var(--kw-gold-btn); color: var(--kw-on-gold); font-size: var(--kw-fs-1); font-weight: 700; animation: kwtc-up .5s ease both; }
 .kwtc-hero.is-up { animation: kwtc-up-row .6s ease; }
+.kwtc-learned { font-size: var(--kw-fs-1); color: var(--kw-gold); animation: kwtc-up .5s ease both; }
 @keyframes kwtc-up { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes kwtc-up-row { 0% { border-color: var(--kw-gold); box-shadow: 0 0 0 2px var(--kw-gold-deep); } 100% { border-color: var(--kw-line); box-shadow: none; } }
 .kwtc-roll { display: flex; flex-direction: column; min-width: 0; }
@@ -146,6 +147,10 @@
 .kwtc-act:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 .kwtc-act:disabled { opacity: .5; cursor: default; }
 .kwtc-act.is-on { border-color: var(--kw-focus); box-shadow: 0 0 0 2px var(--kw-line-2); }
+/* An ability not learned yet: in its place in the row, greyed, saying the class level that brings it. */
+.kwtc-act.is-locked { opacity: .45; cursor: default; border-style: dashed; }
+.kwtc-act.is-locked:hover { background: var(--kw-wood-2); }
+.kwtc-kit-a.is-locked { opacity: .55; }
 .kwtc-act.is-quick { border-style: dashed; }
 .kwtc-act-i { grid-area: i; font-size: var(--kw-fs-5); line-height: 1; }
 /* An ability's own picture (assets/tactics/icons), in place of its emoji: pixel art, drawn crisp at the emoji's size. */
@@ -201,4 +206,4 @@
   .kwtc-turnview { right: var(--kw-s-2); bottom: var(--kw-s-2); gap: var(--kw-s-1); }
   .kwtc-banner { top: var(--kw-s-1); font-size: var(--kw-fs-2); }
 }
-@media (prefers-reduced-motion: reduce) { .kwtc-banner, .kwtc, .kwtc-curtain-title, .kwtc-end, .kwtc-end-box { transition: none; } .kwtc-splash span, .kwtc-up, .kwtc-hero.is-up { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .kwtc-banner, .kwtc, .kwtc-curtain-title, .kwtc-end, .kwtc-end-box { transition: none; } .kwtc-splash span, .kwtc-up, .kwtc-learned, .kwtc-hero.is-up { animation: none; } }

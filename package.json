@@ -5,7 +5,8 @@
   "description": "Kindlewood web client. Development uses the plain files; `npm run build` makes the bundled site in dist/ for upload.",
   "scripts": {
     "build": "node scripts/build.js",
-    "proofs": "node scripts/run-proofs.js"
+    "proofs": "node scripts/run-proofs.js",
+    "check-live": "node scripts/check_live.js"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

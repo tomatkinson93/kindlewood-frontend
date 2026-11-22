@@ -287,7 +287,7 @@ console.log('10. A steady screen, and things that fly');
 console.log('11. A dungeon on the board');
 {
   const J = read('js/tactics.js'), D = read('js/dungeons.js');
-  check('11a. Dev Tools starts a dungeon with its fights on the board (the default) or with cards', /id="kwdg-dev-combat"/.test(D) && /combat: DEV\.pick\.combat === 'cards' \? 'cards' : 'board'/.test(D) && /pick: \{ tier: '', land: '', seed: '', combat: 'board' \}/.test(D));
+  check('11a. a dungeon from Dev Tools is fought on the board: fights with cards are no longer on offer', !/kwdg-dev-combat/.test(D) && !/With cards/.test(D) && /Every fight is on the board\./.test(D) && !/combat: DEV\.pick/.test(D));
   check('11b. the dungeon\'s Fight opens the room\'s battle on the board; a card run still opens the card battle', /if \(!p\.board\) return startBattle\(p\.quest_run_id\);/.test(D) && /global\.KWTactics\.openById\(p\.battle_id\)/.test(D));
   check('11c. on a board run the path screen has no class-cards button', /run\.combat === 'board' \? '' : `<button type="button" class="kw-btn quiet" data-action="cards">/.test(D));
   check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
@@ -387,13 +387,30 @@ console.log('14. After the battle: the word, the party, experience and injuries'
   check('14h. what it stops on is named and coloured by how bad it is, with its line', /const SEVERITY = \{ none: \['Unhurt', 'good'\], scratch: \['A scratch', 'warn'\], wound: \['A wound', 'warn'\], scar: \['A scar', 'bad'\], crippling: \['Crippled', 'bad'\], fatal: \['Died of their wounds', 'bad'\] \};/.test(J)
     && /\.kwtc-roll\.is-good \.kwtc-roll-word \{ color: var\(--kw-good\); \}/.test(CSS) && /\.kwtc-roll\.is-bad \.kwtc-roll-word \{ color: var\(--kw-bad\); \}/.test(CSS));
   check('14i. with reduced motion there is no splash, the bars are simply full, and the rolls are simply shown', /const quiet = still\(\), epoch = S\.epoch;/.test(J) && /if \(still\(\) \|\| total <= 0\) return settle\(\);/.test(J) && /if \(!still\(\)\) \{\s*for \(let i = 0, spins/.test(J)
-    && /\.kwtc-splash span, \.kwtc-up, \.kwtc-hero\.is-up \{ animation: none; \}/.test(CSS));
+    && /\.kwtc-splash span, \.kwtc-up, \.kwtc-learned, \.kwtc-hero\.is-up \{ animation: none; \}/.test(CSS));
   check('14j. once the battle is over the panel of abilities goes, so the box has the whole height (a phone)', /S\.el\.classList\.add\('is-over'\);/.test(J) && /\.kwtc\.is-over \.kwtc-panel, \.kwtc\.is-over \.kwtc-turnview, \.kwtc\.is-over \.kwtc-ask \{ display: none; \}/.test(CSS));
   check('14k. a memorial waits for the battle to close: it must not cover the end, or tell of a death before its roll is shown', /function whenClosed\(fn\) \{ if \(S\.open \|\| S\.el\) LATER\.push\(fn\); else fn\(\); \}/.test(J)
     && /if \(!quiet\) for \(const fn of LATER\.splice\(0\)\)/.test(J) && /T\.whenClosed\(\(\) => openMemorial\(ids\[0\]\)\)/.test(L));
   const man = JSON.parse(read('assets/tactics/manifest.json'));
   const need = ['start', 'select', 'confirm', 'cancel', 'step', 'melee', 'sword', 'arrow', 'magic', 'bite', 'block', 'heal', 'buff', 'push', 'down_foe', 'victory', 'defeat'];
   check('14l. the sounds the owner added are listed for the game, under the names it plays', need.every(k => man.sounds[k]) && !man.sounds.shove, need.filter(k => !man.sounds[k]).join(' ') || `${Object.keys(man.sounds).length} sounds`);
+}
+
+console.log('15. The class ladder on the screen, and a check on what is live');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), D = read('js/dungeons.js');
+  check('15a. an ability not learned yet sits in its place in the row, greyed, saying the class level that brings it', /\(u\.locked \|\| \[\]\)\.map\(x => `<div class="kwtc-act is-locked"/.test(J) && /learned at level \$\{x\.at\}/.test(J)
+    && /\.kwtc-act\.is-locked \{ opacity: \.45; cursor: default; border-style: dashed; \}/.test(CSS));
+  check('15b. it is no button: it cannot be chosen, and the number keys count only what is known', !/class="kwtc-act is-locked"[^>]*data-kwt/.test(J) && /const a = \(u\.abilities \|\| \[\]\)\[Number\(ev\.key\) - 1\];/.test(J));
+  check('15c. tapping anyone shows what they know and, greyed, what they have yet to learn', /\(look\.locked \|\| \[\]\)\.map\(x => `<span class="kwtc-kit-a is-locked">/.test(J));
+  check('15d. on the victory screen a level gained says what it taught, once the bar has reached that level', /for \(const x of \(r\.learned \|\| \[\]\)\.filter\(x => x\.at <= level && !li\.querySelector\(`\.kwtc-learned\[data-key="\$\{x\.key\}"\]`\)\)\)/.test(J)
+    && /<span class="kwtc-learned" data-key="\$\{esc\(x\.key\)\}">Learned: /.test(J));
+  check('15e. fights with cards are not on offer for a dungeon any more', !/With cards/.test(D) && !/kwdg-dev-combat/.test(D));
+  const C = require(path.join(ROOT, 'scripts', 'check_live.js')), want = C.wanted();
+  check('15f. the check on the live site covers the page, every script and stylesheet it names, and the battle\'s lists and sounds', want.includes('index.html') && want.includes('css/tactics.css') && want.includes('js/tactics-engine.js') && want.includes('js/tactics.js')
+    && want.includes('assets/tactics/manifest.json') && want.some(f => /^assets\/audio\/tactics\/[a-z_]+\.(mp3|wav|ogg)$/.test(f)) && want.length > 150, `${want.length} files`);
+  check('15g. it tells a stale file from one whose line endings an upload changed', C.fingerprint('a.css', Buffer.from('a{}\r\nb{}\r\n')) === C.fingerprint('a.css', Buffer.from('a{}\nb{}\n')) && C.fingerprint('a.css', Buffer.from('a{}\n')) !== C.fingerprint('a.css', Buffer.from('b{}\n'))
+    && C.fingerprint('a.mp3', Buffer.from('a\r\n')) !== C.fingerprint('a.mp3', Buffer.from('a\n')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
