@@ -84,7 +84,11 @@
     if (!ev || ev.type !== 'memorial') return;
     let ids = ev.citizen_ids;
     if (typeof ids === 'string') { try { ids = JSON.parse(ids); } catch (_) { ids = []; } }
-    if (Array.isArray(ids) && ids[0]) openMemorial(ids[0]);
+    if (!Array.isArray(ids) || !ids[0]) return;
+    // While a battle is on the screen the memorial waits for it to close: it would cover the end of
+    // the battle, and tell of a death before that citizen's injury roll has been shown (js/tactics.js).
+    const T = global.KWTactics;
+    if (T && typeof T.whenClosed === 'function') T.whenClosed(() => openMemorial(ids[0])); else openMemorial(ids[0]);
   }
 
   global.KWLife = { openMemorial, onEvent, _bodyHtml: bodyHtml };

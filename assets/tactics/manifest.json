@@ -1,6 +1,24 @@
 {
   "creatures": {},
-  "sounds": {},
+  "sounds": {
+    "arrow": "arrow.wav?v=96d1885c",
+    "bite": "bite.wav?v=1410bc7a",
+    "block": "block.mp3?v=82645292",
+    "buff": "buff.mp3?v=f6b0282a",
+    "cancel": "cancel.mp3?v=c72a5ee3",
+    "confirm": "confirm.mp3?v=675ca41c",
+    "defeat": "defeat.mp3?v=8d09d19b",
+    "down_foe": "down_foe.mp3?v=ab0937d3",
+    "heal": "heal.mp3?v=8710537d",
+    "magic": "magic.mp3?v=15903503",
+    "melee": "melee.mp3?v=8fcc421e",
+    "push": "push.mp3?v=dccc169e",
+    "select": "select.wav?v=c35ec45b",
+    "start": "start.ogg?v=93ec3506",
+    "step": "step.mp3?v=82ba25cb",
+    "sword": "sword.mp3?v=c9b84319",
+    "victory": "victory.mp3?v=edc3df39"
+  },
   "icons": {},
   "music": [
     "meadow-gambit.mp3?v=79c4fb16"
