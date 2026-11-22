@@ -166,9 +166,11 @@
   // name → a sound that exists today, used until assets/audio/tactics/<name>.mp3 is there.
   const STAND_IN = { select: 'card_click.wav', confirm: 'next.wav', melee: 'stab.wav', arrow: 'stab.wav', magic: 'stab.wav', bite: 'stab.wav',
     down_foe: 'splat.wav', down_friend: 'fail.wav', victory: 'success.mp3', defeat: 'fail.wav' };
+  // Some sounds are a finer kind of another: when the finer one has no file, the plainer one plays.
+  const PLAINER = { sword: 'melee', down_friend: 'down_foe' };
   function sfx(name) {
     if (typeof global.playSfx !== 'function') return;
-    const own = ASSETS.sounds[name], file = own ? 'tactics/' + own : STAND_IN[name];
+    const own = ASSETS.sounds[name] || ASSETS.sounds[PLAINER[name]], file = own ? 'tactics/' + own : (STAND_IN[name] || STAND_IN[PLAINER[name]]);
     if (file) global.playSfx(file);
   }
   function music(on) {
@@ -184,7 +186,8 @@
   // The sound of an ability, from what it is and what it looks like.
   const SOUND_OF = { arrow: 'arrow', stone: 'arrow', dart: 'arrow',
     spark: 'magic', fire: 'magic', fireburst: 'magic', frost: 'magic', ember: 'magic', hex: 'magic', venom: 'magic', gale: 'magic', thunder: 'magic', spores: 'magic', curse: 'magic', vial: 'magic', sand: 'magic',
-    slash: 'melee', thrust: 'melee', smash: 'melee', quake: 'melee', boulder: 'melee', claw: 'bite', bite: 'bite', wail: 'bite' };
+    // A blade rings (sword); a club, a fist or a boulder thuds (melee).
+    slash: 'sword', thrust: 'sword', smash: 'melee', quake: 'melee', boulder: 'melee', claw: 'bite', bite: 'bite', wail: 'bite' };
   function soundOf(u, ev, look) {
     if (ev.kind === 'block') return 'block';
     if (ev.kind === 'heal') return 'heal';
@@ -468,6 +471,7 @@
     w_spark: 'spark', w_bolt: 'fire', w_burst: 'fireburst', w_chill: 'frost', h_cinder: 'ember',
     w_ward: 'shield', h_ward: 'shield', h_steady: 'ward_ring', h_kindle: 'heal', t_ration: 'heal', t_drink: 'heal', h_bold: 'cheer',
     hex: 'hex', venom: 'venom', mend: 'heal', shriek: 'wail', howl: 'wail',
+    v_swing: 'smash', t_tool: 'smash', g_shove: 'smash',      // a stick, a tool, a shoulder: a thud, where a Guard's blade rings
   };
   const FLIES = { arrow: 1, spark: 1, fire: 1, fireburst: 1, frost: 1, ember: 1, hex: 1, venom: 1,
     stone: 1, dart: 1, vial: 1, gale: 1, sand: 1, spores: 1, curse: 1, boulder: 1, thunder: 1 };
@@ -976,6 +980,10 @@
         if (!res.ok || !d.ok) return resync(b, d.battle);
         b.saved = d.battle.count; b.status = d.battle.status;
         if (d.dungeon) b.dungeon = d.dungeon;      // a dungeon's battle that has ended: the run after it, what was found
+        // What the battle taught, and any injury rolls; a repeated answer carries them in the battle's record.
+        const kept = d.battle.result || {};
+        if (d.rewards || kept.rewards) b.rewards = d.rewards || kept.rewards;
+        if ((d.rolls && d.rolls.length) || (kept.rolls && kept.rolls.length)) b.rolls = d.rolls && d.rolls.length ? d.rolls : kept.rolls;
         if (mark && d.battle.count === n + 1 && d.battle.check !== mark) return resync(b, d.battle);
         noteSaved();
       } catch (e) { return resync(b, null); }
@@ -1013,6 +1021,7 @@
       const f = dn.found, bits = f ? [f.wealth ? `${f.wealth} wealth` : ''].concat((f.items || []).map(i => `${i.qty} × ${i.name || i.item}`)).filter(Boolean) : [];
       found.textContent = (bits.length ? `Found: ${bits.join(', ')}. ` : '') + (dn.ended ? (dn.run && dn.run.status === 'cleared' ? 'The dungeon is cleared!' : '') : 'The way on is open.');
     }
+    aftermath();
   }
   // The party fights the rest by itself: the mind chooses for every citizen, at once, with no animation.
   function autoFinish() {
@@ -1098,6 +1107,117 @@
     paint();
   }
 
+  // ── After the battle ──────────────────────────────────────────────────────
+  // A big word over the board (Victory, Defeat), then the party: who they are
+  // and, when it was won, what the battle taught each of them, the bar growing
+  // as the number beside it counts down; when a run has ended, each injury roll
+  // shown one at a time. The numbers come from the server's answer to the last
+  // choice (lib/tactics_xp.js, lib/dungeons.js), so the screen waits for it.
+  const SPLASH_MS = 1900;
+  const SEVERITY = { none: ['Unhurt', 'good'], scratch: ['A scratch', 'warn'], wound: ['A wound', 'warn'], scar: ['A scar', 'bad'], crippling: ['Crippled', 'bad'], fatal: ['Died of their wounds', 'bad'] };
+  const lvlOf = xp => { const KM = global.KWCareerMath; return KM && KM.levelProgress ? KM.levelProgress(xp) : null; };
+  // A head and shoulders from the villager sheet, looking at the viewer; the class's emoji until it has loaded.
+  function drawFaces() {
+    const KV = global.KWVillagers, root = S.el;
+    if (!root || !KV || !KV.meta || !KV.spriteFor) return;
+    const s = KV.spriteFor(KV.meta, (S.setup && S.setup.species) || 'Mice', 'idle', 'sw');
+    const img = s && sheet(s.url);
+    if (!img) { if (s && S.open && !S.facesTried) { S.facesTried = true; global.setTimeout(drawFaces, 400); } return; }
+    for (const cv of root.querySelectorAll('.kwtc-hero-face canvas')) {
+      const c = cv.getContext('2d'), side = 44;
+      c.imageSmoothingEnabled = false; c.clearRect(0, 0, cv.width, cv.height);
+      c.drawImage(img, s.foot.x - side / 2, s.row * s.h + s.foot.y - 62, side, side, 0, 0, cv.width, cv.height);
+      cv.parentNode.classList.add('has-art');
+    }
+  }
+  function heroRows(st, won) {
+    return st.units.filter(u => u.side === 'player').map(u => `<li class="kwtc-hero${u.down ? ' is-down' : ''}" data-cid="${esc(u.citizen_id || '')}">`
+      + `<span class="kwtc-hero-face" style="--kwtc-class:${CLASS_COLOUR[u.cls] || CLASS_COLOUR.villager}"><i aria-hidden="true">${esc(u.icon || '•')}</i><canvas width="88" height="88" aria-hidden="true"></canvas></span>`
+      + `<span class="kwtc-hero-who"><b>${esc(u.name)}</b><span class="kwtc-hero-cls">${esc(u.icon || '')} ${esc(u.label || u.cls || '')}${u.down ? ' · down' : ` · ${u.hp}/${u.maxHp}`}</span></span>`
+      + `<span class="kwtc-hero-what">`
+      + (won ? `<span class="kwtc-xp-line" hidden><span class="kwtc-xp-lvl"></span><span class="kwtc-xp" role="progressbar" aria-valuemin="0" aria-valuemax="100"><span class="kwtc-xp-fill"></span></span><span class="kwtc-xp-gain" aria-live="off"></span></span>`
+        + `<span class="kwtc-xp-note">…</span>` : '')
+      + `<span class="kwtc-roll" hidden><b class="kwtc-roll-word"></b><span class="kwtc-roll-tale"></span></span>`
+      + `</span></li>`).join('');
+  }
+  // One citizen's bar: from where they were to where they are, level by level.
+  function growXp(li, r, delay) {
+    const line = li.querySelector('.kwtc-xp-line'), note = li.querySelector('.kwtc-xp-note');
+    if (!line) return Promise.resolve();
+    const fill = line.querySelector('.kwtc-xp-fill'), bar = line.querySelector('.kwtc-xp'), gain = line.querySelector('.kwtc-xp-gain'), lvl = line.querySelector('.kwtc-xp-lvl');
+    const from = Number(r.before.xp) || 0, to = Number(r.after.xp) || from, total = Math.round(r.gain) || 0;
+    let level = r.before.level;
+    const show = xp => {
+      const p = lvlOf(xp) || (xp >= to ? { level: r.after.level, into: r.after.into, need: r.after.need, pct: r.after.need ? r.after.into / r.after.need : 1 } : { level: r.before.level, into: r.before.into, need: r.before.need, pct: r.before.need ? r.before.into / r.before.need : 1 });
+      const pct = Math.max(0, Math.min(100, (p.need ? p.pct : 1) * 100));
+      fill.style.width = pct.toFixed(1) + '%'; bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+      if (p.level > level) {      // a level gained: say so, once for each
+        level = p.level; li.classList.remove('is-up'); void li.offsetWidth; li.classList.add('is-up'); sfx('buff');
+        if (!li.querySelector('.kwtc-up')) line.insertAdjacentHTML('afterend', '<span class="kwtc-up">Level up!</span>');
+      }
+      lvl.textContent = `${r.class_label}${r.own ? '' : ' training'} · level ${level}`;
+      return p;
+    };
+    note.hidden = true; line.hidden = false;
+    show(from); gain.textContent = '+' + total;
+    return new Promise(resolve => {
+      const settle = () => { const p = show(to); gain.textContent = p.need ? `${Math.round(p.into)} / ${p.need}` : 'Master'; gain.classList.add('is-done'); line.title = `+${total} experience`; resolve(); };
+      if (still() || total <= 0) return settle();
+      const ms = Math.max(900, Math.min(2400, 700 + total * 4));
+      global.setTimeout(() => {
+        const t0 = now();
+        const step = () => {
+          if (!S.open || !li.isConnected) return resolve();
+          const q = Math.min(1, (now() - t0) / ms), e = 1 - Math.pow(1 - q, 2);
+          show(from + (to - from) * e); gain.textContent = '+' + Math.max(0, Math.round(total * (1 - e)));
+          if (q < 1) global.requestAnimationFrame(step); else settle();
+        };
+        step();
+      }, delay || 0);
+    });
+  }
+  // One citizen's injury roll: the words spin, then stop on what came of it.
+  async function rollInjury(li, r) {
+    const box = li.querySelector('.kwtc-roll');
+    if (!box) return;
+    const word = box.querySelector('.kwtc-roll-word'), tale = box.querySelector('.kwtc-roll-tale'), keys = Object.keys(SEVERITY).filter(k => !(r.no_fatal && k === 'fatal'));
+    box.hidden = false; box.className = 'kwtc-roll is-rolling';
+    if (!still()) {
+      for (let i = 0, spins = 12 + Math.floor(Math.random() * 4); i < spins && S.open; i++) {
+        word.textContent = SEVERITY[keys[i % keys.length]][0];
+        if (i % 3 === 0) sfx('select');
+        await wait(60 + i * 9);      // slowing as it comes to rest
+      }
+    }
+    const [label, tone] = SEVERITY[r.severity] || SEVERITY.none;
+    word.textContent = label + (r.body_part && r.severity !== 'none' && r.severity !== 'fatal' ? ` (${String(r.body_part).replace(/_/g, ' ')})` : '');
+    tale.textContent = r.severity === 'none' ? 'Walked away from it.' : (r.narrative || '');
+    box.className = 'kwtc-roll is-' + tone;
+    sfx(r.severity === 'none' ? 'heal' : 'debuff');
+    await wait(650);
+  }
+  // Run what there is to show, once the splash has gone and the server has answered. Each part runs once.
+  async function aftermath() {
+    const b = S.battle, A = S.after, root = S.el;
+    if (!A || !A.ready || !root || !b) return;
+    const rowOf = id => root.querySelector(`.kwtc-hero[data-cid="${id}"]`);
+    const won = S.state.status === 'victory';
+    if (won && !A.xp && b.rewards) {
+      A.xp = true;
+      const note = root.querySelector('.kwtc-end-note');
+      if (note) note.textContent = b.rewards.kept ? '' : 'A practice field: this is what the battle would have taught. Nothing is kept.';
+      A.busy = Promise.all((b.rewards.party || []).map((r, i) => { const li = rowOf(r.citizen_id); return li ? growXp(li, r, i * 160) : null; }));
+      await A.busy;
+    }
+    if (!A.rolls && b.rolls && b.rolls.length && (!won || A.xp)) {
+      A.rolls = true;
+      if (A.busy) await A.busy;
+      const head = root.querySelector('.kwtc-end-note');
+      if (head && !won) head.textContent = 'Each of them rolls for what the defeat cost them.';
+      else if (head) head.textContent = (head.textContent ? head.textContent + ' ' : '') + 'Whoever went down in the dungeon rolls for it now.';
+      for (const r of b.rolls) { const li = rowOf(r.citizen_id); if (li && S.open) await rollInjury(li, r); }
+    }
+  }
   function finish() {
     const st = S.state, box = S.el && S.el.querySelector('.kwtc-end');
     if (!box || S.ended) return;
@@ -1105,9 +1225,12 @@
     music(false); sfx(st.status === 'victory' ? 'victory' : 'defeat');
     const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon;
     const left = st.units.filter(u => u.side === 'player' && !u.down), all = st.units.filter(u => u.side === 'player').length;
-    box.innerHTML = `<div class="kw-box kwtc-end-box"><div class="kw-box-title">${won ? '🏆 The field is yours' : '💀 The party is down'}</div>`
-      + `<p>${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
-      + `<p>${won ? `${left.length} of ${all} still standing${left.length ? ': ' + left.map(u => `${esc(u.name)} ${u.hp}/${u.maxHp}`).join(', ') : ''}.` : inDungeon ? 'The dungeon run is over.' : 'Nothing is lost: this is a practice field.'}</p>`
+    S.after = { ready: false, xp: false, rolls: false, busy: null }; S.facesTried = false;
+    box.innerHTML = `<div class="kwtc-splash is-${won ? 'won' : 'lost'}" aria-hidden="true"><span>${won ? 'Victory' : 'Defeat'}</span></div>`
+      + `<div class="kw-box kwtc-end-box" role="group" aria-label="${won ? 'Victory' : 'Defeat'}"><div class="kw-box-title">${won ? '🏆 Victory' : '💀 Defeat'}</div>`
+      + `<p class="kwtc-end-sum">${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
+      + `<ul class="kwtc-roster">${heroRows(st, won)}</ul>`
+      + `<p class="kwtc-end-note kw-note" role="status">${won ? '' : inDungeon ? 'The dungeon run is over.' : 'A practice field: nobody is hurt and nothing is lost.'}</p>`
       // Who is down comes along: a rest stands them up, and so does a heal in the next fight.
       + (inDungeon && won && left.length < all ? `<p class="kwtc-fallen">${esc(st.units.filter(u => u.side === 'player' && u.down).map(u => u.name).join(' and '))} ${all - left.length === 1 ? 'is' : 'are'} down, and will be carried on. A rest stands them up; so does healing them in the next fight.</p>` : '')
       + (inDungeon ? `<p class="kwtc-found" role="status"></p>` : '')
@@ -1118,9 +1241,21 @@
         : `<button type="button" class="kw-btn primary" data-kwt="again">Same battle again</button><button type="button" class="kw-btn" data-kwt="new">A new field</button><button type="button" class="kw-btn quiet" data-kwt="close">Leave</button>`)
       + `</div></div>`;
     box.hidden = false;
+    // The word first, over the battle as it ended; then the party.
+    const quiet = still(), epoch = S.epoch;
+    box.classList.toggle('is-splash', !quiet);
     paint();
+    drawFaces();
     noteSaved();
-    const b = box.querySelector('button'); if (b) b.focus();
+    global.setTimeout(() => {
+      if (!S.open || S.epoch !== epoch || !box.isConnected) return;
+      box.classList.remove('is-splash');
+      // The battle is over: the panel of abilities goes, and the party's box has the whole height.
+      S.el.classList.add('is-over');
+      S.after.ready = true;
+      const b = box.querySelector('button'); if (b) b.focus();
+      aftermath();
+    }, quiet ? 0 : SPLASH_MS);
   }
 
   // ── Opening and closing ───────────────────────────────────────────────────
@@ -1133,7 +1268,7 @@
     S.battle = { id: setup.battle_id || null, n: done.length, saved: done.length, status: 'active', queue: Promise.resolve() };
     S.epoch = (S.epoch || 0) + 1;
     syncView();
-    S.started = now();
+    S.started = now(); S.ended = 0; S.after = null;
   }
   // `hold`: a promise the first turn waits on (the curtain lifting), so nothing happens unseen.
   function open(setup, hold) {
@@ -1262,7 +1397,13 @@
     if (S.watch) { S.watch.disconnect(); S.watch = null; }
     if (S.el && S.el.parentNode) S.el.parentNode.removeChild(S.el);
     S.el = null; S.canvas = null; S.ctx = null; S.state = quiet ? S.state : null;
+    // Whatever waited for the battle to be over (a memorial, say) happens now, unless another battle is taking its place.
+    if (!quiet) for (const fn of LATER.splice(0)) { try { fn(); } catch (e) { /* its own trouble */ } }
   }
+  // Run something once no battle is on the screen: at once if none is. The news of a death must not cover,
+  // or give away, an injury roll that is still being shown.
+  const LATER = [];
+  function whenClosed(fn) { if (S.open || S.el) LATER.push(fn); else fn(); }
   // A battle as the screen takes it: the two sides, with the server's id and the choices so far.
   const asSetup = battle => ({ ...battle.setup, battle_id: battle.id, actions: battle.actions || [] });
   // Ask the server for a new battle: { classes, level, tier, terrain, seed, fight }.
@@ -1515,7 +1656,7 @@
   }
 
   global.KWTactics = {
-    start, resume, openById, open, close, leave, devMount,
+    start, resume, openById, open, close, leave, devMount, whenClosed,
     // For the proofs and the browser checks.
     _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _way: entrance, _curtain: curtain,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,

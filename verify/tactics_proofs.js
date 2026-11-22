@@ -203,7 +203,8 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   const built = P.build(), onDisk = JSON.parse(read('assets/tactics/manifest.json'));
   check('8h. the list of art and sound is the packer\'s, and it is up to date', JSON.stringify(built) === JSON.stringify(onDisk) && Array.isArray(built.music) && typeof built.creatures === 'object' && typeof built.sounds === 'object');
   check('8i. a creature with art is drawn from it (front or back view, mirrored), one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /away && a\.back \? a\.back : a\.front/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
-  check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\], file = own \? 'tactics\/' \+ own : STAND_IN\[name\];/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
+  check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\] \|\| ASSETS\.sounds\[PLAINER\[name\]\], file = own \? 'tactics\/' \+ own : \(STAND_IN\[name\] \|\| STAND_IN\[PLAINER\[name\]\]\);/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
+  check('8j2. a blade rings and a club thuds: the sword sound for blades, falling back to the plain blow when there is no such file', /const PLAINER = \{ sword: 'melee', down_friend: 'down_foe' \};/.test(J) && /slash: 'sword', thrust: 'sword', smash: 'melee'/.test(J) && /v_swing: 'smash', t_tool: 'smash'/.test(J));
   check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const list = boss && forBoss\.length \? forBoss : \(rest\.length \? rest : all\);/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
   // A phone that loaded the game before a sheet was re-packed kept the old picture (every row the front pose), so
   // every citizen was drawn facing the camera whatever way they looked. Sheets now carry a stamp of their contents.
@@ -272,7 +273,9 @@ console.log('10. A steady screen, and things that fly');
   const LOOKS = look(J.slice(J.indexOf('const LOOK = {'), J.indexOf('const FLIES')));
   const LAND = look(J.slice(J.indexOf('const LANDS_AS'), J.indexOf('function lookOf')));
   const painters = [...J.slice(J.indexOf('const PAINT = {'), J.indexOf('function drawFx')).matchAll(/^    (\w+)\(c, f, p, k/gm)].map(m => m[1]);
-  const missing = [...new Set(LOOKS.concat(LAND, ['shield', 'heal', 'cheer', 'reticle', 'droop', 'bubbles', 'stars', 'dust', 'boom', 'ice', 'slash']))].filter(k => !painters.includes(k) && k !== 'bite');
+  // A look that only lands (a blade, a club, teeth) has no painter of its own: it is drawn as what it lands as.
+  const landsOnly = [...J.slice(J.indexOf('const LANDS_AS'), J.indexOf('const BLOOMS')).matchAll(/(\w+): '/g)].map(m => m[1]);
+  const missing = [...new Set(LOOKS.concat(LAND, ['shield', 'heal', 'cheer', 'reticle', 'droop', 'bubbles', 'stars', 'dust', 'boom', 'ice', 'slash']))].filter(k => !painters.includes(k) && !landsOnly.includes(k));
   check('10e. every effect named has a painter', missing.length === 0 && painters.length >= 28, missing.join(', ') || `${painters.length} painters`);
   check('10f. an arrow for the Archer, fire and frost for the Wizard, a shield for a ward, a glow for healing', /a_shoot: 'arrow'/.test(J) && /w_bolt: 'fire'/.test(J) && /w_burst: 'fireburst'/.test(J) && /w_chill: 'frost'/.test(J) && /h_ward: 'shield'/.test(J) && /h_kindle: 'heal'/.test(J));
   check('10g. what flies is waited for, so the hit lands when it arrives; a burst blooms where it lands', /if \(FLIES\[look\] && !still\(\)\) await launch\(look,/.test(J) && /if \(BLOOMS\[look\]\) fx\(BLOOMS\[look\]\[0\], to, BLOOMS\[look\]\[1\]\);/.test(J) && /fireburst: \['boom', 460\]/.test(J));
@@ -363,6 +366,34 @@ console.log('13. The fallen');
   check('13l. being raised is shown and said, and the forecast says "stands back up"', /ev\.type === 'raise'\) \{ v\.lying = false;/.test(J) && /'Back up!'/.test(J) && /l\.raise \? `<b>stands back up with \$\{l\.heal\}<\/b>`/.test(J));
   check('13m. after a dungeon fight that is won, the end screen says who is down and how they get up', /class="kwtc-fallen"/.test(J) && /A rest stands them up; so does healing them in the next fight\./.test(J));
   check('13n. both copies of the rules are the same file', !fs.existsSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'tactics_engine.js')) || read('js/tactics-engine.js') === fs.readFileSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'tactics_engine.js'), 'utf8'));
+}
+
+console.log('14. After the battle: the word, the party, experience and injuries');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), L = read('js/life.js');
+  check('14a. a big word comes first, over the board as it ended: Victory or Defeat, with the party\'s box held back', /class="kwtc-splash is-\$\{won \? 'won' : 'lost'\}" aria-hidden="true"><span>\$\{won \? 'Victory' : 'Defeat'\}<\/span>/.test(J)
+    && /box\.classList\.toggle\('is-splash', !quiet\);/.test(J) && /\.kwtc-end\.is-splash \.kwtc-end-box \{ opacity: 0;[^}]*pointer-events: none; \}/.test(CSS) && /@keyframes kwtc-splash \{/.test(CSS) && /const SPLASH_MS = 1900;/.test(J));
+  check('14b. then the party, one to a row: a face from the villager sheet, the name, the class', /function heroRows\(st, won\)/.test(J) && /<ul class="kwtc-roster">\$\{heroRows\(st, won\)\}<\/ul>/.test(J) && /class="kwtc-hero-face"/.test(J)
+    && /KV\.spriteFor\(KV\.meta, \(S\.setup && S\.setup\.species\) \|\| 'Mice', 'idle', 'sw'\)/.test(J) && /\.kwtc-hero-face\.has-art canvas \{ display: block; \}/.test(CSS));
+  check('14c. won: each bar grows from where the citizen was to where they are while the number beside it counts down', /function growXp\(li, r, delay\)/.test(J) && /show\(from \+ \(to - from\) \* e\); gain\.textContent = '\+' \+ Math\.max\(0, Math\.round\(total \* \(1 - e\)\)\);/.test(J)
+    && /fill\.style\.width = pct\.toFixed\(1\) \+ '%';/.test(J) && /const ms = Math\.max\(900, Math\.min\(2400, 700 \+ total \* 4\)\);/.test(J));
+  check('14d. the bar follows the careers\' own levels, and a level gained is said once for each', /const lvlOf = xp => \{ const KM = global\.KWCareerMath; return KM && KM\.levelProgress \? KM\.levelProgress\(xp\) : null; \};/.test(J)
+    && /if \(p\.level > level\) \{/.test(J) && /<span class="kwtc-up">Level up!<\/span>/.test(J) && /@keyframes kwtc-up \{/.test(CSS));
+  check('14e. the numbers are the server\'s: nothing grows until its answer has come, and each part plays once', /if \(won && !A\.xp && b\.rewards\) \{\s*A\.xp = true;/.test(J) && /if \(d\.rewards \|\| kept\.rewards\) b\.rewards = d\.rewards \|\| kept\.rewards;/.test(J)
+    && /if \(!A \|\| !A\.ready \|\| !root \|\| !b\) return;/.test(J) && /    aftermath\(\);\n  \}/.test(J));
+  check('14f. a practice field says the experience is not kept', /b\.rewards\.kept \? '' : 'A practice field: this is what the battle would have taught\. Nothing is kept\.'/.test(J));
+  check('14g. lost, or a run ended with someone fallen: each injury roll in turn, the words spinning and slowing before they stop', /async function rollInjury\(li, r\)/.test(J) && /await wait\(60 \+ i \* 9\);/.test(J)
+    && /for \(const r of b\.rolls\) \{ const li = rowOf\(r\.citizen_id\); if \(li && S\.open\) await rollInjury\(li, r\); \}/.test(J) && /keys = Object\.keys\(SEVERITY\)\.filter\(k => !\(r\.no_fatal && k === 'fatal'\)\)/.test(J));
+  check('14h. what it stops on is named and coloured by how bad it is, with its line', /const SEVERITY = \{ none: \['Unhurt', 'good'\], scratch: \['A scratch', 'warn'\], wound: \['A wound', 'warn'\], scar: \['A scar', 'bad'\], crippling: \['Crippled', 'bad'\], fatal: \['Died of their wounds', 'bad'\] \};/.test(J)
+    && /\.kwtc-roll\.is-good \.kwtc-roll-word \{ color: var\(--kw-good\); \}/.test(CSS) && /\.kwtc-roll\.is-bad \.kwtc-roll-word \{ color: var\(--kw-bad\); \}/.test(CSS));
+  check('14i. with reduced motion there is no splash, the bars are simply full, and the rolls are simply shown', /const quiet = still\(\), epoch = S\.epoch;/.test(J) && /if \(still\(\) \|\| total <= 0\) return settle\(\);/.test(J) && /if \(!still\(\)\) \{\s*for \(let i = 0, spins/.test(J)
+    && /\.kwtc-splash span, \.kwtc-up, \.kwtc-hero\.is-up \{ animation: none; \}/.test(CSS));
+  check('14j. once the battle is over the panel of abilities goes, so the box has the whole height (a phone)', /S\.el\.classList\.add\('is-over'\);/.test(J) && /\.kwtc\.is-over \.kwtc-panel, \.kwtc\.is-over \.kwtc-turnview, \.kwtc\.is-over \.kwtc-ask \{ display: none; \}/.test(CSS));
+  check('14k. a memorial waits for the battle to close: it must not cover the end, or tell of a death before its roll is shown', /function whenClosed\(fn\) \{ if \(S\.open \|\| S\.el\) LATER\.push\(fn\); else fn\(\); \}/.test(J)
+    && /if \(!quiet\) for \(const fn of LATER\.splice\(0\)\)/.test(J) && /T\.whenClosed\(\(\) => openMemorial\(ids\[0\]\)\)/.test(L));
+  const man = JSON.parse(read('assets/tactics/manifest.json'));
+  const need = ['start', 'select', 'confirm', 'cancel', 'step', 'melee', 'sword', 'arrow', 'magic', 'bite', 'block', 'heal', 'buff', 'push', 'down_foe', 'victory', 'defeat'];
+  check('14l. the sounds the owner added are listed for the game, under the names it plays', need.every(k => man.sounds[k]) && !man.sounds.shove, need.filter(k => !man.sounds[k]).join(' ') || `${Object.keys(man.sounds).length} sounds`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

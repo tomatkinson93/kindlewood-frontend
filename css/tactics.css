@@ -51,9 +51,60 @@
 .kwtc-face.is-on { background: var(--kw-gold-btn); border-color: var(--kw-gold); color: var(--kw-on-gold); }
 .kwtc-end { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--kw-s-4); background: var(--kw-scrim); }
 .kwtc-end[hidden] { display: none; }
-.kwtc-end-box { max-width: 460px; width: 100%; text-align: center; box-shadow: var(--kw-shadow); }
+.kwtc-end-box { max-width: 520px; width: 100%; max-height: 100%; overflow-y: auto; text-align: center; box-shadow: var(--kw-shadow); transition: opacity .3s ease, transform .3s ease; }
 .kwtc-end-box p { margin: var(--kw-s-2) 0; }
 .kwtc-end-box .kwtc-confirm { justify-content: center; }
+/* After the battle: first a big word over the board as it ended, then the party. */
+.kwtc-end { transition: background-color .3s ease; }
+.kwtc-end.is-splash { background: transparent; }
+.kwtc-end.is-splash .kwtc-end-box { opacity: 0; transform: translateY(var(--kw-s-3)); pointer-events: none; }
+.kwtc-splash { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; overflow: hidden; }
+.kwtc-splash span {
+  font-family: var(--kw-font-title); font-size: clamp(56px, 15vw, 150px); font-weight: 800; letter-spacing: .04em; line-height: 1; white-space: nowrap; opacity: 0;
+  color: var(--kw-gold); text-shadow: 0 4px 0 var(--kw-ink), 0 0 36px var(--kw-gold-deep), 0 0 4px var(--kw-ink);
+}
+.kwtc-splash.is-lost span { color: var(--kw-bad); text-shadow: 0 4px 0 var(--kw-ink), 0 0 36px var(--kw-ink), 0 0 4px var(--kw-ink); }
+.kwtc-end.is-splash .kwtc-splash span { animation: kwtc-splash 1.9s cubic-bezier(.2, .9, .2, 1) both; }
+.kwtc-end.is-splash .kwtc-splash.is-lost span { animation-name: kwtc-splash-lost; }
+@keyframes kwtc-splash { 0% { transform: scale(2.6); opacity: 0; } 13% { transform: scale(1); opacity: 1; } 20% { transform: scale(1.08); } 27% { transform: scale(1); } 88% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1.12) translateY(-16px); opacity: 0; } }
+@keyframes kwtc-splash-lost { 0% { transform: translateY(-60px); opacity: 0; } 18% { transform: translateY(0); opacity: 1; } 88% { transform: translateY(4px); opacity: 1; } 100% { transform: translateY(24px); opacity: 0; } }
+/* Once the battle is over the panel of abilities is gone, so the party's box has the whole height below the strip. */
+.kwtc.is-over { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top" "board"; }
+.kwtc.is-over .kwtc-panel, .kwtc.is-over .kwtc-turnview, .kwtc.is-over .kwtc-ask { display: none; }
+.kwtc-end { align-items: center; overflow-y: auto; }
+/* The party, one to a row: a face, who they are, and what came of the battle for them. */
+.kwtc-roster { list-style: none; margin: var(--kw-s-3) 0; padding: 0; display: grid; gap: var(--kw-s-2); text-align: left; }
+.kwtc-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; gap: var(--kw-s-2) var(--kw-s-3); padding: var(--kw-s-2); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-panel-2); }
+.kwtc-hero-face { position: relative; width: 44px; height: 44px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; border: 2px solid var(--kwtc-class, var(--kw-gold-dim)); background: var(--kw-wood-2); font-size: var(--kw-fs-4); line-height: 1; }
+.kwtc-hero-face i { font-style: normal; }
+.kwtc-hero-face canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; display: none; }
+.kwtc-hero-face.has-art canvas { display: block; }
+.kwtc-hero-face.has-art i { visibility: hidden; }
+.kwtc-hero.is-down .kwtc-hero-face { filter: grayscale(.8); opacity: .75; }
+.kwtc-hero-who { display: flex; flex-direction: column; min-width: 0; }
+.kwtc-hero-who b { color: var(--kw-cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-hero-cls { font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-hero-what { display: flex; flex-direction: column; gap: var(--kw-s-1); min-width: 0; }
+.kwtc-xp-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "lvl gain" "bar bar"; align-items: baseline; gap: 2px var(--kw-s-2); }
+.kwtc-xp-line[hidden], .kwtc-roll[hidden], .kwtc-xp-note[hidden] { display: none; }
+.kwtc-xp-lvl { grid-area: lvl; font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-xp-gain { grid-area: gain; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--kw-gold); }
+.kwtc-xp-gain.is-done { font-weight: 400; font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-xp { grid-area: bar; display: block; height: 10px; border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: var(--kw-ink); overflow: hidden; }
+.kwtc-xp-fill { display: block; height: 100%; width: 0; background: var(--kw-gold-btn); }
+.kwtc-xp-note { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-up { align-self: flex-start; padding: 0 var(--kw-s-2); border-radius: var(--kw-radius); background: var(--kw-gold-btn); color: var(--kw-on-gold); font-size: var(--kw-fs-1); font-weight: 700; animation: kwtc-up .5s ease both; }
+.kwtc-hero.is-up { animation: kwtc-up-row .6s ease; }
+@keyframes kwtc-up { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes kwtc-up-row { 0% { border-color: var(--kw-gold); box-shadow: 0 0 0 2px var(--kw-gold-deep); } 100% { border-color: var(--kw-line); box-shadow: none; } }
+.kwtc-roll { display: flex; flex-direction: column; min-width: 0; }
+.kwtc-roll-word { font-variant-numeric: tabular-nums; }
+.kwtc-roll-tale { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-roll.is-rolling .kwtc-roll-word { color: var(--kw-muted); }
+.kwtc-roll.is-good .kwtc-roll-word { color: var(--kw-good); }
+.kwtc-roll.is-warn .kwtc-roll-word { color: var(--kw-warn); }
+.kwtc-roll.is-bad .kwtc-roll-word { color: var(--kw-bad); }
+.kwtc-end-note:empty { display: none; }
 
 .kwtc-panel {
   grid-area: panel; display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); grid-template-areas: "who acts" "hint hint"; gap: var(--kw-s-2) var(--kw-s-3);
@@ -150,4 +201,4 @@
   .kwtc-turnview { right: var(--kw-s-2); bottom: var(--kw-s-2); gap: var(--kw-s-1); }
   .kwtc-banner { top: var(--kw-s-1); font-size: var(--kw-fs-2); }
 }
-@media (prefers-reduced-motion: reduce) { .kwtc-banner, .kwtc, .kwtc-curtain-title { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .kwtc-banner, .kwtc, .kwtc-curtain-title, .kwtc-end, .kwtc-end-box { transition: none; } .kwtc-splash span, .kwtc-up, .kwtc-hero.is-up { animation: none; } }
