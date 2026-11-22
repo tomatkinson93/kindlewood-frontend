@@ -6,6 +6,7 @@
 //
 // It reads
 //   assets/sprites/creatures/<creature>_front.png and <creature>_back.png
+//   assets/tactics/icons/<ability key>.png
 //   assets/audio/tactics/<name>.mp3 (or .ogg, .wav)
 //   assets/audio/tactics/music/*.mp3
 // and writes assets/tactics/manifest.json, which js/tactics.js loads. Whatever
@@ -36,12 +37,14 @@ function build() {
   for (const k of Object.keys(creatures)) if (!creatures[k].front) delete creatures[k];   // a back view alone is no use
   const sounds = {};
   for (const f of list('assets/audio/tactics', /\.(mp3|ogg|wav)$/)) sounds[f.replace(/\.[a-z0-9]+$/, '')] = stamped('assets/audio/tactics', f);
-  return { creatures, sounds, music: list('assets/audio/tactics/music', /\.(mp3|ogg)$/).map(f => stamped('assets/audio/tactics/music', f)) };
+  const icons = {};
+  for (const f of list('assets/tactics/icons', /^[a-z0-9_]+\.png$/)) icons[f.replace(/\.png$/, '')] = stamped('assets/tactics/icons', f);
+  return { creatures, sounds, icons, music: list('assets/audio/tactics/music', /\.(mp3|ogg)$/).map(f => stamped('assets/audio/tactics/music', f)) };
 }
 if (require.main === module) {
   const out = build();
   fs.mkdirSync(path.join(ROOT, 'assets/tactics'), { recursive: true });
   fs.writeFileSync(path.join(ROOT, 'assets/tactics/manifest.json'), JSON.stringify(out, null, 2) + '\n');
-  console.log(`creatures with art: ${Object.keys(out.creatures).length} · sounds: ${Object.keys(out.sounds).length} · music tracks: ${out.music.length}`);
+  console.log(`creatures with art: ${Object.keys(out.creatures).length} · ability icons: ${Object.keys(out.icons).length} · sounds: ${Object.keys(out.sounds).length} · music tracks: ${out.music.length}`);
 }
 module.exports = { build, pngSize };

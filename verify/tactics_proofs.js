@@ -215,8 +215,9 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   check('8o. into a battle: something closes over the screen, the battle is named on it, it opens; nothing acts until it has lifted',
     /open\(setup, new Promise\(r => \{ lifted = r; \}\)\);/.test(J) && /animate\(T\.inMs, p => T\.cover\(C, p\)\)/.test(J) && /await animate\(T\.outMs, p => T\.reveal\(C, p\)\);/.test(J)
     && /Promise\.all\(\[hold \|\| Promise\.resolve\(\), loadAssets\(\)\]\)\.then\(\(\) => \{ if \(S\.open && S\.el === el && !S\.ended\) \{ music\(true\); nextTurn\(\); \} \}\);/.test(J));
-  check('8p. five ways in to choose from in Dev Tools (the fade is the default), or none; with reduced motion the screen only goes dark',
-    ['fade: {', 'page: {', 'tiles: {', 'leaves: {', 'iris: {', 'none: {'].every(x => J.includes(x)) && /key: ENTRANCES\[key\] \? key : 'fade'/.test(J) && /sel\('entrance'/.test(J)
+  check('8p. five ways in, a different one each battle (never the one before, never "none") unless Dev Tools asks for one; with reduced motion the screen only goes dark',
+    ['fade: {', 'page: {', 'tiles: {', 'leaves: {', 'iris: {', 'none: {'].every(x => J.includes(x)) && /const WAYS = Object\.keys\(ENTRANCES\)\.filter\(k => k !== 'none'\);/.test(J)
+    && /const pool = WAYS\.filter\(k => k !== lastWay\);/.test(J) && /sel\('way', \[\{ key: 'any', label: 'A different one each time' \}\]/.test(J) && /way: 'any' \}/.test(J)
     && /const closing = quiet \? \(C\.el\.classList\.add\('is-solid'\), wait\(60\)\) : animate/.test(J) && !/drawSwirl/.test(J));
   check('8q. leaving fades the scene out; a second start while one is coming up is ignored', /S\.el\.classList\.add\('is-leaving'\);/.test(J) && /\.kwtc\.is-leaving \{ opacity: 0; \}/.test(CSS) && /if \(entering\) return null;/.test(J));
   check('8l. on a narrow phone Dev Tools is in the profile menu, for admins only', /id="pm-devtools" style="display:none" onclick="openCheatMenu\(\); closeProfileMenu\(\)"/.test(HTML) && /querySelectorAll\('\.btn-cheat, \.kw-admin-only'\)/.test(read('js/buildings.js')));
@@ -274,7 +275,7 @@ console.log('10. A steady screen, and things that fly');
   const missing = [...new Set(LOOKS.concat(LAND, ['shield', 'heal', 'cheer', 'reticle', 'droop', 'bubbles', 'stars', 'dust', 'boom', 'ice', 'slash']))].filter(k => !painters.includes(k) && k !== 'bite');
   check('10e. every effect named has a painter', missing.length === 0 && painters.length >= 28, missing.join(', ') || `${painters.length} painters`);
   check('10f. an arrow for the Archer, fire and frost for the Wizard, a shield for a ward, a glow for healing', /a_shoot: 'arrow'/.test(J) && /w_bolt: 'fire'/.test(J) && /w_burst: 'fireburst'/.test(J) && /w_chill: 'frost'/.test(J) && /h_ward: 'shield'/.test(J) && /h_kindle: 'heal'/.test(J));
-  check('10g. what flies is waited for, so the hit lands when it arrives; a burst blooms where it lands', /if \(FLIES\[look\] && !still\(\)\) await launch\(look,/.test(J) && /if \(look === 'fireburst'\) fx\('boom', to, 460\);/.test(J));
+  check('10g. what flies is waited for, so the hit lands when it arrives; a burst blooms where it lands', /if \(FLIES\[look\] && !still\(\)\) await launch\(look,/.test(J) && /if \(BLOOMS\[look\]\) fx\(BLOOMS\[look\]\[0\], to, BLOOMS\[look\]\[1\]\);/.test(J) && /fireburst: \['boom', 460\]/.test(J));
   check('10h. an ability with no look of its own takes one from what it does', /return far \? \(u\.side === 'enemy' \? 'hex' : 'spark'\) : \(u\.side === 'enemy' \? 'bite' : 'slash'\);/.test(J));
   check('10i. with reduced motion no effect is drawn and nothing is waited for', /function fx\(kind, at, ms, more\) \{\s*if \(still\(\)\) return;/.test(J));
   check('10j. no stand-in sound for going in (the old one was the fishing reel)', !/tension\.wav/.test(J));
@@ -290,6 +291,78 @@ console.log('11. A dungeon on the board');
   check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
   check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
   check('11g. the practice box does not offer to pick up a dungeon\'s battle', /d\.battle\.source !== 'dungeon' \? d\.battle : null/.test(J));
+}
+
+console.log('12. The foes of the board, and art that can be dropped in');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), P = read('scripts/pack_tactics.js');
+  check('12a. a foe\'s ability says how it looks, and the screen draws that', /const own = \(u\.abilities \|\| \[\]\)\.find\(x => x\.key === ev\.key\);\s*if \(own && own\.look\) return own\.look;/.test(J));
+  const paints = (J.match(/const PAINT = \{([\s\S]*?)\n  \};/) || [])[1] || '';
+  const looks = ['slash', 'claw', 'stone', 'dart', 'vial', 'sand', 'heal', 'shield', 'smash', 'cheer', 'wail', 'arrow', 'spark', 'gale', 'quake', 'thunder', 'hex', 'boulder', 'spores', 'thrust', 'curse'];
+  const flies = (J.match(/const FLIES = \{([\s\S]*?)\};/) || [])[1] || '', lands = (J.match(/const LANDS_AS = \{([\s\S]*?)\};/) || [])[1] || '', rings = (J.match(/const RINGS = \{([\s\S]*?)\};/) || [])[1] || '';
+  const drawn = k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints) || new RegExp(`\\b${k}:`).test(lands) || new RegExp(`\\b${k}:`).test(rings);
+  check('12b. every look a foe can have (lib/tactics_foes.js on the server) is drawn: in flight, on landing, or as a ring', looks.every(drawn), looks.filter(k => !drawn(k)).join(' ') || `${looks.length} looks`);
+  check('12c. what flies has a painter, and so has what it lands as', (flies.match(/[a-z_]+(?=:)/g) || []).every(k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints))
+    && [...new Set((lands.match(/'[a-z_]+'/g) || []).map(x => x.slice(1, -1)))].every(k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints)));
+  check('12d. the sound follows the look: a stone or a dart sounds as an arrow, a spell as magic, a blade as a blade', /const SOUND_OF = \{ arrow: 'arrow', stone: 'arrow', dart: 'arrow',/.test(J) && /return SOUND_OF\[look\] \|\| \(u\.side === 'enemy' \? 'bite' : 'melee'\);/.test(J));
+  check('12e. an ability shows its own picture when assets/tactics/icons has one (a foe\'s: the one for its look), else its emoji', /const file = ASSETS\.icons && \(ASSETS\.icons\[a\.key\] \|\| \(a\.look && ASSETS\.icons\['look_' \+ a\.look\]\)\);/.test(J) && /<span class="kwtc-act-i" aria-hidden="true">\$\{ico\(x\)\}<\/span>/.test(J)
+    && /\.kwtc-ic \{[^}]*image-rendering: pixelated;/.test(CSS) && /list\('assets\/tactics\/icons', \/\^\[a-z0-9_\]\+\\\.png\$\/\)/.test(P));
+  check('12f. Dev Tools can ask for one band\'s showcase fight', /sel\('band', o\.bands \|\|/.test(J) && /band: p\.band \|\| undefined/.test(J));
+  let manifest = null; try { manifest = JSON.parse(read('assets/tactics/manifest.json')); } catch (e) { /* none */ }
+  check('12g. the manifest lists ability icons beside creatures, sounds and music', !!manifest && typeof manifest.icons === 'object' && typeof manifest.creatures === 'object');
+}
+
+console.log('13. The fallen');
+{
+  const mend = (x = {}) => ({ key: 'mend', name: 'Mend', kind: 'heal', target: 'ally', min: 1, max: 3, shape: 'single', heal: 12, fx: {}, cooldown: 0, ...x });
+  const healer = (id, x = {}) => man(id, { abilities: [strike(), mend()], ...x });
+  // A citizen struck down lies where they fell.
+  let st = battle([healer('a', { agility: 12 }), man('b', { agility: 11, maxHp: 8 })], [man('x', { agility: 9, abilities: [strike({ dmg: 20 })] }), man('y', { agility: 3 })]);
+  put(st, 'a', 1, 4); put(st, 'b', 3, 4, 'e'); put(st, 'x', 4, 4, 'w'); put(st, 'y', 7, 0);
+  E.endTurn(st, 'e'); E.endTurn(st, 'e');                       // a and b wait; x strikes b down
+  E.aiTurn(st);
+  const b = E.unit(st, 'b');
+  check('13a. a citizen struck down lies where they fell: no turn, out of the order from the next round', b.down && b.fell && b.hp === 0 && !!E.bodyAt(st, 3, 4) && !E.unitAt(st, 3, 4) && st.status === 'active');
+  const x = E.unit(st, 'x');
+  check('13b. no foe can strike the fallen', !E.targetTiles(st, x, x.abilities[0], x).some(t => t.x === 3 && t.y === 4));
+  while (E.current(st) && E.current(st).id !== 'a') E.aiTurn(st);
+  const a = E.unit(st, 'a'), R = E.reach(st, a), over = R.get('3,4');
+  check('13c. anyone may step over them, and nobody may stop there', !E.computeOrder(st).includes('b') && (!over || over.stop === false) && E.move(st, 3, 4) === null);
+  put(st, 'a', 2, 4, 'e'); put(st, 'x', 6, 6); put(st, 'y', 7, 7);
+  const fc = E.forecast(st, a, a.abilities[1], 3, 4);
+  check('13d. a heal can be aimed at them, and says it will stand them up', E.targetTiles(st, a, a.abilities[1], a).some(t => t.x === 3 && t.y === 4) && fc.length === 1 && fc[0].raise === true && fc[0].heal === 8);
+  b.st.poison = 3;
+  const ev = E.use(st, 'mend', 3, 4);
+  check('13e. healing stands them back up with what was healed; what ailed them is gone', ev.some(e => e.type === 'raise' && e.id === 'b') && !b.down && b.hp === 8 && !b.st.poison && !E.bodyAt(st, 3, 4) && E.unitAt(st, 3, 4) === b);
+  E.endTurn(st, 'e');
+  let acted = false;
+  for (let g = 0; g < 12 && st.status === 'active' && !acted; g++) { if (E.current(st).id === 'b') acted = true; else E.aiTurn(st); }
+  check('13f. and they take their turn again when it comes', acted && E.resultOf(st).party.find(p => p.id === 'b').fell === true, 'the record still says they went down');
+  // A creature that goes down is gone: nothing to step round, nothing to raise.
+  st = battle([man('a', { agility: 12, abilities: [strike({ dmg: 99 })] })], [healer('x', { agility: 9 }), man('y', { agility: 8, maxHp: 5 })]);
+  put(st, 'a', 3, 4, 'e'); put(st, 'y', 4, 4, 'w'); put(st, 'x', 5, 4, 'w');
+  E.use(st, 'strike', 4, 4);
+  const xx = E.unit(st, 'x');
+  check('13g. a creature that goes down is gone: no body, and its friends cannot raise it', E.unit(st, 'y').down && !E.bodyAt(st, 4, 4) && !E.targetTiles(st, xx, xx.abilities[1], xx).some(t => t.x === 4 && t.y === 4));
+  // Carried in already down.
+  st = battle([man('a'), man('b', { down: true }), healer('c')], [man('x')]);
+  const lying = E.unit(st, 'b');
+  check('13h. a citizen carried in down lies at their place, and the battle is lost only when nobody is standing', lying.down && lying.hp === 0 && !st.order.includes('b') && st.status === 'active' && E.living(st, 'player').length === 2);
+  // The mind uses a heal to raise a friend.
+  let raised = 0, tried = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const s2 = E.createBattle({ seed, land: 'plains', party: [healer('a', { maxHp: 60 }), man('b', { down: true }), man('c', { maxHp: 60 })], enemies: [man('x', { maxHp: 40 }), man('y', { maxHp: 40 })] });
+    for (let g = 0; g < 400 && s2.status === 'active'; g++) E.aiTurn(s2);
+    tried++; if (!E.unit(s2, 'b').down) raised++;
+  }
+  check('13i. left to itself, a party with a healer usually stands its fallen friend back up', raised >= 20, `${raised} of ${tried}`);
+  const J = read('js/tactics.js');
+  check('13j. on the screen a fallen citizen lies greyed in a broken ring, marked Down, and does not block a tap', /function drawFallen\(c, v, t\)/.test(J) && /if \(v\.lying\) return drawFallen\(c, v, t\);/.test(J) && /c\.rotate\(Math\.PI \/ 2\);/.test(J)
+    && /filter\(v => !v\.gone && !v\.lying\)\.sort/.test(J) && /lying: u\.down && u\.side === 'player'/.test(J));
+  check('13k. going down, a citizen stays on the board; a creature fades away', /if \(foe\) \{ await tween\(v, \{ alpha: 0 \}, 380\); v\.gone = true; \}\s*else \{ v\.hp = 0; v\.block = 0; v\.st = \{\}; v\.lying = true;/.test(J));
+  check('13l. being raised is shown and said, and the forecast says "stands back up"', /ev\.type === 'raise'\) \{ v\.lying = false;/.test(J) && /'Back up!'/.test(J) && /l\.raise \? `<b>stands back up with \$\{l\.heal\}<\/b>`/.test(J));
+  check('13m. after a dungeon fight that is won, the end screen says who is down and how they get up', /class="kwtc-fallen"/.test(J) && /A rest stands them up; so does healing them in the next fight\./.test(J));
+  check('13n. both copies of the rules are the same file', !fs.existsSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'tactics_engine.js')) || read('js/tactics-engine.js') === fs.readFileSync(path.join(ROOT, '..', 'kindlewood-server', 'lib', 'tactics_engine.js'), 'utf8'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
