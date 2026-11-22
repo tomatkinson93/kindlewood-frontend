@@ -863,7 +863,8 @@
     const look = S.info && !S.info.down ? S.info : u;
     who.innerHTML = unitCard(look, S.view[look.id]);
     if (S.info && S.info !== u) {
-      acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}</div>`
+      acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}`
+        + (look.locked || []).map(x => `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(x.name)}</b> <i>at level ${x.at}</i></span>`).join('') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -885,6 +886,9 @@
         + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
+      // What this citizen has yet to learn, in its place in the row: greyed, with the class level that brings it.
+      + (u.locked || []).map(x => `<div class="kwtc-act is-locked" aria-label="${esc(x.name)}: learned at ${esc(u.label || 'class')} level ${x.at}">`
+        + `<span class="kwtc-act-i" aria-hidden="true">🔒</span><span class="kwtc-act-n">${esc(x.name)}</span><span class="kwtc-act-t">learned at level ${x.at}</span><span class="kwtc-act-r">${esc(u.label || '')} level ${u.class_level || 1} now</span></div>`).join('')
       + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
       + (a || S.pick ? `<button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button>`
         : `<button type="button" class="kw-btn quiet" data-kwt="auto" title="The party fights the rest of the battle by itself">Let them fight</button>`)
@@ -1154,6 +1158,10 @@
       if (p.level > level) {      // a level gained: say so, once for each
         level = p.level; li.classList.remove('is-up'); void li.offsetWidth; li.classList.add('is-up'); sfx('buff');
         if (!li.querySelector('.kwtc-up')) line.insertAdjacentHTML('afterend', '<span class="kwtc-up">Level up!</span>');
+        // What that level taught (the class ladder), once the bar has reached it.
+        for (const x of (r.learned || []).filter(x => x.at <= level && !li.querySelector(`.kwtc-learned[data-key="${x.key}"]`))) {
+          (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned" data-key="${esc(x.key)}">Learned: ${esc(x.icon || '')} <b>${esc(x.name)}</b></span>`);
+        }
       }
       lvl.textContent = `${r.class_label}${r.own ? '' : ' training'} · level ${level}`;
       return p;
