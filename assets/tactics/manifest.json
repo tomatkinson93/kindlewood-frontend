@@ -1,5 +1,91 @@
 {
-  "creatures": {},
+  "creatures": {
+    "boar_bruiser": {
+      "file": "boar_bruiser.png?v=9cd22709",
+      "face": "boar_bruiser_face.png?v=e334d448",
+      "dirs": [
+        "se",
+        "sw",
+        "ne",
+        "nw"
+      ],
+      "w": 100,
+      "h": 111,
+      "foot": {
+        "x": 50,
+        "y": 109
+      },
+      "scale": 0.7411
+    },
+    "fox_footpad": {
+      "file": "fox_footpad.png?v=363a4c5b",
+      "face": "fox_footpad_face.png?v=e76855c7",
+      "dirs": [
+        "se",
+        "sw",
+        "ne",
+        "nw"
+      ],
+      "w": 118,
+      "h": 106,
+      "foot": {
+        "x": 63.8,
+        "y": 100
+      },
+      "scale": 0.6888
+    },
+    "polecat_sawbones": {
+      "file": "polecat_sawbones.png?v=d3e295ce",
+      "face": "polecat_sawbones_face.png?v=aee94616",
+      "dirs": [
+        "se",
+        "sw",
+        "ne",
+        "nw"
+      ],
+      "w": 74,
+      "h": 81,
+      "foot": {
+        "x": 36.9,
+        "y": 79
+      },
+      "scale": 0.7375
+    },
+    "rat_cutpurse": {
+      "file": "rat_cutpurse.png?v=00259f97",
+      "face": "rat_cutpurse_face.png?v=2adb14e5",
+      "dirs": [
+        "se",
+        "sw",
+        "ne",
+        "nw"
+      ],
+      "w": 71,
+      "h": 80,
+      "foot": {
+        "x": 35.6,
+        "y": 75
+      },
+      "scale": 0.687
+    },
+    "weasel_slinger": {
+      "file": "weasel_slinger.png?v=cf0da836",
+      "face": "weasel_slinger_face.png?v=657ebc4a",
+      "dirs": [
+        "se",
+        "sw",
+        "ne",
+        "nw"
+      ],
+      "w": 79,
+      "h": 95,
+      "foot": {
+        "x": 39.8,
+        "y": 93
+      },
+      "scale": 0.6845
+    }
+  },
   "sounds": {
     "arrow": "arrow.wav?v=96d1885c",
     "bite": "bite.wav?v=1410bc7a",

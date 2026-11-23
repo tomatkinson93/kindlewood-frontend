@@ -5,6 +5,12 @@
 //
 //    node scripts/check_live.js                      checks https://kindlewood.quest
 //    node scripts/check_live.js https://example.org  another address
+//    node scripts/check_live.js --zip upload.zip     also packs what the site lacks
+//
+//  With --zip it writes one archive holding every file that is out of date or
+//  missing, in its folder. Upload that one file to the site's root in cPanel's
+//  File Manager and choose Extract: every file lands in its place, and none
+//  can be left behind. (It needs Python 3 on the machine, for the zip.)
 //
 //  The site is uploaded by hand, and a file left behind does not show as an
 //  error: the page simply runs yesterday's stylesheet beside today's script
@@ -24,7 +30,9 @@ const path = require('path');
 const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
-const SITE = (process.argv[2] || 'https://kindlewood.quest').replace(/\/+$/, '');
+const ARGS = process.argv.slice(2);
+const ZIP = ARGS.includes('--zip') ? (ARGS[ARGS.indexOf('--zip') + 1] || 'upload.zip') : null;
+const SITE = (ARGS.find((a, i) => /^https?:/.test(a) && ARGS[i - 1] !== '--zip') || 'https://kindlewood.quest').replace(/\/+$/, '');
 const TEXT = /\.(js|css|html|json|txt|svg)$/i;
 
 const sha = buf => crypto.createHash('sha1').update(buf).digest('hex').slice(0, 8);
@@ -62,7 +70,7 @@ function wanted() {
     for (const f of Object.values(j.icons || {})) add('assets/tactics/icons/' + bare(f));
     for (const f of Object.values(j.status || {})) add('assets/tactics/status/' + bare(f));
     add('assets/tactics/demo.json');      // the battles the jukebox page shows
-    for (const c of Object.values(j.creatures || {})) for (const k of ['front', 'back']) if (c[k]) add('assets/sprites/creatures/' + bare(c[k]));
+    for (const c of Object.values(j.creatures || {})) for (const k of ['file', 'face']) if (c[k]) add('assets/sprites/creatures/' + bare(c[k]));
   }
   // The villagers' sheets.
   const vil = 'assets/sprites/villagers/villagers.json';
@@ -100,6 +108,14 @@ async function main() {
   }
   if (unreachable.length) console.log(`\n${unreachable.length} could not be fetched (try again): ${unreachable.slice(0, 5).join(', ')}${unreachable.length > 5 ? ', …' : ''}`);
   if (!stale.length && !missing.length && !unreachable.length) console.log(`All ${files.length} files on the site match this folder.`);
+  const todo = stale.concat(missing).map(x => x.f).sort();
+  if (ZIP && todo.length) {
+    // Python's zipfile, so the archive is the same from any machine. Paths are relative to the site's root.
+    const py = 'import sys, zipfile\nz = zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED)\nfor f in sys.argv[3:]:\n    z.write(sys.argv[2] + "/" + f, f)\nz.close()';
+    const out = path.resolve(ZIP);
+    const r = require('child_process').spawnSync('python3', ['-c', py, out, ROOT, ...todo], { stdio: 'inherit' });
+    console.log(r.status === 0 ? `\nPacked ${todo.length} files into ${out}\nUpload it to the site's root (public_html) and Extract it there.` : '\nCould not write the zip (is Python 3 installed?).');
+  }
   process.exit(stale.length || missing.length || unreachable.length ? 1 : 0);
 }
 if (require.main === module) main();
