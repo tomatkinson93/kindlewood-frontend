@@ -102,6 +102,8 @@
 .kwtc-up { align-self: flex-start; padding: 0 var(--kw-s-2); border-radius: var(--kw-radius); background: var(--kw-gold-btn); color: var(--kw-on-gold); font-size: var(--kw-fs-1); font-weight: 700; animation: kwtc-up .5s ease both; }
 .kwtc-hero.is-up { animation: kwtc-up-row .6s ease; }
 .kwtc-learned { font-size: var(--kw-fs-1); color: var(--kw-gold); animation: kwtc-up .5s ease both; }
+.kwtc-learned i { font-style: normal; color: var(--kw-muted); }
+.kwtc-kit-a.is-spare { color: var(--kw-muted); font-style: italic; }
 @keyframes kwtc-up { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes kwtc-up-row { 0% { border-color: var(--kw-gold); box-shadow: 0 0 0 2px var(--kw-gold-deep); } 100% { border-color: var(--kw-line); box-shadow: none; } }
 .kwtc-roll { display: flex; flex-direction: column; min-width: 0; }

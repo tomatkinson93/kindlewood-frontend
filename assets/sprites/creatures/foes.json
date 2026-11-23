@@ -75,6 +75,44 @@
     "stands": 0.85,
     "scale": 0.687
   },
+  "redtooth": {
+    "file": "redtooth.png",
+    "face": "redtooth_face.png",
+    "dirs": [
+      "se",
+      "sw",
+      "ne",
+      "nw"
+    ],
+    "w": 122,
+    "h": 114,
+    "foot": {
+      "x": 61.0,
+      "y": 110
+    },
+    "tall": 107.5,
+    "stands": 1.9,
+    "scale": 1.0428
+  },
+  "stoat_captain": {
+    "file": "stoat_captain.png",
+    "face": "stoat_captain_face.png",
+    "dirs": [
+      "se",
+      "sw",
+      "ne",
+      "nw"
+    ],
+    "w": 112,
+    "h": 107,
+    "foot": {
+      "x": 55.8,
+      "y": 105
+    },
+    "tall": 99.5,
+    "stands": 1.25,
+    "scale": 0.7412
+  },
   "weasel_slinger": {
     "file": "weasel_slinger.png",
     "face": "weasel_slinger_face.png",

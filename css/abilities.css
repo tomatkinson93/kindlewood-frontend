@@ -1,0 +1,42 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   The Abilities tab on a citizen (js/abilities.js; docs/TACTICS.md §6).
+   Tokens only: css/tokens.css. An ability's picture is the battle's own
+   (.kwtc-ic in css/tactics.css).
+   ══════════════════════════════════════════════════════════════════════════ */
+.kwab { display: flex; flex-direction: column; gap: var(--kw-s-3); }
+.kwab-head { display: flex; gap: var(--kw-s-3); align-items: center; padding: var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius-l); background: var(--kw-panel); }
+.kwab-big { font-size: var(--kw-fs-5); line-height: 1; }
+.kwab-head > div { flex: 1; min-width: 0; }
+.kwab-title { font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); }
+.kwab-xp { height: 10px; margin: var(--kw-s-1) 0; border-radius: var(--kw-radius); background: var(--kw-ink); border: 1px solid var(--kw-line); overflow: hidden; }
+.kwab-xp span { display: block; height: 100%; background: var(--kw-gold-btn); }
+.kwab-sub, .kwab-note { margin: 0; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.kwab-sub b, .kwab-note b { color: var(--kw-cream); font-weight: 600; }
+
+.kwab-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kw-s-1); }
+.kwab-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--kw-s-2) var(--kw-s-3); align-items: center; padding: var(--kw-s-2); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); background: var(--kw-wood-2); }
+.kwab-row.is-ready { border-color: var(--kw-gold-dim); }
+.kwab-row.is-locked { opacity: .6; }
+.kwab-ico { width: 44px; height: 44px; display: grid; place-items: center; font-size: var(--kw-fs-5); line-height: 1; }
+.kwab-ico .kwtc-ic { width: 40px; height: 40px; }
+.kwab-what { display: flex; flex-direction: column; min-width: 0; }
+.kwab-what b { color: var(--kw-gold); font-family: var(--kw-font-title); font-size: var(--kw-fs-3); }
+.kwab-does { font-size: var(--kw-fs-2); color: var(--kw-cream); }
+.kwab-desc { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwab-when { font-size: var(--kw-fs-2); color: var(--kw-muted); white-space: nowrap; }
+.kwab-when.is-on { color: var(--kw-cream); }
+.kwab-tick { display: inline-flex; align-items: center; gap: var(--kw-s-2); min-height: var(--kw-touch); font-size: var(--kw-fs-2); color: var(--kw-cream); cursor: pointer; white-space: nowrap; }
+.kwab-tick input { width: 20px; height: 20px; accent-color: var(--kw-gold-btn); }
+.kwab-tick input:disabled + span { color: var(--kw-muted); }
+.kwab-tick input:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+
+.kwab-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line-2); border-radius: var(--kw-radius); background: var(--kw-panel); }
+.kwab-count { font-size: var(--kw-fs-2); color: var(--kw-warn); font-variant-numeric: tabular-nums; }
+.kwab-count.is-full { color: var(--kw-good); }
+
+@media (max-width: 640px) {
+  .kwab-row { grid-template-columns: 36px minmax(0, 1fr); }
+  .kwab-ico { width: 36px; height: 36px; }
+  .kwab-ico .kwtc-ic { width: 32px; height: 32px; }
+  .kwab-row > .kwab-when, .kwab-row > .kwab-tick { grid-column: 2; justify-self: start; }
+}

@@ -45,6 +45,36 @@ def find(folder, name):
     return None
 
 
+def lone(im):
+    """The picture with only its largest piece: the tip of a blade or a tail that pokes into a face's square is taken out."""
+    w, h = im.size
+    a = im.getchannel('A').load()
+    seen, pieces = set(), []
+    for y in range(h):
+        for x in range(w):
+            if a[x, y] == 0 or (x, y) in seen:
+                continue
+            piece, todo = [], [(x, y)]
+            seen.add((x, y))
+            while todo:
+                px, py = todo.pop()
+                piece.append((px, py))
+                for nx, ny in ((px + 1, py), (px - 1, py), (px, py + 1), (px, py - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and a[nx, ny] and (nx, ny) not in seen:
+                        seen.add((nx, ny))
+                        todo.append((nx, ny))
+            pieces.append(piece)
+    if len(pieces) < 2:
+        return im
+    pieces.sort(key=len, reverse=True)
+    out = im.copy()
+    px = out.load()
+    for piece in pieces[1:]:
+        for x, y in piece:
+            px[x, y] = (0, 0, 0, 0)
+    return out
+
+
 def pack(key, sizes):
     folder = os.path.join(SRC, key)
     frames = []
@@ -74,7 +104,7 @@ def pack(key, sizes):
     sb = s.getbbox()
     side = int(round((sb[3] - sb[1]) * 0.56))
     cx = (sb[0] + sb[2]) // 2
-    face = s.crop((cx - side // 2, sb[1] - 1, cx - side // 2 + side, sb[1] - 1 + side)).resize((64, 64), Image.NEAREST)
+    face = lone(s.crop((cx - side // 2, sb[1] - 1, cx - side // 2 + side, sb[1] - 1 + side))).resize((64, 64), Image.NEAREST)
     face.save(os.path.join(OUT, key + '_face.png'), optimize=True)
     rel = float(sizes.get(key, 1))
     return {

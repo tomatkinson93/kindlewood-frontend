@@ -508,6 +508,11 @@
     w_ward: 'shield', h_ward: 'shield', h_steady: 'ward_ring', h_kindle: 'heal', t_ration: 'heal', t_drink: 'heal', h_bold: 'cheer',
     hex: 'hex', venom: 'venom', mend: 'heal', shriek: 'wail', howl: 'wail',
     v_swing: 'smash', t_tool: 'smash', g_shove: 'smash',      // a stick, a tool, a shoulder: a thud, where a Guard's blade rings
+    // The higher rungs of the ladder (class levels 8 to 20). A block is a shield and a heal a glow without being listed.
+    g_shield_bash: 'smash', g_hammer: 'smash', g_hold_line: 'ward_ring',
+    a_hamstring: 'arrow', a_arrow_rain: 'arrow', a_pin: 'arrow', a_hail: 'arrow',
+    w_scorch: 'fire', w_frost_lance: 'frost', w_chain: 'spark', w_fireball: 'fireburst',
+    h_banish: 'ember', h_battle_cry: 'cheer', h_hearthlight: 'ward_ring',
   };
   const FLIES = { arrow: 1, spark: 1, fire: 1, fireburst: 1, frost: 1, ember: 1, hex: 1, venom: 1,
     stone: 1, dart: 1, vial: 1, gale: 1, sand: 1, spores: 1, curse: 1, boulder: 1, thunder: 1 };
@@ -872,7 +877,7 @@
       if (k === 'push') bits.push('pushes back'); else if (k === 'step') bits.push('steps back'); else if (k === 'bold') bits.push('next attack +' + a.fx[k]);
       else bits.push((STATUS[k] || [k])[0].toLowerCase() + ' ' + a.fx[k]);
     }
-    if (a.shape === 'line') bits.push('down the line'); if (a.shape === 'burst') bits.push('and those beside');
+    if (a.shape === 'line') bits.push('down the line'); if (a.shape === 'burst') bits.push(a.radius > 1 ? `and all within ${a.radius} of them` : 'and those beside');
     return bits.join(', ');
   }
   function unitCard(u, v) {
@@ -901,7 +906,9 @@
     who.innerHTML = unitCard(look, S.view[look.id]);
     if (S.info && S.info !== u) {
       acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}`
-        + (look.locked || []).map(x => `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(x.name)}</b> <i>at level ${x.at}</i></span>`).join('') + `</div>`
+        + (look.locked || []).concat(look.next && !(look.locked || []).some(x => x.key === look.next.key) ? [look.next] : []).map(x => `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(x.name)}</b> <i>at level ${x.at}</i></span>`).join('')
+        // Known, and left at home: chosen on the citizen's Abilities page.
+        + (look.spare > 0 ? `<span class="kwtc-kit-a is-spare">${look.spare} more known, not brought</span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -1198,7 +1205,7 @@
         if (!li.querySelector('.kwtc-up')) line.insertAdjacentHTML('afterend', '<span class="kwtc-up">Level up!</span>');
         // What that level taught (the class ladder), once the bar has reached it.
         for (const x of (r.learned || []).filter(x => x.at <= level && !li.querySelector(`.kwtc-learned[data-key="${x.key}"]`))) {
-          (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned" data-key="${esc(x.key)}">Learned: ${esc(x.icon || '')} <b>${esc(x.name)}</b></span>`);
+          (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned" data-key="${esc(x.key)}">Learned: ${esc(x.icon || '')} <b>${esc(x.name)}</b>${x.spare ? ' <i>ready it on their Abilities page</i>' : ''}</span>`);
         }
       }
       lvl.textContent = `${r.class_label}${r.own ? '' : ' training'} · level ${level}`;
@@ -1719,6 +1726,8 @@
     demo: (setup, mount, o) => open(setup, null, { mount, demo: true, onEnd: o && o.onEnd, sound: !!(o && o.sound) }),
     // For the proofs and the browser checks.
     _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _way: entrance, _tracksFor: tracksFor, _curtain: curtain,
+    // For the Abilities page on a citizen (js/abilities.js): the same pictures and words as the battle's own row.
+    loadAssets, icon: ico, effectText, reachText,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
