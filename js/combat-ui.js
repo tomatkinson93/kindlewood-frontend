@@ -29,10 +29,6 @@
   // Set when a battle was launched from a quest run; resolution posts back
   // to /api/combat/resolve with this id so the server can update the quest.
   let _battleQuestRunId = null;
-  // Set while the battle on screen is a fight in a dungeon room (the server
-  // says so at engage): the screen then offers Flee, words the result for a
-  // dungeon, and goes back to the path screen (js/dungeons.js) when it closes.
-  let _battleDungeon = null;
 
   // ── Scene presets — painterly CSS gradients only (no images yet) ────────
   const SCENES = {
@@ -139,7 +135,6 @@
     }
 
     _battleQuestRunId = questRunId;
-    _battleDungeon = data.dungeon_run_id || null;
     const sceneKey = pickRandomScene();
 
     // Hydrate from server state. We rebuild the listener array since it can't
@@ -148,7 +143,7 @@
     _selectedAction = null;
     _ensureModal();
     _showModal(sceneKey);
-    _syncDungeonUi();
+    { const btn = document.getElementById('cm-result-btn'); if (btn) btn.textContent = 'Return'; }
     _mountHand();
     _renderAll();
 
@@ -428,23 +423,7 @@
     _scheduleAITurnIfNeeded();
   }
 
-  // The Flee button and the result button's words: a dungeon fight only.
-  function _syncDungeonUi() {
-    const flee = document.getElementById('cm-dungeon-flee');
-    if (flee) flee.style.display = _battleDungeon ? '' : 'none';
-    const btn = document.getElementById('cm-result-btn');
-    if (btn) btn.textContent = 'Return';
-  }
-  // Flee the dungeon from inside a fight: the path screen asks first and
-  // tells the server; if the party fled, this screen closes onto the ending.
-  async function combatDungeonFlee() {
-    if (!_battleDungeon || !global.KWDungeon) return;
-    if (await global.KWDungeon.fleeFromBattle()) closeCombat();
-  }
-
   function closeCombat() {
-    const wasDungeon = _battleDungeon;
-    _battleDungeon = null;
     if (_aiTimer) { clearTimeout(_aiTimer); _aiTimer = null; }
     if (_onUnsubscribe) { _onUnsubscribe(); _onUnsubscribe = null; }
     _pendingCard = null;
@@ -459,9 +438,6 @@
     if (typeof stopMusic === 'function') {
       try { stopMusic(); } catch(e) {}
     }
-    // A dungeon fight goes back to the path: the next room, the fight still
-    // waiting (if the screen was only closed), or how the run ended.
-    if (wasDungeon && global.KWDungeon) { try { global.KWDungeon.open(); } catch(e) {} }
   }
 
   // ── DOM construction ────────────────────────────────────────────────────
@@ -601,7 +577,6 @@
           <div class="cm-scene-header">
             <div class="cm-scene-title" id="cm-scene-title">A Battle</div>
             <div class="cm-scene-round" id="cm-scene-round">Round 1</div>
-            <button class="cm-dungeon-flee" id="cm-dungeon-flee" style="display:none" onclick="combatDungeonFlee()" title="Flee the dungeon: the run ends and half the loot is dropped">🏃 Flee</button>
             <button class="cm-flee" onclick="closeCombat()" title="Retreat" aria-label="Retreat">✕</button>
           </div>
           <div class="cm-stage">
@@ -1769,27 +1744,7 @@
     const fallen    = _battle.units.filter(u => u.side === 'player' && u.flags.downed);
 
     let bodyHtml = '';
-    if (_battleDungeon) {
-      // A fight in a dungeon room: nothing is paid here (the run holds its
-      // loot until it ends) and the server's answer below says what was found.
-      if (won) {
-        bodyHtml += '<div class="cm-result-line">The way on is clear.</div>';
-        if (survivors.length) {
-          bodyHtml += '<div class="cm-result-list">'
-            + survivors.map(u => '<span class="cm-result-survivor">✓ ' + _escapeHtml(u.name) + ' (' + u.hp + ' health)</span>').join('')
-            + '</div>';
-        }
-        if (fallen.length) {
-          bodyHtml += '<div class="cm-result-list cm-result-list-fallen">'
-            + fallen.map(u => '<span class="cm-result-fallen">• ' + _escapeHtml(u.name) + ' is down. A rest will stand them up.</span>').join('')
-            + '</div>';
-        }
-        bodyHtml += '<div class="cm-result-line cm-result-sub">Wounds carry into the next room.</div>';
-      } else {
-        bodyHtml += '<div class="cm-result-line">The party is driven out of the dungeon.</div>';
-        bodyHtml += '<div class="cm-result-line cm-result-sub" style="color:#e07a6a">Everything found on this run is lost.</div>';
-      }
-    } else if (won) {
+    if (won) {
       const reward = endEvt.reward || {};
       bodyHtml += '<div class="cm-result-line">The party returns triumphant.</div>';
       if (reward.wealth) bodyHtml += '<div class="cm-result-reward">🪙 +' + reward.wealth + ' gold</div>';
@@ -1872,8 +1827,6 @@
             if (injHtml) body.insertAdjacentHTML('beforeend', injHtml);
           }
           if (data.spoils) _renderSpoils(body, data.spoils);
-          // A dungeon fight: what the run found here, and where the button leads.
-          if (data.dungeon && global.KWDungeon) global.KWDungeon.battleResult(body, data);
         }
       } catch(e) { console.error('combat resolve failed', e); }
     }
@@ -1907,7 +1860,6 @@
   global.combatSpriteClick = combatSpriteClick;
   global.combatHoverIntent = combatHoverIntent;
   global.combatClearIntentHover = combatClearIntentHover;
-  global.combatDungeonFlee = combatDungeonFlee;
   global.combatEndTurn = function () { _onCardEndTurn(); };
   global.combatMove = function (delta) { _onCardMove(delta); };
 })(typeof window !== 'undefined' ? window : globalThis);

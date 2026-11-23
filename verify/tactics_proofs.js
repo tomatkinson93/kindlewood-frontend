@@ -289,8 +289,8 @@ console.log('11. A dungeon on the board');
 {
   const J = read('js/tactics.js'), D = read('js/dungeons.js');
   check('11a. a dungeon from Dev Tools is fought on the board: fights with cards are no longer on offer', !/kwdg-dev-combat/.test(D) && !/With cards/.test(D) && /Every fight is on the board\./.test(D) && !/combat: DEV\.pick/.test(D));
-  check('11b. the dungeon\'s Fight opens the room\'s battle on the board; a card run still opens the card battle', /if \(!p\.board\) return startBattle\(p\.quest_run_id\);/.test(D) && /global\.KWTactics\.openById\(p\.battle_id\)/.test(D));
-  check('11c. on a board run the path screen has no class-cards button', /run\.combat === 'board' \? '' : `<button type="button" class="kw-btn quiet" data-action="cards">/.test(D));
+  check('11b. the dungeon\'s Fight opens the room\'s battle on the board, and nothing else', /global\.KWTactics\.openById\(p\.battle_id\)/.test(D) && !/startBattle\(/.test(D) && !/quest_run_id/.test(D));
+  check('11c. the path screen has no class-cards button: there are no cards in a dungeon', !/data-action="cards"/.test(D) && !/Class cards<\/button>/.test(D));
   check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
   check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
   check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
@@ -412,6 +412,8 @@ console.log('15. The class ladder on the screen, and a check on what is live');
     && want.includes('assets/tactics/manifest.json') && want.some(f => /^assets\/audio\/tactics\/[a-z_]+\.(mp3|wav|ogg)$/.test(f)) && want.length > 150, `${want.length} files`);
   check('15g. it tells a stale file from one whose line endings an upload changed', C.fingerprint('a.css', Buffer.from('a{}\r\nb{}\r\n')) === C.fingerprint('a.css', Buffer.from('a{}\nb{}\n')) && C.fingerprint('a.css', Buffer.from('a{}\n')) !== C.fingerprint('a.css', Buffer.from('b{}\n'))
     && C.fingerprint('a.mp3', Buffer.from('a\r\n')) !== C.fingerprint('a.mp3', Buffer.from('a\n')));
+  const CL = read('scripts/check_live.js');
+  check('15h. asked to, it packs every file the site lacks into one zip to extract at the site\'s root, so none is left behind', /const ZIP = ARGS\.includes\('--zip'\)/.test(CL) && /const todo = stale\.concat\(missing\)\.map\(x => x\.f\)\.sort\(\);/.test(CL) && /z\.write\(sys\.argv\[2\] \+ "\/" \+ f, f\)/.test(CL));
 }
 
 console.log('16. Icons, pips, music by place, and the jukebox page');

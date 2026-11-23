@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/build.js",
     "proofs": "node scripts/run-proofs.js",
-    "check-live": "node scripts/check_live.js"
+    "check-live": "node scripts/check_live.js",
+    "upload-zip": "node scripts/check_live.js --zip upload.zip"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
