@@ -205,7 +205,7 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   check('8i. a creature with art is drawn from it (front or back view, mirrored), one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /away && a\.back \? a\.back : a\.front/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
   check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\] \|\| ASSETS\.sounds\[PLAINER\[name\]\], file = own \? 'tactics\/' \+ own : \(STAND_IN\[name\] \|\| STAND_IN\[PLAINER\[name\]\]\);/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
   check('8j2. a blade rings and a club thuds: the sword sound for blades, falling back to the plain blow when there is no such file', /const PLAINER = \{ sword: 'melee', down_friend: 'down_foe' \};/.test(J) && /slash: 'sword', thrust: 'sword', smash: 'melee'/.test(J) && /v_swing: 'smash', t_tool: 'smash'/.test(J));
-  check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const list = boss && forBoss\.length \? forBoss : \(rest\.length \? rest : all\);/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
+  check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const pick = tracksFor\(S\.setup \|\| \{\}, ASSETS\.tracks\.length \? ASSETS\.tracks :/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
   // A phone that loaded the game before a sheet was re-packed kept the old picture (every row the front pose), so
   // every citizen was drawn facing the camera whatever way they looked. Sheets now carry a stamp of their contents.
   const VJ = JSON.parse(read('assets/sprites/villagers/villagers.json')), sha = f => require('crypto').createHash('sha1').update(fs.readFileSync(path.join(ROOT, f))).digest('hex').slice(0, 8);
@@ -309,7 +309,7 @@ console.log('12. The foes of the board, and art that can be dropped in');
     && [...new Set((lands.match(/'[a-z_]+'/g) || []).map(x => x.slice(1, -1)))].every(k => new RegExp(`\\b${k}\\(c, f, p, k`).test(paints)));
   check('12d. the sound follows the look: a stone or a dart sounds as an arrow, a spell as magic, a blade as a blade', /const SOUND_OF = \{ arrow: 'arrow', stone: 'arrow', dart: 'arrow',/.test(J) && /return SOUND_OF\[look\] \|\| \(u\.side === 'enemy' \? 'bite' : 'melee'\);/.test(J));
   check('12e. an ability shows its own picture when assets/tactics/icons has one (a foe\'s: the one for its look), else its emoji', /const file = ASSETS\.icons && \(ASSETS\.icons\[a\.key\] \|\| \(a\.look && ASSETS\.icons\['look_' \+ a\.look\]\)\);/.test(J) && /<span class="kwtc-act-i" aria-hidden="true">\$\{ico\(x\)\}<\/span>/.test(J)
-    && /\.kwtc-ic \{[^}]*image-rendering: pixelated;/.test(CSS) && /list\('assets\/tactics\/icons', \/\^\[a-z0-9_\]\+\\\.png\$\/\)/.test(P));
+    && /\.kwtc-ic \{ width: 1\.35em; height: 1\.35em;/.test(CSS) && /list\('assets\/tactics\/icons', \/\^\[a-z0-9_\]\+\\\.png\$\/\)/.test(P));
   check('12f. Dev Tools can ask for one band\'s showcase fight', /sel\('band', o\.bands \|\|/.test(J) && /band: p\.band \|\| undefined/.test(J));
   let manifest = null; try { manifest = JSON.parse(read('assets/tactics/manifest.json')); } catch (e) { /* none */ }
   check('12g. the manifest lists ability icons beside creatures, sounds and music', !!manifest && typeof manifest.icons === 'object' && typeof manifest.creatures === 'object');
@@ -411,6 +411,51 @@ console.log('15. The class ladder on the screen, and a check on what is live');
     && want.includes('assets/tactics/manifest.json') && want.some(f => /^assets\/audio\/tactics\/[a-z_]+\.(mp3|wav|ogg)$/.test(f)) && want.length > 150, `${want.length} files`);
   check('15g. it tells a stale file from one whose line endings an upload changed', C.fingerprint('a.css', Buffer.from('a{}\r\nb{}\r\n')) === C.fingerprint('a.css', Buffer.from('a{}\nb{}\n')) && C.fingerprint('a.css', Buffer.from('a{}\n')) !== C.fingerprint('a.css', Buffer.from('b{}\n'))
     && C.fingerprint('a.mp3', Buffer.from('a\r\n')) !== C.fingerprint('a.mp3', Buffer.from('a\n')));
+}
+
+console.log('16. Icons, pips, music by place, and the jukebox page');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), man = JSON.parse(read('assets/tactics/manifest.json'));
+  const KITS = ['g_strike', 'g_shield', 'g_cover', 'g_shove', 'g_heavy', 'a_shoot', 'a_side', 'a_part', 'a_pierce', 'a_mark', 'w_spark', 'w_ward', 'w_bolt', 'w_burst', 'w_chill', 'h_cinder', 'h_ward', 'h_kindle', 'h_steady', 'h_bold'];
+  const png = f => { const b = fs.readFileSync(path.join(ROOT, f)); return b.toString('ascii', 1, 4) === 'PNG' ? { w: b.readUInt32BE(16), h: b.readUInt32BE(20), alpha: b[25] === 6 || b[25] === 4 } : null; };
+  check('16a. each of the four classes\' twenty abilities has its picture, listed for the game', KITS.every(k => man.icons[k] && fs.existsSync(path.join(ROOT, 'assets/tactics/icons', k + '.png'))), KITS.filter(k => !man.icons[k]).join(' ') || '20 icons');
+  check('16b. each is a square PNG with a see-through background', KITS.every(k => { const p = png('assets/tactics/icons/' + k + '.png'); return p && p.w === p.h && p.w >= 48 && p.alpha; }));
+  const ST = ['weak', 'vulnerable', 'slow', 'poison', 'stun', 'bold'];
+  check('16c. the six statuses have their pips, and the board draws a pip with how much of it (its glyph until the picture is there)', ST.every(k => man.status[k] && png('assets/tactics/status/' + k + '.png'))
+    && /const img = ASSETS\.status\[s\] \? sheet\('\/assets\/tactics\/status\/' \+ ASSETS\.status\[s\]\) : null/.test(J) && /text: img \? n : STATUS\[s\]\[1\] \+ n/.test(J));
+  const P = require(path.join(ROOT, 'scripts', 'pack_tactics.js')), tracks = man.tracks || [];
+  check('16d. every piece of music is named for its place and has a title read from its file\'s name', tracks.length === man.music.length && tracks.length >= 13 && tracks.every(t => P.PLACES.includes(t.place) && t.title && /^[A-Z]/.test(t.title) && t.key && man.music.includes(t.file)),
+    tracks.filter(t => !P.PLACES.includes(t.place)).map(t => t.key).join(' ') || `${tracks.length} pieces`);
+  check('16e. no piece is larger than about three megabytes', tracks.every(t => fs.statSync(path.join(ROOT, 'assets/audio/tactics/music', t.file.replace(/\?.*$/, ''))).size < 3.2e6));
+  // The rule itself, lifted out of the screen's code and run.
+  const src = J.slice(J.indexOf('  const BORROWS = {'), J.indexOf('  function music(on) {'));
+  const tracksFor = new Function(src + '; return tracksFor;')();
+  const places = l => [...new Set(tracksFor(l, tracks).map(t => t.place))].join();
+  check('16f. a battle plays its own land\'s music; a land with none borrows a neighbour\'s (hills the mountains\', ruins the marsh\'s)', places({ land: 'forest' }) === 'forest' && places({ land: 'mountain' }) === 'mountain' && places({ land: 'hills' }) === 'mountain' && places({ land: 'ruins' }) === 'marsh' && places({ land: 'plains' }) === 'plains');
+  check('16g. a boss has the boss\'s music, and a boss of the Withered theirs', places({ land: 'plains', fight: 'boss' }) === 'boss' && places({ land: 'ruins', fight: 'boss', band: 'withered' }) === 'boss-withered'
+    && places({ land: 'marsh', fight: 'boss', enemies: [{ band: 'withered' }, { band: 'withered' }, { band: 'mire' }] }) === 'boss-withered' && places({ land: 'forest', fight: 'fight' }) === 'forest');
+  check('16h. the battle screen can play itself inside another page: both sides by the mind, no panel, no end screen, silent', /if \(u\.side === 'player' && !S\.demo\)/.test(J) && /demo: \(setup, mount, o\) => open\(setup, null, \{ mount, demo: true/.test(J)
+    && /if \(S\.demo\) \{      \/\/ no end screen/.test(J) && /if \(S\.demo \|\| S\.busy \|\| !u \|\| st\.status !== 'active'\) return;/.test(J) && /\.kwtc\.is-demo \.kwtc-top, \.kwtc\.is-demo \.kwtc-panel/.test(CSS) && /if \(S\.demo\) return;      \/\/ a battle shown for its own sake/.test(J));
+  const H = read('jukebox.html'), JB = read('js/jukebox.js'), JC = read('css/jukebox.css'), demo = JSON.parse(read('assets/tactics/demo.json'));
+  check('16i. the jukebox is a page of its own with nothing to sign in to, and asks search engines to leave it be', /<title>Kindlewood: the battle jukebox<\/title>/.test(H) && !/type="password"/.test(H) && /<meta name="robots" content="noindex">/.test(H)
+    && ['/js/tactics-engine.js', '/js/tactics.js', '/js/villagers.js', '/js/jukebox.js', '/css/tactics.css', '/css/jukebox.css', '/css/tokens.css'].every(f => H.includes(f + '?v=h')));
+  check('16j. its stylesheet uses tokens only', !/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|z-index:\s*-?\d|!important/.test(JC.replace(/\/\*[\s\S]*?\*\//g, '')));
+  check('16k. every place a piece can belong to has a battle to show: a land, a band, and that band\'s foes', P.PLACES.every(p => demo.places[p] && demo.bands[demo.places[p].band] && demo.bands[demo.places[p].band][demo.places[p].fight || 'hard'].length >= 3)
+    && demo.party.length === 4 && demo.party.every(u => u.abilities.length === 5) && Object.keys(E.LANDS).includes(demo.places.mountain.land));
+  {
+    // Each of them plays through to an end by the rules, on its own land.
+    let done = 0, n = 0;
+    for (const p of P.PLACES) { n++; const pl = demo.places[p]; const st = E.autoplay({ seed: 40 + n, land: pl.land, party: JSON.parse(JSON.stringify(demo.party)), enemies: JSON.parse(JSON.stringify(demo.bands[pl.band][pl.fight || 'hard'])) }, 900); if (st.status !== 'active') done++; }
+    check('16l. and each of those battles plays through to an end', done === n, `${done} of ${n}`);
+  }
+  check('16m. what a listener types is shown back as text, never as markup', /const esc = s => String\(s == null \? '' : s\)\.replace\(\/\[&<>"'\]\/g/.test(JB) && /<td>\$\{esc\(x\.comment \|\| ''\)\}<\/td>/.test(JB) && /<td>\$\{esc\(x\.name \|\| '—'\)\}<\/td>/.test(JB) && !/innerHTML = [^`'"]*(comment|name)\b/.test(JB)
+    && /\$\('jb-comment'\)\.value = mine \? mine\.comment \|\| '' : '';/.test(JB));
+  check('16n. a listener is a random id this browser keeps; nothing else is asked of them', /getRandomValues\(bytes\)/.test(JB) && /localStorage\.setItem\('kw_jukebox_id', id\)/.test(JB) && /visitor: J\.visitor, track: t\.key, stars: J\.stars/.test(JB));
+  check('16o. the comments table is asked for only with the game\'s own sign-in, and shown only if the server allows it', /Authorization: 'Bearer ' \+ token/.test(JB) && /if \(!r\.ok\) return;/.test(JB) && /<section class="jb-admin" id="jb-admin" hidden/.test(H));
+  const SV = require(path.join(ROOT, 'scripts', 'stamp_versions.js')), C2 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
+  check('16p. the jukebox\'s scripts and stylesheets are stamped like the game\'s, and none is stale', SV.PAGES.includes('jukebox.html') && SV.stamps(H).length >= 9 && SV.stamps(H).every(x => x.want && x.current === x.want));
+  check('16q. the check on the live site covers the jukebox, the icons, the pips and the music', ['jukebox.html', 'js/jukebox.js', 'css/jukebox.css', 'assets/tactics/demo.json', 'assets/tactics/icons/g_strike.png', 'assets/tactics/status/weak.png'].every(f => C2.includes(f))
+    && tracks.every(t => C2.includes('assets/audio/tactics/music/' + t.file.replace(/\?.*$/, ''))));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

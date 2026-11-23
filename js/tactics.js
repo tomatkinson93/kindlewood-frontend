@@ -154,12 +154,12 @@
   // Written by scripts/pack_tactics.js from the files in assets/sprites/
   // creatures and assets/audio/tactics. Whatever is missing has a stand-in:
   // a creature's icon, an older sound, the card battles' music.
-  const ASSETS = { loaded: false, creatures: {}, sounds: {}, music: [], icons: {} };
+  const ASSETS = { loaded: false, creatures: {}, sounds: {}, music: [], icons: {}, status: {}, tracks: [] };
   function loadAssets() {
     if (ASSETS.loaded || typeof global.fetch !== 'function') return Promise.resolve(ASSETS);
     ASSETS.loaded = true;
     return global.fetch('/assets/tactics/manifest.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null)).catch(() => null).then(j => {
-      if (j) { ASSETS.creatures = j.creatures || {}; ASSETS.sounds = j.sounds || {}; ASSETS.music = j.music || []; ASSETS.icons = j.icons || {}; }
+      if (j) { ASSETS.creatures = j.creatures || {}; ASSETS.sounds = j.sounds || {}; ASSETS.music = j.music || []; ASSETS.icons = j.icons || {}; ASSETS.status = j.status || {}; ASSETS.tracks = j.tracks || []; }
       return ASSETS;
     });
   }
@@ -169,16 +169,35 @@
   // Some sounds are a finer kind of another: when the finer one has no file, the plainer one plays.
   const PLAINER = { sword: 'melee', down_friend: 'down_foe' };
   function sfx(name) {
-    if (typeof global.playSfx !== 'function') return;
+    if (typeof global.playSfx !== 'function' || (S.demo && !S.demoSound)) return;
     const own = ASSETS.sounds[name] || ASSETS.sounds[PLAINER[name]], file = own ? 'tactics/' + own : (STAND_IN[name] || STAND_IN[PLAINER[name]]);
     if (file) global.playSfx(file);
   }
+  // Which tracks suit a battle. Lands with none of their own borrow a neighbour's: hills the mountain's, ruins the marsh's.
+  const BORROWS = { hills: ['mountain'], mountain: ['hills'], ruins: ['marsh'], marsh: ['ruins'], plains: ['forest'], forest: ['plains'], river: ['marsh', 'plains'] };
+  function tracksFor(setup, all) {
+    const of = place => all.filter(t => t.place === place);
+    if (setup.fight === 'boss') {
+      const foes = setup.enemies || [], withered = setup.band === 'withered' || (foes.length && foes.filter(u => u.band === 'withered').length * 2 > foes.length);
+      const mine = withered ? of('boss-withered') : of('boss');
+      if (mine.length) return mine;
+      const any = all.filter(t => /^boss/.test(t.place || ''));
+      if (any.length) return any;
+    }
+    const own = of(setup.land);
+    if (own.length) return own;
+    for (const near of BORROWS[setup.land] || []) { const got = of(near); if (got.length) return got; }
+    const rest = all.filter(t => !/^boss/.test(t.place || ''));
+    return rest.length ? rest : all;
+  }
   function music(on) {
+    if (S.demo) return;      // a battle shown for its own sake (the jukebox page) brings its own music
     try {
       if (!on) { if (typeof global.stopMusic === 'function') global.stopMusic(); return; }
-      // Its own tracks when there are any, else the card battles'. A file whose name starts "boss" is kept for boss fights.
-      const boss = !!(S.setup && S.setup.fight === 'boss'), all = ASSETS.music, forBoss = all.filter(f => /^boss/i.test(f)), rest = all.filter(f => !/^boss/i.test(f));
-      const list = boss && forBoss.length ? forBoss : (rest.length ? rest : all);
+      // Its own tracks when there are any, else the card battles'. A track belongs to a place (its file is named
+      // <place>-<title>): a land's tracks play on that land, the boss's for a boss, the Withered boss's for theirs.
+      const pick = tracksFor(S.setup || {}, ASSETS.tracks.length ? ASSETS.tracks : ASSETS.music.map(f => ({ file: f, place: /^boss/i.test(f) ? 'boss' : null })));
+      const list = pick.map(t => t.file);
       if (list.length && typeof global.registerMusic === 'function') global.registerMusic('TACTICS', list.map(f => '/assets/audio/tactics/music/' + f));
       if (typeof global.playMusic === 'function') global.playMusic(list.length && typeof global.registerMusic === 'function' ? 'TACTICS' : 'BATTLE');
     } catch (e) { /* no sound is fine */ }
@@ -352,7 +371,19 @@
     if (u.side === 'player') { c.fillStyle = CLASS_COLOUR[u.cls] || CLASS_COLOUR.villager; c.beginPath(); c.arc(p.x - bw / 2 - 6 * k, top + bh / 2, 3.6 * k, 0, 6.3); c.fill(); }
     if (v.block > 0) { c.textAlign = 'left'; c.fillStyle = '#9fd0ff'; c.fillText('🛡' + v.block, p.x + bw / 2 + 3, top + bh / 2); }
     const ails = Object.keys(STATUS).filter(s => (v.st[s] || 0) > 0);
-    if (ails.length) { c.textAlign = 'center'; c.fillStyle = '#fff3d6'; c.fillText(ails.map(s => STATUS[s][1] + v.st[s]).join(' '), p.x, top - 8 * k); }
+    if (ails.length) {
+      // Each as its pip (assets/tactics/status/<name>.png) with how much of it; its glyph until the picture is there.
+      const sz = Math.max(11, 13 * k), gap = 3 * k, y = top - 9 * k;
+      c.fillStyle = '#fff3d6'; c.textAlign = 'left';
+      const parts = ails.map(s => { const img = ASSETS.status[s] ? sheet('/assets/tactics/status/' + ASSETS.status[s]) : null, n = String(v.st[s]); return { img, text: img ? n : STATUS[s][1] + n }; });
+      for (const q of parts) q.w = (q.img ? sz + 1 : 0) + c.measureText(q.text).width;
+      let x = p.x - (parts.reduce((n, q) => n + q.w, 0) + gap * (parts.length - 1)) / 2;
+      for (const q of parts) {
+        if (q.img) { c.imageSmoothingEnabled = true; c.drawImage(q.img, x, y - sz / 2, sz, sz); c.fillText(q.text, x + sz + 1, y); }
+        else c.fillText(q.text, x, y);
+        x += q.w + gap;
+      }
+    }
     if (active) {
       const dy = still() ? 0 : Math.sin(t / 180) * 3 * k;
       c.fillStyle = '#ffd27a'; c.beginPath(); c.moveTo(p.x - 6 * k, top - 20 * k + dy); c.lineTo(p.x + 6 * k, top - 20 * k + dy); c.lineTo(p.x, top - 12 * k + dy); c.closePath(); c.fill();
@@ -839,7 +870,7 @@
     return bits.join(', ');
   }
   function unitCard(u, v) {
-    const ails = Object.keys(STATUS).filter(s => (u.st[s] || 0) > 0).map(s => `<span class="kwtc-ail">${esc(STATUS[s][0])} ${u.st[s]}</span>`).join('');
+    const ails = Object.keys(STATUS).filter(s => (u.st[s] || 0) > 0).map(s => `<span class="kwtc-ail">${ASSETS.status[s] ? `<img class="kwtc-ic" src="/assets/tactics/status/${esc(ASSETS.status[s])}" alt="" draggable="false"> ` : ''}${esc(STATUS[s][0])} ${u.st[s]}</span>`).join('');
     return `<div class="kwtc-card is-${u.side}"><div class="kwtc-card-name"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[u.cls] || CLASS_COLOUR.creature}"></span><b>${esc(u.name)}</b> <span>${esc(u.label || (u.side === 'enemy' ? 'Creature' : ''))}</span></div>`
       + `<div class="kwtc-bar" role="img" aria-label="Health ${u.hp} of ${u.maxHp}"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i><em>${u.hp} / ${u.maxHp}</em></div>`
       + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}</div></div>`;
@@ -956,7 +987,8 @@
     for (let guard = 0; guard < 60 && S.open && S.epoch === epoch; guard++) {
       if (st.status !== 'active') return finish();
       const u = e.current(st);
-      if (u.side === 'player') { S.cursor = { x: u.x, y: u.y }; S.mode = 'idle'; paint(); say(`${u.name}'s turn.`); sfx('turn'); return; }
+      // On the jukebox page nobody plays: the mind takes the party's turns too.
+      if (u.side === 'player' && !S.demo) { S.cursor = { x: u.x, y: u.y }; S.mode = 'idle'; paint(); say(`${u.name}'s turn.`); sfx('turn'); return; }
       S.busy = true; paint();
       await wait(260);
       if (S.epoch !== epoch) return;
@@ -1088,7 +1120,7 @@
   }
   function tapTile(x, y, viaMouse) {
     const e = E(), st = S.state, u = e.current(st);
-    if (S.busy || !u || st.status !== 'active') return;
+    if (S.demo || S.busy || !u || st.status !== 'active') return;
     S.cursor = { x, y };
     const same = S.pick && S.pick.x === x && S.pick.y === y;
     if (u.side !== 'player') return;
@@ -1229,6 +1261,13 @@
   function finish() {
     const st = S.state, box = S.el && S.el.querySelector('.kwtc-end');
     if (!box || S.ended) return;
+    if (S.demo) {      // no end screen: say how it went, and hand back to whoever is showing it
+      S.ended = now(); S.busy = false;
+      const cb = S.demoEnd, epoch = S.epoch;
+      banner(st.status === 'victory' ? 'Victory' : 'Defeat');
+      global.setTimeout(() => { if (S.open && S.epoch === epoch && cb) cb(st.status); }, 2200);
+      return;
+    }
     S.ended = now(); S.busy = false; S.mode = 'idle';
     music(false); sfx(st.status === 'victory' ? 'victory' : 'defeat');
     const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon;
@@ -1279,14 +1318,19 @@
     S.started = now(); S.ended = 0; S.after = null;
   }
   // `hold`: a promise the first turn waits on (the curtain lifting), so nothing happens unseen.
-  function open(setup, hold) {
+  // opts (the jukebox page): { mount: an element to sit in, in place of the whole screen; demo: true, both sides
+  // are played by the mind; onEnd(status): called a moment after it ends; sound: play the battle's sounds }.
+  function open(setup, hold, opts) {
     if (!E()) return toast('⚠️ The battle engine did not load.');
     close(true);
     begin(setup);
     const el = doc.createElement('div');
     el.id = 'kw-tactics'; el.className = 'kwtc'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Tactics battle');
     el.innerHTML = shell();
-    doc.body.appendChild(el);
+    const o = opts || {};
+    S.demo = !!o.demo; S.demoEnd = o.onEnd || null; S.demoSound = !!o.sound;
+    if (S.demo) { el.classList.add('is-demo'); el.removeAttribute('aria-modal'); el.setAttribute('role', 'img'); el.setAttribute('aria-label', 'A battle on the board, playing by itself'); }
+    (o.mount || doc.body).appendChild(el);
     S.el = el; S.canvas = el.querySelector('canvas'); S.ctx = S.canvas.getContext('2d'); S.open = true;
     el.addEventListener('click', ev => {
       const b = ev.target.closest('[data-kwt]');
@@ -1366,13 +1410,13 @@
     layout(); paint();
     if (global.KWVillagers && global.KWVillagers.load) global.KWVillagers.load();
     loop();
-    S.canvas.focus();
+    if (!S.demo) S.canvas.focus();
     Promise.all([hold || Promise.resolve(), loadAssets()]).then(() => { if (S.open && S.el === el && !S.ended) { music(true); nextTurn(); } });
   }
   function rotate(by) { S.rot = (S.rot + by + 4) & 3; S.hover = null; layout(); say('The view is turned.'); }
   function onKey(ev) {
     const e = E(), st = S.state;
-    if (!st) return;
+    if (!st || S.demo) return;
     if (ev.key === 'Escape') { ev.preventDefault(); if (S.mode !== 'idle' || S.pick || S.info) cancel(); else leave(); return; }
     if (ev.key === '+' || ev.key === '=') { ev.preventDefault(); return zoomBy(1.35); }
     if (ev.key === '-' || ev.key === '_') { ev.preventDefault(); return zoomBy(1 / 1.35); }
@@ -1665,8 +1709,10 @@
 
   global.KWTactics = {
     start, resume, openById, open, close, leave, devMount, whenClosed,
+    // A battle that plays itself inside an element (jukebox.html): demo(setup, element, { onEnd, sound }).
+    demo: (setup, mount, o) => open(setup, null, { mount, demo: true, onEnd: o && o.onEnd, sound: !!(o && o.sound) }),
     // For the proofs and the browser checks.
-    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _way: entrance, _curtain: curtain,
+    _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _way: entrance, _tracksFor: tracksFor, _curtain: curtain,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

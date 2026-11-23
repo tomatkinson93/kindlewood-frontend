@@ -1,0 +1,103 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   The battle jukebox (jukebox.html, js/jukebox.js): a page of its own, for
+   anyone with the link, to hear the battle music over a battle and rate it.
+   Tokens only (css/tokens.css). The battle in its window is the game's own
+   screen (css/tactics.css, .kwtc.is-demo).
+   ══════════════════════════════════════════════════════════════════════════ */
+.jb-body { margin: 0; min-height: 100vh; background: var(--kw-ink); color: var(--kw-cream); font-family: var(--kw-font-body); font-size: var(--kw-fs-3); line-height: 1.45; }
+.jb-body *, .jb-body *::before, .jb-body *::after { box-sizing: border-box; }
+.jb-head, .jb, .jb-admin, .jb-foot { width: min(1180px, 100%); margin: 0 auto; padding: 0 var(--kw-s-4); }
+.jb-head { padding-top: var(--kw-s-5); text-align: center; }
+.jb-head h1 { margin: 0; font-family: var(--kw-font-title); font-size: var(--kw-fs-5); color: var(--kw-gold); letter-spacing: .02em; }
+.jb-head p { margin: var(--kw-s-2) auto 0; max-width: 62ch; color: var(--kw-muted); }
+.jb-head b { color: var(--kw-cream); }
+
+.jb { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: var(--kw-s-4); align-items: start; padding-top: var(--kw-s-4); padding-bottom: var(--kw-s-4); }
+
+/* ── The cabinet: an arched crown with the name plate, a window onto the battle, the controls, and the slot for a rating ── */
+.jb-cabinet { border: 2px solid var(--kw-gold-dim); border-radius: 140px 140px var(--kw-radius-l) var(--kw-radius-l) / 90px 90px var(--kw-radius-l) var(--kw-radius-l); background: var(--kw-wood); box-shadow: var(--kw-shadow); overflow: hidden; }
+.jb-crown { padding: var(--kw-s-4) var(--kw-s-5) var(--kw-s-3); background: var(--kw-wood-2); border-bottom: 2px solid var(--kw-gold-dim); }
+.jb-plate { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "place bars" "title bars"; align-items: center; gap: 0 var(--kw-s-3); max-width: 560px; margin: 0 auto; padding: var(--kw-s-2) var(--kw-s-4); border: 1px solid var(--kw-gold-deep); border-radius: var(--kw-radius-l); background: var(--kw-panel); text-align: center; }
+.jb-place { grid-area: place; font-size: var(--kw-fs-1); letter-spacing: .12em; text-transform: uppercase; color: var(--kw-muted); }
+.jb-title { grid-area: title; font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Five little bars that dance while a piece plays. */
+.jb-bars { grid-area: bars; display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+.jb-bars i { width: 4px; height: 20%; border-radius: 2px; background: var(--kw-gold-deep); }
+.jb-cabinet.is-playing .jb-bars i { background: var(--kw-gold); animation: jb-bar 900ms ease-in-out infinite alternate; }
+.jb-cabinet.is-playing .jb-bars i:nth-child(2) { animation-duration: 620ms; }
+.jb-cabinet.is-playing .jb-bars i:nth-child(3) { animation-duration: 1100ms; }
+.jb-cabinet.is-playing .jb-bars i:nth-child(4) { animation-duration: 760ms; }
+.jb-cabinet.is-playing .jb-bars i:nth-child(5) { animation-duration: 980ms; }
+@keyframes jb-bar { from { height: 15%; } to { height: 100%; } }
+
+.jb-window { position: relative; margin: var(--kw-s-3) var(--kw-s-3) 0; border: 2px solid var(--kw-line-2); border-radius: var(--kw-radius-l); background: var(--kw-ink); overflow: hidden; }
+.jb-scene { position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 240px; }
+.jb-scene-note { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: var(--kw-s-1) var(--kw-s-3); font-size: var(--kw-fs-1); color: var(--kw-muted); text-align: center; background: var(--kw-scrim); pointer-events: none; }
+.jb-bigplay { position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%; border: 2px solid var(--kw-gold); background: var(--kw-scrim); color: var(--kw-gold); font-size: var(--kw-fs-5); line-height: 1; cursor: pointer; }
+.jb-bigplay:hover { background: var(--kw-gold-btn); color: var(--kw-on-gold); }
+.jb-bigplay[hidden] { display: none; }
+
+.jb-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kw-s-2); padding: var(--kw-s-3); }
+.jb-btn { min-width: var(--kw-touch); min-height: var(--kw-touch); padding: 0 var(--kw-s-3); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: var(--kw-wood-2); color: var(--kw-cream); font: inherit; font-size: var(--kw-fs-4); line-height: 1; cursor: pointer; }
+.jb-btn:hover { background: var(--kw-border); }
+.jb-btn.is-main, .jb-btn.is-send { background: var(--kw-gold-btn); border-color: var(--kw-gold); color: var(--kw-on-gold); font-weight: 700; }
+.jb-btn.is-send { font-size: var(--kw-fs-3); }
+.jb-btn:disabled { opacity: .5; cursor: default; }
+.jb-body :focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.jb-time { min-width: 3.2ch; font-variant-numeric: tabular-nums; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.jb-seek { flex: 1 1 160px; min-width: 120px; accent-color: var(--kw-gold); }
+.jb-vol { display: flex; align-items: center; gap: var(--kw-s-1); }
+.jb-vol input { width: 90px; accent-color: var(--kw-gold); }
+
+/* ── Rating ── */
+.jb-rate { display: grid; gap: var(--kw-s-2); margin: 0 var(--kw-s-3) var(--kw-s-3); padding: var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius-l); background: var(--kw-panel); }
+.jb-rate-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--kw-s-2) var(--kw-s-3); }
+.jb-rate-label { align-self: center; color: var(--kw-muted); }
+.jb-stars { display: flex; gap: 2px; }
+.jb-star { width: var(--kw-touch); height: var(--kw-touch); padding: 0; border: 0; background: transparent; color: var(--kw-line-2); font-size: var(--kw-fs-5); line-height: 1; cursor: pointer; }
+.jb-star.is-on, .jb-stars:hover .jb-star.is-lit { color: var(--kw-gold); }
+.jb-stars:hover .jb-star:not(.is-lit) { color: var(--kw-line-2); }
+.jb-others { align-self: center; margin-left: auto; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.jb-field { display: grid; gap: var(--kw-s-1); flex: 1 1 220px; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+.jb-field.is-name { flex: 0 1 260px; }
+.jb-opt { opacity: .75; }
+.jb-field textarea, .jb-field input { width: 100%; padding: var(--kw-s-2); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2); background: var(--kw-ink); color: var(--kw-cream); font: inherit; font-size: var(--kw-fs-3); resize: vertical; }
+.jb-status { min-height: 1.4em; margin: 0; font-size: var(--kw-fs-2); color: var(--kw-good); }
+.jb-status.is-bad { color: var(--kw-bad); }
+
+/* ── The pieces ── */
+.jb-list { padding: var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius-l); background: var(--kw-panel); }
+.jb-list h2 { margin: 0 0 var(--kw-s-2); font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); }
+.jb-group { margin: var(--kw-s-3) 0 var(--kw-s-1); font-size: var(--kw-fs-1); letter-spacing: .12em; text-transform: uppercase; color: var(--kw-muted); }
+.jb-group:first-child { margin-top: 0; }
+.jb-track { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--kw-s-2); margin: 0 0 var(--kw-s-1); padding: var(--kw-s-2); border-radius: var(--kw-radius); border: 1px solid var(--kw-line); background: var(--kw-wood-2); color: var(--kw-cream); font: inherit; text-align: left; cursor: pointer; }
+.jb-track:hover { background: var(--kw-border); }
+.jb-track.is-on { border-color: var(--kw-gold); box-shadow: 0 0 0 1px var(--kw-gold-deep); }
+.jb-disc { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--kw-gold-dim); background: var(--kw-ink); font-size: var(--kw-fs-2); line-height: 1; }
+.jb-track.is-on .jb-disc { border-color: var(--kw-gold); }
+.jb-cabinet.is-playing ~ .jb-list .jb-track.is-on .jb-disc { animation: jb-spin 3s linear infinite; }
+@keyframes jb-spin { to { transform: rotate(360deg); } }
+.jb-track-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jb-track-rate { font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.jb-track-rate b { color: var(--kw-gold); font-weight: 400; }
+.jb-track.is-rated .jb-track-rate::after { content: " ✓"; color: var(--kw-good); }
+.jb-progress, .jb-loading { margin: var(--kw-s-2) 0 0; font-size: var(--kw-fs-2); color: var(--kw-muted); }
+
+/* ── For the makers: what was said ── */
+.jb-admin { padding-bottom: var(--kw-s-4); }
+.jb-admin h2 { font-family: var(--kw-font-title); font-size: var(--kw-fs-4); color: var(--kw-gold); }
+.jb-admin table { width: 100%; border-collapse: collapse; font-size: var(--kw-fs-2); }
+.jb-admin th, .jb-admin td { padding: var(--kw-s-1) var(--kw-s-2); border-bottom: 1px solid var(--kw-line); text-align: left; vertical-align: top; }
+.jb-admin th { color: var(--kw-muted); font-weight: 400; }
+.jb-admin td.is-stars { color: var(--kw-gold); white-space: nowrap; }
+.jb-foot { padding-bottom: var(--kw-s-5); font-size: var(--kw-fs-2); color: var(--kw-muted); text-align: center; }
+
+@media (max-width: 860px) {
+  .jb { grid-template-columns: minmax(0, 1fr); }
+  .jb-head, .jb, .jb-admin, .jb-foot { padding-left: var(--kw-s-2); padding-right: var(--kw-s-2); }
+  .jb-cabinet { border-radius: 60px 60px var(--kw-radius-l) var(--kw-radius-l) / 40px 40px var(--kw-radius-l) var(--kw-radius-l); }
+  .jb-crown { padding: var(--kw-s-3); }
+  .jb-vol input { width: 70px; }
+  .jb-others { margin-left: 0; flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .jb-cabinet.is-playing .jb-bars i, .jb-cabinet.is-playing ~ .jb-list .jb-track.is-on .jb-disc { animation: none; } }

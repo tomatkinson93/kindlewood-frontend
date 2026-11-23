@@ -41,9 +41,13 @@ async function get(url) {
 
 // Every file the page needs that this folder can vouch for: [path relative to the site's root].
 function wanted() {
-  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const files = new Set(['index.html']);
-  for (const m of html.matchAll(/["']\/((?:js|css)\/[^"'?]+)\?v=/g)) files.add(m[1]);
+  const files = new Set();
+  // The game's page, and the pages that stand on their own (the jukebox), with every script and stylesheet they name.
+  for (const page of ['index.html', 'jukebox.html']) {
+    if (!fs.existsSync(path.join(ROOT, page))) continue;
+    files.add(page);
+    for (const m of fs.readFileSync(path.join(ROOT, page), 'utf8').matchAll(/["']\/((?:js|css)\/[^"'?]+)\?v=/g)) files.add(m[1]);
+  }
   // Dev Tools loads its own scripts and stylesheets (js/dev-tools.js lists them).
   const dt = fs.existsSync(path.join(ROOT, 'js/dev-tools.js')) ? fs.readFileSync(path.join(ROOT, 'js/dev-tools.js'), 'utf8') : '';
   for (const m of dt.matchAll(/'\/((?:js|css)\/[^'?]+)(?:\?[^']*)?'/g)) files.add(m[1]);
@@ -56,6 +60,8 @@ function wanted() {
     for (const f of Object.values(j.sounds || {})) add('assets/audio/tactics/' + bare(f));
     for (const f of j.music || []) add('assets/audio/tactics/music/' + bare(f));
     for (const f of Object.values(j.icons || {})) add('assets/tactics/icons/' + bare(f));
+    for (const f of Object.values(j.status || {})) add('assets/tactics/status/' + bare(f));
+    add('assets/tactics/demo.json');      // the battles the jukebox page shows
     for (const c of Object.values(j.creatures || {})) for (const k of ['front', 'back']) if (c[k]) add('assets/sprites/creatures/' + bare(c[k]));
   }
   // The villagers' sheets.

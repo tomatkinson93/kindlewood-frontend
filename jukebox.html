@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2C2218">
+  <meta name="robots" content="noindex">
+  <title>Kindlewood: the battle jukebox</title>
+  <meta name="description" content="Listen to the battle music of Kindlewood over the kind of fight each piece is for, and say what you think.">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Crimson+Pro:wght@300;400;500&display=swap">
+  <!-- The game's own colours and its battle screen's styles, then this page's. -->
+  <link rel="stylesheet" href="/css/tokens.css?v=h5aa3c0f1">
+  <link rel="stylesheet" href="/css/tactics.css?v=h15ba4d84">
+  <link rel="stylesheet" href="/css/jukebox.css?v=h5f65b8ae">
+</head>
+<body class="jb-body">
+  <header class="jb-head">
+    <h1>The Battle Jukebox</h1>
+    <p>Music for the battles of <b>Kindlewood</b>. Choose a piece, watch the kind of fight it is written for, and tell us what you think. There is nothing to sign in to.</p>
+  </header>
+
+  <main class="jb">
+    <section class="jb-cabinet" aria-label="The jukebox">
+      <div class="jb-crown">
+        <div class="jb-plate" role="status" aria-live="polite">
+          <span class="jb-place" id="jb-place">&nbsp;</span>
+          <b class="jb-title" id="jb-title">Choose a piece to begin</b>
+          <span class="jb-bars" id="jb-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <div class="jb-window">
+        <div class="jb-scene" id="jb-scene"></div>
+        <button type="button" class="jb-bigplay" id="jb-bigplay" aria-label="Play">▶</button>
+        <p class="jb-scene-note" id="jb-scene-note">A battle from the game, playing itself: nobody is steering.</p>
+      </div>
+      <div class="jb-controls">
+        <button type="button" class="jb-btn" id="jb-prev" aria-label="The piece before">⏮</button>
+        <button type="button" class="jb-btn is-main" id="jb-play" aria-label="Play">▶</button>
+        <button type="button" class="jb-btn" id="jb-next" aria-label="The next piece">⏭</button>
+        <span class="jb-time" id="jb-now">0:00</span>
+        <input type="range" class="jb-seek" id="jb-seek" min="0" max="1000" value="0" aria-label="Where in the piece">
+        <span class="jb-time" id="jb-len">0:00</span>
+        <label class="jb-vol"><span aria-hidden="true">🔊</span><input type="range" id="jb-vol" min="0" max="100" value="80" aria-label="Volume"></label>
+      </div>
+
+      <form class="jb-rate" id="jb-rate" novalidate>
+        <div class="jb-rate-row">
+          <span class="jb-rate-label" id="jb-stars-label">Your rating</span>
+          <div class="jb-stars" id="jb-stars" role="radiogroup" aria-labelledby="jb-stars-label">
+            <button type="button" class="jb-star" role="radio" aria-checked="false" data-stars="1" aria-label="1 star">★</button>
+            <button type="button" class="jb-star" role="radio" aria-checked="false" data-stars="2" aria-label="2 stars">★</button>
+            <button type="button" class="jb-star" role="radio" aria-checked="false" data-stars="3" aria-label="3 stars">★</button>
+            <button type="button" class="jb-star" role="radio" aria-checked="false" data-stars="4" aria-label="4 stars">★</button>
+            <button type="button" class="jb-star" role="radio" aria-checked="false" data-stars="5" aria-label="5 stars">★</button>
+          </div>
+          <span class="jb-others" id="jb-others"></span>
+        </div>
+        <label class="jb-field"><span>What do you think of it? <span class="jb-opt">(optional)</span></span>
+          <textarea id="jb-comment" rows="2" maxlength="600" placeholder="Does it fit the fight? Too busy, too quiet, just right?"></textarea>
+        </label>
+        <div class="jb-rate-row">
+          <label class="jb-field is-name"><span>Your name <span class="jb-opt">(optional)</span></span>
+            <input type="text" id="jb-name" maxlength="40" autocomplete="nickname">
+          </label>
+          <button type="submit" class="jb-btn is-send" id="jb-send">Send</button>
+        </div>
+        <p class="jb-status" id="jb-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <aside class="jb-list" aria-label="The pieces">
+      <h2>The pieces</h2>
+      <div id="jb-tracks"><p class="jb-loading">Fetching the music…</p></div>
+      <p class="jb-progress" id="jb-progress"></p>
+    </aside>
+  </main>
+
+  <section class="jb-admin" id="jb-admin" hidden aria-label="What listeners said (admins only)"></section>
+
+  <footer class="jb-foot">
+    <p>Your stars count towards each piece's average, which everyone sees. Your comment and name go only to the people making the game. Nothing else about you is kept.</p>
+  </footer>
+
+  <script src="/js/config.js?v=hdf2f0f2e"></script>
+  <script src="/js/tactics-engine.js?v=h586f652b"></script>
+  <script src="/js/villagers.js?v=h75550672"></script>
+  <script src="/js/career-math.js?v=h3b4f73f4"></script>
+  <script src="/js/tactics.js?v=he8c7f3f8"></script>
+  <script src="/js/jukebox.js?v=hab604076"></script>
+</body>
+</html>

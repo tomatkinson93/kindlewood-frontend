@@ -10,6 +10,10 @@
   font-family: var(--kw-font-body); font-size: var(--kw-fs-3);
 }
 .kwtc { transition: opacity .3s ease; }
+/* A battle shown for its own sake inside another page (jukebox.html): the board alone, filling the box it is put in. */
+.kwtc.is-demo { position: absolute; z-index: auto; grid-template-rows: minmax(0, 1fr); grid-template-areas: "board"; background: transparent; }
+.kwtc.is-demo .kwtc-top, .kwtc.is-demo .kwtc-panel, .kwtc.is-demo .kwtc-turnview, .kwtc.is-demo .kwtc-ask, .kwtc.is-demo .kwtc-end { display: none; }
+.kwtc.is-demo .kwtc-canvas { cursor: grab; }
 .kwtc.is-leaving { opacity: 0; }
 /* Into a battle: something drawn on a canvas closes over the screen, the battle's name shows, and it opens. */
 .kwtc-curtain { position: fixed; inset: 0; z-index: var(--z-confirm); }
@@ -153,8 +157,9 @@
 .kwtc-kit-a.is-locked { opacity: .55; }
 .kwtc-act.is-quick { border-style: dashed; }
 .kwtc-act-i { grid-area: i; font-size: var(--kw-fs-5); line-height: 1; }
-/* An ability's own picture (assets/tactics/icons), in place of its emoji: pixel art, drawn crisp at the emoji's size. */
-.kwtc-ic { width: 1.25em; height: 1.25em; vertical-align: -0.25em; image-rendering: pixelated; }
+/* An ability's own picture (assets/tactics/icons), in place of its emoji, at about the emoji's size. */
+.kwtc-ic { width: 1.35em; height: 1.35em; vertical-align: -0.3em; }
+.kwtc-act-i .kwtc-ic { width: 40px; height: 40px; vertical-align: middle; }      /* on an ability's button the picture has room to be read */
 .kwtc-act-n { grid-area: n; font-family: var(--kw-font-title); font-size: var(--kw-fs-2); color: var(--kw-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwtc-act-t { grid-area: t; font-size: var(--kw-fs-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwtc-act-r { grid-area: r; font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
