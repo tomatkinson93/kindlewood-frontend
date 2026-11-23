@@ -19,8 +19,129 @@
     "sword": "sword.mp3?v=c9b84319",
     "victory": "victory.mp3?v=edc3df39"
   },
-  "icons": {},
+  "icons": {
+    "a_mark": "a_mark.png?v=3e3f5565",
+    "a_part": "a_part.png?v=77c50694",
+    "a_pierce": "a_pierce.png?v=a9141102",
+    "a_shoot": "a_shoot.png?v=28692344",
+    "a_side": "a_side.png?v=43cba117",
+    "g_cover": "g_cover.png?v=2fec5353",
+    "g_heavy": "g_heavy.png?v=396dae46",
+    "g_shield": "g_shield.png?v=268716d3",
+    "g_shove": "g_shove.png?v=a9f04128",
+    "g_strike": "g_strike.png?v=5c5dd484",
+    "h_bold": "h_bold.png?v=4a19a5a2",
+    "h_cinder": "h_cinder.png?v=2c8d8615",
+    "h_kindle": "h_kindle.png?v=e0875142",
+    "h_steady": "h_steady.png?v=2be8c7dc",
+    "h_ward": "h_ward.png?v=9e63880c",
+    "w_bolt": "w_bolt.png?v=cbc5588e",
+    "w_burst": "w_burst.png?v=badd5517",
+    "w_chill": "w_chill.png?v=1308342a",
+    "w_spark": "w_spark.png?v=b5cf9aca",
+    "w_ward": "w_ward.png?v=2a94ecd3"
+  },
+  "status": {
+    "bold": "bold.png?v=799a123e",
+    "poison": "poison.png?v=bcccf680",
+    "slow": "slow.png?v=99c38320",
+    "stun": "stun.png?v=d563b86b",
+    "vulnerable": "vulnerable.png?v=98dd36c6",
+    "weak": "weak.png?v=5d5fcfd3"
+  },
+  "tracks": [
+    {
+      "key": "boss-no-way-but-through",
+      "file": "boss-no-way-but-through.mp3?v=539e0929",
+      "place": "boss",
+      "title": "No Way but Through"
+    },
+    {
+      "key": "boss-the-last-door",
+      "file": "boss-the-last-door.mp3?v=f591ead5",
+      "place": "boss",
+      "title": "The Last Door"
+    },
+    {
+      "key": "boss-withered-a-crown-of-rot",
+      "file": "boss-withered-a-crown-of-rot.mp3?v=9a0119d7",
+      "place": "boss-withered",
+      "title": "A Crown of Rot"
+    },
+    {
+      "key": "boss-withered-the-hollow-king",
+      "file": "boss-withered-the-hollow-king.mp3?v=61339041",
+      "place": "boss-withered",
+      "title": "The Hollow King"
+    },
+    {
+      "key": "forest-lanterns-in-the-deep-wood",
+      "file": "forest-lanterns-in-the-deep-wood.mp3?v=0126e9a4",
+      "place": "forest",
+      "title": "Lanterns in the Deep Wood"
+    },
+    {
+      "key": "forest-under-the-old-oaks",
+      "file": "forest-under-the-old-oaks.mp3?v=5bad0772",
+      "place": "forest",
+      "title": "Under the Old Oaks"
+    },
+    {
+      "key": "marsh-mist-on-the-fen",
+      "file": "marsh-mist-on-the-fen.mp3?v=c69cdbcb",
+      "place": "marsh",
+      "title": "Mist on the Fen"
+    },
+    {
+      "key": "marsh-the-sunken-road",
+      "file": "marsh-the-sunken-road.mp3?v=7072a527",
+      "place": "marsh",
+      "title": "The Sunken Road"
+    },
+    {
+      "key": "mountain-stormcrow-ridge",
+      "file": "mountain-stormcrow-ridge.mp3?v=2d899ca3",
+      "place": "mountain",
+      "title": "Stormcrow Ridge"
+    },
+    {
+      "key": "mountain-the-high-pass",
+      "file": "mountain-the-high-pass.mp3?v=ee06851a",
+      "place": "mountain",
+      "title": "The High Pass"
+    },
+    {
+      "key": "plains-the-meadow-gambit",
+      "file": "plains-the-meadow-gambit.mp3?v=79c4fb16",
+      "place": "plains",
+      "title": "The Meadow Gambit"
+    },
+    {
+      "key": "river-reeds-and-rapids",
+      "file": "river-reeds-and-rapids.mp3?v=2347d797",
+      "place": "river",
+      "title": "Reeds and Rapids"
+    },
+    {
+      "key": "river-the-ford-at-dawn",
+      "file": "river-the-ford-at-dawn.mp3?v=562b99e7",
+      "place": "river",
+      "title": "The Ford at Dawn"
+    }
+  ],
   "music": [
-    "meadow-gambit.mp3?v=79c4fb16"
+    "boss-no-way-but-through.mp3?v=539e0929",
+    "boss-the-last-door.mp3?v=f591ead5",
+    "boss-withered-a-crown-of-rot.mp3?v=9a0119d7",
+    "boss-withered-the-hollow-king.mp3?v=61339041",
+    "forest-lanterns-in-the-deep-wood.mp3?v=0126e9a4",
+    "forest-under-the-old-oaks.mp3?v=5bad0772",
+    "marsh-mist-on-the-fen.mp3?v=c69cdbcb",
+    "marsh-the-sunken-road.mp3?v=7072a527",
+    "mountain-stormcrow-ridge.mp3?v=2d899ca3",
+    "mountain-the-high-pass.mp3?v=ee06851a",
+    "plains-the-meadow-gambit.mp3?v=79c4fb16",
+    "river-reeds-and-rapids.mp3?v=2347d797",
+    "river-the-ford-at-dawn.mp3?v=562b99e7"
   ]
 }

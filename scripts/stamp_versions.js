@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════
-//  stamp_versions — every local script and stylesheet in index.html gets
-//  ?v=<hash of its contents>.
+//  stamp_versions — every local script and stylesheet in index.html (and in
+//  the pages that stand on their own: jukebox.html) gets ?v=<hash of its contents>.
 //
 //    node scripts/stamp_versions.js           rewrite index.html
 //    node scripts/stamp_versions.js --check   list stale stamps; exit 1 if any
@@ -40,19 +40,28 @@ function stamp(html, root = ROOT) {
   });
 }
 
+// The pages that load local scripts and stylesheets: the game, and the pages that stand on their own.
+const PAGES = ['index.html', 'jukebox.html'];
+
 if (require.main === module) {
-  const file = path.join(ROOT, 'index.html');
-  const html = fs.readFileSync(file, 'utf8');
+  const pages = PAGES.filter(f => fs.existsSync(path.join(ROOT, f)));
   if (process.argv.includes('--check')) {
-    const stale = stamps(html).filter(s => s.want && s.current !== s.want);
-    stale.forEach(s => console.log(`stale: ${s.file} ?v=${s.current} (should be ${s.want})`));
-    console.log(stale.length ? `${stale.length} stale — run node scripts/stamp_versions.js` : 'all stamps current');
-    process.exit(stale.length ? 1 : 0);
+    let n = 0;
+    for (const page of pages) {
+      const stale = stamps(fs.readFileSync(path.join(ROOT, page), 'utf8')).filter(s => s.want && s.current !== s.want);
+      stale.forEach(s => console.log(`stale: ${page}: ${s.file} ?v=${s.current} (should be ${s.want})`));
+      n += stale.length;
+    }
+    console.log(n ? `${n} stale — run node scripts/stamp_versions.js` : 'all stamps current');
+    process.exit(n ? 1 : 0);
   }
-  const next = stamp(html);
-  const changed = stamps(html).filter(s => s.want && s.current !== s.want).length;
-  fs.writeFileSync(file, next);
+  let changed = 0;
+  for (const page of pages) {
+    const file = path.join(ROOT, page), html = fs.readFileSync(file, 'utf8');
+    changed += stamps(html).filter(s => s.want && s.current !== s.want).length;
+    fs.writeFileSync(file, stamp(html));
+  }
   console.log(`stamped ${changed} file(s)`);
 }
 
-module.exports = { stamps, stamp, stampOf };
+module.exports = { stamps, stamp, stampOf, PAGES };
