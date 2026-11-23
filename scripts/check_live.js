@@ -62,7 +62,7 @@ function wanted() {
     for (const f of Object.values(j.icons || {})) add('assets/tactics/icons/' + bare(f));
     for (const f of Object.values(j.status || {})) add('assets/tactics/status/' + bare(f));
     add('assets/tactics/demo.json');      // the battles the jukebox page shows
-    for (const c of Object.values(j.creatures || {})) for (const k of ['front', 'back']) if (c[k]) add('assets/sprites/creatures/' + bare(c[k]));
+    for (const c of Object.values(j.creatures || {})) for (const k of ['file', 'face']) if (c[k]) add('assets/sprites/creatures/' + bare(c[k]));
   }
   // The villagers' sheets.
   const vil = 'assets/sprites/villagers/villagers.json';

@@ -5,7 +5,7 @@
 //   node scripts/pack_tactics.js
 //
 // It reads
-//   assets/sprites/creatures/<creature>_front.png and <creature>_back.png
+//   assets/sprites/creatures/foes.json and the sheets it names (scripts/pack_foes.py makes them from art/tactics/foes/)
 //   assets/tactics/icons/<ability key>.png
 //   assets/audio/tactics/<name>.mp3 (or .ogg, .wav)
 //   assets/audio/tactics/music/<place>-<title>.mp3
@@ -40,15 +40,16 @@ function tracks() {
   });
 }
 function build() {
+  // Foes with art: what scripts/pack_foes.py made of each PixelLab export (one row of four facings, and a face).
   const creatures = {};
-  for (const f of list('assets/sprites/creatures', /^[a-z0-9_]+_(front|back)\.png$/)) {
-    const m = f.match(/^([a-z0-9_]+)_(front|back)\.png$/), size = pngSize(path.join(ROOT, 'assets/sprites/creatures', f));
-    if (!size) continue;
-    const c = creatures[m[1]] = creatures[m[1]] || {};
-    c[m[2]] = stamped('assets/sprites/creatures', f);
-    if (m[2] === 'front') { c.w = size.w; c.h = size.h; }
+  let foes = {};
+  try { foes = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets/sprites/creatures/foes.json'), 'utf8')); } catch (e) { /* none packed yet */ }
+  for (const key of Object.keys(foes).sort()) {
+    const f = foes[key];
+    if (!fs.existsSync(path.join(ROOT, 'assets/sprites/creatures', f.file))) continue;
+    creatures[key] = { file: stamped('assets/sprites/creatures', f.file), face: f.face && fs.existsSync(path.join(ROOT, 'assets/sprites/creatures', f.face)) ? stamped('assets/sprites/creatures', f.face) : null,
+      dirs: f.dirs, w: f.w, h: f.h, foot: f.foot, scale: f.scale };
   }
-  for (const k of Object.keys(creatures)) if (!creatures[k].front) delete creatures[k];   // a back view alone is no use
   const sounds = {};
   for (const f of list('assets/audio/tactics', /\.(mp3|ogg|wav)$/)) sounds[f.replace(/\.[a-z0-9]+$/, '')] = stamped('assets/audio/tactics', f);
   const icons = {};

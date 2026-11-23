@@ -1,0 +1,10 @@
+{
+  "_": "How tall each foe stands on the board, in mouse-heights (a citizen is 1). scripts/pack_foes.py reads this; a foe not listed is 1. Bosses are meant to be about 2.",
+  "rat_cutpurse": 0.85,
+  "weasel_slinger": 1.05,
+  "fox_footpad": 1.15,
+  "polecat_sawbones": 0.95,
+  "boar_bruiser": 1.3,
+  "stoat_captain": 1.25,
+  "redtooth": 1.9
+}

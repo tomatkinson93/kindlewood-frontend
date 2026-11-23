@@ -33,6 +33,8 @@
 .kwtc-round { font-size: var(--kw-fs-1); color: var(--kw-muted); margin-right: var(--kw-s-2); white-space: nowrap; }
 .kwtc-chip { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--kw-gold-dim); background: var(--kw-wood-2); font-size: var(--kw-fs-3); line-height: 1; }
 .kwtc-chip.is-enemy { border-color: var(--kw-bad); }
+.kwtc-chip.has-face { overflow: hidden; }
+.kwtc-chip.has-face img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
 .kwtc-chip.is-player { border-color: var(--kw-gold-deep); }
 .kwtc-chip.is-now { width: 38px; height: 38px; font-size: var(--kw-fs-4); border-color: var(--kw-focus); box-shadow: 0 0 0 2px var(--kw-line-2); }
 .kwtc-x { flex: none; }

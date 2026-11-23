@@ -241,12 +241,16 @@
   // the viewer, the back view when it looks away; mirrored for the other two ways.
   function creatureArt(u, v) {
     const a = ASSETS.creatures[u.key];
-    if (!a || !a.front) return null;
-    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), away = tv[0] < 0 || tv[1] < 0;
-    const img = sheet('/assets/sprites/creatures/' + (away && a.back ? a.back : a.front));
-    // The front view is drawn looking down and to the left; the back view up and to the right.
-    return img ? { img, flip: away ? tv[0] < 0 : tv[0] > 0, w: a.w || img.naturalWidth, h: a.h || img.naturalHeight, foot: a.foot || 0.9 } : null;
+    if (!a || !a.file) return null;
+    const img = sheet('/assets/sprites/creatures/' + a.file);
+    if (!img) return null;
+    // The sheet is one row, a frame for each of the four ways a unit can look on the board (scripts/pack_foes.py).
+    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), dir = tv[0] > 0 ? 'se' : tv[0] < 0 ? 'nw' : tv[1] > 0 ? 'sw' : 'ne';
+    const i = Math.max(0, (a.dirs || []).indexOf(dir));
+    return { img, sx: i * a.w, w: a.w, h: a.h, foot: a.foot || { x: a.w / 2, y: a.h }, scale: a.scale || 1 };
   }
+  // A foe's face for the row of who acts next, if it has one.
+  const faceOf = u => { const a = u && ASSETS.creatures[u.key]; return a && a.face ? '/assets/sprites/creatures/' + a.face : null; };
 
   // ── Drawing ───────────────────────────────────────────────────────────────
   const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
@@ -351,11 +355,11 @@
     } else {
       const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v);
       if (art) {
-        const z = 0.62 * k, dw = art.w * z, dh = art.h * z;      // the same pixel size as the villagers, so a big creature is big
-        c.imageSmoothingEnabled = false;
-        c.save(); c.translate(p.x, p.y + bob * 0.5); if (art.flip) c.scale(-1, 1);
-        c.drawImage(art.img, -dw / 2, -dh * art.foot, dw, dh);
-        c.restore();
+        // Its height on the board is set against a citizen's (the packer's `scale`); walking, it hops along.
+        const z = 0.62 * k * art.scale, hop = v.walking && !still() ? Math.abs(Math.sin(t / 85)) * 3.5 * k : 0;
+        c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+        c.drawImage(art.img, art.sx, 0, art.w, art.h, p.x - art.foot.x * z, p.y + 3 * k - hop - art.foot.y * z, art.w * z, art.h * z);
+        v.tall = art.h * z;
       } else {
         c.font = `${Math.round(28 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
         c.fillText(u.icon || '👹', p.x, p.y + 2 * k + bob);
@@ -363,7 +367,8 @@
     }
     if ('filter' in c) c.filter = 'none';
     // Health, block, class and what ails it.
-    const top = p.y - (u.side === 'player' ? 44 : 38) * k, bw = 34 * k, bh = Math.max(4, 4.5 * k);
+    // The health bar sits just over the head: a tall foe's higher, a small one's lower.
+    const top = p.y - (u.side === 'player' ? 44 * k : Math.max(30 * k, (v.tall || 34 * k) + 2 * k)), bw = 34 * k, bh = Math.max(4, 4.5 * k);
     c.fillStyle = 'rgba(20,12,6,0.85)'; c.fillRect(p.x - bw / 2 - 1, top - 1, bw + 2, bh + 2);
     c.fillStyle = u.side === 'player' ? '#8fd070' : '#e0705f';
     c.fillRect(p.x - bw / 2, top, bw * Math.max(0, Math.min(1, v.hp / u.maxHp)), bh);
@@ -853,7 +858,8 @@
     const ids = st.order.slice(st.index).concat(e.computeOrder(st)).filter((id, i, all) => { const u = e.unit(st, id); return u && !u.down; }).slice(0, 9);
     box.innerHTML = `<span class="kwtc-round">Round ${st.round}</span>` + ids.map((id, i) => {
       const u = e.unit(st, id);
-      return `<span class="kwtc-chip is-${u.side}${i === 0 ? ' is-now' : ''}" title="${esc(u.name)}">${esc(u.icon || '•')}</span>`;
+      const face = u.side === 'enemy' ? faceOf(u) : null;
+      return `<span class="kwtc-chip is-${u.side}${i === 0 ? ' is-now' : ''}${face ? ' has-face' : ''}" title="${esc(u.name)}">${face ? `<img src="${esc(face)}" alt="" draggable="false">` : esc(u.icon || '•')}</span>`;
     }).join('');
   }
   const reachText = a => (a.shape === 'around' ? `all within ${a.radius}` : a.target === 'self' || !a.max ? 'self' : a.min === a.max ? `reach ${a.max}` : `reach ${Math.max(1, a.min)}–${a.max}`);

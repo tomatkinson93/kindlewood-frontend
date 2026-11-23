@@ -202,7 +202,8 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   const P = require(path.join(ROOT, 'scripts', 'pack_tactics.js'));
   const built = P.build(), onDisk = JSON.parse(read('assets/tactics/manifest.json'));
   check('8h. the list of art and sound is the packer\'s, and it is up to date', JSON.stringify(built) === JSON.stringify(onDisk) && Array.isArray(built.music) && typeof built.creatures === 'object' && typeof built.sounds === 'object');
-  check('8i. a creature with art is drawn from it (front or back view, mirrored), one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /away && a\.back \? a\.back : a\.front/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
+  check('8i. a foe with art is drawn from its sheet, the frame for the way it faces; one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /dir = tv\[0\] > 0 \? 'se' : tv\[0\] < 0 \? 'nw' : tv\[1\] > 0 \? 'sw' : 'ne';/.test(J)
+    && /const i = Math\.max\(0, \(a\.dirs \|\| \[\]\)\.indexOf\(dir\)\);/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
   check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\] \|\| ASSETS\.sounds\[PLAINER\[name\]\], file = own \? 'tactics\/' \+ own : \(STAND_IN\[name\] \|\| STAND_IN\[PLAINER\[name\]\]\);/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
   check('8j2. a blade rings and a club thuds: the sword sound for blades, falling back to the plain blow when there is no such file', /const PLAINER = \{ sword: 'melee', down_friend: 'down_foe' \};/.test(J) && /slash: 'sword', thrust: 'sword', smash: 'melee'/.test(J) && /v_swing: 'smash', t_tool: 'smash'/.test(J));
   check('8k. music: its own tracks when there are any (a "boss" file for boss fights), else the card battles\'; it stops when the battle ends or is left', /const pick = tracksFor\(S\.setup \|\| \{\}, ASSETS\.tracks\.length \? ASSETS\.tracks :/.test(J) && /\? 'TACTICS' : 'BATTLE'\)/.test(J) && /music\(false\); sfx\(st\.status === 'victory'/.test(J) && /if \(S\.open\) music\(false\);/.test(J) && /global\.registerMusic\s+=/.test(read('js/audio.js')));
@@ -456,6 +457,25 @@ console.log('16. Icons, pips, music by place, and the jukebox page');
   check('16p. the jukebox\'s scripts and stylesheets are stamped like the game\'s, and none is stale', SV.PAGES.includes('jukebox.html') && SV.stamps(H).length >= 9 && SV.stamps(H).every(x => x.want && x.current === x.want));
   check('16q. the check on the live site covers the jukebox, the icons, the pips and the music', ['jukebox.html', 'js/jukebox.js', 'css/jukebox.css', 'assets/tactics/demo.json', 'assets/tactics/icons/g_strike.png', 'assets/tactics/status/weak.png'].every(f => C2.includes(f))
     && tracks.every(t => C2.includes('assets/audio/tactics/music/' + t.file.replace(/\?.*$/, ''))));
+}
+
+console.log('17. Foes with art');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), man = JSON.parse(read('assets/tactics/manifest.json'));
+  const foes = JSON.parse(read('assets/sprites/creatures/foes.json')), sizes = JSON.parse(read('art/tactics/foes/sizes.json'));
+  const png = f => { const b = fs.readFileSync(path.join(ROOT, f)); return b.toString('ascii', 1, 4) === 'PNG' ? { w: b.readUInt32BE(16), h: b.readUInt32BE(20) } : null; };
+  const keys = Object.keys(foes);
+  check('17a. the five Brigands the owner drew are packed: a sheet and a face each', ['rat_cutpurse', 'weasel_slinger', 'fox_footpad', 'polecat_sawbones', 'boar_bruiser'].every(k => foes[k] && man.creatures[k] && man.creatures[k].file && man.creatures[k].face), keys.join(' '));
+  check('17b. a sheet is one row of four frames, one for each way a unit can face on the board, so nothing is mirrored', keys.every(k => { const p = png('assets/sprites/creatures/' + foes[k].file); return p && foes[k].dirs.join() === 'se,sw,ne,nw' && p.w === foes[k].w * 4 && p.h === foes[k].h; }));
+  check('17c. each foe stands at the height set for it against a citizen: a rat smaller than a mouse, a boar a third taller', keys.every(k => Math.abs(foes[k].scale * foes[k].tall / 59 - (sizes[k] || 1)) < 0.02)
+    && foes.rat_cutpurse.scale * foes.rat_cutpurse.tall < 59 && foes.boar_bruiser.scale * foes.boar_bruiser.tall > 59 * 1.25, keys.map(k => `${k} ${(foes[k].scale * foes[k].tall / 59).toFixed(2)}`).join(', '));
+  check('17d. its feet are on its tile: the foot point is inside the frame, near its bottom', keys.every(k => foes[k].foot.x > foes[k].w * 0.25 && foes[k].foot.x < foes[k].w * 0.75 && foes[k].foot.y > foes[k].h * 0.85 && foes[k].foot.y <= foes[k].h));
+  check('17e. the screen draws it at that size from that foot, hopping as it walks, with its health bar over its head', /const z = 0\.62 \* k \* art\.scale, hop = v\.walking && !still\(\) \? Math\.abs\(Math\.sin\(t \/ 85\)\) \* 3\.5 \* k : 0;/.test(J)
+    && /p\.x - art\.foot\.x \* z, p\.y \+ 3 \* k - hop - art\.foot\.y \* z, art\.w \* z, art\.h \* z\);/.test(J) && /Math\.max\(30 \* k, \(v\.tall \|\| 34 \* k\) \+ 2 \* k\)/.test(J));
+  check('17f. a foe with a face shows it in the row of who acts next', /const face = u\.side === 'enemy' \? faceOf\(u\) : null;/.test(J) && /\.kwtc-chip\.has-face img \{[^}]*object-fit: cover;/.test(CSS) && keys.every(k => { const p = png('assets/sprites/creatures/' + foes[k].face); return p && p.w === 64 && p.h === 64; }));
+  check('17g. the source exports are kept, each with its eight rotations', keys.every(k => ['south', 'south-east', 'east', 'north-east', 'north', 'north-west', 'west', 'south-west'].every(d => fs.existsSync(path.join(ROOT, 'art/tactics/foes', k, 'rotations', d + '.png')))));
+  const C3 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
+  check('17h. the check on the live site covers every foe\'s sheet and face', keys.every(k => C3.includes('assets/sprites/creatures/' + foes[k].file) && C3.includes('assets/sprites/creatures/' + foes[k].face)));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
