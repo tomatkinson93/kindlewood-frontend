@@ -49,6 +49,11 @@ function build() {
     if (!fs.existsSync(path.join(ROOT, 'assets/sprites/creatures', f.file))) continue;
     creatures[key] = { file: stamped('assets/sprites/creatures', f.file), face: f.face && fs.existsSync(path.join(ROOT, 'assets/sprites/creatures', f.face)) ? stamped('assets/sprites/creatures', f.face) : null,
       dirs: f.dirs, w: f.w, h: f.h, foot: f.foot, scale: f.scale };
+    // Its walk, and its standing-and-breathing, when the export had them: a sheet of rows of frames each.
+    for (const k of ['walk', 'idle']) {
+      const a = f[k];
+      if (a && fs.existsSync(path.join(ROOT, 'assets/sprites/creatures', a.file))) creatures[key][k] = { file: stamped('assets/sprites/creatures', a.file), w: a.w, h: a.h, frames: a.frames, rows: a.rows, foot: a.foot };
+    }
   }
   const sounds = {};
   for (const f of list('assets/audio/tactics', /\.(mp3|ogg|wav)$/)) sounds[f.replace(/\.[a-z0-9]+$/, '')] = stamped('assets/audio/tactics', f);

@@ -15,7 +15,29 @@
         "x": 50,
         "y": 109
       },
-      "scale": 0.7411
+      "scale": 0.7411,
+      "walk": {
+        "file": "boar_bruiser_walk.png?v=43f58147",
+        "w": 92,
+        "h": 115,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 39.7,
+            "y": 113
+          },
+          {
+            "x": 52.3,
+            "y": 113
+          }
+        ]
+      }
     },
     "fox_footpad": {
       "file": "fox_footpad.png?v=363a4c5b",
@@ -32,7 +54,29 @@
         "x": 63.8,
         "y": 100
       },
-      "scale": 0.6888
+      "scale": 0.6888,
+      "walk": {
+        "file": "fox_footpad_walk.png?v=63581bbb",
+        "w": 119,
+        "h": 107,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 69.9,
+            "y": 105
+          },
+          {
+            "x": 49.1,
+            "y": 105
+          }
+        ]
+      }
     },
     "polecat_sawbones": {
       "file": "polecat_sawbones.png?v=d3e295ce",
@@ -49,7 +93,29 @@
         "x": 36.9,
         "y": 79
       },
-      "scale": 0.7375
+      "scale": 0.7375,
+      "walk": {
+        "file": "polecat_sawbones_walk.png?v=786e5f1b",
+        "w": 70,
+        "h": 85,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 41.2,
+            "y": 83
+          },
+          {
+            "x": 28.8,
+            "y": 83
+          }
+        ]
+      }
     },
     "rat_cutpurse": {
       "file": "rat_cutpurse.png?v=00259f97",
@@ -66,7 +132,29 @@
         "x": 35.6,
         "y": 75
       },
-      "scale": 0.687
+      "scale": 0.687,
+      "walk": {
+        "file": "rat_cutpurse_walk.png?v=02ec970d",
+        "w": 89,
+        "h": 77,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 43.6,
+            "y": 75
+          },
+          {
+            "x": 45.4,
+            "y": 75
+          }
+        ]
+      }
     },
     "redtooth": {
       "file": "redtooth.png?v=51e28486",
@@ -83,7 +171,29 @@
         "x": 61,
         "y": 110
       },
-      "scale": 1.0428
+      "scale": 1.0428,
+      "walk": {
+        "file": "redtooth_walk.png?v=befb88b3",
+        "w": 138,
+        "h": 114,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 72.3,
+            "y": 112
+          },
+          {
+            "x": 65.7,
+            "y": 112
+          }
+        ]
+      }
     },
     "stoat_captain": {
       "file": "stoat_captain.png?v=29ef6245",
@@ -100,7 +210,29 @@
         "x": 55.8,
         "y": 105
       },
-      "scale": 0.7412
+      "scale": 0.7412,
+      "walk": {
+        "file": "stoat_captain_walk.png?v=b62fcff6",
+        "w": 116,
+        "h": 110,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 34.9,
+            "y": 108
+          },
+          {
+            "x": 81.1,
+            "y": 108
+          }
+        ]
+      }
     },
     "weasel_slinger": {
       "file": "weasel_slinger.png?v=cf0da836",
@@ -117,7 +249,29 @@
         "x": 39.8,
         "y": 93
       },
-      "scale": 0.6845
+      "scale": 0.6845,
+      "walk": {
+        "file": "weasel_slinger_walk.png?v=6ec1a04d",
+        "w": 76,
+        "h": 101,
+        "frames": 8,
+        "rows": {
+          "se": 0,
+          "sw": 1,
+          "ne": 0,
+          "nw": 1
+        },
+        "foot": [
+          {
+            "x": 46.5,
+            "y": 99
+          },
+          {
+            "x": 29.5,
+            "y": 99
+          }
+        ]
+      }
     }
   },
   "sounds": {

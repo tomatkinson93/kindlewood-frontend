@@ -203,7 +203,7 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   const P = require(path.join(ROOT, 'scripts', 'pack_tactics.js'));
   const built = P.build(), onDisk = JSON.parse(read('assets/tactics/manifest.json'));
   check('8h. the list of art and sound is the packer\'s, and it is up to date', JSON.stringify(built) === JSON.stringify(onDisk) && Array.isArray(built.music) && typeof built.creatures === 'object' && typeof built.sounds === 'object');
-  check('8i. a foe with art is drawn from its sheet, the frame for the way it faces; one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /dir = tv\[0\] > 0 \? 'se' : tv\[0\] < 0 \? 'nw' : tv\[1\] > 0 \? 'sw' : 'ne';/.test(J)
+  check('8i. a foe with art is drawn from its sheet, the frame for the way it faces; one without keeps its icon', /function creatureArt\(u, v, t\)/.test(J) && /dir = tv\[0\] > 0 \? 'se' : tv\[0\] < 0 \? 'nw' : tv\[1\] > 0 \? 'sw' : 'ne';/.test(J)
     && /const i = Math\.max\(0, \(a\.dirs \|\| \[\]\)\.indexOf\(dir\)\);/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
   check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\] \|\| ASSETS\.sounds\[PLAINER\[name\]\], file = own \? 'tactics\/' \+ own : \(STAND_IN\[name\] \|\| STAND_IN\[PLAINER\[name\]\]\);/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
   check('8j2. a blade rings and a club thuds: the sword sound for blades, falling back to the plain blow when there is no such file', /const PLAINER = \{ sword: 'melee', down_friend: 'down_foe' \};/.test(J) && /slash: 'sword', thrust: 'sword', smash: 'melee'/.test(J) && /v_swing: 'smash', t_tool: 'smash'/.test(J));
@@ -473,14 +473,23 @@ console.log('17. Foes with art');
   check('17c. each foe stands at the height set for it against a citizen: a rat smaller than a mouse, a boar a third taller', keys.every(k => Math.abs(foes[k].scale * foes[k].tall / 59 - (sizes[k] || 1)) < 0.02)
     && foes.rat_cutpurse.scale * foes.rat_cutpurse.tall < 59 && foes.boar_bruiser.scale * foes.boar_bruiser.tall > 59 * 1.25, keys.map(k => `${k} ${(foes[k].scale * foes[k].tall / 59).toFixed(2)}`).join(', '));
   check('17d. its feet are on its tile: the foot point is inside the frame, near its bottom', keys.every(k => foes[k].foot.x > foes[k].w * 0.25 && foes[k].foot.x < foes[k].w * 0.75 && foes[k].foot.y > foes[k].h * 0.85 && foes[k].foot.y <= foes[k].h));
-  check('17e. the screen draws it at that size from that foot, hopping as it walks, with its health bar over its head', /const z = 0\.62 \* k \* art\.scale, hop = v\.walking && !still\(\) \? Math\.abs\(Math\.sin\(t \/ 85\)\) \* 3\.5 \* k : 0;/.test(J)
-    && /p\.x - art\.foot\.x \* z, p\.y \+ 3 \* k - hop - art\.foot\.y \* z, art\.w \* z, art\.h \* z\);/.test(J) && /Math\.max\(30 \* k, \(v\.tall \|\| 34 \* k\) \+ 2 \* k\)/.test(J));
+  check('17e. the screen draws it at that size from that foot, with its health bar over its head', /const z = 0\.62 \* k \* art\.scale, hop = !art\.moving && v\.walking && !still\(\) \? Math\.abs\(Math\.sin\(t \/ 85\)\) \* 3\.5 \* k : 0;/.test(J)
+    && /p\.x - art\.foot\.x \* z, p\.y \+ 3 \* k - hop - art\.foot\.y \* z \* breath, art\.w \* z, art\.h \* z \* breath\);/.test(J) && /Math\.max\(30 \* k, \(v\.tall \|\| 34 \* k\) \+ 2 \* k\)/.test(J) && /v\.tall = art\.tall \* z;/.test(J));
   check('17f. a foe with a face shows it in the row of who acts next', /const face = u\.side === 'enemy' \? faceOf\(u\) : null;/.test(J) && /\.kwtc-chip\.has-face img \{[^}]*object-fit: cover;/.test(CSS) && keys.every(k => { const p = png('assets/sprites/creatures/' + foes[k].face); return p && p.w === 64 && p.h === 64; }));
   check('17g. the source exports are kept, each with its eight rotations', keys.every(k => ['south', 'south-east', 'east', 'north-east', 'north', 'north-west', 'west', 'south-west'].every(d => fs.existsSync(path.join(ROOT, 'art/tactics/foes', k, 'rotations', d + '.png')))));
   const C3 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
   check('17h. the check on the live site covers every foe\'s sheet and face', keys.every(k => C3.includes('assets/sprites/creatures/' + foes[k].file) && C3.includes('assets/sprites/creatures/' + foes[k].face)));
   check('17i. a boss stands as a boss: Redtooth is nearly twice a citizen\'s height, the Captain a quarter taller', foes.redtooth.scale * foes.redtooth.tall > 59 * 1.8 && Math.abs(foes.stoat_captain.scale * foes.stoat_captain.tall / 59 - 1.25) < 0.02);
   const PF = read('scripts/pack_foes.py');
+  const walkers = keys.filter(k => foes[k].walk);
+  check('17k. each foe that came with a walk has it packed: a sheet with a row of eight frames for each way it goes, feet on the same line', walkers.length === 7 && walkers.every(k => { const wk = foes[k].walk, p = png('assets/sprites/creatures/' + wk.file);
+    return p && wk.frames === 8 && p.w === wk.w * wk.frames && p.h === wk.h * wk.foot.length && ['se', 'sw', 'ne', 'nw'].every(d => wk.rows[d] < wk.foot.length) && wk.foot.every(f => f.y === wk.h - 2 && f.x > wk.w * 0.25 && f.x < wk.w * 0.75) && man.creatures[k].walk && man.creatures[k].walk.frames === 8; }));
+  check('17l. the first exports walk only to the sides, so the walk east serves both ways right and the walk west both ways left; diagonal walks are used as soon as they are exported', walkers.every(k => foes[k].walk.diagonal === false && foes[k].walk.rows.se === foes[k].walk.rows.ne && foes[k].walk.rows.sw === foes[k].walk.rows.nw && foes[k].walk.rows.se !== foes[k].walk.rows.sw)
+    && /src = next\(\(c for c in \(long, side\) if frames_of\(folder, anim, c\)\), None\)/.test(PF) && /for anim, name in \(\('walking', 'walk'\), \('idle', 'idle'\)\):/.test(PF));
+  check('17m. moving, a foe is drawn in its walk\'s frames; standing, in its idle\'s if it has one', /const m = still\(\) \? null : v\.walking \? a\.walk : a\.idle;/.test(J) && /n = Math\.floor\(\(t \|\| 0\) \/ \(v\.walking \? WALK_MS : IDLE_MS\) \+ \(v\.seed \|\| 0\) \* m\.frames\) % m\.frames;/.test(J)
+    && /sx: n \* m\.w, sy: row \* m\.h/.test(J));
+  check('17n. with no idle frames it breathes by itself, from the feet up; nothing moves for someone who asked for less motion', /const breath = art\.moving \|\| v\.walking \|\| still\(\) \? 1 : 1 \+ Math\.sin\(t \/ 560 \+ v\.seed \* 6\.3\) \* 0\.014;/.test(J));
+  check('17o. the check on the live site covers the walk sheets', walkers.every(k => C3.includes('assets/sprites/creatures/' + foes[k].walk.file)));
   check('17j. a face is one piece: the tip of a blade or a tail that pokes into its square is taken out', /def lone\(im\):/.test(PF) && /face = lone\(s\.crop\(/.test(PF));
 }
 

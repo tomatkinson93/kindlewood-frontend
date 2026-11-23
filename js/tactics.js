@@ -239,15 +239,24 @@
 
   // A creature's picture, if it has one: the front view when it looks towards
   // the viewer, the back view when it looks away; mirrored for the other two ways.
-  function creatureArt(u, v) {
+  // WALK_MS, IDLE_MS: how long one frame of a foe's walk and of its standing breath is shown.
+  const WALK_MS = 65, IDLE_MS = 150;
+  function creatureArt(u, v, t) {
     const a = ASSETS.creatures[u.key];
     if (!a || !a.file) return null;
+    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), dir = tv[0] > 0 ? 'se' : tv[0] < 0 ? 'nw' : tv[1] > 0 ? 'sw' : 'ne';
+    // Moving, its walk; standing, its breathing, if it was drawn one: a sheet with a row of frames for each way it goes.
+    const m = still() ? null : v.walking ? a.walk : a.idle;
+    const strip = m && sheet('/assets/sprites/creatures/' + m.file);
+    if (strip) {
+      const row = (m.rows && m.rows[dir]) || 0, n = Math.floor((t || 0) / (v.walking ? WALK_MS : IDLE_MS) + (v.seed || 0) * m.frames) % m.frames;
+      return { img: strip, sx: n * m.w, sy: row * m.h, w: m.w, h: m.h, foot: (m.foot && m.foot[row]) || { x: m.w / 2, y: m.h }, scale: a.scale || 1, moving: true, tall: a.h };
+    }
     const img = sheet('/assets/sprites/creatures/' + a.file);
     if (!img) return null;
-    // The sheet is one row, a frame for each of the four ways a unit can look on the board (scripts/pack_foes.py).
-    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), dir = tv[0] > 0 ? 'se' : tv[0] < 0 ? 'nw' : tv[1] > 0 ? 'sw' : 'ne';
+    // The standing sheet is one row, a frame for each of the four ways a unit can look on the board (scripts/pack_foes.py).
     const i = Math.max(0, (a.dirs || []).indexOf(dir));
-    return { img, sx: i * a.w, w: a.w, h: a.h, foot: a.foot || { x: a.w / 2, y: a.h }, scale: a.scale || 1 };
+    return { img, sx: i * a.w, sy: 0, w: a.w, h: a.h, foot: a.foot || { x: a.w / 2, y: a.h }, scale: a.scale || 1, moving: false, tall: a.h };
   }
   // A foe's face for the row of who acts next, if it has one.
   const faceOf = u => { const a = u && ASSETS.creatures[u.key]; return a && a.face ? '/assets/sprites/creatures/' + a.face : null; };
@@ -353,13 +362,16 @@
       c.fillStyle = CLASS_COLOUR[u.cls] || CLASS_COLOUR.villager; c.beginPath(); c.arc(p.x, p.y - 16 * k, 12 * k, 0, 6.3); c.fill();
       c.font = `${Math.round(15 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(u.icon || '•', p.x, p.y - 15 * k);
     } else {
-      const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v);
+      const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v, t);
       if (art) {
-        // Its height on the board is set against a citizen's (the packer's `scale`); walking, it hops along.
-        const z = 0.62 * k * art.scale, hop = v.walking && !still() ? Math.abs(Math.sin(t / 85)) * 3.5 * k : 0;
+        // Its height on the board is set against a citizen's (the packer's `scale`). With frames of its own it walks
+        // and breathes in them. Without: walking, it hops along; standing, it breathes (it grows and settles by a
+        // hair from the feet up), so nobody on the board stands frozen.
+        const z = 0.62 * k * art.scale, hop = !art.moving && v.walking && !still() ? Math.abs(Math.sin(t / 85)) * 3.5 * k : 0;
+        const breath = art.moving || v.walking || still() ? 1 : 1 + Math.sin(t / 560 + v.seed * 6.3) * 0.014;
         c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-        c.drawImage(art.img, art.sx, 0, art.w, art.h, p.x - art.foot.x * z, p.y + 3 * k - hop - art.foot.y * z, art.w * z, art.h * z);
-        v.tall = art.h * z;
+        c.drawImage(art.img, art.sx, art.sy, art.w, art.h, p.x - art.foot.x * z, p.y + 3 * k - hop - art.foot.y * z * breath, art.w * z, art.h * z * breath);
+        v.tall = art.tall * z;      // the health bar keeps its place while the foe moves under it
       } else {
         c.font = `${Math.round(28 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
         c.fillText(u.icon || '👹', p.x, p.y + 2 * k + bob);

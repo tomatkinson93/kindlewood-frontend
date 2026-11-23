@@ -71,6 +71,7 @@ function wanted() {
     for (const f of Object.values(j.status || {})) add('assets/tactics/status/' + bare(f));
     add('assets/tactics/demo.json');      // the battles the jukebox page shows
     for (const c of Object.values(j.creatures || {})) for (const k of ['file', 'face']) if (c[k]) add('assets/sprites/creatures/' + bare(c[k]));
+    for (const c of Object.values(j.creatures || {})) for (const k of ['walk', 'idle']) if (c[k] && c[k].file) add('assets/sprites/creatures/' + bare(c[k].file));
   }
   // The villagers' sheets.
   const vil = 'assets/sprites/villagers/villagers.json';
