@@ -111,6 +111,8 @@
   // and the server returns the new canonical state. The local engine is used
   // only as a state holder for rendering; it does not run actions.
   async function startBattleFromQuest(questRunId) {
+    // A quest's battle that belongs on the board goes there (js/battles.js; docs/TACTICS.md §8 step 3).
+    if (global.KWBattles && global.KWBattles.onBoard && await global.KWBattles.onBoard(questRunId)) return;
     const Eng = E();
     if (!Eng) { showToastNotification('Combat engine not loaded.', 'default'); return; }
     try { await Eng.loadEnemies(true); } catch(e) {}

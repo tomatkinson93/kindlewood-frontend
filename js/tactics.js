@@ -1041,6 +1041,7 @@
         if (!res.ok || !d.ok) return resync(b, d.battle);
         b.saved = d.battle.count; b.status = d.battle.status;
         if (d.dungeon) b.dungeon = d.dungeon;      // a dungeon's battle that has ended: the run after it, what was found
+        if (d.quest) b.quest = d.quest;            // a quest's battle that has ended: what it paid, who came back better
         // What the battle taught, and any injury rolls; a repeated answer carries them in the battle's record.
         const kept = d.battle.result || {};
         if (d.rewards || kept.rewards) b.rewards = d.rewards || kept.rewards;
@@ -1081,6 +1082,13 @@
     if (found && dn) {
       const f = dn.found, bits = f ? [f.wealth ? `${f.wealth} wealth` : ''].concat((f.items || []).map(i => `${i.qty} × ${i.name || i.item}`)).filter(Boolean) : [];
       found.textContent = (bits.length ? `Found: ${bits.join(', ')}. ` : '') + (dn.ended ? (dn.run && dn.run.status === 'cleared' ? 'The dungeon is cleared!' : '') : 'The way on is open.');
+    }
+    // A quest's fight: what it paid and what the foes carried, and that the quest goes on.
+    const qd = b.quest;
+    if (found && qd && qd.outcome === 'victory') {
+      const bits = [qd.wealth ? `${qd.wealth} wealth` : ''].concat((qd.items || []).map(i => `${i.qty} × ${i.name || i.item_key}`)).filter(Boolean);
+      const better = (qd.upgraded || []).map(u => u.name);
+      found.textContent = (bits.length ? `Won: ${bits.join(', ')}. ` : '') + (better.length ? `${better.join(' and ')} came back a better fighter. ` : '') + 'The quest goes on.';
     }
     aftermath();
   }
@@ -1295,20 +1303,23 @@
     }
     S.ended = now(); S.busy = false; S.mode = 'idle';
     music(false); sfx(st.status === 'victory' ? 'victory' : 'defeat');
-    const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon;
+    const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon, inQuest = !!S.setup.quest;
     const left = st.units.filter(u => u.side === 'player' && !u.down), all = st.units.filter(u => u.side === 'player').length;
     S.after = { ready: false, xp: false, rolls: false, busy: null }; S.facesTried = false;
     box.innerHTML = `<div class="kwtc-splash is-${won ? 'won' : 'lost'}" aria-hidden="true"><span>${won ? 'Victory' : 'Defeat'}</span></div>`
       + `<div class="kw-box kwtc-end-box" role="group" aria-label="${won ? 'Victory' : 'Defeat'}"><div class="kw-box-title">${won ? '🏆 Victory' : '💀 Defeat'}</div>`
       + `<p class="kwtc-end-sum">${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
       + `<ul class="kwtc-roster">${heroRows(st, won)}</ul>`
-      + `<p class="kwtc-end-note kw-note" role="status">${won ? '' : inDungeon ? 'The dungeon run is over.' : 'A practice field: nobody is hurt and nothing is lost.'}</p>`
+      + `<p class="kwtc-end-note kw-note" role="status">${won ? '' : inDungeon ? 'The dungeon run is over.' : inQuest ? 'The party is driven off, and the quest has failed.' : 'A practice field: nobody is hurt and nothing is lost.'}</p>`
       // Who is down comes along: a rest stands them up, and so does a heal in the next fight.
       + (inDungeon && won && left.length < all ? `<p class="kwtc-fallen">${esc(st.units.filter(u => u.side === 'player' && u.down).map(u => u.name).join(' and '))} ${all - left.length === 1 ? 'is' : 'are'} down, and will be carried on. A rest stands them up; so does healing them in the next fight.</p>` : '')
-      + (inDungeon ? `<p class="kwtc-found" role="status"></p>` : '')
+      + (inDungeon || inQuest ? `<p class="kwtc-found" role="status"></p>` : '')
       + `<p class="kwtc-saved kw-note" role="status"></p>`
       // A dungeon's battle is not fought again from here: the only way on is back to the dungeon.
-      + `<div class="kwtc-confirm">` + (inDungeon
+      + `<div class="kwtc-confirm">` + (inQuest
+        // A quest's battle is fought once: the way on is back to the town.
+        ? `<button type="button" class="kw-btn primary" data-kwt="close">Back to the town</button>`
+        : inDungeon
         ? `<button type="button" class="kw-btn primary" data-kwt="close">${won ? 'Back to the dungeon' : 'See how it ended'}</button>`
         : `<button type="button" class="kw-btn primary" data-kwt="again">Same battle again</button><button type="button" class="kw-btn" data-kwt="new">A new field</button><button type="button" class="kw-btn quiet" data-kwt="close">Leave</button>`)
       + `</div></div>`;
@@ -1663,11 +1674,17 @@
     music(false);
     // Walking out of a battle that is not over ends it on the server too.
     // (A dungeon's battle is only stepped away from: it stays open, and fleeing is done from the dungeon's own screen.)
-    const b = S.battle, inDungeon = !!(S.setup && S.setup.dungeon);
-    if (!inDungeon && b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
+    // A quest's battle is stepped away from in the same way: its quest still waits on it, in the Battles list.
+    const b = S.battle, inDungeon = !!(S.setup && S.setup.dungeon), inQuest = !!(S.setup && S.setup.quest);
+    if (!inDungeon && !inQuest && b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
     S.el.classList.add('is-leaving');
-    const after = inDungeon && b ? b.queue : Promise.resolve();
-    global.setTimeout(() => { S.leaving = false; close(); if (inDungeon) after.then(() => { if (global.KWDungeon && global.KWDungeon.open) global.KWDungeon.open(); }); }, still() ? 0 : 300);
+    const after = (inDungeon || inQuest) && b ? b.queue : Promise.resolve();
+    global.setTimeout(() => {
+      S.leaving = false; close();
+      if (inDungeon) after.then(() => { if (global.KWDungeon && global.KWDungeon.open) global.KWDungeon.open(); });
+      // Back in the town: the quest, the Battles list, the stores and the citizens are read again.
+      if (inQuest) after.then(() => { for (const fn of ['refreshBattleBadge', 'refreshActiveQuests', 'refreshResources', 'loadCitizens']) { try { if (typeof global[fn] === 'function') global[fn](); } catch (e) { /* not loaded */ } } });
+    }, still() ? 0 : 300);
   }
 
   // ── Dev Tools → 💀 Dungeons → the tactics battle ──────────────────────────
@@ -1692,7 +1709,11 @@
       + `${sel('way', [{ key: 'any', label: 'A different one each time' }].concat(Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label }))), p.way || 'any', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
       + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
-      + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
+      + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`
+      // Quest battles on the board (docs/TACTICS.md §8 step 3): the switch for every player.
+      + `<div class="cheat-section-label" style="margin-top:10px">Quest battles</div>`
+      + `<div class="cheat-desc">A quest's, camp's or raid's battle fought by hand is <b>${o.quests_on ? 'on the board' : 'with cards'}</b> for players. While it is with cards, the Battles list offers you (an admin) both, so the board can be tried on real quests first.</div>`
+      + `<button type="button" class="cheat-all-btn" data-kwt-dev="quests" data-on="${o.quests_on ? 0 : 1}">${o.quests_on ? 'Put players\' quest battles back on cards' : 'Put every player\'s quest battles on the board'}</button>`;
   }
   // Fill the box Dev Tools gives us, and keep what was chosen.
   async function devMount(box) {
@@ -1703,16 +1724,24 @@
       box._kwt = true;
       const keep = ev => {
         const k = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-kwt-dev');
-        if (!k || k === 'start') return;
+        if (!k || k === 'start' || k === 'quests' || k === 'resume') return;
         if (/^class\d$/.test(k)) p.classes[Number(k.slice(5))] = ev.target.value; else p[k] = ev.target.value;
         try { global.localStorage.setItem('kwt_dev_pick', JSON.stringify(p)); } catch (e) { /* private window */ }
       };
       box.addEventListener('change', keep); box.addEventListener('input', keep);
       box.addEventListener('click', async ev => {
-        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"]');
+        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"], [data-kwt-dev="quests"]');
         if (!b) return;
         const msg = box.querySelector('[data-kwt-dev="msg"]');
         try {
+          if (b.getAttribute('data-kwt-dev') === 'quests') {
+            const d = await jsonOf(await global.apiFetch('/api/tactics/admin/quests-switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: b.getAttribute('data-on') === '1' }) }));
+            if (!d || !d.ok) throw new Error((d && d.error) || 'That did not work.');
+            DEV.options.quests_on = !!d.on;
+            if (global.KWBattles && global.KWBattles._setMode) global.KWBattles._setMode(d.on ? 'on' : 'choice');
+            box.innerHTML = devHtml(DEV.options, p);
+            return;
+          }
           if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
           await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });

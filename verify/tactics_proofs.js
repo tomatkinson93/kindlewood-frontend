@@ -292,7 +292,7 @@ console.log('11. A dungeon on the board');
   check('11a. a dungeon from Dev Tools is fought on the board: fights with cards are no longer on offer', !/kwdg-dev-combat/.test(D) && !/With cards/.test(D) && /Every fight is on the board\./.test(D) && !/combat: DEV\.pick/.test(D));
   check('11b. the dungeon\'s Fight opens the room\'s battle on the board, and nothing else', /global\.KWTactics\.openById\(p\.battle_id\)/.test(D) && !/startBattle\(/.test(D) && !/quest_run_id/.test(D));
   check('11c. the path screen has no class-cards button: there are no cards in a dungeon', !/data-action="cards"/.test(D) && !/Class cards<\/button>/.test(D));
-  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
+  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
   check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
   check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
   check('11g. the practice box does not offer to pick up a dungeon\'s battle', /d\.battle\.source !== 'dungeon' \? d\.battle : null/.test(J));
@@ -526,7 +526,7 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
   check('18i. someone with no class is told so, and what a class would teach', /Villager/.test(farmer) && /fight with a villager&#39;s three|fight with a villager's three/.test(farmer) && /would learn ten/.test(farmer) && !/data-kwab/.test(farmer));
   check('18j. names are escaped', html.includes('Hazel &lt;b&gt;') && !html.includes('Hazel <b>'));
   check('18k. the tab is on a grown citizen\'s page where battles on the board are open (admins, or dungeons switched on), and not on a child\'s', /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })) && K.tabHtml({ id: 7, life_stage: 'child' }) === ''
-    && /id="cp-tab-abilities"/.test(K.panelHtml({ id: 7 })) && /const available = \(\) => isAdmin\(\) \|\| !!\(global\.KWDungeon && global\.KWDungeon\._state && global\.KWDungeon\._state\.on\);/.test(A)
+    && /id="cp-tab-abilities"/.test(K.panelHtml({ id: 7 })) && /const available = \(\) => isAdmin\(\) \|\| !!\(global\.KWDungeon && global\.KWDungeon\._state && global\.KWDungeon\._state\.on\) \|\| /.test(A)
     && /\$\{window\.KWAbilities \? KWAbilities\.tabHtml\(c\) : ''\}/.test(CZ) && /\$\{window\.KWAbilities \? KWAbilities\.panelHtml\(c\) : ''\}/.test(CZ));
   w._kwIsAdmin = () => false;
   check('18l. a player sees no tab while dungeons are off for players', K.available() === false && K.tabHtml({ id: 7, life_stage: 'adult' }) === '' && K.panelHtml({ id: 7 }) === '');
@@ -542,6 +542,44 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
   check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));
   const C4 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
   check('18t. the check on the live site covers the new script and stylesheet', C4.includes('js/abilities.js') && C4.includes('css/abilities.css'));
+}
+
+console.log('19. A quest\'s battle on the board');
+{
+  const J = read('js/tactics.js'), B = read('js/battles.js'), CU = read('js/combat-ui.js'), A = read('js/abilities.js');
+  // The Battles list, run with what the server says about where a battle is fought.
+  const el = { innerHTML: '' };
+  const w = { console, Math, JSON, Number, String, Array, Object, Date, Promise, setInterval() { return 1; }, clearInterval() {}, setTimeout() { return 1; },
+    document: { readyState: 'complete', getElementById: id => (id === 'battles-list' ? el : null), addEventListener() {}, createElement: () => ({ style: {}, appendChild() {}, querySelector: () => null }), body: { appendChild() {} } } };
+  w.window = w; w.globalThis = w;
+  vm.createContext(w); vm.runInContext(B, w);
+  const K = w.KWBattles;
+  const battle = (x = {}) => ({ id: 7, quest_title: 'Gather herbs', quest_icon: '🌿', citizen_name: 'Ivy', combat_encounter: ['night_wolf'], combat_trigger_at: new Date().toISOString(), board_battle: null, ...x });
+  const list = (mode, b) => { K._setMode(mode); K._renderList([b || battle()]); return el.innerHTML; };
+  check('19a. with cards (the switch off, a player): one button, as before', (list('off').match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7\)">⚔ Engage</.test(list('off')) && !/bm-board/.test(list('off')));
+  check('19b. on the board for everyone: still one button; where it leads is decided when it is pressed', (list('on').match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7\)">⚔ Engage</.test(list('on')));
+  const both = list('choice');
+  check('19c. an admin while the switch is off is offered both: on the board, or with cards', /class="bm-engage bm-board" onclick="engageBattle\(7, 'board'\)"[^>]*>♟ On the board</.test(both) && /onclick="engageBattle\(7\)">🃏 With cards</.test(both));
+  const begun = list('choice', battle({ board_battle: 31 }));
+  check('19d. a battle already begun on the board offers only the way back to it', (begun.match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7, 'board'\)">♟ Back to the battle</.test(begun) && !/With cards/.test(begun));
+  check('19e. the board battle is asked of the server for that quest, then opened by its number', /apiFetch\('\/api\/tactics\/quest\/' \+ questRunId, \{ method: 'POST' \}\)/.test(B) && /await global\.KWTactics\.openById\(d\.battle\.id\);/.test(B));
+  check('19f. every way into a quest\'s battle asks first whether it belongs on the board: the card screen\'s own start does', /if \(global\.KWBattles && global\.KWBattles\.onBoard && await global\.KWBattles\.onBoard\(questRunId\)\) return;/.test(CU)
+    && /return _board === 'on' \? openOnBoard\(questRunId\) : false;/.test(B) && /apiFetch\('\/api\/tactics\/open'\)/.test(B));
+  check('19g. the list keeps what the server said with it', /if \(d && d\.board\) _board = d\.board;/.test(B));
+  // The battle screen.
+  check('19h. what became of the quest comes with the answer to the last choice', /if \(d\.quest\) b\.quest = d\.quest;/.test(J));
+  check('19i. won: what it paid, who came back better, and that the quest goes on', /found\.textContent = \(bits\.length \? `Won: \$\{bits\.join\(', '\)\}\. ` : ''\) \+ \(better\.length \? `\$\{better\.join\(' and '\)\} came back a better fighter\. ` : ''\) \+ 'The quest goes on\.';/.test(J));
+  check('19j. lost: the quest has failed', /inQuest \? 'The party is driven off, and the quest has failed\.'/.test(J));
+  check('19k. a quest\'s battle is fought once: the only button leads back to the town', /\(inQuest\n\s+\/\/ A quest's battle is fought once: the way on is back to the town\.\n\s+\? `<button type="button" class="kw-btn primary" data-kwt="close">Back to the town<\/button>`/.test(J));
+  check('19l. ✕ only steps away from it: the quest still waits on its battle', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J));
+  check('19m. back in the town the quest, the Battles list, the stores and the citizens are read again', /for \(const fn of \['refreshBattleBadge', 'refreshActiveQuests', 'refreshResources', 'loadCitizens'\]\)/.test(J));
+  // Dev Tools.
+  const dev = w2 => { const ctx = { console, Math, JSON, Number, String, Array, Object, Date, Promise, performance: { now: () => 0 }, document: { getElementById: () => null, addEventListener() {} }, localStorage: { getItem: () => null, setItem() {} } }; ctx.window = ctx; ctx.globalThis = ctx; vm.createContext(ctx); vm.runInContext(read('js/tactics-engine.js'), ctx); vm.runInContext(J, ctx); return ctx.KWTactics._devHtml(w2, { classes: ['guard', 'guard', 'guard', 'guard'] }); };
+  const opts = { classes: [{ key: 'guard', label: 'Guard', icon: '🛡️' }], levels: [], tiers: [], lands: [], fights: [], bands: [] };
+  const off = dev({ ...opts, quests_on: false }), on = dev({ ...opts, quests_on: true });
+  check('19n. Dev Tools says where players\' quest battles are fought and has the switch', /is <b>with cards<\/b> for players/.test(off) && /data-kwt-dev="quests" data-on="1">Put every player&#39;s quest battles on the board<|data-kwt-dev="quests" data-on="1">Put every player's quest battles on the board</.test(off)
+    && /is <b>on the board<\/b> for players/.test(on) && /data-kwt-dev="quests" data-on="0"/.test(on) && /'\/api\/tactics\/admin\/quests-switch'/.test(J));
+  check('19o. the Abilities tab shows to everyone once quest battles are on the board', /global\.KWBattles\.mode\(\) === 'on'/.test(A));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

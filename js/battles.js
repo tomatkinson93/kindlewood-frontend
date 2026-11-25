@@ -6,6 +6,12 @@
 //  the existing combat modal via startBattleFromQuest().
 //
 //  The nav-bar button (#nav-battles) shows a red dot when count > 0.
+//
+//  Where a battle is fought (docs/TACTICS.md §8 step 3): the server says with
+//  each list (`board`): 'on' the board for everyone, 'off' with cards as
+//  before, or 'choice' (an admin while the switch is off: both are offered).
+//  KWBattles.onBoard(id) sends a quest's battle to the board when that is
+//  where it belongs; the card battle screen asks it first (js/combat-ui.js).
 // ══════════════════════════════════════════════════════════════════════════
 
 (function (global) {
@@ -18,6 +24,8 @@
   const POLL_MS = 60000;
   let _pollTimer = null;
   let _lastCount = 0;
+  // 'on' | 'choice' | 'off', as the server last said; null until it has.
+  let _board = null;
 
   // ── Public: fetch pending battles and refresh the badge ─────────────────
   async function refreshBattleBadge() {
@@ -27,6 +35,7 @@
       if (!r.ok) return;
       const d = await r.json();
       const count = (d && d.count) || 0;
+      if (d && d.board) _board = d.board;
       // If a new pending battle appeared since last poll, the quest's
       // combat_status just flipped to 'pending' server-side. The quests
       // module is now showing a stale countdown and progress bar. Refresh
@@ -72,6 +81,7 @@
     try {
       const r = await apiFetch('/api/combat/pending');
       const d = await r.json();
+      if (d && d.board) _board = d.board;
       _renderList((d && d.battles) || []);
       _setBadge((d && d.count) || 0);
     } catch (e) {
@@ -115,7 +125,8 @@
               <span class="bm-elapsed">· ${elapsed}</span>
             </div>
           </div>
-          <button class="bm-engage" onclick="engageBattle(${b.id})">⚔ Engage</button>
+          ${_board === 'choice' && !b.board_battle ? `<button class="bm-engage bm-board" onclick="engageBattle(${b.id}, 'board')" title="Fight it on the board (the new battles; only admins are offered this until it is switched on)">♟ On the board</button>` : ''}
+          <button class="bm-engage" onclick="engageBattle(${b.id}${b.board_battle ? ", 'board'" : ''})">${b.board_battle ? '♟ Back to the battle' : _board === 'choice' ? '🃏 With cards' : '⚔ Engage'}</button>
           <button class="bm-cancel" onclick="forfeitBattle(${b.id})" title="Forfeit — the party loses and the quest fails." aria-label="Forfeit — the party loses and the quest fails.">✕</button>
         </div>`;
     }).join('');
@@ -125,8 +136,30 @@
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  function engageBattle(questRunId) {
+  // The quest's battle on the board: made by the server if it is not there yet, then opened. → whether it opened.
+  async function openOnBoard(questRunId) {
+    if (!global.KWTactics || !global.KWTactics.openById || typeof apiFetch !== 'function') return false;
+    try {
+      const r = await apiFetch('/api/tactics/quest/' + questRunId, { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok || !d.battle) { if (d.error && typeof showToastNotification === 'function') showToastNotification('⚠️ ' + d.error, 'default'); return false; }
+      await global.KWTactics.openById(d.battle.id);
+      return true;
+    } catch (e) { return false; }
+  }
+  // Does this quest's battle belong on the board? If so it is opened there. → true when it was.
+  // Asked by the card battle screen before it opens (js/combat-ui.js startBattleFromQuest), so every way into a
+  // quest's battle (this list, a camp assault, a sally) goes to the right place.
+  async function onBoard(questRunId) {
+    if (_board === null && typeof apiFetch === 'function') {
+      try { const r = await apiFetch('/api/tactics/open'); const d = await r.json(); _board = (d && d.quests) || 'off'; } catch (e) { return false; }
+    }
+    return _board === 'on' ? openOnBoard(questRunId) : false;
+  }
+
+  async function engageBattle(questRunId, how) {
     closeBattlesModal();
+    if (how === 'board') { if (!(await openOnBoard(questRunId))) refreshBattleBadge(); return; }
     if (typeof startBattleFromQuest !== 'function') {
       showToastNotification('⚠️ Combat module not loaded.', 'default');
       return;
@@ -372,5 +405,7 @@
   global.closeBattleReport  = closeBattleReport;
   global.startBattlePolling = startBattlePolling;
   global.stopBattlePolling  = stopBattlePolling;
+  // Where a quest's battle is fought: see the top of this file.
+  global.KWBattles = { onBoard, openOnBoard, mode: () => _board, _renderList, _setMode: m => { _board = m; } };
 
 })(typeof window !== 'undefined' ? window : globalThis);

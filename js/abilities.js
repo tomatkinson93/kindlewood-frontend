@@ -14,7 +14,7 @@
 //  own (KWTactics.icon, effectText, reachText).
 //
 //  The tab shows only where battles on the board are open: to admins, and to
-//  everyone once dungeons are switched on for players.
+//  everyone once dungeons, or quest battles on the board, are switched on.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -25,7 +25,7 @@
   const S = { id: null, page: null, pick: null, busy: false, wired: null };
 
   const isAdmin = () => typeof global._kwIsAdmin === 'function' && !!global._kwIsAdmin();
-  const available = () => isAdmin() || !!(global.KWDungeon && global.KWDungeon._state && global.KWDungeon._state.on);
+  const available = () => isAdmin() || !!(global.KWDungeon && global.KWDungeon._state && global.KWDungeon._state.on) || !!(global.KWBattles && global.KWBattles.mode && global.KWBattles.mode() === 'on');
 
   // ── Words (pure) ────────────────────────────────────────────────────────
   const T = () => global.KWTactics || {};
