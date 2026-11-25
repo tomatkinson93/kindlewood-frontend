@@ -107,6 +107,8 @@
         ? b.party_members.map(m => m.name).join(', ')
         : (b.citizen_name || 'A party');
       const enemies = (() => {
+        // Fought on the board, a creature is the foe that stands in for it there (the server names them).
+        if ((_board === 'on' || b.board_battle) && b.board_foes && b.board_foes.length) return b.board_foes.join(', ');
         let enc = b.combat_encounter || [];
         if (typeof enc === 'string') { try { enc = JSON.parse(enc); } catch(e){ enc = []; } }
         if (!enc.length) return 'an unknown foe';
@@ -229,7 +231,8 @@
     titleEl.style.color = won ? '#e8c76a' : '#e07a6a';
     subEl.textContent = (data.quest_title || '') + ' · ' + _formatDate(data.resolved_at);
 
-    const enemies = (data.encounter || []).map(_titleCase).join(', ') || 'an unknown foe';
+    // A battle fought on the board says who was fought there; a card battle names its creatures.
+    const enemies = (data.foes && data.foes.length ? data.foes : (data.encounter || []).map(_titleCase)).join(', ') || 'an unknown foe';
 
     // Party stats from the final battle state (HP at end of fight)
     const battleUnits = (data.battle_state && data.battle_state.units) || [];
@@ -406,6 +409,6 @@
   global.startBattlePolling = startBattlePolling;
   global.stopBattlePolling  = stopBattlePolling;
   // Where a quest's battle is fought: see the top of this file.
-  global.KWBattles = { onBoard, openOnBoard, mode: () => _board, _renderList, _setMode: m => { _board = m; } };
+  global.KWBattles = { onBoard, openOnBoard, mode: () => _board, _renderList, _renderReport, _setMode: m => { _board = m; } };
 
 })(typeof window !== 'undefined' ? window : globalThis);

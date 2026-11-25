@@ -562,6 +562,8 @@ console.log('19. A quest\'s battle on the board');
   check('19c. an admin while the switch is off is offered both: on the board, or with cards', /class="bm-engage bm-board" onclick="engageBattle\(7, 'board'\)"[^>]*>♟ On the board</.test(both) && /onclick="engageBattle\(7\)">🃏 With cards</.test(both));
   const begun = list('choice', battle({ board_battle: 31 }));
   check('19d. a battle already begun on the board offers only the way back to it', (begun.match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7, 'board'\)">♟ Back to the battle</.test(begun) && !/With cards/.test(begun));
+  check('19d2. on the board the list names the foes of the board, not the old creatures', /has encountered Wolf Raider/.test(list('on', battle({ board_foes: ['Wolf Raider'] }))) && /has encountered Night Wolf/.test(list('off', battle({ board_foes: ['Wolf Raider'] })))
+    && /has encountered Wolf Raider/.test(list('choice', battle({ board_battle: 31, board_foes: ['Wolf Raider'] }))) && /data\.foes && data\.foes\.length \? data\.foes : \(data\.encounter \|\| \[\]\)\.map\(_titleCase\)/.test(B));
   check('19e. the board battle is asked of the server for that quest, then opened by its number', /apiFetch\('\/api\/tactics\/quest\/' \+ questRunId, \{ method: 'POST' \}\)/.test(B) && /await global\.KWTactics\.openById\(d\.battle\.id\);/.test(B));
   check('19f. every way into a quest\'s battle asks first whether it belongs on the board: the card screen\'s own start does', /if \(global\.KWBattles && global\.KWBattles\.onBoard && await global\.KWBattles\.onBoard\(questRunId\)\) return;/.test(CU)
     && /return _board === 'on' \? openOnBoard\(questRunId\) : false;/.test(B) && /apiFetch\('\/api\/tactics\/open'\)/.test(B));
