@@ -1479,7 +1479,7 @@ function _campSectionHtml(tile) {
   return `<div class="op-section op-camp">
       <div class="op-title">🏕️ Withered camp</div>
       <div class="op-note op-note-warn">Raiders gather here. Strength about ${c.strength_min}–${c.strength_max}.</div>
-      <div class="op-worker-hint">Burn it with a party of up to four — a card battle. Win, and every town within 6 tiles gets 3 days of peace, and you take the spoils.</div>
+      <div class="op-worker-hint">Burn it with a party of up to four — a battle on the board. Win, and every town within 6 tiles gets 3 days of peace, and you take the spoils.</div>
       ${people.length ? `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].map(i => `<select class="op-worker-select" data-camp-pick="${i}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>
         <button class="action-btn op-worker-btn" data-camp-assault="${c.id}">🔥 Burn the camp</button>`
         : `<div class="op-worker-hint op-worker-none">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`}
