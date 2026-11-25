@@ -1701,7 +1701,7 @@
     if (!o) return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle</div><div class="cheat-desc">Loading…</div>`;
     const sel = (id, list, val, label) => `<label>${esc(label)} <select class="ce-input" data-kwt-dev="${id}">${list.map(x => `<option value="${esc(x.key)}"${x.key === val ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>`;
     return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle</div>`
-      + `<div class="cheat-desc">A battle on a small board: walk, face, strike from behind or from above. It uses four of your grown-up citizens with the classes chosen here, costs nothing and changes nothing.</div>`
+      + `<div class="cheat-desc">A practice battle: four of your grown-up citizens with the classes chosen here, against whoever is chosen. It costs nothing and changes nothing. (A quest's battle is fought the same way, from the Battles list.)</div>`
       + `<div class="kwdg-dev-row">${SLOTS.map((s, i) => sel('class' + i, o.classes.map(c => ({ key: c.key, label: `${c.icon} ${c.label}` })), p.classes[i], s)).join('')}</div>`
       + `<div class="kwdg-dev-row">${sel('level', o.levels, p.level, 'Their level')}${sel('tier', o.tiers.map(t => ({ key: t.key, label: `${t.skull} ${t.name}` })), p.tier, 'Skull')}`
       + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}${sel('band', o.bands || [{ key: '', label: 'Whoever lives in that land' }], p.band || '', 'Whose')}`
@@ -1709,11 +1709,7 @@
       + `${sel('way', [{ key: 'any', label: 'A different one each time' }].concat(Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label }))), p.way || 'any', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
       + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
-      + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`
-      // Quest battles on the board (docs/TACTICS.md §8 step 3): the switch for every player.
-      + `<div class="cheat-section-label" style="margin-top:10px">Quest battles</div>`
-      + `<div class="cheat-desc">A quest's, camp's or raid's battle fought by hand is <b>${o.quests_on ? 'on the board' : 'with cards'}</b> for players. While it is with cards, the Battles list offers you (an admin) both, so the board can be tried on real quests first.</div>`
-      + `<button type="button" class="cheat-all-btn" data-kwt-dev="quests" data-on="${o.quests_on ? 0 : 1}">${o.quests_on ? 'Put players\' quest battles back on cards' : 'Put every player\'s quest battles on the board'}</button>`;
+      + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
   }
   // Fill the box Dev Tools gives us, and keep what was chosen.
   async function devMount(box) {
@@ -1724,24 +1720,16 @@
       box._kwt = true;
       const keep = ev => {
         const k = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-kwt-dev');
-        if (!k || k === 'start' || k === 'quests' || k === 'resume') return;
+        if (!k || k === 'start' || k === 'resume') return;
         if (/^class\d$/.test(k)) p.classes[Number(k.slice(5))] = ev.target.value; else p[k] = ev.target.value;
         try { global.localStorage.setItem('kwt_dev_pick', JSON.stringify(p)); } catch (e) { /* private window */ }
       };
       box.addEventListener('change', keep); box.addEventListener('input', keep);
       box.addEventListener('click', async ev => {
-        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"], [data-kwt-dev="quests"]');
+        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"]');
         if (!b) return;
         const msg = box.querySelector('[data-kwt-dev="msg"]');
         try {
-          if (b.getAttribute('data-kwt-dev') === 'quests') {
-            const d = await jsonOf(await global.apiFetch('/api/tactics/admin/quests-switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: b.getAttribute('data-on') === '1' }) }));
-            if (!d || !d.ok) throw new Error((d && d.error) || 'That did not work.');
-            DEV.options.quests_on = !!d.on;
-            if (global.KWBattles && global.KWBattles._setMode) global.KWBattles._setMode(d.on ? 'on' : 'choice');
-            box.innerHTML = devHtml(DEV.options, p);
-            return;
-          }
           if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
           await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });

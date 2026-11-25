@@ -5,7 +5,7 @@
 //    🏡 Home       the painted settlement scene (a view), with its tools
 //    👪 Families   the Families window
 //    🌲 The Land   the world map (a view), with its tools
-//    🧺 The Road   a window: Quests · Battles · Decks · Market
+//    🧺 The Road   a window: Quests · Battles · Market
 //    🛡 The Clan   a window: the clan hall · Chat
 //
 //  Social and meta things (Messages, Rankings, Online, World events,
@@ -88,7 +88,6 @@
       items: [
         { key: 'quests',  label: 'Quests',  glyph: '📜', desc: 'The notice board: work for your citizens', run: () => call('openQuestsModal'), dot: 'nav-quests' },
         { key: 'battles', label: 'Battles', glyph: '⚔️', desc: 'Fights waiting for you', run: () => call('openBattlesModal'), dot: 'nav-battles' },
-        { key: 'decks',   label: 'Decks',   glyph: '🃏', desc: 'Your combat cards', run: () => call('openDeckBuilder'), dot: 'nav-decks' },
         { key: 'market',  label: 'Market',  glyph: '⚖️', desc: 'Buy and sell with other towns', run: () => call('showCommunityTab', 'market'), dot: 'nav-market' },
       ],
     },
@@ -345,7 +344,7 @@
           + '<li><b>Home</b>: your town, its stores, tavern, research and crafting.</li>'
           + '<li><b>Families</b>: your citizens, their families and the chronicle.</li>'
           + '<li><b>The Land</b>: the map, outposts and journeys.</li>'
-          + '<li><b>The Road</b>: quests, battles, decks and the market.</li>'
+          + '<li><b>The Road</b>: quests, battles and the market.</li>'
           + '<li><b>The Clan</b>: your clan and chat.</li></ul>'
           + '<p>Messages, rankings, who is online and feedback are in the menu under your name. Keys 1–5 switch place.</p>'
           + '<button type="button" class="kw-btn primary" data-action="ok">Got it</button>';

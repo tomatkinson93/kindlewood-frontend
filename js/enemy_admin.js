@@ -4,9 +4,11 @@
 //  CRUD for enemy_definitions. Mirrors the item_admin / quest_admin patterns
 //  so the styling and feedback widgets all reuse existing classes.
 //
-//  Live-loaded by the combat engine via CombatEngine.loadEnemies(); calling
-//  loadEnemies(true) forces a refresh after edits, so the very next test
-//  battle uses the new stats.
+//  A creature here is what a quest can meet. In a battle it is the foe of the
+//  board that stands in for it (the server's lib/tactics_foes.js), or, for a
+//  creature made here that the board has never heard of, a foe read from
+//  these numbers as best it can be. The server reads the table when a battle
+//  is made, so an edit counts from the next battle.
 // ══════════════════════════════════════════════════════════════════════════
 
 let _eaList = [];
@@ -338,10 +340,6 @@ async function ea_save(existingId) {
     _eaFormFeedback('✓ Saved.', true);
     ea_cancelForm();
     await loadEnemyAdmin();
-    // Force the engine to repick definitions on the next battle.
-    if (window.CombatEngine && CombatEngine.loadEnemies) {
-      try { await CombatEngine.loadEnemies(true); } catch (e) {}
-    }
   } catch (e) {
     _eaFormFeedback('⚠️ ' + e.message, false);
   }
@@ -359,9 +357,6 @@ async function ea_delete(id) {
     const d = await r.json();
     if (!r.ok) { alert('⚠️ ' + (d.error || 'Delete failed.')); return; }
     await loadEnemyAdmin();
-    if (window.CombatEngine && CombatEngine.loadEnemies) {
-      try { await CombatEngine.loadEnemies(true); } catch (e) {}
-    }
   } catch (e) { alert('⚠️ ' + e.message); }
 }
 
@@ -372,25 +367,19 @@ async function ea_seedDefaults(force) {
     const d = await r.json();
     if (!r.ok) { alert('⚠️ ' + (d.error || 'Seed failed.')); return; }
     await loadEnemyAdmin();
-    if (window.CombatEngine && CombatEngine.loadEnemies) {
-      try { await CombatEngine.loadEnemies(true); } catch (e) {}
-    }
   } catch (e) { alert('⚠️ ' + e.message); }
 }
 
-// ── Formula reference popup for enemy moves (mirrors the card editor) ──────
-let _eaFormulaHelp = null;
-async function ea_loadFormulaHelp() {
-  if (_eaFormulaHelp) return _eaFormulaHelp;
-  try {
-    if (window.CARD_FORMULA && window.CARD_FORMULA.HELP) { _eaFormulaHelp = window.CARD_FORMULA.HELP; return _eaFormulaHelp; }
-  } catch (e) {}
-  try {
-    const r = await apiFetch('/api/cards/meta');
-    if (r.ok) { const d = await r.json(); _eaFormulaHelp = (d.help || (d.meta && d.meta.help)) || null; }
-  } catch (e) {}
-  return _eaFormulaHelp;
-}
+// ── Formula reference popup for a creature's moves ─────────────────────────
+// What the board reads from a move's formula (the server's lib/tactics_setup.js read()). A creature made here
+// that the board has no foe for fights with these moves; a line the board does not know is left out.
+const _eaFormulaHelp = {
+  verbs: ['damage', 'block', 'heal', 'debuff weak', 'debuff vulnerable', 'buff damage_bonus', 'slow', 'stun', 'poison', 'push', 'move'],
+  stats: ['strength', 'agility', 'endurance', 'intelligence', 'charisma', 'combat'],
+  examples: ['damage: strength*0.8 + 2', 'damage: strength*0.5 + 1\npoison: 3', 'heal: 8', 'block: endurance*0.6 + 4'],
+  notes: ['One effect a line: a verb, a colon, then a sum of numbers and stats.', 'A move aimed at all enemies hits everyone within two tiles.'],
+};
+async function ea_loadFormulaHelp() { return _eaFormulaHelp; }
 
 async function ea_showFormulaHelp() {
   const pop = document.getElementById('ea-help-pop');

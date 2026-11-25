@@ -1,0 +1,21 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Dev Tools › Creatures: the formula help beside a creature's moves
+   (js/enemy_admin.js). Loaded for admins only, by js/dev-tools.js.
+   These few rules were part of the card editor's stylesheet
+   (css/card-admin.css), which went with the cards on 2026-11-26; the
+   creature editor still uses them, so they are kept here under their old
+   class names.
+   ══════════════════════════════════════════════════════════════════════════ */
+.ca-muted { color:rgba(192,221,151,.3); font-size:11px; padding:8px; }
+.ca-cancel { background:#2c2618; color:#c9a45c; border:1px solid #50432a; border-radius:6px; padding:8px 14px; cursor:pointer; }
+.ca-cancel:hover { background:#3a3120; }
+.ca-help-btn { background:#50432a; color:#f4c95d; border:none; border-radius:50%; width:16px; height:16px; cursor:pointer; font-weight:700; }
+.ca-help-pop, .ea-help-pop {
+  position:absolute; top:0; right:0; width:340px; max-height:420px; overflow-y:auto;
+  background:#1a150d; border:1px solid #6b5d3e; border-radius:8px; padding:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.7); z-index:100000; font-size:11px; color:#e8ddc4;
+}
+.ca-help-title { font-weight:700; color:#f4c95d; margin-bottom:6px; }
+.ca-help-sec { margin-bottom:6px; line-height:1.4; }
+.ca-help-pre { background:#0f0c07; border:1px solid #3a3120; border-radius:5px; padding:8px; font-size:10.5px; color:#c9d8a8; white-space:pre-wrap; }
+.ca-help-pop code, .ea-help-pop code { background:#2c2618; padding:1px 4px; border-radius:3px; color:#f0d89a; font-size:10px; }

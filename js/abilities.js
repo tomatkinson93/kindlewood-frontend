@@ -13,8 +13,8 @@
 //  pictures and the words for what an ability does are the battle screen's
 //  own (KWTactics.icon, effectText, reachText).
 //
-//  The tab shows only where battles on the board are open: to admins, and to
-//  everyone once dungeons, or quest battles on the board, are switched on.
+//  Every battle is fought on the board, so the tab is on every grown
+//  citizen's page.
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -24,8 +24,8 @@
   // page: what the server last said; pick: the keys ticked now (null until the player changes something).
   const S = { id: null, page: null, pick: null, busy: false, wired: null };
 
-  const isAdmin = () => typeof global._kwIsAdmin === 'function' && !!global._kwIsAdmin();
-  const available = () => isAdmin() || !!(global.KWDungeon && global.KWDungeon._state && global.KWDungeon._state.on) || !!(global.KWBattles && global.KWBattles.mode && global.KWBattles.mode() === 'on');
+  // Every player's battles are fought on the board, so every grown citizen has the tab.
+  const available = () => true;
 
   // ── Words (pure) ────────────────────────────────────────────────────────
   const T = () => global.KWTactics || {};

@@ -90,10 +90,11 @@
       <p>A solo quest can be <b>abandoned</b> while it's under way, as long as no battle has started; the citizen comes home empty-handed.</p>
       <p>A <b>Watchtower</b> (Village) gives Guards and Archers a post: each one on watch cheers the town (+1 happiness, up to +5) and adds to its defence.</p>`,
       open: [['📜 Notice board', link('openNoticeboard')]] },
-    { id: 'battles', icon: '⚔', title: 'Battles and cards', body: `
+    { id: 'battles', icon: '⚔', title: 'Battles', body: `
       <p>Quests can lead to a fight. The creatures you meet belong to the land — marsh things in the marsh, ogres in the hills — and some only come out at night. Many have tricks: poison, stuns, shrieks that weaken, healers that patch up their kin.</p>
-      <p>Win and the loot they carried goes straight into your stores. Your party fights with a <b>deck of cards</b>. Everyone starts with nine; more are won in battle now and then, found on quests, or taught by an <b>Allied</b> village (two a week, for wealth). A deck can only hold cards you own.</p>`,
-      open: [['🃏 Deck Builder', link('openDeckBuilder')]] },
+      <p>A fight is played on a small <b>board</b>: each of your citizens walks, then acts, then chooses which way to face. A blow from the side lands harder and one from behind harder still, and high ground helps. Win and what the foes carried goes straight into your stores, and your fighters gain experience in their class.</p>
+      <p>Each citizen fights with the <b>abilities</b> of their class: a Guard, Archer, Wizard or Hearthkeeper learns more as their class level rises and brings five to a battle (choose them on the citizen's <b>Abilities</b> tab); anyone else fights as a villager. You can also leave a quest's fight to be decided for you when you send the party.</p>`,
+      open: [['⚔ Battles', link('openBattlesModal')]] },
     { id: 'raids', icon: '🔥', title: 'Villages, trust and raids', body: `
       <p>Trust with a village fades if you never write: after a week without a gift, trade, envoy, quest or tribute it drops a point a day — but never below the band under the best you reached (an old ally can cool to Friendly, no further). The village panel warns you first.</p>
       <p>An <b>Allied</b> village sends a small daily tribute, teaches fighting cards, and its militia helps guard your outposts within 4 tiles.</p>

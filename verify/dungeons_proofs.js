@@ -8,7 +8,7 @@ const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 let pass = 0, fail = 0;
 const check = require('./_devmarkup').devAware((name, ok, extra) => { console.log((ok ? '  ✔ ' : '  ✘ ') + name + (extra ? ' — ' + extra : '')); ok ? pass++ : fail++; });
-const J = read('js/dungeons.js'), CSS = read('css/dungeons.css'), CU = read('js/combat-ui.js'), CZ = read('js/citizens.js'), H = read('index.html');
+const J = read('js/dungeons.js'), CSS = read('css/dungeons.css'), CZ = read('js/citizens.js'), H = read('index.html');
 const DEV = require('./_devmarkup').devMarkup();
 
 const w = { console, Date, Math, JSON, Number, String, Array, Object, document: { getElementById() { return null; } } }; w.window = w; vm.createContext(w);
@@ -131,7 +131,7 @@ console.log('10. No cards: every fight is on the board');
   check('10d. a rest room is a rest and nothing else', /data-action="choose" data-option="\$\{esc\(o\.key\)\}"/.test(J) && !/hone/i.test(J.replace(/^\s*\/\/.*$/gm, '')));
   check('10e. Fight closes the path window and opens the room\'s battle on the board', /if \(S\.win\) \{ const w = S\.win; S\.win = null; try \{ w\.close\(\); \} catch \(e\) \{ \/\* gone \*\/ \} \}\n      global\.KWTactics\.openById\(p\.battle_id\)/.test(J));
   check('10f. the stylesheet carries no card rules', !/kwdg-card|kwdg-pick|kwdg-coll|kwdg-prep|cm-dungeon-flee/.test(CSS));
-  check('10g. the old card battle screen knows nothing of dungeons any more', !/ungeon/.test(CU));
+  check('10g. the card battle screen is gone altogether (2026-11-26): its script is not in the folder or on the page', !fs.existsSync(path.join(ROOT, 'js/combat-ui.js')) && !/combat-ui\.js|card-hand-ui|deck-builder/.test(H));
   check('10h. Dev Tools offers no class cards, and says where the skull numbers are', !/data-kwdg="cards"/.test(J) && /How tough each skull's foes are \(health and power\)/.test(J));
 }
 

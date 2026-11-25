@@ -525,11 +525,11 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
   const farmer = K._pageHtml({ citizen: { id: 8, name: 'Oakley' }, cls: 'villager', label: 'Villager', icon: '🧺', career: null, level: 1, xp: { into: 0, need: 0 }, max: 5, can_choose: false, busy: false, abilities: [ab('v_swing', 'Swing', 1, { ready: true }), ab('v_duck', 'Duck', 1, { ready: true }), ab('t_tool', 'Tool', 1, { ready: true })] });
   check('18i. someone with no class is told so, and what a class would teach', /Villager/.test(farmer) && /fight with a villager&#39;s three|fight with a villager's three/.test(farmer) && /would learn ten/.test(farmer) && !/data-kwab/.test(farmer));
   check('18j. names are escaped', html.includes('Hazel &lt;b&gt;') && !html.includes('Hazel <b>'));
-  check('18k. the tab is on a grown citizen\'s page where battles on the board are open (admins, or dungeons switched on), and not on a child\'s', /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })) && K.tabHtml({ id: 7, life_stage: 'child' }) === ''
-    && /id="cp-tab-abilities"/.test(K.panelHtml({ id: 7 })) && /const available = \(\) => isAdmin\(\) \|\| !!\(global\.KWDungeon && global\.KWDungeon\._state && global\.KWDungeon\._state\.on\) \|\| /.test(A)
+  check('18k. the tab is on every grown citizen\'s page (every battle is on the board), and not on a child\'s', /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })) && K.tabHtml({ id: 7, life_stage: 'child' }) === ''
+    && /id="cp-tab-abilities"/.test(K.panelHtml({ id: 7 })) && K.available() === true
     && /\$\{window\.KWAbilities \? KWAbilities\.tabHtml\(c\) : ''\}/.test(CZ) && /\$\{window\.KWAbilities \? KWAbilities\.panelHtml\(c\) : ''\}/.test(CZ));
   w._kwIsAdmin = () => false;
-  check('18l. a player sees no tab while dungeons are off for players', K.available() === false && K.tabHtml({ id: 7, life_stage: 'adult' }) === '' && K.panelHtml({ id: 7 }) === '');
+  check('18l. a player who is no admin sees it too', K.available() === true && /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })));
   check('18m. the server is asked what is known and told the five; nothing is worked out here', /call\(String\(id\)\)/.test(A) && /call\(S\.id \+ '\/ready', \{ keys: S\.pick \}\)/.test(A) && /'\/api\/tactics\/abilities\/' \+ path/.test(A) && !/\.at\s*<=/.test(A));
   check('18n. the script and its stylesheet are on the page, after the battle screen it borrows from; the stylesheet uses the shared colours only', /<script defer src="\/js\/tactics\.js\?v=h[0-9a-f]{8}"><\/script>[^\n]*\n\s*<script defer src="\/js\/abilities\.js\?v=h[0-9a-f]{8}"><\/script>/.test(H)
     && /<link rel="stylesheet" href="\/css\/abilities\.css\?v=h[0-9a-f]{8}">/.test(H) && !/#[0-9a-fA-F]{3,8}\b/.test(ACSS) && !/rgba?\(/.test(ACSS) && /\.kwab-tick \{[^}]*min-height: var\(--kw-touch\)/.test(ACSS));
@@ -544,30 +544,28 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
   check('18t. the check on the live site covers the new script and stylesheet', C4.includes('js/abilities.js') && C4.includes('css/abilities.css'));
 }
 
-console.log('19. A quest\'s battle on the board');
+console.log('19. A quest\'s battle is fought on the board; the cards are gone');
 {
-  const J = read('js/tactics.js'), B = read('js/battles.js'), CU = read('js/combat-ui.js'), A = read('js/abilities.js');
-  // The Battles list, run with what the server says about where a battle is fought.
+  const J = read('js/tactics.js'), B = read('js/battles.js'), H = read('index.html'), RT = read('js/realtime.js');
+  // The Battles list.
   const el = { innerHTML: '' };
-  const w = { console, Math, JSON, Number, String, Array, Object, Date, Promise, setInterval() { return 1; }, clearInterval() {}, setTimeout() { return 1; },
+  const toasts = [];
+  const w = { console, Math, JSON, Number, String, Array, Object, Date, Promise, setInterval() { return 1; }, clearInterval() {}, setTimeout() { return 1; }, showToastNotification: m => toasts.push(m),
     document: { readyState: 'complete', getElementById: id => (id === 'battles-list' ? el : null), addEventListener() {}, createElement: () => ({ style: {}, appendChild() {}, querySelector: () => null }), body: { appendChild() {} } } };
   w.window = w; w.globalThis = w;
   vm.createContext(w); vm.runInContext(B, w);
   const K = w.KWBattles;
-  const battle = (x = {}) => ({ id: 7, quest_title: 'Gather herbs', quest_icon: '🌿', citizen_name: 'Ivy', combat_encounter: ['night_wolf'], combat_trigger_at: new Date().toISOString(), board_battle: null, ...x });
-  const list = (mode, b) => { K._setMode(mode); K._renderList([b || battle()]); return el.innerHTML; };
-  check('19a. with cards (the switch off, a player): one button, as before', (list('off').match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7\)">⚔ Engage</.test(list('off')) && !/bm-board/.test(list('off')));
-  check('19b. on the board for everyone: still one button; where it leads is decided when it is pressed', (list('on').match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7\)">⚔ Engage</.test(list('on')));
-  const both = list('choice');
-  check('19c. an admin while the switch is off is offered both: on the board, or with cards', /class="bm-engage bm-board" onclick="engageBattle\(7, 'board'\)"[^>]*>♟ On the board</.test(both) && /onclick="engageBattle\(7\)">🃏 With cards</.test(both));
-  const begun = list('choice', battle({ board_battle: 31 }));
-  check('19d. a battle already begun on the board offers only the way back to it', (begun.match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7, 'board'\)">♟ Back to the battle</.test(begun) && !/With cards/.test(begun));
-  check('19d2. on the board the list names the foes of the board, not the old creatures', /has encountered Wolf Raider/.test(list('on', battle({ board_foes: ['Wolf Raider'] }))) && /has encountered Night Wolf/.test(list('off', battle({ board_foes: ['Wolf Raider'] })))
-    && /has encountered Wolf Raider/.test(list('choice', battle({ board_battle: 31, board_foes: ['Wolf Raider'] }))) && /data\.foes && data\.foes\.length \? data\.foes : \(data\.encounter \|\| \[\]\)\.map\(_titleCase\)/.test(B));
-  check('19e. the board battle is asked of the server for that quest, then opened by its number', /apiFetch\('\/api\/tactics\/quest\/' \+ questRunId, \{ method: 'POST' \}\)/.test(B) && /await global\.KWTactics\.openById\(d\.battle\.id\);/.test(B));
-  check('19f. every way into a quest\'s battle asks first whether it belongs on the board: the card screen\'s own start does', /if \(global\.KWBattles && global\.KWBattles\.onBoard && await global\.KWBattles\.onBoard\(questRunId\)\) return;/.test(CU)
-    && /return _board === 'on' \? openOnBoard\(questRunId\) : false;/.test(B) && /apiFetch\('\/api\/tactics\/open'\)/.test(B));
-  check('19g. the list keeps what the server said with it', /if \(d && d\.board\) _board = d\.board;/.test(B));
+  const battle = (x = {}) => ({ id: 7, quest_title: 'Gather herbs', quest_icon: '🌿', citizen_name: 'Ivy', combat_encounter: ['night_wolf'], combat_trigger_at: new Date().toISOString(), board_battle: null, board_foes: ['Wolf Raider'], ...x });
+  const list = b => { K._renderList([b || battle()]); return el.innerHTML; };
+  check('19a. a waiting battle has one button, Engage, and a way to give it up', (list().match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7\)">⚔ Engage</.test(list()) && /onclick="forfeitBattle\(7\)"/.test(list()) && !/With cards|bm-board/.test(list()));
+  check('19b. one already begun offers the way back to it', /onclick="engageBattle\(7\)">♟ Back to the battle</.test(list(battle({ board_battle: 31 }))));
+  check('19c. the list names the foes of the board, not the old creatures', /has encountered Wolf Raider/.test(list()) && /has encountered Night Wolf/.test(list(battle({ board_foes: [] }))));
+  check('19d. the battle is asked of the server for that quest, then opened on the board by its number', /apiFetch\('\/api\/tactics\/quest\/' \+ questRunId, \{ method: 'POST' \}\)/.test(B) && /await global\.KWTactics\.openById\(d\.battle\.id\);/.test(B));
+  check('19e. startBattleFromQuest is the one way in, for the list, a camp assault and a sally', typeof w.startBattleFromQuest === 'function' && /global\.startBattleFromQuest = startBattleFromQuest;/.test(B)
+    && /startBattleFromQuest\(data\.quest_run_id\)/.test(read('js/main.js')) && /global\.startBattleFromQuest\(runId\)/.test(read('js/raids.js')));
+  K.onSpoils({ items: [{ name: 'Iron Ore', icon: '⛏️', qty: 2 }] });
+  check('19f. a fight decided for the player says what it left in the stores', toasts.length === 1 && /From the fight: ⛏️ Iron Ore ×2/.test(toasts[0]) && /battle_spoils\(ev\) \{ if \(global\.KWBattles && global\.KWBattles\.onSpoils\) global\.KWBattles\.onSpoils\(ev\); \}/.test(RT));
+  check('19g. the battle report names who was fought on the board', /data\.foes && data\.foes\.length \? data\.foes : \(data\.encounter \|\| \[\]\)\.map\(_titleCase\)/.test(B));
   // The battle screen.
   check('19h. what became of the quest comes with the answer to the last choice', /if \(d\.quest\) b\.quest = d\.quest;/.test(J));
   check('19i. won: what it paid, who came back better, and that the quest goes on', /found\.textContent = \(bits\.length \? `Won: \$\{bits\.join\(', '\)\}\. ` : ''\) \+ \(better\.length \? `\$\{better\.join\(' and '\)\} came back a better fighter\. ` : ''\) \+ 'The quest goes on\.';/.test(J));
@@ -575,13 +573,16 @@ console.log('19. A quest\'s battle on the board');
   check('19k. a quest\'s battle is fought once: the only button leads back to the town', /\(inQuest\n\s+\/\/ A quest's battle is fought once: the way on is back to the town\.\n\s+\? `<button type="button" class="kw-btn primary" data-kwt="close">Back to the town<\/button>`/.test(J));
   check('19l. ✕ only steps away from it: the quest still waits on its battle', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J));
   check('19m. back in the town the quest, the Battles list, the stores and the citizens are read again', /for \(const fn of \['refreshBattleBadge', 'refreshActiveQuests', 'refreshResources', 'loadCitizens'\]\)/.test(J));
-  // Dev Tools.
-  const dev = w2 => { const ctx = { console, Math, JSON, Number, String, Array, Object, Date, Promise, performance: { now: () => 0 }, document: { getElementById: () => null, addEventListener() {} }, localStorage: { getItem: () => null, setItem() {} } }; ctx.window = ctx; ctx.globalThis = ctx; vm.createContext(ctx); vm.runInContext(read('js/tactics-engine.js'), ctx); vm.runInContext(J, ctx); return ctx.KWTactics._devHtml(w2, { classes: ['guard', 'guard', 'guard', 'guard'] }); };
-  const opts = { classes: [{ key: 'guard', label: 'Guard', icon: '🛡️' }], levels: [], tiers: [], lands: [], fights: [], bands: [] };
-  const off = dev({ ...opts, quests_on: false }), on = dev({ ...opts, quests_on: true });
-  check('19n. Dev Tools says where players\' quest battles are fought and has the switch', /is <b>with cards<\/b> for players/.test(off) && /data-kwt-dev="quests" data-on="1">Put every player&#39;s quest battles on the board<|data-kwt-dev="quests" data-on="1">Put every player's quest battles on the board</.test(off)
-    && /is <b>on the board<\/b> for players/.test(on) && /data-kwt-dev="quests" data-on="0"/.test(on) && /'\/api\/tactics\/admin\/quests-switch'/.test(J));
-  check('19o. the Abilities tab shows to everyone once quest battles are on the board', /global\.KWBattles\.mode\(\) === 'on'/.test(A));
+  // The cards are gone.
+  const gone = ['js/cards.js', 'js/card-admin.js', 'js/card-combat.js', 'js/card-definitions.js', 'js/card-engine.js', 'js/card-formula.js', 'js/card-hand-ui.js', 'js/card-registry.js', 'js/combat-engine.js', 'js/combat-ui.js', 'js/deck-builder.js',
+    'css/card-admin.css', 'css/card-hand-ui.css', 'css/deck-feedback.css'];
+  check('19n. the card battler is deleted: its engine, hand, battle screen, deck builder, collection and editor', gone.every(f => !fs.existsSync(path.join(ROOT, f))), gone.filter(f => fs.existsSync(path.join(ROOT, f))).join());
+  const srcs = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).map(f => read('js/' + f)).join('\n');
+  check('19o. nothing on the page or in a script asks for them', !/card-hand-ui|deck-builder|combat-ui\.js|combat-engine\.js|card-engine|card-registry|deck-feedback/.test(H) && !/id="nav-decks"/.test(H)
+    && !/openDeckBuilder|KWCards\b|CardHandUI|CombatEngine\b|\/api\/decks|\/api\/cards\b|\/api\/card-admin|\/api\/combat\/(engage|action|resolve)/.test(srcs));
+  check('19p. Dev Tools has no switch for it any more: there is nothing to switch', !/quests-switch|data-kwt-dev="quests"/.test(J));
+  const C5 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
+  check('19q. the check on the live site no longer expects the card scripts', !C5.some(f => gone.includes(f)) && C5.includes('js/battles.js'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
