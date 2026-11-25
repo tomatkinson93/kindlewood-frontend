@@ -1501,6 +1501,8 @@ async function _assaultCamp(btn, tile) {
 
 function _outpostSectionHtml(tile) {
   if (tile.camp) return _campSectionHtml(tile);
+  // A dungeon on this tile (js/dungeons.js; the server's lib/dungeon_map.js): its card, and a party to send in.
+  if (tile.dungeon && window.KWDungeon && KWDungeon.tileHtml) return KWDungeon.tileHtml(tile, _opFreeCitizens());
   // My outpost here — production at its level, the next level, dismantle
   if (tile.outpost?.mine) {
     const st = _outpostStatus;
@@ -1752,6 +1754,7 @@ function _wireOutpostSection(body, tile) {
   body.querySelectorAll('[data-op-unassign]').forEach(b => b.addEventListener('click', () => _assignOutpostWorker(b, tile, true)));
   const campBtn = body.querySelector('[data-camp-assault]');
   if (campBtn) campBtn.addEventListener('click', () => _assaultCamp(campBtn, tile));
+  if (tile.dungeon && window.KWDungeon && KWDungeon.wireTile) KWDungeon.wireTile(body, tile);
   if (body.querySelector('.op-camp .op-worker-none') && !_opCitizensAsked && typeof loadCitizens === 'function') {
     _opCitizensAsked = true;
     loadCitizens().then(() => { if ((typeof citizensData !== 'undefined') && citizensData.length) selectWorldTile(tile); });

@@ -24,6 +24,12 @@
   --kw-bad:       #e0705f;   /* errors, raids, danger text */
   --kw-bad-fill:  #a8352a;   /* danger button fill */
   --kw-warn:      #e8b25a;   /* warnings */
+  /* The five skulls of a dungeon's difficulty (js/dungeons.js; the map's ring in js/kwmap-dungeons.js uses the same five). */
+  --kw-skull-green:  #6fbf5a;
+  --kw-skull-yellow: #e2c14a;
+  --kw-skull-orange: #e08a3c;
+  --kw-skull-red:    #d8452e;
+  --kw-skull-purple: #a26ad8;
   --kw-panel:     #2a2016;   /* window background */
   --kw-panel-2:   #34281b;   /* cards inside windows */
   --kw-line:      rgba(232, 200, 140, .22);   /* hairlines */

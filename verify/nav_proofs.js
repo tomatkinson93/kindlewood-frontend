@@ -43,7 +43,7 @@ console.log('2. What each place holds');
   check('2a. The Road: Quests, Battles, Market (Decks went with the cards)', K.HUBS.road.items.map(i => i.label).join() === 'Quests,Battles,Market');
   check('2b. The Clan: the clan hall and Chat', K.HUBS.clan.items.map(i => i.key).join() === 'hall,chat');
   check('2c. Home: only Town (phones), Build (and Decorate while building), the Names and See through toggles and the camera (and, in the Neighbourhood, the way back to town); the buildings open the rest (HOME_SCENE.md §2.1)', K.TOOLS.home.map(t => t.key).join() === 'totown,town,build,decorate,names,seethrough,photo');
-  check('2d. The Land: Scout, Outposts, Journeys (Centre on town is in the map\'s own stack, js/hud.js)', K.TOOLS.land.map(t => t.key).join() === 'scout,outposts,journeys');
+  check('2d. The Land: Scout, Outposts, Journeys, Dungeons (Centre on town is in the map\'s own stack, js/hud.js)', K.TOOLS.land.map(t => t.key).join() === 'scout,outposts,journeys,dungeons');
   w._hasBuilding = t => t === 'library';
   const home = K._toolsHtml('home');
   check('2e. no Stores, Tavern, Research or Wonders chips (the profile menu lists them: scene_proofs)', /data-tool="build"/.test(home) && !/data-tool="(stores|tavern|research|crafting|wonders)"/.test(home));

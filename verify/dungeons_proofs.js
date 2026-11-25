@@ -177,5 +177,55 @@ console.log('11. The class buildings in the Home scene');
   check('11e. no two plots in a row stand closer than a tenth of the field', slots.length === 20 && near.length === 0, near.map(q => q.id).join());
 }
 
+console.log('12. Dungeons on the world map');
+{
+  const L = read('js/kwmap-dungeons.js'), CORE = read('js/kwmap-core.js'), MAIN = read('js/main.js'), PL = read('js/places.js'), RT = read('js/realtime.js'), TOK = read('css/tokens.css');
+  const d = (x = {}) => ({ id: 7, q: 5, r: 6, name: 'Windscar <Hollow>', tier: 'green', tier_name: 'Easy', skull: '🟢', terrain: 'hills', floors: 2, intro: 'A cold draught.', suggested_party: 'villagers', band: 'The Night Pack',
+    hours_left: 70.4, distance: 3, in_reach: true, mine: null, cleared_by: 0, first_clear: null, busy: false, ...x });
+  const people = [{ id: 1, name: 'Ivy', role: 'idle' }, { id: 2, name: 'Hazel', role: 'soldier' }, { id: 3, name: 'Bram <i>', role: 'archer' }, { id: 4, name: 'Oak', role: 'idle' }, { id: 5, name: 'Fern', role: 'idle' }];
+  check('12a. the map draws a skull on each tile with a dungeon, after the raid layer', /if \(window\.KWDungeonLayer && this\._uifxCtx\) window\.KWDungeonLayer\.draw\(/.test(CORE) && CORE.indexOf('KWDungeonLayer.draw') > CORE.indexOf('KWRaidLayer.draw')
+    && /tiles\.filter\(t => t\.dungeon\)/.test(L) && /<script defer src="\/js\/kwmap-dungeons\.js\?v=h[0-9a-f]+"><\/script>/.test(H));
+  check('12b. the map layer asks the server nothing and rolls nothing', !/fetch\(|apiFetch|XMLHttpRequest|Math\.random/.test(L) && /if \(!list\.length\) return;/.test(L));
+  check('12c. the ring is the skull\'s colour; gold while the party is inside, faint once the town has been', /inside \? '#f4c95d' : \(RING\[d\.tier\]/.test(L) && /ctx\.globalAlpha = done \? 0\.45 : 1/.test(L)
+    && ['green', 'yellow', 'orange', 'red', 'purple'].every(k => new RegExp(k + ": '(#[0-9a-f]{6})'").test(L) && TOK.includes(`--kw-skull-${k}:`) && TOK.match(new RegExp(`--kw-skull-${k}:\\s*(#[0-9a-f]{6})`))[1] === L.match(new RegExp(k + ": '(#[0-9a-f]{6})'"))[1]));
+  check('12d. how long is left, in words', K._leftWords(70.4) === 'gone in 3 days' && K._leftWords(30) === 'gone in 30 hours' && K._leftWords(1.2) === 'gone within the hour' && K._leftWords(0) === 'gone');
+  check('12e. the facts under the name', K._factsLine(d()) === '2 floors · The Night Pack · written for villagers · gone in 3 days' && K._factsLine(d({ floors: 1, band: null })) === '1 floor · written for villagers · gone in 3 days');
+  const open = K.tileHtml({ dungeon: d() }, people);
+  check('12f. the tile\'s card: name, skull, facts, four pickers and Send them in', /💀 Windscar &lt;Hollow&gt; <span class="op-level">🟢 Easy<\/span>/.test(open) && (open.match(/data-dungeon-pick="\d"/g) || []).length === 4
+    && /data-dungeon-enter="7">💀 Send them in</.test(open) && /No town has cleared it yet\./.test(open) && /class="op-section op-dungeon kwdg-skull-green"/.test(open) && !/<Hollow>|<i>/.test(open));
+  check('12g. fighters are offered first', open.indexOf('Hazel (Guard)') < open.indexOf('>Ivy<') && open.indexOf('Bram &lt;i&gt; (Archer)') < open.indexOf('>Ivy<'));
+  check('12h. fewer than four free: it says so and offers no way in', /A dungeon takes a party of 4, and only 3 adults are free\./.test(K.tileHtml({ dungeon: d() }, people.slice(0, 3))) && !/data-dungeon-enter/.test(K.tileHtml({ dungeon: d() }, people.slice(0, 3)))
+    && /no adult is free/.test(K.tileHtml({ dungeon: d() }, [])));
+  const st = (x, busy) => K._standing(d(x), busy);
+  check('12i. what the town may do there', st({}).state === 'open' && st({ mine: 'active' }).state === 'inside' && st({ mine: 'cleared' }).words === 'Your town has been here: dungeon cleared. Each town goes in once.'
+    && st({ mine: 'fled' }).state === 'done' && st({ in_reach: false, distance: 11 }).words === 'Too far to walk: 11 tiles away. A party goes up to 8 tiles from the town.' && st({}, true).state === 'busy');
+  const inside = K.tileHtml({ dungeon: d({ mine: 'active' }) }, people), been = K.tileHtml({ dungeon: d({ mine: 'left' }) }, people), busy = K.tileHtml({ dungeon: d({ busy: true }) }, people);
+  check('12j. party inside: open the dungeon; been already, too far or busy: no way in', /data-dungeon-open>💀 Open the dungeon</.test(inside) && !/data-dungeon-enter/.test(inside) && /turned back\. Each town goes in once\./.test(been) && !/data-dungeon-enter/.test(been)
+    && /already has a party in another dungeon/.test(busy) && !/data-dungeon-enter/.test(busy));
+  check('12k. who cleared it', /Cleared by 2 towns\. Mossford was first\./.test(K.tileHtml({ dungeon: d({ cleared_by: 2, first_clear: 'Mossford' }) }, people)) && /Cleared by 1 town\. /.test(K.tileHtml({ dungeon: d({ cleared_by: 1, first_clear: 'A' }) }, people)));
+  check('12l. the tile\'s panel shows the card and wires its buttons', /if \(tile\.dungeon && window\.KWDungeon && KWDungeon\.tileHtml\) return KWDungeon\.tileHtml\(tile, _opFreeCitizens\(\)\);/.test(MAIN)
+    && /if \(tile\.dungeon && window\.KWDungeon && KWDungeon\.wireTile\) KWDungeon\.wireTile\(body, tile\);/.test(MAIN));
+  check('12m. the party is sent to the server, which decides; then the path screen opens', /apiFetch\('\/api\/dungeons\/' \+ encodeURIComponent\(id\) \+ '\/enter', \{ method: 'POST'[^}]*\}, body: JSON\.stringify\(\{ citizen_ids: ids \}\)/.test(J)
+    && /if \(ids\.length !== MAP\.party\) return say\(`Choose \$\{MAP\.party\} citizens\.`\);/.test(J) && /if \(!res\.ok \|\| !d\.ok\) return \{ error: d\.error \|\| 'They could not go\.' \};/.test(J));
+  check('12n. someone picked in one box is not offered in the others', /o\.disabled = !!o\.value && o\.value !== s\.value && taken\.includes\(o\.value\)/.test(J));
+  const list = K._listHtml([d(), d({ id: 8, name: 'Thornhall', tier: 'red', tier_name: 'Deadly', skull: '🔴', mine: 'active' }), d({ id: 9, mine: 'defeat' })], 8);
+  check('12o. The Land → Dungeons lists them: skull, facts, distance, state', (list.match(/class="kwdg-entry /g) || []).length === 3 && /kwdg-entry kwdg-skull-red/.test(list) && /· 3 tiles away/.test(list)
+    && /data-action="inside">Open the dungeon</.test(list) && /kwdg-entry kwdg-skull-green is-done/.test(list) && /Your town already has a party in another dungeon\./.test(list) && /data-action="show" data-q="5" data-r="6"/.test(list));
+  check('12p. a free dungeon offers "Choose a party on the map"; the rest "Show on the map"', />Choose a party on the map</.test(K._listHtml([d()], null)) && />Show on the map</.test(list) && !/Choose a party on the map/.test(list));
+  check('12q. none found: it says how they are found', /Your town has found no dungeon yet\./.test(K._listHtml([], null)) && /a skull marks each one on the map/.test(K._listHtml([], null)) && /Looking over the land/.test(K._listHtml(null, null)));
+  check('12r. the list is read from the server and is one KWWindow', /apiFetch\('\/api\/dungeons'\)/.test(J) && /KWWindow\.open\(\{\s*id: 'dungeon-list'/.test(J));
+  check('12s. showing one on the map centres there and opens the tile\'s panel, on a desk and on a phone', /camera\.q = q; camera\.r = r;/.test(J) && /selectWorldTile\(tile\);/.test(J) && /KWShell\.openPanel\(\)/.test(J) && /KWContext\.open\(\)/.test(J));
+  check('12t. Dungeons is in The Land\'s menu', /\{ key: 'dungeons', label: 'Dungeons', glyph: '💀', run: \(\) => global\.KWDungeon && global\.KWDungeon\.listOpen\(\)/.test(PL));
+  check('12u. word of a new dungeon: a toast and the map is read again; a run ended by itself is read again', /dungeon_found\(ev\) \{ if \(global\.KWDungeon && global\.KWDungeon\.onEvent\) global\.KWDungeon\.onEvent\(ev\); \}/.test(RT)
+    && /dungeon_ended\(ev\)/.test(RT) && /if \(ev\.type === 'dungeon_found'\) \{\s*if \(ev\.message\) toast\(ev\.message\);/.test(J));
+  check('12v. when a run ends the map is read again, so the skull goes faint', /MAP\.in_dungeon = null;\s*try \{ if \(typeof global\.loadWorldMap === 'function'\) global\.loadWorldMap\(\); \}/.test(J));
+  const dev = K._devHtml({ on: true, party: 4, free_adults: 6, tiers: [], lands: [], stories: [], run: null, last: null, map: { live: 12 } });
+  check('12w. Dev Tools: how many are on the map, top it up, or clear them and make new ones', /<b>12<\/b> on the map now\./.test(dev) && /data-kwdg="map-fill">Top the map up now</.test(dev) && /data-kwdg="map-new">Clear them all and make new ones</.test(dev)
+    && /devCall\('POST', 'map', \{ expire: a === 'map-new' \}\)/.test(J));
+  check('12y. Help explains dungeons, and the card and the list both lead there', /id: 'dungeons', icon: '💀', title: 'Dungeons'/.test(read('js/help.js')) && /Flee<\/b> a fight and they drop half/.test(read('js/help.js'))
+    && /data-dungeon-help>\?<\/button>/.test(open) && /KWHelp\.open\('dungeons'\)/.test(J) && /data-action="help">\?<\/button>/.test(list));
+  check('12x. the list and the card take the skull\'s colour from the shared tokens', ['green', 'yellow', 'orange', 'red', 'purple'].every(k => CSS.includes(`.kwdg-skull-${k}`) && CSS.includes(`var(--kw-skull-${k})`)) && /\.kwdg-entry \{[^}]*border-left: 4px solid var\(--kwdg-skull/.test(CSS));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

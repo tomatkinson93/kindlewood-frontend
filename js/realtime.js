@@ -185,6 +185,9 @@
     clan_call_to_arms(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
     // Letters (js/mail.js): one arrived — badge and toast.
     mail(ev) { if (global.KWMail) global.KWMail.onEvent(ev); },
+    // Dungeons on the map (js/dungeons.js): word of a new one has reached the town, or a run of ours ended by itself.
+    dungeon_found(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    dungeon_ended(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

@@ -77,6 +77,8 @@
       { key: 'scout',    label: 'Scout',    glyph: '🧭', run: () => call('actionScout') },
       { key: 'outposts', label: 'Outposts', glyph: '⛺', run: () => { call('switchTab', 'outposts'); if (global.KWShell && isPhone()) global.KWShell.openPanel(); } },
       { key: 'journeys', label: 'Journeys', glyph: '🗺', run: () => global.KWJourneys && global.KWJourneys.open(), unlock: () => !!global.KWJourneys },
+      // The dungeons this town has found on the map (js/dungeons.js listOpen).
+      { key: 'dungeons', label: 'Dungeons', glyph: '💀', run: () => global.KWDungeon && global.KWDungeon.listOpen(), unlock: () => !!(global.KWDungeon && global.KWDungeon.listOpen) },
       // Centre on town is in the map's own stack now (js/hud.js).
     ],
   };
@@ -343,7 +345,7 @@
         body.innerHTML = '<p>The buttons along the top are now five places:</p><ul class="kwp-note">'
           + '<li><b>Home</b>: your town, its stores, tavern, research and crafting.</li>'
           + '<li><b>Families</b>: your citizens, their families and the chronicle.</li>'
-          + '<li><b>The Land</b>: the map, outposts and journeys.</li>'
+          + '<li><b>The Land</b>: the map, outposts, journeys and dungeons.</li>'
           + '<li><b>The Road</b>: quests, battles and the market.</li>'
           + '<li><b>The Clan</b>: your clan and chat.</li></ul>'
           + '<p>Messages, rankings, who is online and feedback are in the menu under your name. Keys 1–5 switch place.</p>'

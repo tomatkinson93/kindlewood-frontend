@@ -16,10 +16,14 @@
 //  battles, and with them the decks, the draft at the door, honing and the
 //  "Class cards" window, left the dungeons on 2026-11-23 (TACTICS.md §8).
 //
-//  So far dungeons are started from Dev Tools only (devOpen: the 💀 Dungeons
-//  tab): the hand-written test dungeons, or one made by the generator for a
-//  skull, a land and a seed. Map and quest dungeons, events and supplies
-//  come later.
+//  Dungeons sit on the world map (the server's lib/dungeon_map.js): each is
+//  there for three days, every town that has found it may go in once, and
+//  then it is gone and another opens somewhere else. The map draws a skull on
+//  the tile (js/kwmap-dungeons.js); the tile's panel shows the dungeon's card
+//  and takes the party of four (tileHtml, wireTile); The Land → Dungeons
+//  lists the ones this town has found (listOpen). Dev Tools → 💀 Dungeons can
+//  still start a test dungeon or a generated one, and can make the map's
+//  dungeons come and go (devOpen).
 // ══════════════════════════════════════════════════════════════════════════
 (function (global) {
   'use strict';
@@ -177,6 +181,9 @@
   function afterEnd() {
     try { if (typeof global.refreshResources === 'function') global.refreshResources(); } catch (e) { /* not loaded */ }
     try { if (typeof global.loadCitizens === 'function') global.loadCitizens(); } catch (e) { /* not loaded */ }
+    // The dungeon's skull on the map goes faint: this town has had its go.
+    MAP.in_dungeon = null;
+    try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
   }
   async function load() {
     if (typeof global.apiFetch !== 'function') return null;
@@ -256,6 +263,167 @@
     return S.win;
   }
 
+  // ── On the world map ────────────────────────────────────────────────────
+  // What the server's rules are (GET /api/dungeons), the list, and its window.
+  const MAP = { reach: 8, party: 4, list: null, in_dungeon: null, win: null };
+  // How long a dungeon has left, in words.
+  function leftWords(h) {
+    h = Number(h) || 0;
+    if (h >= 36) return `gone in ${Math.round(h / 24)} days`;
+    if (h >= 1.5) return `gone in ${Math.round(h)} hours`;
+    return h > 0 ? 'gone within the hour' : 'gone';
+  }
+  // The facts under a dungeon's name: floors, who lives there, who it is for, how long it stays.
+  function factsLine(d) {
+    return [`${d.floors} floor${d.floors === 1 ? '' : 's'}`, d.band || null, d.suggested_party ? `written for ${d.suggested_party}` : null, leftWords(d.hours_left)].filter(Boolean).join(' · ');
+  }
+  // What this town may do there now: { state, words }. `busy`: its party is in another dungeon.
+  function standing(d, busy) {
+    if (d.mine === 'active') return { state: 'inside', words: 'Your party is inside.' };
+    if (d.mine) return { state: 'done', words: `Your town has been here: ${String((ENDINGS[d.mine] || {}).title || d.mine).replace(/^\S+\s/, '').toLowerCase()}. Each town goes in once.` };
+    if (!d.in_reach) return { state: 'far', words: `Too far to walk: ${d.distance == null ? 'your town is not on the map' : d.distance + ' tiles away'}. A party goes up to ${MAP.reach} tiles from the town.` };
+    if (busy) return { state: 'busy', words: 'Your town already has a party in another dungeon.' };
+    return { state: 'open', words: '' };
+  }
+  const clearWords = d => d.cleared_by ? `Cleared by ${d.cleared_by} town${d.cleared_by === 1 ? '' : 's'}. ${d.first_clear} was first.` : 'No town has cleared it yet.';
+
+  // The dungeon's card in the tile's panel (js/main.js _outpostSectionHtml).
+  // `people`: the town's free adults.
+  function tileHtml(tile, people) {
+    const d = tile && tile.dungeon;
+    if (!d) return '';
+    const st = standing(d, !!d.busy);
+    const fighter = p => p.role === 'soldier' || p.role === 'archer';
+    const free = (people || []).slice().sort((a, b) => fighter(b) - fighter(a));
+    const opts = free.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.role === 'soldier' ? ' (Guard)' : p.role === 'archer' ? ' (Archer)' : ''}</option>`).join('');
+    let act;
+    if (st.state === 'inside') act = `<div class="op-worker-hint">${esc(st.words)}</div><button type="button" class="action-btn op-worker-btn" data-dungeon-open>💀 Open the dungeon</button>`;
+    else if (st.state !== 'open') act = `<div class="op-worker-hint op-worker-none">${esc(st.words)}</div>`;
+    else if (free.length < MAP.party) act = `<div class="op-worker-hint op-worker-none">A dungeon takes a party of ${MAP.party}, and ${free.length ? 'only ' + free.length + (free.length === 1 ? ' adult is' : ' adults are') : 'no adult is'} free.</div>`;
+    else act = `<div class="op-worker-hint">Send a party of ${MAP.party}. They fight on the board, room by room, and bring home what they find. Your town goes in once.</div>`
+      + `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].map(i => `<select class="op-worker-select" data-dungeon-pick="${i}" aria-label="Party member ${i + 1}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>`
+      + `<button type="button" class="action-btn op-worker-btn" data-dungeon-enter="${esc(d.id)}">💀 Send them in</button>`;
+    return `<div class="op-section op-dungeon kwdg-skull-${esc(d.tier)}">`
+      + `<div class="op-title">💀 ${esc(d.name)} <span class="op-level">${esc(d.skull)} ${esc(d.tier_name)}</span> <button type="button" class="kw-help-q" aria-label="How dungeons work" title="How dungeons work" data-dungeon-help>?</button></div>`
+      + (d.intro ? `<div class="op-note">${esc(d.intro)}</div>` : '')
+      + `<div class="op-worker-hint">${esc(factsLine(d))}</div>`
+      + `<div class="op-worker-hint">${esc(clearWords(d))}</div>`
+      + act
+      + `<div class="op-reason" data-op-reason style="display:none"></div></div>`;
+  }
+  // The buttons of that card.
+  function wireTile(body, tile) {
+    const box = body && body.querySelector('.op-dungeon');
+    if (!box) return;
+    const say = m => { const r = box.querySelector('[data-op-reason]'); if (r) { r.textContent = m; r.style.display = 'block'; } };
+    const help = box.querySelector('[data-dungeon-help]');
+    if (help) help.addEventListener('click', () => { if (global.KWHelp) global.KWHelp.open('dungeons'); });
+    const openBtn = box.querySelector('[data-dungeon-open]');
+    if (openBtn) openBtn.addEventListener('click', () => open());
+    const btn = box.querySelector('[data-dungeon-enter]');
+    if (!btn) return;
+    // Someone picked in one box is not offered in the others.
+    const picks = Array.from(box.querySelectorAll('[data-dungeon-pick]'));
+    const sync = () => { const taken = picks.map(s => s.value).filter(Boolean); picks.forEach(s => Array.from(s.options).forEach(o => { o.disabled = !!o.value && o.value !== s.value && taken.includes(o.value); })); };
+    picks.forEach(s => s.addEventListener('change', () => { sync(); const r = box.querySelector('[data-op-reason]'); if (r) r.style.display = 'none'; }));
+    btn.addEventListener('click', async () => {
+      const ids = [...new Set(picks.map(s => Number(s.value)).filter(Boolean))];
+      if (ids.length !== MAP.party) return say(`Choose ${MAP.party} citizens.`);
+      btn.disabled = true;
+      const d = await enter(btn.getAttribute('data-dungeon-enter'), ids);
+      if (d && d.error) { btn.disabled = false; say(d.error); }
+    });
+  }
+  // Send a party in, then show the path screen. → the server's answer, or { error }.
+  async function enter(id, ids) {
+    try {
+      const res = await global.apiFetch('/api/dungeons/' + encodeURIComponent(id) + '/enter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ citizen_ids: ids }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.ok) return { error: d.error || 'They could not go.' };
+      S.on = true; MAP.in_dungeon = Number(id);
+      take(d);
+      // The map's skull turns gold, and the four are busy.
+      try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+      try { if (typeof global.loadCitizens === 'function') global.loadCitizens(); } catch (e) { /* not loaded */ }
+      if (MAP.win) { try { MAP.win.close(); } catch (e) { /* gone */ } }
+      open();
+      return d;
+    } catch (e) { return { error: 'Connection hiccup. Try again.' }; }
+  }
+
+  // ── The Land → Dungeons: the ones this town has found ───────────────────
+  function listHtml(list, inDungeon) {
+    if (!list) return '<p class="kw-empty">Looking over the land…</p>';
+    if (!list.length) return '<div class="kwdg"><p class="kw-empty">Your town has found no dungeon yet.</p><p class="kwdg-intro">Dungeons open on the land around every town and stay for three days. Scout the tiles near your town to find them: a skull marks each one on the map.</p></div>';
+    return `<div class="kwdg"><p class="kwdg-intro">Each dungeon stays for three days, and your town may go in once. A party of ${MAP.party} walks up to ${MAP.reach} tiles to reach one. <button type="button" class="kw-help-q" aria-label="How dungeons work" title="How dungeons work" data-action="help">?</button></p>`
+      + `<div class="kwdg-list">` + list.map(d => {
+        const st = standing(d, !!inDungeon && inDungeon !== d.id);
+        return `<div class="kwdg-entry kwdg-skull-${esc(d.tier)}${st.state === 'done' ? ' is-done' : ''}">`
+          + `<div class="kwdg-entry-head"><span class="kwdg-entry-name">💀 ${esc(d.name)}</span><span class="kwdg-entry-skull">${esc(d.skull)} ${esc(d.tier_name)}</span></div>`
+          + (d.intro ? `<p class="kwdg-intro">${esc(d.intro)}</p>` : '')
+          + `<p class="kwdg-entry-facts">${esc(factsLine(d))}${d.distance != null ? ` · ${d.distance} tile${d.distance === 1 ? '' : 's'} away` : ''}</p>`
+          + `<p class="kwdg-entry-facts">${esc(clearWords(d))}</p>`
+          + (st.words ? `<p class="kwdg-entry-state">${esc(st.words)}</p>` : '')
+          + `<div class="kwdg-btns">`
+          + (st.state === 'inside' ? `<button type="button" class="kw-btn primary" data-action="inside">Open the dungeon</button>` : '')
+          + `<button type="button" class="kw-btn${st.state === 'open' ? ' primary' : ''}" data-action="show" data-q="${esc(d.q)}" data-r="${esc(d.r)}">${st.state === 'open' ? 'Choose a party on the map' : 'Show on the map'}</button>`
+          + `</div></div>`;
+      }).join('') + `</div></div>`;
+  }
+  async function listLoad() {
+    try {
+      const res = await global.apiFetch('/api/dungeons');
+      const d = await res.json();
+      if (res.ok && d && d.ok) { MAP.list = d.dungeons || []; MAP.in_dungeon = d.in_dungeon || null; if (d.rules) { MAP.reach = d.rules.reach || MAP.reach; MAP.party = d.rules.party || MAP.party; } }
+      else MAP.list = MAP.list || [];
+    } catch (e) { MAP.list = MAP.list || []; }
+    if (MAP.win) { try { MAP.win.refresh(); } catch (e) { /* closed */ } }
+    return MAP.list;
+  }
+  // Centre the map on a tile and open its panel. (camera, worldMapData and the
+  // two functions are top-level in js/main.js: shared scope, not window.)
+  function showOnMap(q, r) {
+    q = Number(q); r = Number(r);
+    try {
+      if (typeof camera !== 'undefined') { camera.q = q; camera.r = r; }
+      const data = typeof worldMapData !== 'undefined' ? worldMapData : null;
+      if (data && typeof renderWorldMap === 'function') renderWorldMap(data);
+      const tile = data && (data.tiles || []).find(t => t.q === q && t.r === r);
+      if (!tile || typeof selectWorldTile !== 'function') return;
+      if (global.KWPlaces && global.KWPlaces.current && global.KWPlaces.current() !== 'land') global.KWPlaces.go('land');
+      selectWorldTile(tile);
+      // The tile's panel, where the party is chosen: the sheet on a phone, the side panel on a desk.
+      if (doc.body && doc.body.classList.contains('kw-shell')) { if (global.KWShell && global.KWShell.openPanel) global.KWShell.openPanel(); }
+      else if (global.KWContext && global.KWContext.open) global.KWContext.open();
+    } catch (e) { /* the map is not up */ }
+  }
+  // A live event (js/realtime.js). Word of a dungeon: say so and put its
+  // skull on the map. A run ended by itself (left idle, or its dungeon went):
+  // read how it ended.
+  function onEvent(ev) {
+    if (!ev) return;
+    if (ev.type === 'dungeon_found') {
+      if (ev.message) toast(ev.message);
+      try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+      if (MAP.win) listLoad();
+    } else if (ev.type === 'dungeon_ended' && S.run && !S.busy) load();
+  }
+  function listOpen() {
+    if (!global.KWWindow) return null;
+    MAP.win = global.KWWindow.open({
+      id: 'dungeon-list', title: 'Dungeons', subtitle: 'Found on the land around your town', icon: '💀', size: 'M',
+      render(body) { body.innerHTML = listHtml(MAP.list, MAP.in_dungeon); },
+      actions: {
+        show(el, ev, w) { if (w) w.close(); showOnMap(el.getAttribute('data-q'), el.getAttribute('data-r')); },
+        inside(el, ev, w) { if (w) w.close(); open(); },
+        help() { if (global.KWHelp) global.KWHelp.open('dungeons'); },
+      },
+      onClose() { MAP.win = null; },
+    });
+    listLoad();
+    return MAP.win;
+  }
+
   // ── Dev Tools → 💀 Dungeons ─────────────────────────────────────────────
   // `pick`: the skull, land and seed last chosen, kept while the panel is redrawn.
   const DEV = { data: null, wired: false, pick: { tier: '', land: '', seed: '' } };
@@ -276,6 +444,10 @@
       + `<label>Land <select id="kwdg-dev-land" class="ce-input">${(d.lands || []).map(l => `<option value="${esc(l)}"${l === p.land ? ' selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select></label>`
       + `<label>Seed <input id="kwdg-dev-seed" class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" value="${esc(p.seed || '')}"></label></div>`
       + `<button type="button" class="cheat-all-btn" data-kwdg="generate"${run || d.free_adults < d.party ? ' disabled' : ''}>Generate and start</button>`
+      + `<div class="cheat-section-label" style="margin-top:10px">Dungeons on the map</div>`
+      + `<div class="cheat-desc">${d.map ? `<b>${d.map.live}</b> on the map now. ` : ''}Every town is kept at two within reach, one of them easy; each stays three days. The game tops them up every half hour.</div>`
+      + `<button type="button" class="cheat-all-btn" data-kwdg="map-fill">Top the map up now</button>`
+      + `<button type="button" class="cheat-all-btn" data-kwdg="map-new">Clear them all and make new ones</button>`
       + `<div class="cheat-section-label" style="margin-top:10px">The run</div>`
       + (run
         ? `<div class="cheat-desc">A party is in <b>${esc(run.dungeon.name)}</b>${run.dungeon.generated ? ` (${esc(run.dungeon.skull)} ${esc(run.dungeon.terrain || '')}, seed ${esc(run.dungeon.seed)})` : ''}${run.pending ? ' (' + esc(run.pending.kind === 'battle' ? 'a fight is open' : 'a choice is waiting') + ')' : ''}.</div>`
@@ -315,6 +487,7 @@
   async function devAct(t) {
     const a = t.getAttribute('data-kwdg');
     const say = m => { const e = doc.getElementById('kwdg-dev-msg'); if (e) e.textContent = m; };
+    let made = null;
     try {
       if (a === 'open') { if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu(); return void open(); }
       if (a === 'switch') await devCall('POST', 'switch', { on: t.getAttribute('data-on') === '1' });
@@ -333,15 +506,20 @@
       } else if (a === 'win') take(await devCall('POST', 'win'));
       else if (a === 'heal') take(await devCall('POST', 'heal'));
       else if (a === 'idle') take(await devCall('POST', 'sweep', { idle_run: true }));
+      else if (a === 'map-fill' || a === 'map-new') {
+        made = await devCall('POST', 'map', { expire: a === 'map-new' });
+        try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+      }
       await devOpen();
-      say(a === 'switch' ? 'Saved.' : a === 'win' ? 'The fight is won.' : a === 'heal' ? 'The party is at full health.' : a === 'idle' ? 'The run ended by itself.' : '');
+      say(made ? `${made.gone ? made.gone + ' gone, ' : ''}${made.made} made; ${made.live} on the map.` : a === 'switch' ? 'Saved.' : a === 'win' ? 'The fight is won.' : a === 'heal' ? 'The party is at full health.' : a === 'idle' ? 'The run ended by itself.' : '');
     } catch (e) { say('⚠️ ' + e.message); }
   }
 
   global.KWDungeon = {
-    open, load, flee, devOpen,
+    open, load, flee, devOpen, listOpen, tileHtml, wireTile, enter, onEvent,
     current: () => S.run,
     _lootLine: lootLine, _subtitle: subtitle, _roomWords: roomWords, _partyHtml: partyHtml, _mapHtml: mapHtml,
     _pendingHtml: pendingHtml, _runHtml: runHtml, _endHtml: endHtml, _devHtml: devHtml, _take: take, _state: S, ENDINGS,
+    _leftWords: leftWords, _factsLine: factsLine, _standing: standing, _listHtml: listHtml, _map: MAP,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

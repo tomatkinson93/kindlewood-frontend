@@ -95,6 +95,12 @@
       <p>A fight is played on a small <b>board</b>: each of your citizens walks, then acts, then chooses which way to face. A blow from the side lands harder and one from behind harder still, and high ground helps. Win and what the foes carried goes straight into your stores, and your fighters gain experience in their class.</p>
       <p>Each citizen fights with the <b>abilities</b> of their class: a Guard, Archer, Wizard or Hearthkeeper learns more as their class level rises and brings five to a battle (choose them on the citizen's <b>Abilities</b> tab); anyone else fights as a villager. You can also leave a quest's fight to be decided for you when you send the party.</p>`,
       open: [['⚔ Battles', link('openBattlesModal')]] },
+    { id: 'dungeons', icon: '💀', title: 'Dungeons', body: `
+      <p>Dungeons open on the land around every town: a 💀 on the map, ringed in the colour of its <b>skull</b>. Green is for villagers, yellow for novices, orange and red for trained fighters, purple for veterans. Your town's news tells you when word of one arrives, and <b>The Land → Dungeons</b> lists the ones you know.</p>
+      <p>Click the skull's tile and send a <b>party of four</b>. Inside, they walk a path of rooms: fights on the board, a fire to rest by, treasure, and a boss at the end. Wounds carry from one fight to the next, and what they find is carried, not kept, until they come out.</p>
+      <p>A run ends one of four ways. <b>Clear it</b> and everything comes home. <b>Turn back</b> between fights and they keep what they have found. <b>Flee</b> a fight and they drop half. <b>Lose</b> a fight and it is all lost. Anyone who went down may come home injured.</p>
+      <p>Each dungeon stays for <b>three days</b> and your town goes in <b>once</b>, however it ends. Every town nearby sees the same dungeon, and its card says which town cleared it first.</p>`,
+      open: [['💀 Dungeons', link('KWDungeon.listOpen')]] },
     { id: 'raids', icon: '🔥', title: 'Villages, trust and raids', body: `
       <p>Trust with a village fades if you never write: after a week without a gift, trade, envoy, quest or tribute it drops a point a day — but never below the band under the best you reached (an old ally can cool to Friendly, no further). The village panel warns you first.</p>
       <p>An <b>Allied</b> village sends a small daily tribute, teaches fighting cards, and its militia helps guard your outposts within 4 tiles.</p>

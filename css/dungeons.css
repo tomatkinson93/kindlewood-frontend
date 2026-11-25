@@ -76,6 +76,29 @@
 .kwdg-dev-row input { width: 110px; }
 
 /* ── Phones: two citizens a row, and the floor scrolls sideways ─── */
+/* ── Dungeons on the world map: the list (The Land → Dungeons) and the
+      card in a tile's panel. Each takes the colour of its skull. ───────── */
+.kwdg-skull-green  { --kwdg-skull: var(--kw-skull-green); }
+.kwdg-skull-yellow { --kwdg-skull: var(--kw-skull-yellow); }
+.kwdg-skull-orange { --kwdg-skull: var(--kw-skull-orange); }
+.kwdg-skull-red    { --kwdg-skull: var(--kw-skull-red); }
+.kwdg-skull-purple { --kwdg-skull: var(--kw-skull-purple); }
+.kwdg-list { display: flex; flex-direction: column; gap: var(--kw-s-3); }
+.kwdg-entry {
+  display: flex; flex-direction: column; gap: var(--kw-s-1);
+  background: var(--kw-panel-2); border: 1px solid var(--kw-line); border-left: 4px solid var(--kwdg-skull, var(--kw-gold-dim));
+  border-radius: var(--kw-radius); padding: var(--kw-s-3);
+}
+.kwdg-entry.is-done { opacity: .6; }
+.kwdg-entry-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--kw-s-2); }
+.kwdg-entry-name { color: var(--kw-gold); font-size: var(--kw-fs-3); }
+.kwdg-entry-skull { color: var(--kwdg-skull, var(--kw-muted)); font-size: var(--kw-fs-2); white-space: nowrap; }
+.kwdg-entry-facts { color: var(--kw-muted); font-size: var(--kw-fs-2); }
+.kwdg-entry-state { color: var(--kw-warn); font-size: var(--kw-fs-2); }
+.kwdg-entry .kwdg-btns { margin-top: var(--kw-s-2); }
+.op-dungeon { border-left: 3px solid var(--kwdg-skull, var(--kw-gold-dim)); padding-left: 8px; }
+.op-dungeon .op-level { color: var(--kwdg-skull, inherit); }
+
 @media (max-width: 640px) {
   .kwdg-party { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kwdg-map { height: 230px; min-width: calc(var(--kwdg-steps, 5) * 64px); }
