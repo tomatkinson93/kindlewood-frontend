@@ -143,6 +143,8 @@
     const lost = r.lost && (r.lost.wealth || (r.lost.items || []).length);
     return `<div class="kwdg kwdg-end">`
       + `<h3 class="kwdg-end-title">${esc(e.title)}</h3><p>${esc(line)}</p>`
+      // The first town to clear a map dungeon takes a trophy from its boss (the server's lib/dungeon_trophies.js).
+      + (r.trophy ? `<div class="kw-box kwdg-trophy"><div class="kw-box-title">🏆 First of any town to clear it</div><p><b>${esc(r.trophy.icon)} ${esc(r.trophy.title)}</b> now hangs in your trophy hall${r.trophy.wealth ? `, and the town is ${esc(r.trophy.wealth)} wealth richer` : ''}.</p><p class="kwdg-intro">${esc(r.trophy.words || '')}</p></div>` : '')
       + `<div class="kw-box"><div class="kw-box-title">Came home</div><p>${esc(lootLine(r.kept, 'Nothing'))}</p></div>`
       + (lost ? `<div class="kw-box"><div class="kw-box-title">Lost</div><p>${esc(lootLine(r.lost))}</p></div>` : '')
       + `<div class="kw-box"><div class="kw-box-title">Injuries</div>`
@@ -265,7 +267,7 @@
 
   // ── On the world map ────────────────────────────────────────────────────
   // What the server's rules are (GET /api/dungeons), the list, and its window.
-  const MAP = { reach: 8, party: 4, list: null, in_dungeon: null, win: null };
+  const MAP = { reach: 8, party: 4, list: null, in_dungeon: null, win: null, hall: null };
   // How long a dungeon has left, in words.
   function leftWords(h) {
     h = Number(h) || 0;
@@ -285,7 +287,16 @@
     if (busy) return { state: 'busy', words: 'Your town already has a party in another dungeon.' };
     return { state: 'open', words: '' };
   }
-  const clearWords = d => d.cleared_by ? `Cleared by ${d.cleared_by} town${d.cleared_by === 1 ? '' : 's'}. ${d.first_clear} was first.` : 'No town has cleared it yet.';
+  const clearWords = d => d.cleared_by ? `Cleared by ${d.cleared_by} town${d.cleared_by === 1 ? '' : 's'}. ${d.first_clear} was first.`
+    : 'No town has cleared it yet.' + (d.prize ? ` The first wins ${d.prize.icon} ${d.prize.title} (+${d.prize.wealth} wealth).` : '');
+  // The town's trophy hall: one chip for each kind it has, and how far along the full hall it is.
+  function hallHtml(h) {
+    if (!h) return '';
+    const chips = (h.trophies || []).map(t => `<span class="kwdg-trophy-chip kwdg-skull-${esc(t.tier)}" title="${esc(t.words || '')} Won in ${esc((t.last || {}).dungeon || 'a dungeon')}.">${esc(t.icon)} ${esc(t.title)}${t.count > 1 ? ` <b>×${esc(t.count)}</b>` : ''}</span>`).join('');
+    return `<div class="kw-box kwdg-hall"><div class="kw-box-title">🏆 Trophy hall <span class="kwdg-hall-count">${esc(h.have || 0)} of ${esc(h.kinds || 0)}</span></div>`
+      + (chips ? `<div class="kwdg-trophies">${chips}</div>` : `<p class="kwdg-intro">Empty so far. Be the first town to clear a dungeon and a trophy from its boss hangs here.</p>`)
+      + `</div>`;
+  }
 
   // The dungeon's card in the tile's panel (js/main.js _outpostSectionHtml).
   // `people`: the town's free adults.
@@ -299,9 +310,10 @@
     let act;
     if (st.state === 'inside') act = `<div class="op-worker-hint">${esc(st.words)}</div><button type="button" class="action-btn op-worker-btn" data-dungeon-open>💀 Open the dungeon</button>`;
     else if (st.state !== 'open') act = `<div class="op-worker-hint op-worker-none">${esc(st.words)}</div>`;
-    else if (free.length < MAP.party) act = `<div class="op-worker-hint op-worker-none">A dungeon takes a party of ${MAP.party}, and ${free.length ? 'only ' + free.length + (free.length === 1 ? ' adult is' : ' adults are') : 'no adult is'} free.</div>`;
-    else act = `<div class="op-worker-hint">Send a party of ${MAP.party}. They fight on the board, room by room, and bring home what they find. Your town goes in once.</div>`
-      + `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].map(i => `<select class="op-worker-select" data-dungeon-pick="${i}" aria-label="Party member ${i + 1}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>`
+    else if (!free.length) act = `<div class="op-worker-hint op-worker-none">No adult is free to go.</div>`;
+    // One to four go. The dungeon is written for four and does not shrink: fewer is harder.
+    else act = `<div class="op-worker-hint">Send up to ${MAP.party}. They fight on the board, room by room, and bring home what they find. Your town goes in once.${free.length < MAP.party ? ` Only ${free.length} ${free.length === 1 ? 'adult is' : 'adults are'} free: a dungeon is written for ${MAP.party}, so fewer is harder.` : ''}</div>`
+      + `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].slice(0, Math.min(MAP.party, free.length)).map(i => `<select class="op-worker-select" data-dungeon-pick="${i}" aria-label="Party member ${i + 1}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>`
       + `<button type="button" class="action-btn op-worker-btn" data-dungeon-enter="${esc(d.id)}">💀 Send them in</button>`;
     return `<div class="op-section op-dungeon kwdg-skull-${esc(d.tier)}">`
       + `<div class="op-title">💀 ${esc(d.name)} <span class="op-level">${esc(d.skull)} ${esc(d.tier_name)}</span> <button type="button" class="kw-help-q" aria-label="How dungeons work" title="How dungeons work" data-dungeon-help>?</button></div>`
@@ -328,7 +340,12 @@
     picks.forEach(s => s.addEventListener('change', () => { sync(); const r = box.querySelector('[data-op-reason]'); if (r) r.style.display = 'none'; }));
     btn.addEventListener('click', async () => {
       const ids = [...new Set(picks.map(s => Number(s.value)).filter(Boolean))];
-      if (ids.length !== MAP.party) return say(`Choose ${MAP.party} citizens.`);
+      if (!ids.length) return say('Choose who goes.');
+      // Fewer than a full party is allowed, and said once before they go.
+      if (ids.length < MAP.party && btn.getAttribute('data-short') !== String(ids.length)) {
+        btn.setAttribute('data-short', String(ids.length));
+        return say(`Only ${ids.length} of ${MAP.party}: the dungeon is written for ${MAP.party}, so it will be harder. Press again to send them.`);
+      }
       btn.disabled = true;
       const d = await enter(btn.getAttribute('data-dungeon-enter'), ids);
       if (d && d.error) { btn.disabled = false; say(d.error); }
@@ -352,10 +369,10 @@
   }
 
   // ── The Land → Dungeons: the ones this town has found ───────────────────
-  function listHtml(list, inDungeon) {
+  function listHtml(list, inDungeon, hall) {
     if (!list) return '<p class="kw-empty">Looking over the land…</p>';
-    if (!list.length) return '<div class="kwdg"><p class="kw-empty">Your town has found no dungeon yet.</p><p class="kwdg-intro">Dungeons open on the land around every town and stay for three days. Scout the tiles near your town to find them: a skull marks each one on the map.</p></div>';
-    return `<div class="kwdg"><p class="kwdg-intro">Each dungeon stays for three days, and your town may go in once. A party of ${MAP.party} walks up to ${MAP.reach} tiles to reach one. <button type="button" class="kw-help-q" aria-label="How dungeons work" title="How dungeons work" data-action="help">?</button></p>`
+    if (!list.length) return '<div class="kwdg"><p class="kw-empty">Your town has found no dungeon yet.</p><p class="kwdg-intro">Dungeons open on the land around every town and stay for three days. Scout the tiles near your town to find them: a skull marks each one on the map.</p>' + hallHtml(hall) + '</div>';
+    return `<div class="kwdg"><p class="kwdg-intro">Each dungeon stays for three days, and your town may go in once. A party of up to ${MAP.party} walks up to ${MAP.reach} tiles to reach one. <button type="button" class="kw-help-q" aria-label="How dungeons work" title="How dungeons work" data-action="help">?</button></p>`
       + `<div class="kwdg-list">` + list.map(d => {
         const st = standing(d, !!inDungeon && inDungeon !== d.id);
         return `<div class="kwdg-entry kwdg-skull-${esc(d.tier)}${st.state === 'done' ? ' is-done' : ''}">`
@@ -368,13 +385,13 @@
           + (st.state === 'inside' ? `<button type="button" class="kw-btn primary" data-action="inside">Open the dungeon</button>` : '')
           + `<button type="button" class="kw-btn${st.state === 'open' ? ' primary' : ''}" data-action="show" data-q="${esc(d.q)}" data-r="${esc(d.r)}">${st.state === 'open' ? 'Choose a party on the map' : 'Show on the map'}</button>`
           + `</div></div>`;
-      }).join('') + `</div></div>`;
+      }).join('') + `</div>` + hallHtml(hall) + `</div>`;
   }
   async function listLoad() {
     try {
       const res = await global.apiFetch('/api/dungeons');
       const d = await res.json();
-      if (res.ok && d && d.ok) { MAP.list = d.dungeons || []; MAP.in_dungeon = d.in_dungeon || null; if (d.rules) { MAP.reach = d.rules.reach || MAP.reach; MAP.party = d.rules.party || MAP.party; } }
+      if (res.ok && d && d.ok) { MAP.list = d.dungeons || []; MAP.in_dungeon = d.in_dungeon || null; MAP.hall = d.hall || null; if (d.rules) { MAP.reach = d.rules.reach || MAP.reach; MAP.party = d.rules.party || MAP.party; } }
       else MAP.list = MAP.list || [];
     } catch (e) { MAP.list = MAP.list || []; }
     if (MAP.win) { try { MAP.win.refresh(); } catch (e) { /* closed */ } }
@@ -412,7 +429,7 @@
     if (!global.KWWindow) return null;
     MAP.win = global.KWWindow.open({
       id: 'dungeon-list', title: 'Dungeons', subtitle: 'Found on the land around your town', icon: '💀', size: 'M',
-      render(body) { body.innerHTML = listHtml(MAP.list, MAP.in_dungeon); },
+      render(body) { body.innerHTML = listHtml(MAP.list, MAP.in_dungeon, MAP.hall); },
       actions: {
         show(el, ev, w) { if (w) w.close(); showOnMap(el.getAttribute('data-q'), el.getAttribute('data-r')); },
         inside(el, ev, w) { if (w) w.close(); open(); },
@@ -436,14 +453,14 @@
       // Every dungeon is fought on the board; fights with cards left the dungeons on 2026-11-23 (docs/TACTICS.md §8).
       + `<div class="cheat-desc">Every fight is on the board.</div>`
       + `<div class="cheat-section-label" style="margin-top:10px">Test dungeons</div>`
-      + `<div class="cheat-desc">Starts with the first ${d.party} adults who are free (${d.free_adults} free now). Each start is a fresh copy, so it can be played again.</div>`
-      + (d.stories || []).map(s => `<button type="button" class="cheat-all-btn" data-kwdg="start" data-story="${esc(s.key)}"${run || d.free_adults < d.party ? ' disabled' : ''}>${esc(s.skull)} Start: ${esc(s.name)} (${s.floors} floor${s.floors === 1 ? '' : 's'})</button>`).join('')
+      + `<div class="cheat-desc">Starts with the first ${d.party} adults who are free, or as many as there are (${d.free_adults} free now). Each start is a fresh copy, so it can be played again.</div>`
+      + (d.stories || []).map(s => `<button type="button" class="cheat-all-btn" data-kwdg="start" data-story="${esc(s.key)}"${run || !d.free_adults ? ' disabled' : ''}>${esc(s.skull)} Start: ${esc(s.name)} (${s.floors} floor${s.floors === 1 ? '' : 's'})</button>`).join('')
       + `<div class="cheat-section-label" style="margin-top:10px">Generated dungeons</div>`
       + `<div class="cheat-desc">Made from a seed for a skull and a land (the same three always give the same dungeon). Leave the seed empty for a new one each time.</div>`
       + `<div class="kwdg-dev-row"><label>Skull <select id="kwdg-dev-tier" class="ce-input">${(d.tiers || []).map(t => `<option value="${esc(t.key)}"${t.key === p.tier ? ' selected' : ''}>${esc(t.skull)} ${esc(t.name)}</option>`).join('')}</select></label>`
       + `<label>Land <select id="kwdg-dev-land" class="ce-input">${(d.lands || []).map(l => `<option value="${esc(l)}"${l === p.land ? ' selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select></label>`
       + `<label>Seed <input id="kwdg-dev-seed" class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" value="${esc(p.seed || '')}"></label></div>`
-      + `<button type="button" class="cheat-all-btn" data-kwdg="generate"${run || d.free_adults < d.party ? ' disabled' : ''}>Generate and start</button>`
+      + `<button type="button" class="cheat-all-btn" data-kwdg="generate"${run || !d.free_adults ? ' disabled' : ''}>Generate and start</button>`
       + `<div class="cheat-section-label" style="margin-top:10px">Dungeons on the map</div>`
       + `<div class="cheat-desc">${d.map ? `<b>${d.map.live}</b> on the map now. ` : ''}Every town is kept at two within reach, one of them easy; each stays three days. The game tops them up every half hour.</div>`
       + `<button type="button" class="cheat-all-btn" data-kwdg="map-fill">Top the map up now</button>`
@@ -520,6 +537,6 @@
     current: () => S.run,
     _lootLine: lootLine, _subtitle: subtitle, _roomWords: roomWords, _partyHtml: partyHtml, _mapHtml: mapHtml,
     _pendingHtml: pendingHtml, _runHtml: runHtml, _endHtml: endHtml, _devHtml: devHtml, _take: take, _state: S, ENDINGS,
-    _leftWords: leftWords, _factsLine: factsLine, _standing: standing, _listHtml: listHtml, _map: MAP,
+    _leftWords: leftWords, _factsLine: factsLine, _standing: standing, _listHtml: listHtml, _hallHtml: hallHtml, _map: MAP,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

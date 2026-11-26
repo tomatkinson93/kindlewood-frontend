@@ -152,7 +152,7 @@ console.log('9. Dev Tools');
   const html = K._devHtml(d);
   check('9b. it says dungeons are off for players and offers the switch', /Dungeons are <b>off<\/b> for players/.test(html) && /data-kwdg="switch" data-on="1">Turn dungeons on for players</.test(html));
   check('9c. a button for each test dungeon', /data-kwdg="start" data-story="test_green">🟢 Start: The Hollow under the Oak \(1 floor\)</.test(html) && /data-story="test_orange">🟠 Start: The Stair below the Crag \(2 floors\)</.test(html));
-  check('9d. too few free adults: the start buttons are off', (K._devHtml({ ...d, free_adults: 3 }).match(/data-kwdg="start"[^>]* disabled/g) || []).length === 2);
+  check('9d. nobody free: the start buttons are off; three free: they are on (a party is one to four)', (K._devHtml({ ...d, free_adults: 0 }).match(/data-kwdg="start"[^>]* disabled/g) || []).length === 2 && !/data-kwdg="start"[^>]* disabled/.test(K._devHtml({ ...d, free_adults: 3 })));
   const live = K._devHtml({ ...d, on: true, run: run({ can_flee: true, pending: { kind: 'battle', board: true, battle_id: 1, room: 'fight' } }) });
   check('9e. with a run under way: open it, win the fight, heal, or leave it idle', ['open', 'win', 'heal', 'idle'].every(a => live.includes(`data-kwdg="${a}"`)) && /a fight is open/.test(live) && (live.match(/data-kwdg="start"[^>]* disabled/g) || []).length === 2);
   check('9h. a generated dungeon: choose the skull and the land, give a seed or leave it, and start', /<select id="kwdg-dev-tier"[^>]*><option value="green">🟢 Easy<\/option><option value="purple">🟣 Nightmare<\/option>/.test(html) && /<select id="kwdg-dev-land"[^>]*><option value="forest">Forest<\/option><option value="marsh">Marsh<\/option>/.test(html) && /id="kwdg-dev-seed"[^>]*placeholder="any"/.test(html) && /data-kwdg="generate">Generate and start</.test(html));
@@ -194,8 +194,9 @@ console.log('12. Dungeons on the world map');
   check('12f. the tile\'s card: name, skull, facts, four pickers and Send them in', /💀 Windscar &lt;Hollow&gt; <span class="op-level">🟢 Easy<\/span>/.test(open) && (open.match(/data-dungeon-pick="\d"/g) || []).length === 4
     && /data-dungeon-enter="7">💀 Send them in</.test(open) && /No town has cleared it yet\./.test(open) && /class="op-section op-dungeon kwdg-skull-green"/.test(open) && !/<Hollow>|<i>/.test(open));
   check('12g. fighters are offered first', open.indexOf('Hazel (Guard)') < open.indexOf('>Ivy<') && open.indexOf('Bram &lt;i&gt; (Archer)') < open.indexOf('>Ivy<'));
-  check('12h. fewer than four free: it says so and offers no way in', /A dungeon takes a party of 4, and only 3 adults are free\./.test(K.tileHtml({ dungeon: d() }, people.slice(0, 3))) && !/data-dungeon-enter/.test(K.tileHtml({ dungeon: d() }, people.slice(0, 3)))
-    && /no adult is free/.test(K.tileHtml({ dungeon: d() }, [])));
+  const three = K.tileHtml({ dungeon: d() }, people.slice(0, 3));
+  check('12h. fewer than four free: three pickers and a warning that fewer is harder; nobody free: no way in', (three.match(/data-dungeon-pick="\d"/g) || []).length === 3 && /Only 3 adults are free: a dungeon is written for 4, so fewer is harder\./.test(three) && /data-dungeon-enter/.test(three)
+    && /No adult is free to go\./.test(K.tileHtml({ dungeon: d() }, [])) && !/data-dungeon-enter/.test(K.tileHtml({ dungeon: d() }, [])));
   const st = (x, busy) => K._standing(d(x), busy);
   check('12i. what the town may do there', st({}).state === 'open' && st({ mine: 'active' }).state === 'inside' && st({ mine: 'cleared' }).words === 'Your town has been here: dungeon cleared. Each town goes in once.'
     && st({ mine: 'fled' }).state === 'done' && st({ in_reach: false, distance: 11 }).words === 'Too far to walk: 11 tiles away. A party goes up to 8 tiles from the town.' && st({}, true).state === 'busy');
@@ -206,7 +207,7 @@ console.log('12. Dungeons on the world map');
   check('12l. the tile\'s panel shows the card and wires its buttons', /if \(tile\.dungeon && window\.KWDungeon && KWDungeon\.tileHtml\) return KWDungeon\.tileHtml\(tile, _opFreeCitizens\(\)\);/.test(MAIN)
     && /if \(tile\.dungeon && window\.KWDungeon && KWDungeon\.wireTile\) KWDungeon\.wireTile\(body, tile\);/.test(MAIN));
   check('12m. the party is sent to the server, which decides; then the path screen opens', /apiFetch\('\/api\/dungeons\/' \+ encodeURIComponent\(id\) \+ '\/enter', \{ method: 'POST'[^}]*\}, body: JSON\.stringify\(\{ citizen_ids: ids \}\)/.test(J)
-    && /if \(ids\.length !== MAP\.party\) return say\(`Choose \$\{MAP\.party\} citizens\.`\);/.test(J) && /if \(!res\.ok \|\| !d\.ok\) return \{ error: d\.error \|\| 'They could not go\.' \};/.test(J));
+    && /if \(!ids\.length\) return say\('Choose who goes\.'\);/.test(J) && /Press again to send them\./.test(J) && /if \(!res\.ok \|\| !d\.ok\) return \{ error: d\.error \|\| 'They could not go\.' \};/.test(J));
   check('12n. someone picked in one box is not offered in the others', /o\.disabled = !!o\.value && o\.value !== s\.value && taken\.includes\(o\.value\)/.test(J));
   const list = K._listHtml([d(), d({ id: 8, name: 'Thornhall', tier: 'red', tier_name: 'Deadly', skull: '🔴', mine: 'active' }), d({ id: 9, mine: 'defeat' })], 8);
   check('12o. The Land → Dungeons lists them: skull, facts, distance, state', (list.match(/class="kwdg-entry /g) || []).length === 3 && /kwdg-entry kwdg-skull-red/.test(list) && /· 3 tiles away/.test(list)
@@ -224,6 +225,18 @@ console.log('12. Dungeons on the world map');
     && /devCall\('POST', 'map', \{ expire: a === 'map-new' \}\)/.test(J));
   check('12y. Help explains dungeons, and the card and the list both lead there', /id: 'dungeons', icon: '💀', title: 'Dungeons'/.test(read('js/help.js')) && /Flee<\/b> a fight and they drop half/.test(read('js/help.js'))
     && /data-dungeon-help>\?<\/button>/.test(open) && /KWHelp\.open\('dungeons'\)/.test(J) && /data-action="help">\?<\/button>/.test(list));
+  const prize = { title: 'Greyfeather\'s Pinion, on silver', icon: '🪶', wealth: 160, from: 'Old Greyfeather' };
+  check('12z. a dungeon nobody has cleared says what the first town wins; once cleared it names the town', /No town has cleared it yet\. The first wins 🪶 Greyfeather&#39;s Pinion, on silver \(\+160 wealth\)\./.test(K.tileHtml({ dungeon: d({ prize }) }, people))
+    && /The first wins 🪶 Greyfeather&#39;s Pinion, on silver/.test(K._listHtml([d({ prize })], null)) && !/The first wins/.test(K.tileHtml({ dungeon: d({ cleared_by: 1, first_clear: 'A', prize: null }) }, people)));
+  const hall = { have: 2, kinds: 35, total: 3, trophies: [{ tier: 'red', icon: '🪶', title: 'Greyfeather\'s Pinion, on silver', count: 2, words: 'One grey <feather>.', last: { dungeon: 'Thornhall' } }, { tier: 'green', icon: '👑', title: 'Redtooth\'s Crown, on oak', count: 1, words: 'A crown.', last: { dungeon: 'Windmill Deeps' } }] };
+  const hh = K._hallHtml(hall);
+  check('12A. the trophy hall: how many of the full hall, a chip for each kind in its skull\'s colour, a count for more than one', /🏆 Trophy hall <span class="kwdg-hall-count">2 of 35<\/span>/.test(hh) && (hh.match(/class="kwdg-trophy-chip /g) || []).length === 2
+    && /kwdg-trophy-chip kwdg-skull-red" title="One grey &lt;feather&gt;\. Won in Thornhall\.">🪶 Greyfeather&#39;s Pinion, on silver <b>×2<\/b>/.test(hh) && !/×1/.test(hh));
+  check('12B. an empty hall says how to fill it; the hall is at the foot of the list, and there with no dungeon found', /Empty so far\. Be the first town to clear a dungeon/.test(K._hallHtml({ have: 0, kinds: 35, trophies: [] }))
+    && /kwdg-hall/.test(K._listHtml([d()], null, hall)) && /kwdg-hall/.test(K._listHtml([], null, hall)) && K._hallHtml(null) === '' && /MAP\.hall = d\.hall \|\| null/.test(J));
+  const won = K._endHtml(run({ status: 'cleared', result: { kept: { wealth: 30, items: [] }, first_clear: true, trophy: { icon: '🪶', title: 'Greyfeather\'s Pinion, on silver', words: 'One grey flight feather.', wealth: 160 } } }));
+  check('12C. the last screen of a first clear shows the trophy and the wealth that came with it', /🏆 First of any town to clear it/.test(won) && /<b>🪶 Greyfeather&#39;s Pinion, on silver<\/b> now hangs in your trophy hall, and the town is 160 wealth richer\./.test(won)
+    && /One grey flight feather\./.test(won) && !/kwdg-trophy/.test(K._endHtml(run({ status: 'cleared', result: { kept: { wealth: 30, items: [] } } }))));
   check('12x. the list and the card take the skull\'s colour from the shared tokens', ['green', 'yellow', 'orange', 'red', 'purple'].every(k => CSS.includes(`.kwdg-skull-${k}`) && CSS.includes(`var(--kw-skull-${k})`)) && /\.kwdg-entry \{[^}]*border-left: 4px solid var\(--kwdg-skull/.test(CSS));
 }
 
