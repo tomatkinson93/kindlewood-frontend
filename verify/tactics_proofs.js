@@ -569,6 +569,17 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
     check('18q4. an ability from the second school is marked on its button and in the list shown for a tapped citizen', /\$\{x\.off \? ' is-off' : ''\}" data-kwt="ability"/.test(J) && /second school, three-quarters strength/.test(J)
       && /\.kwtc-act\.is-off \{/.test(CSS) && /\.kwtc-school\.is-on \{/.test(CSS));
   }
+  // Mastery (stage B): an ability used enough in battle is ✦ for that citizen.
+  {
+    const mPage = guard({ mastery: { uses: 25, edge: 1.2 }, abilities: [ab('g_strike', 'Strike', 1, { uses: 25, star: true }), ab('g_shield', 'Shield Up', 1, { uses: 10, star: false })] });
+    const mh = K._pageHtml(mPage);
+    check('18u. the Abilities tab shows how near each ability is to mastery, and a ✦ on one that is mastered', /Strike <span class="kwab-star"[^>]*>✦<\/span>/.test(mh) && /✦ Mastered: 20% stronger/.test(mh) && /10 of 25 uses to ✦/.test(mh) && /style="width:40%"/.test(mh)
+      && !/kwab-mastery/.test(K._pageHtml(guard())) && !/uses to ✦/.test(K._pageHtml(guard({ mastery: { uses: 25, edge: 1.2 } })).split('Still to learn')[1].split('Second school')[0]));
+    check('18v. in battle a mastered ability wears a ✦ on its button and in a tapped citizen\'s list', /\$\{x\.star \? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦<\/b>' : ''\}/.test(J) && /\$\{a\.star \? ' ✦' : ''\}/.test(J) && /\.kwtc-star \{/.test(CSS));
+    check('18w. the end screen says what was mastered with this battle, under the citizen, won or lost', /if \(!A\.mastered && b\.mastered && b\.mastered\.length && \(!won \|\| A\.xp\)\)/.test(J) && /Mastered: \$\{esc\(m\.icon \|\| ''\)\} <b>\$\{esc\(m\.name\)\} ✦<\/b> <i>a fifth stronger from now on<\/i>/.test(J)
+      && /b\.mastered = d\.mastered && d\.mastered\.length \? d\.mastered : kept\.mastered;/.test(J));
+    check('18x. Help says what mastery is', /used about 25 times in battle is <b>mastered<\/b> \(✦\): a fifth stronger/.test(read('js/help.js')));
+  }
   check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));
   check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));
   const C4 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();

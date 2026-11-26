@@ -934,7 +934,7 @@
     if (S.info && S.info !== u) {
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
       acts.innerHTML = `<div class="kwtc-kit">${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
-          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
+          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
         + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
@@ -958,7 +958,7 @@
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
       const why = !can.ok ? (can.why === 'cooldown' ? `ready in ${can.turns}` : can.why === 'spent' ? 'used up' : 'done') : none ? 'no one in reach' : '';
       return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}${x.off ? ' is-off' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
-        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}</span>`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}${x.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
       // The next ability this citizen's class will teach, at the end of their own row: greyed, with the level that brings it.
@@ -1064,6 +1064,8 @@
         // What the battle taught, and any injury rolls; a repeated answer carries them in the battle's record.
         const kept = d.battle.result || {};
         if (d.rewards || kept.rewards) b.rewards = d.rewards || kept.rewards;
+        // Abilities used often enough in battle to be mastered with this one (the server's lib/tactics_mastery.js).
+        if ((d.mastered && d.mastered.length) || (kept.mastered && kept.mastered.length)) b.mastered = d.mastered && d.mastered.length ? d.mastered : kept.mastered;
         if ((d.rolls && d.rolls.length) || (kept.rolls && kept.rolls.length)) b.rolls = d.rolls && d.rolls.length ? d.rolls : kept.rolls;
         if (mark && d.battle.count === n + 1 && d.battle.check !== mark) return resync(b, d.battle);
         noteSaved();
@@ -1300,6 +1302,15 @@
       if (note) note.textContent = b.rewards.kept ? '' : 'A practice field: this is what the battle would have taught. Nothing is kept.';
       A.busy = Promise.all((b.rewards.party || []).map((r, i) => { const li = rowOf(r.citizen_id); return li ? growXp(li, r, i * 160) : null; }));
       await A.busy;
+    }
+    // Mastered with this battle: said under the citizen, won or lost.
+    if (!A.mastered && b.mastered && b.mastered.length && (!won || A.xp)) {
+      A.mastered = true;
+      for (const m of b.mastered) {
+        const li = rowOf(m.citizen_id);
+        if (li && !li.querySelector(`.kwtc-mastered[data-key="${m.key}"]`)) (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned kwtc-mastered" data-key="${esc(m.key)}">Mastered: ${esc(m.icon || '')} <b>${esc(m.name)} ✦</b> <i>a fifth stronger from now on</i></span>`);
+      }
+      sfx('buff');
     }
     if (!A.rolls && b.rolls && b.rolls.length && (!won || A.xp)) {
       A.rolls = true;

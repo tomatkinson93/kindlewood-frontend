@@ -48,12 +48,20 @@
   const pct100 = n => Math.round((Number(n) || 0) * 100);
 
   // ── Markup (pure) ───────────────────────────────────────────────────────
+  // How near an ability is to being mastered: used in battle so many times of the number it takes (the page's
+  // `mastery`, kept in M while a page is drawn). Nothing for one not known yet.
+  let M = null;
+  function masteryHtml(a) {
+    if (!M || a.known === false || a.uses == null) return '';
+    return a.star ? `<span class="kwab-mastery is-done">✦ Mastered: ${Math.round((M.edge - 1) * 100)}% stronger</span>`
+      : `<span class="kwab-mastery" role="img" aria-label="Used ${esc(a.uses)} of ${esc(M.uses)} times in battle towards mastery"><span class="kwab-mastery-bar"><span style="width:${Math.round(a.uses / M.uses * 100)}%"></span></span> ${esc(a.uses)} of ${esc(M.uses)} uses to ✦</span>`;
+  }
   // One ability. `state`: the markup at the end of its row (a level, a tick box, "brought").
   function rowHtml(a, state, cls) {
     const words = [effect(a), reach(a), pace(a)].filter(Boolean).join(' · ');
     return `<li class="kwab-row${cls ? ' ' + cls : ''}" aria-label="${esc(a.name)}">`
       + `<span class="kwab-ico" aria-hidden="true">${icon(a)}</span>`
-      + `<span class="kwab-what"><b>${esc(a.name)}</b><span class="kwab-does">${esc(words)}</span>${a.desc ? `<span class="kwab-desc">${esc(a.desc)}</span>` : ''}</span>`
+      + `<span class="kwab-what"><b>${esc(a.name)}${a.star ? ' <span class="kwab-star" title="Mastered: a fifth stronger">✦</span>' : ''}</b><span class="kwab-does">${esc(words)}</span>${a.desc ? `<span class="kwab-desc">${esc(a.desc)}</span>` : ''}${masteryHtml(a)}</span>`
       + state + `</li>`;
   }
   // The second school: which other class to bring abilities from, and which of them (up to p.second.max).
@@ -80,6 +88,7 @@
   function pageHtml(p, pickNow) {
     if (!p) return '<div class="cp-rel-loading">Reading what they know…</div>';
     const pick = pickNow || saved(p), next = (p.ahead || [])[0];
+    M = p.mastery || null;
     const pct = p.xp && p.xp.need ? Math.max(0, Math.min(100, Math.round(p.xp.into / p.xp.need * 100))) : 100;
     const head = p.career
       ? `<div class="kwab-head"><span class="kwab-big" aria-hidden="true">${esc(p.icon || '')}</span><div><div class="kwab-title">${esc(p.label)} · level ${esc(p.level)}</div>`
@@ -157,5 +166,5 @@
     finally { S.busy = false; paint(); }
   }
 
-  global.KWAbilities = { available, tabHtml, panelHtml, renderTab, _pageHtml: pageHtml, _rowHtml: rowHtml, _secondHtml: secondHtml, _pace: pace, _state: S, _toggle: toggle, _school: school, _save: save };
+  global.KWAbilities = { available, tabHtml, panelHtml, renderTab, _pageHtml: pageHtml, _rowHtml: rowHtml, _secondHtml: secondHtml, _masteryHtml: masteryHtml, _pace: pace, _state: S, _toggle: toggle, _school: school, _save: save };
 })(typeof window !== 'undefined' ? window : globalThis);
