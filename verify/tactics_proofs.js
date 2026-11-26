@@ -571,14 +571,33 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
   }
   // Mastery (stage B): an ability used enough in battle is ✦ for that citizen.
   {
-    const mPage = guard({ mastery: { uses: 25, edge: 1.2 }, abilities: [ab('g_strike', 'Strike', 1, { uses: 25, star: true }), ab('g_shield', 'Shield Up', 1, { uses: 10, star: false })] });
+    const mPage = guard({ mastery: { uses: 25, edge: 1.2 }, abilities: [ab('g_strike', 'Strike', 1, { used: 25, star: true }), ab('g_shield', 'Shield Up', 1, { used: 10, star: false, uses: 2 })] });
     const mh = K._pageHtml(mPage);
-    check('18u. the Abilities tab shows how near each ability is to mastery, and a ✦ on one that is mastered', /Strike <span class="kwab-star"[^>]*>✦<\/span>/.test(mh) && /✦ Mastered: 20% stronger/.test(mh) && /10 of 25 uses to ✦/.test(mh) && /style="width:40%"/.test(mh)
+    check('18u. the Abilities tab shows how near each ability is to mastery, and a ✦ on one that is mastered', /Strike <span class="kwab-star"[^>]*>✦<\/span>/.test(mh) && /✦ Mastered: 20% stronger/.test(mh) && /10 of 25 uses to ✦/.test(mh) && /style="width:40%"/.test(mh) && /twice a battle/.test(mh) && !/0 times a battle|25 times a battle|10 times a battle/.test(mh)
       && !/kwab-mastery/.test(K._pageHtml(guard())) && !/uses to ✦/.test(K._pageHtml(guard({ mastery: { uses: 25, edge: 1.2 } })).split('Still to learn')[1].split('Second school')[0]));
     check('18v. in battle a mastered ability wears a ✦ on its button and in a tapped citizen\'s list', /\$\{x\.star \? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦<\/b>' : ''\}/.test(J) && /\$\{a\.star \? ' ✦' : ''\}/.test(J) && /\.kwtc-star \{/.test(CSS));
     check('18w. the end screen says what was mastered with this battle, under the citizen, won or lost', /if \(!A\.mastered && b\.mastered && b\.mastered\.length && \(!won \|\| A\.xp\)\)/.test(J) && /Mastered: \$\{esc\(m\.icon \|\| ''\)\} <b>\$\{esc\(m\.name\)\} ✦<\/b> <i>a fifth stronger from now on<\/i>/.test(J)
       && /b\.mastered = d\.mastered && d\.mastered\.length \? d\.mastered : kept\.mastered;/.test(J));
     check('18x. Help says what mastery is', /used about 25 times in battle is <b>mastered<\/b> \(✦\): a fifth stronger/.test(read('js/help.js')));
+  }
+  // Gear (stage C): the kind of weapon and the shield change what abilities do.
+  {
+    const kinds = [{ key: 'sword', name: 'Sword', says: 'Arms abilities are ready a turn sooner.' }, { key: 'staff', name: 'Staff', says: 'Wild and Hearth magic is a fifth stronger.' }];
+    const gp = K._pageHtml(guard({ kinds, gear: { weapon: { key: 'iron_sword', name: 'Iron <Sword>', icon: '⚔️', kind: 'sword', kind_name: 'Sword', says: kinds[0].says }, shield: { key: 'tower_shield', name: 'Tower Shield', icon: '🧱', block: 8, says: 'Arms blocks are 8 stronger.' }, armour: { key: 'chainmail', name: 'Chainmail', icon: '🔗' } } }));
+    check('18y. the Abilities tab says what they hold and wear, and what each does', /Gear <span class="kwab-h-sub">what they hold changes what their abilities do/.test(gp) && /<b>Iron &lt;Sword&gt;<\/b> <i>Sword<\/i> Arms abilities are ready a turn sooner\./.test(gp)
+      && /<b>Tower Shield<\/b> Arms blocks are 8 stronger\./.test(gp) && /<b>Chainmail<\/b> Takes the edge off every hit\./.test(gp) && gp.indexOf('kwab-gear') < gp.indexOf('all of them go into battle'));
+    const none = K._pageHtml(guard({ kinds, gear: null }));
+    check('18z. with nothing carried it says so; the guide to every kind is there either way; an older page with no kinds shows no gear part', /carries nothing that changes a fight/.test(none) && /<summary>What each kind of weapon does<\/summary>/.test(none) && (none.match(/<li><b>(Sword|Staff|Shield)<\/b>/g) || []).length === 3
+      && /read the school of an ability, not the class/.test(none) && !/kwab-kinds/.test(K._pageHtml(guard())));
+    const src = J.slice(J.indexOf('  function gearLine(u) {'), J.indexOf('  function unitCard(u, v) {'));
+    const gearLine = new Function('esc', src + '; return gearLine;')(x => String(x).replace(/</g, '&lt;'));
+    check('18A. in battle a citizen\'s card names what they hold; the words for what it does are in its title and in the tapped list', /🪄 Oak Staff/.test(gearLine({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'Wild and Hearth magic is a fifth stronger.' }, shield: { name: 'Buckler', icon: '🛡️', says: 'Arms blocks are 3 stronger.' } } }))
+      && /title="Wild and Hearth magic is a fifth stronger\."/.test(gearLine({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'Wild and Hearth magic is a fifth stronger.' } } })) && gearLine({}) === '' && gearLine({ gear: { armour: { name: 'Mail' } } }) === ''
+      && /\$\{gearLine\(u\)\}<\/div>`;/.test(J) && /class="kwtc-kit-a is-gear"/.test(J));
+    check('18B. a dagger\'s blow from behind is forecast at its own worth', /from behind \(\+\$\{Math\.round\(\(\(a\.back \|\| 1\.5\) - 1\) \* 100\)\}%\)/.test(J));
+    const EN = read('js/tactics-engine.js');
+    check('18C. the rules: an ability may carry its own worth for a blow from behind, else half as much again', /d \*= side === 'back' \? \(a\.back \|\| RULES\.BACK\) : side === 'side' \? RULES\.FLANK : 1;/.test(EN));
+    check('18D. Help says that what is carried matters', /a longbow reaches further, a hammer hits harder and slows its wielder, a polearm strikes two tiles away, a dagger doubles a blow from behind, a staff strengthens magic, a shield strengthens a block/.test(read('js/help.js')));
   }
   check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));
   check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));

@@ -52,9 +52,9 @@
   // `mastery`, kept in M while a page is drawn). Nothing for one not known yet.
   let M = null;
   function masteryHtml(a) {
-    if (!M || a.known === false || a.uses == null) return '';
+    if (!M || a.known === false || a.used == null) return '';      // `used`: times used in battle; `uses` is an ability's own limit a battle
     return a.star ? `<span class="kwab-mastery is-done">✦ Mastered: ${Math.round((M.edge - 1) * 100)}% stronger</span>`
-      : `<span class="kwab-mastery" role="img" aria-label="Used ${esc(a.uses)} of ${esc(M.uses)} times in battle towards mastery"><span class="kwab-mastery-bar"><span style="width:${Math.round(a.uses / M.uses * 100)}%"></span></span> ${esc(a.uses)} of ${esc(M.uses)} uses to ✦</span>`;
+      : `<span class="kwab-mastery" role="img" aria-label="Used ${esc(a.used)} of ${esc(M.uses)} times in battle towards mastery"><span class="kwab-mastery-bar"><span style="width:${Math.round(a.used / M.uses * 100)}%"></span></span> ${esc(a.used)} of ${esc(M.uses)} uses to ✦</span>`;
   }
   // One ability. `state`: the markup at the end of its row (a level, a tick box, "brought").
   function rowHtml(a, state, cls) {
@@ -85,6 +85,18 @@
       + (can ? `<div class="kwab-bar"><span class="kwab-count${open && pick.keys.length === sec.max ? ' is-full' : ''}" role="status">${open ? `${pick.keys.length} of ${esc(sec.max)} chosen` : 'Nothing from another class'}</span>`
         + `<button type="button" class="kw-btn primary" data-kwab="save"${!dirty || !ok ? ' disabled' : ''}>Save</button></div>` : '');
   }
+  // What they hold and wear, and what its kind does to their abilities (the server's lib/gear_kinds.js).
+  function gearHtml(p) {
+    if (!p.kinds) return '';
+    const g = p.gear || {}, rows = [];
+    if (g.weapon) rows.push(`<li><span aria-hidden="true">${esc(g.weapon.icon || '')}</span> <b>${esc(g.weapon.name)}</b>${g.weapon.kind_name ? ` <i>${esc(g.weapon.kind_name)}</i>` : ''} ${esc(g.weapon.says || 'An odd thing to fight with: it changes nothing.')}</li>`);
+    if (g.shield) rows.push(`<li><span aria-hidden="true">${esc(g.shield.icon || '')}</span> <b>${esc(g.shield.name)}</b> ${esc(g.shield.says || '')}</li>`);
+    if (g.armour) rows.push(`<li><span aria-hidden="true">${esc(g.armour.icon || '')}</span> <b>${esc(g.armour.name)}</b> Takes the edge off every hit.</li>`);
+    return `<h4 class="kwab-h">Gear <span class="kwab-h-sub">what they hold changes what their abilities do</span></h4>`
+      + (rows.length ? `<ul class="kwab-gear">${rows.join('')}</ul>` : `<p class="kwab-note">${esc(p.citizen.name)} carries nothing that changes a fight. Weapons, shields and armour are equipped from the town's stores.</p>`)
+      + `<details class="kwab-kinds"><summary>What each kind of weapon does</summary><ul>${p.kinds.map(k => `<li><b>${esc(k.name)}</b> ${esc(k.says)}</li>`).join('')}<li><b>Shield</b> Arms blocks are stronger by the shield's worth.</li></ul>`
+      + `<p class="kwab-note">These read the school of an ability, not the class of whoever uses it: a staff helps a Guard's borrowed healing as much as a Hearthkeeper's own.</p></details>`;
+  }
   function pageHtml(p, pickNow) {
     if (!p) return '<div class="cp-rel-loading">Reading what they know…</div>';
     const pick = pickNow || saved(p), next = (p.ahead || [])[0];
@@ -100,7 +112,7 @@
     const own = `<h4 class="kwab-h">${esc(p.school.icon || '')} ${esc(p.school.name)} <span class="kwab-h-sub">${p.abilities.length} known: all of them go into battle</span></h4>`
       + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
     const ahead = (p.ahead || []).length ? `<h4 class="kwab-h">Still to learn</h4><ul class="kwab-list">${p.ahead.map(a => rowHtml(a, `<span class="kwab-when">🔒 Level ${esc(a.at)}</span>`, 'is-locked')).join('')}</ul>` : '';
-    return `<div class="kwab">${head}${own}${ahead}${secondHtml(p, pick)}</div>`;
+    return `<div class="kwab">${head}${gearHtml(p)}${own}${ahead}${secondHtml(p, pick)}</div>`;
   }
 
   // ── The tab on a citizen's page (js/citizens.js) ────────────────────────
@@ -166,5 +178,5 @@
     finally { S.busy = false; paint(); }
   }
 
-  global.KWAbilities = { available, tabHtml, panelHtml, renderTab, _pageHtml: pageHtml, _rowHtml: rowHtml, _secondHtml: secondHtml, _masteryHtml: masteryHtml, _pace: pace, _state: S, _toggle: toggle, _school: school, _save: save };
+  global.KWAbilities = { available, tabHtml, panelHtml, renderTab, _pageHtml: pageHtml, _rowHtml: rowHtml, _secondHtml: secondHtml, _masteryHtml: masteryHtml, _gearHtml: gearHtml, _pace: pace, _state: S, _toggle: toggle, _school: school, _save: save };
 })(typeof window !== 'undefined' ? window : globalThis);

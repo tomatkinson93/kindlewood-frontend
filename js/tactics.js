@@ -892,18 +892,27 @@
     if (a.shape === 'line') bits.push('down the line'); if (a.shape === 'burst') bits.push(a.radius > 1 ? `and all within ${a.radius} of them` : 'and those beside');
     return bits.join(', ');
   }
+  // What a citizen holds: the kind of weapon and the shield change what their abilities do (the server's
+  // lib/gear_kinds.js). One short line; the full words are in its title.
+  function gearLine(u) {
+    const g = u && u.gear, bits = [];
+    if (!g) return '';
+    if (g.weapon) bits.push(`<span title="${esc(g.weapon.says || '')}">${esc(g.weapon.icon || '')} ${esc(g.weapon.name)}</span>`);
+    if (g.shield) bits.push(`<span title="${esc(g.shield.says || '')}">${esc(g.shield.icon || '')} ${esc(g.shield.name)}</span>`);
+    return bits.length ? `<div class="kwtc-card-gear">${bits.join(' · ')}</div>` : '';
+  }
   function unitCard(u, v) {
     const ails = Object.keys(STATUS).filter(s => (u.st[s] || 0) > 0).map(s => `<span class="kwtc-ail">${ASSETS.status[s] ? `<img class="kwtc-ic" src="/assets/tactics/status/${esc(ASSETS.status[s])}" alt="" draggable="false"> ` : ''}${esc(STATUS[s][0])} ${u.st[s]}</span>`).join('');
     return `<div class="kwtc-card is-${u.side}"><div class="kwtc-card-name"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[u.cls] || CLASS_COLOUR.creature}"></span><b>${esc(u.name)}</b> <span>${esc(u.label || (u.side === 'enemy' ? 'Creature' : ''))}</span></div>`
       + `<div class="kwtc-bar" role="img" aria-label="Health ${u.hp} of ${u.maxHp}"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i><em>${u.hp} / ${u.maxHp}</em></div>`
-      + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}</div></div>`;
+      + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}</div>${gearLine(u)}</div>`;
   }
   function forecastHtml(u, a, tile) {
     const lines = E().forecast(S.state, u, a, tile.x, tile.y);
     if (!lines.length) return '';
     return `<div class="kwtc-fore">` + lines.map(l => {
       const bits = [];
-      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ' from behind (+50%)' : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
+      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ` from behind (+${Math.round(((a.back || 1.5) - 1) * 100)}%)` : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
       if (l.block) bits.push(`<b>${l.block} block</b>`);
       if (l.heal != null) bits.push(l.raise ? `<b>stands back up with ${l.heal}</b>` : `<b>heals ${l.heal}</b>`);
       for (const k of Object.keys(l.fx)) bits.push(k === 'push' ? 'pushed back' : k === 'bold' ? `next attack +${l.fx[k]}` : `${(STATUS[k] || [k])[0].toLowerCase()} ${l.fx[k]}`);
@@ -935,7 +944,8 @@
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
       acts.innerHTML = `<div class="kwtc-kit">${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
           + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
-        + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '') + `</div>`
+        + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
+        + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
