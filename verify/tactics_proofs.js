@@ -401,10 +401,10 @@ console.log('14. After the battle: the word, the party, experience and injuries'
 console.log('15. The class ladder on the screen, and a check on what is live');
 {
   const J = read('js/tactics.js'), CSS = read('css/tactics.css'), D = read('js/dungeons.js');
-  check('15a. an ability not learned yet sits in its place in the row, greyed, saying the class level that brings it', /\(u\.locked \|\| \[\]\)\.map\(x => `<div class="kwtc-act is-locked"/.test(J) && /learned at level \$\{x\.at\}/.test(J)
+  check('15a. the next ability the class will teach sits at the end of the citizen\'s own row, greyed, saying the level that brings it', /\(u\.next && !tab\.off \? \[u\.next\] : \[\]\)\.map\(x => `<div class="kwtc-act is-locked"/.test(J) && /learned at level \$\{x\.at\}/.test(J)
     && /\.kwtc-act\.is-locked \{ opacity: \.45; cursor: default; border-style: dashed; \}/.test(CSS));
-  check('15b. it is no button: it cannot be chosen, and the number keys count only what is known', !/class="kwtc-act is-locked"[^>]*data-kwt/.test(J) && /const a = \(u\.abilities \|\| \[\]\)\[Number\(ev\.key\) - 1\];/.test(J));
-  check('15c. tapping anyone shows what they know and, greyed, what they have yet to learn', /\.map\(x => `<span class="kwtc-kit-a is-locked">🔒 <b>\$\{esc\(x\.name\)\}<\/b> <i>at level \$\{x\.at\}<\/i><\/span>`\)/.test(J) && /\(look\.locked \|\| \[\]\)\.concat\(/.test(J));
+  check('15b. it is no button: it cannot be chosen, and the number keys count the abilities of the open school', !/class="kwtc-act is-locked"[^>]*data-kwt/.test(J) && /const a = tabOf\(u\)\.list\[Number\(ev\.key\) - 1\];/.test(J));
+  check('15c. tapping anyone shows what they brought, school by school, and greyed the next they will learn', /tabsOf\(look\)\.map\(t =>/.test(J) && /\(look\.next \? `<span class="kwtc-kit-a is-locked">🔒 <b>\$\{esc\(look\.next\.name\)\}<\/b> <i>at level \$\{look\.next\.at\}<\/i><\/span>` : ''\)/.test(J));
   check('15d. on the victory screen a level gained says what it taught, once the bar has reached that level', /for \(const x of \(r\.learned \|\| \[\]\)\.filter\(x => x\.at <= level && !li\.querySelector\(`\.kwtc-learned\[data-key="\$\{x\.key\}"\]`\)\)\)/.test(J)
     && /<span class="kwtc-learned" data-key="\$\{esc\(x\.key\)\}">Learned: /.test(J));
   check('15e. fights with cards are not on offer for a dungeon any more', !/With cards/.test(D) && !/kwdg-dev-combat/.test(D));
@@ -502,43 +502,74 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
   w.KWTactics = { icon: a => '[' + a.key + ']', effectText: a => (a.dmg ? a.dmg + ' damage' : a.block ? a.block + ' block' : ''), reachText: a => 'reach ' + a.max };
   vm.createContext(w); vm.runInContext(A, w);
   const K = w.KWAbilities;
-  const ab = (key, name, at, x = {}) => ({ key, name, at, icon: '•', kind: 'attack', desc: name + ' does a thing.', dmg: 10, block: 0, heal: 0, fx: {}, min: 1, max: 1, cooldown: 0, quick: false, uses: null, known: true, ready: false, ...x });
-  const guard = (x = {}) => ({ citizen: { id: 7, name: 'Hazel <b>' }, cls: 'guard', label: 'Guard', icon: '🛡️', career: 'soldier', level: 10, xp: { into: 30, need: 120 }, max: 5, can_choose: true, busy: false,
-    abilities: [ab('g_strike', 'Strike', 1, { ready: true }), ab('g_shield', 'Shield Up', 1, { ready: true, cooldown: 1 }), ab('g_cover', 'Cover', 2, { ready: true }), ab('g_shove', 'Shove', 4, { ready: true, cooldown: 2 }), ab('g_heavy', 'Heavy Blow', 6, { ready: true, cooldown: 3 }),
-      ab('g_stand_fast', 'Stand Fast', 8), ab('g_shield_bash', 'Shield Bash', 10), ab('g_oath', "Guard's Oath", 13, { known: false }), ab('g_hold_line', 'Hold the Line', 16, { known: false, uses: 1 }), ab('g_hammer', 'Hammer Blow', 20, { known: false })], ...x });
+  const ab = (key, name, at, x = {}) => ({ key, name, at, icon: '•', kind: 'attack', desc: name + ' does a thing.', dmg: 10, block: 0, heal: 0, fx: {}, min: 1, max: 1, cooldown: 0, quick: false, uses: null, known: true, school: 'arms', ...x });
+  const hearth = ready => ({ cls: 'hearthkeeper', label: 'Hearthkeeper', icon: '🔥', level: 10, school: { key: 'hearth', name: 'Hearth magic', icon: '🔥' },
+    abilities: ['h_cinder', 'h_kindle', 'h_ward', 'h_bold', 'h_steady', 'h_ember_ward', 'h_banish'].map((k, i) => ab(k, 'H' + i, i, { school: 'hearth', off: true, dmg: 7, ready: ready.includes(k) })) });
+  const archer = ready => ({ cls: 'archer', label: 'Archer', icon: '🏹', level: 4, school: { key: 'archery', name: 'Archery', icon: '🏹' }, abilities: ['a_shoot', 'a_side', 'a_part', 'a_mark'].map((k, i) => ab(k, 'A' + i, i, { school: 'archery', off: true, ready: ready.includes(k) })) });
+  const FIVE = ['h_cinder', 'h_kindle', 'h_ward', 'h_bold', 'h_steady'];
+  const guard = (x = {}) => ({ citizen: { id: 7, name: 'Hazel <b>' }, cls: 'guard', label: 'Guard', icon: '🛡️', career: 'soldier', level: 10, xp: { into: 30, need: 120 }, school: { key: 'arms', name: 'Arms', icon: '⚔️' },
+    abilities: [ab('g_strike', 'Strike', 1), ab('g_shield', 'Shield Up', 1, { cooldown: 1 }), ab('g_cover', 'Cover', 2), ab('g_shove', 'Shove', 4), ab('g_heavy', 'Heavy Blow', 6), ab('g_stand_fast', 'Stand Fast', 8), ab('g_shield_bash', 'Shield Bash', 10)],
+    ahead: [ab('g_oath', "Guard's Oath", 13, { known: false }), ab('g_hold_line', 'Hold the Line', 16, { known: false, uses: 1 }), ab('g_hammer', 'Hammer Blow', 20, { known: false })],
+    second: { max: 5, strength: 0.75, busy: false, cls: 'hearthkeeper', chosen: null, options: [hearth(FIVE), archer([])] }, ...x });
   const html = K._pageHtml(guard());
-  check('18a. the page lists every ability of the class in the order learned: known ones with a tick, the rest with the level that brings them', (html.match(/class="kwab-row/g) || []).length === 10 && (html.match(/data-kwab="toggle"/g) || []).length === 7
+  check('18a. the page has three parts: everything of their own school, what is still to learn with its level, and the second school', /⚔️ Arms <span class="kwab-h-sub">7 known: all of them go into battle/.test(html) && /Still to learn/.test(html) && /Second school/.test(html)
     && (html.match(/kwab-row is-locked/g) || []).length === 3 && /🔒 Level 13/.test(html) && /🔒 Level 20/.test(html));
   check('18b. it says the class, the level, how far to the next, and what the next level teaches', /Guard · level 10/.test(html) && /style="width:25%"/.test(html) && /Next: <b>Guard&#39;s Oath<\/b> at level 13\./.test(html));
-  check('18c. five are brought: the ticked ones are marked, a sixth cannot be ticked, and Save waits for a change', (html.match(/kwab-row is-ready/g) || []).length === 5 && (html.match(/data-kwab="toggle"[^>]*checked/g) || []).length === 5
-    && (html.match(/data-kwab="toggle"[^>]* disabled/g) || []).length === 2 && /5 of 5 chosen/.test(html) && /data-kwab="save" disabled/.test(html) && /knows 7 and brings 5 to a battle/.test(html));
-  const four = K._pageHtml(guard(), ['g_strike', 'g_shield', 'g_cover', 'g_heavy']);
-  check('18d. with one unticked: four of five, every known one can be ticked, Save still waits', /4 of 5 chosen/.test(four) && !/data-kwab="toggle"[^>]* disabled/.test(four) && /data-kwab="save" disabled/.test(four));
-  const swapped = K._pageHtml(guard(), ['g_strike', 'g_shield', 'g_cover', 'g_heavy', 'g_stand_fast']);
-  check('18e. with a different five chosen, Save is on', /5 of 5 chosen/.test(swapped) && /data-kwab="save">Save</.test(swapped) && /data-key="g_stand_fast" checked/.test(swapped));
-  check('18f. each row says what the ability does in the battle screen\'s own words, how often, and shows the battle\'s picture', /\[g_strike\]/.test(html) && /10 damage · reach 1/.test(html) && /every other turn/.test(html) && /every 4th turn/.test(html)
+  check('18c. everything of their own is brought: no tick boxes there, each marked brought', (html.match(/<span class="kwab-when is-on">✓ Brought<\/span>/g) || []).length === 7 && !/data-key="g_strike"/.test(html));
+  const wiz = K._pageHtml(guard({ cls: 'wizard', label: 'Wizard', school: { key: 'wild', name: 'Wild magic', icon: '🔮' }, abilities: [ab('v_swing', 'Swing', 1, { school: 'basics', school_name: 'Basics' }), ab('w_spark', 'Spark', 1, { school: 'wild' })] }));
+  check('18d. an ability of another school among their own says which: the plain blow is Basics', /🔮 Wild magic/.test(wiz) && /<span class="kwab-when is-on">Basics<\/span>/.test(wiz) && (wiz.match(/✓ Brought/g) || []).length === 1);
+  check('18e. the second school: each old career to choose from, the furthest along first, and None', /up to 5 abilities from an old career, at 75% strength/.test(html) && (html.match(/data-kwab="school"/g) || []).length === 3
+    && /value="hearthkeeper" checked/.test(html) && /🔥 Hearth magic<\/b> <i>Hearthkeeper level 10<\/i>/.test(html) && /🏹 Archery<\/b> <i>Archer level 4<\/i>/.test(html) && /value="none"/.test(html) && html.indexOf('value="hearthkeeper"') < html.indexOf('value="archer"'));
+  check('18f. its abilities have tick boxes: five ticked, a sixth cannot be, and Save waits for a change', (html.match(/data-kwab="toggle"/g) || []).length === 7 && (html.match(/data-kwab="toggle"[^>]* checked/g) || []).length === 5
+    && (html.match(/data-kwab="toggle"[^>]* disabled/g) || []).length === 2 && /5 of 5 chosen/.test(html) && /data-kwab="save" disabled/.test(html) && (html.match(/kwab-row is-ready is-off/g) || []).length === 5);
+  const three = K._pageHtml(guard(), { cls: 'hearthkeeper', keys: ['h_kindle', 'h_ward', 'h_banish'] });
+  check('18g. with a different choice Save is on; fewer than five is allowed', /3 of 5 chosen/.test(three) && /data-kwab="save">Save</.test(three) && !/data-kwab="toggle"[^>]* disabled/.test(three) && /data-key="h_banish" checked/.test(three));
+  const other = K._pageHtml(guard(), { cls: 'archer', keys: ['a_shoot', 'a_side', 'a_part', 'a_mark'] });
+  check('18h. another old career shows its own abilities; none shows no list', /value="archer" checked/.test(other) && /data-key="a_mark" checked/.test(other) && !/data-key="h_kindle"/.test(other) && /4 of 5 chosen/.test(other)
+    && !/data-kwab="toggle"/.test(K._pageHtml(guard(), { cls: 'none', keys: [] })) && /Nothing from another class/.test(K._pageHtml(guard(), { cls: 'none', keys: [] })) && /data-kwab="save">Save</.test(K._pageHtml(guard(), { cls: 'none', keys: [] }))
+    && /data-kwab="save" disabled/.test(K._pageHtml(guard(), { cls: 'hearthkeeper', keys: [] })));
+  check('18i. each row says what the ability does in the battle screen\'s own words, how often, and shows the battle\'s picture', /\[g_strike\]/.test(html) && /10 damage · reach 1/.test(html) && /every other turn/.test(html) && /7 damage · reach 1/.test(html)
     && K._pace({ uses: 1 }) === 'once a battle' && K._pace({ uses: 2 }) === 'twice a battle' && K._pace({ cooldown: 2 }) === 'every 3rd turn' && /quick/.test(K._pace({ quick: true, cooldown: 2 })));
-  const young = K._pageHtml(guard({ level: 4, can_choose: false, abilities: guard().abilities.map((a, i) => ({ ...a, known: i < 4, ready: i < 4 })) }));
-  check('18g. with five or fewer known there is nothing to tick: they bring everything', !/data-kwab="toggle"/.test(young) && !/kwab-bar/.test(young) && /brings everything they know/.test(young) && (young.match(/✓ Brought/g) || []).length === 4);
-  const away = K._pageHtml(guard({ busy: true }));
-  check('18h. in a dungeon the choice cannot be changed: abilities are readied at home', !/data-kwab="toggle"/.test(away) && !/data-kwab="save"/.test(away) && /is in a dungeon\. Abilities are readied at home\./.test(away));
-  const farmer = K._pageHtml({ citizen: { id: 8, name: 'Oakley' }, cls: 'villager', label: 'Villager', icon: '🧺', career: null, level: 1, xp: { into: 0, need: 0 }, max: 5, can_choose: false, busy: false, abilities: [ab('v_swing', 'Swing', 1, { ready: true }), ab('v_duck', 'Duck', 1, { ready: true }), ab('t_tool', 'Tool', 1, { ready: true })] });
-  check('18i. someone with no class is told so, and what a class would teach', /Villager/.test(farmer) && /fight with a villager&#39;s three|fight with a villager's three/.test(farmer) && /would learn ten/.test(farmer) && !/data-kwab/.test(farmer));
-  check('18j. names are escaped', html.includes('Hazel &lt;b&gt;') && !html.includes('Hazel <b>'));
+  const lone = K._pageHtml(guard({ second: { max: 5, strength: 0.75, busy: false, cls: null, chosen: null, options: [] } }));
+  check('18j. someone who has never been anything else is told how a second school comes about', !/data-kwab="school"/.test(lone) && !/kwab-bar/.test(lone) && /has never been anything else/.test(lone) && /changes career keeps what the old class taught them/.test(lone));
+  const away = K._pageHtml(guard({ second: { ...guard().second, busy: true } }));
+  check('18h2. away at a dungeon the choice cannot be changed', (away.match(/data-kwab="toggle"[^>]* disabled/g) || []).length === 7 && !/data-kwab="save"/.test(away) && /is away at a dungeon\. Abilities are chosen at home\./.test(away) && (away.match(/data-kwab="school"[^>]* disabled/g) || []).length === 3);
+  const farmer = K._pageHtml({ citizen: { id: 8, name: 'Oakley' }, cls: 'villager', label: 'Villager', icon: '🧺', career: null, level: 1, xp: { into: 0, need: 0 }, school: { key: 'basics', name: 'Basics', icon: '🪵' },
+    abilities: [ab('v_swing', 'Swing', 1, { school: 'basics' }), ab('v_duck', 'Duck', 1, { school: 'basics' }), ab('t_ration', 'Ration', 1, { school: 'field', school_name: 'Fieldcraft' })], ahead: [], second: { max: 5, strength: 0.75, busy: false, cls: null, chosen: null, options: [] } });
+  check('18i2. someone with no class is told so, and what a class would teach; their trade\'s trick is Fieldcraft', /Villager/.test(farmer) && /a swing, a duck, and what their trade taught them/.test(farmer) && /would learn ten more/.test(farmer) && />Fieldcraft<\/span>/.test(farmer) && !/Still to learn/.test(farmer));
+  check('18j2. names are escaped', lone.includes('Hazel &lt;b&gt;') && !lone.includes('Hazel <b>') && away.includes('Hazel &lt;b&gt;'));
   check('18k. the tab is on every grown citizen\'s page (every battle is on the board), and not on a child\'s', /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })) && K.tabHtml({ id: 7, life_stage: 'child' }) === ''
     && /id="cp-tab-abilities"/.test(K.panelHtml({ id: 7 })) && K.available() === true
     && /\$\{window\.KWAbilities \? KWAbilities\.tabHtml\(c\) : ''\}/.test(CZ) && /\$\{window\.KWAbilities \? KWAbilities\.panelHtml\(c\) : ''\}/.test(CZ));
   w._kwIsAdmin = () => false;
   check('18l. a player who is no admin sees it too', K.available() === true && /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })));
-  check('18m. the server is asked what is known and told the five; nothing is worked out here', /call\(String\(id\)\)/.test(A) && /call\(S\.id \+ '\/ready', \{ keys: S\.pick \}\)/.test(A) && /'\/api\/tactics\/abilities\/' \+ path/.test(A) && !/\.at\s*<=/.test(A));
+  check('18m. the server is asked what is known and told the second school; nothing is worked out here', /call\(String\(id\)\)/.test(A) && /call\(S\.id \+ '\/second', \{ cls: S\.pick\.cls, keys: S\.pick\.keys \}\)/.test(A) && /'\/api\/tactics\/abilities\/' \+ path/.test(A) && !/\.at\s*<=/.test(A));
   check('18n. the script and its stylesheet are on the page, after the battle screen it borrows from; the stylesheet uses the shared colours only', /<script defer src="\/js\/tactics\.js\?v=h[0-9a-f]{8}"><\/script>[^\n]*\n\s*<script defer src="\/js\/abilities\.js\?v=h[0-9a-f]{8}"><\/script>/.test(H)
     && /<link rel="stylesheet" href="\/css\/abilities\.css\?v=h[0-9a-f]{8}">/.test(H) && !/#[0-9a-fA-F]{3,8}\b/.test(ACSS) && !/rgba?\(/.test(ACSS) && /\.kwab-tick \{[^}]*min-height: var\(--kw-touch\)/.test(ACSS));
   check('18o. the battle screen lends its pictures and words', /loadAssets, icon: ico, effectText, reachText,/.test(J));
   // In a battle.
   check('18p. the ten from the higher rungs have their looks: a bash thuds, rain and hail are arrows, a fireball bursts, a battle cry cheers', /g_shield_bash: 'smash', g_hammer: 'smash', g_hold_line: 'ward_ring',/.test(J) && /a_arrow_rain: 'arrow', a_pin: 'arrow', a_hail: 'arrow',/.test(J)
     && /w_chain: 'spark', w_fireball: 'fireburst',/.test(J) && /h_battle_cry: 'cheer', h_hearthlight: 'ward_ring',/.test(J));
-  check('18q. tapping a citizen in battle names the next ability to come and how many they left at home', /look\.next && !\(look\.locked \|\| \[\]\)\.some\(x => x\.key === look\.next\.key\) \? \[look\.next\] : \[\]/.test(J) && /\$\{look\.spare\} more known, not brought/.test(J) && /\.kwtc-kit-a\.is-spare/.test(CSS));
-  check('18r. a level that teaches a sixth ability says where to ready it', /\$\{x\.spare \? ' <i>ready it on their Abilities page<\/i>' : ''\}/.test(J));
+  // Schools in a battle: a tab for the citizen's own and one for their second school.
+  {
+    const src = J.slice(J.indexOf('  const SCHOOLS = {'), J.indexOf('  function paintPanel() {'));
+    const S2 = { tab: {} };
+    const fn = new Function('S', src + '; return { tabsOf, tabOf, SCHOOLS };')(S2);
+    const own = [{ key: 'v_swing', school: 'basics' }, { key: 'a_shoot', school: 'archery' }], off = [{ key: 'h_kindle', school: 'hearth', off: true }, { key: 'h_ward', school: 'hearth', off: true }];
+    const one = fn.tabsOf({ id: 'c1', school: 'archery', abilities: own }), two = fn.tabsOf({ id: 'c2', school: 'archery', second: { school: 'hearth' }, abilities: own.concat(off) });
+    check('18q. a citizen with no second school has one tab; with one, two: their own (Basics with it), then the second, marked', one.length === 1 && one[0].name === 'Archery' && one[0].list.length === 2
+      && two.length === 2 && two[0].key === 'own' && two[0].list.map(a => a.key).join() === 'v_swing,a_shoot' && two[1].key === 'second' && two[1].name === 'Hearth magic' && two[1].off === true && two[1].list.length === 2);
+    const u2 = { id: 'c2', school: 'archery', second: { school: 'hearth' }, abilities: own.concat(off) };
+    S2.tab.c2 = 'second';
+    check('18q2. their own tab is open until the player opens the other; a foe\'s abilities are one unnamed list', fn.tabOf({ id: 'c9', school: 'arms', abilities: own }).key === 'own' && fn.tabOf(u2).key === 'second'
+      && fn.tabsOf({ id: 'e1', abilities: [{ key: 'bite' }] }).length === 1 && Object.keys(fn.SCHOOLS).join() === 'basics,arms,archery,wild,hearth,field');
+    check('18q3. the action bar shows the tabs only when there are two, and the open school\'s abilities; 0 swaps school', /tabs\.length > 1 \? `<div class="kwtc-schools" role="tablist"/.test(J) && /\+ tab\.list\.map\(\(x, i\) => \{/.test(J)
+      && /data-kwt="school" data-school="\$\{t\.key\}"/.test(J) && /k === 'school'/.test(J) && /if \(ev\.key === '0' && u && u\.side === 'player' && tabsOf\(u\)\.length > 1\)/.test(J) && /\$\{t\.off \? ' <em>¾<\/em>' : ''\}/.test(J));
+    check('18q5. the open tab is the one marked (by its key: the tabs are made afresh each time)', /class="kwtc-school\$\{t\.key === tab\.key \? ' is-on' : ''\}"/.test(J) && /aria-selected="\$\{t\.key === tab\.key\}"/.test(J));
+    check('18q4. an ability from the second school is marked on its button and in the list shown for a tapped citizen', /\$\{x\.off \? ' is-off' : ''\}" data-kwt="ability"/.test(J) && /second school, three-quarters strength/.test(J)
+      && /\.kwtc-act\.is-off \{/.test(CSS) && /\.kwtc-school\.is-on \{/.test(CSS));
+  }
+  check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));
   check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));
   const C4 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
   check('18t. the check on the live site covers the new script and stylesheet', C4.includes('js/abilities.js') && C4.includes('css/abilities.css'));

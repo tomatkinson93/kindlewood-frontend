@@ -175,10 +175,48 @@ The owner's direction: "instead of unlocking cards we can just allow villagers t
 - **Built.** Each of the four classes knows two abilities at class level 1 and learns one more at levels 2, 4 and 6 (§4). The level is the citizen's own, in that class (`citizen_classes`); a villager's three are known from the start. On the board the unlearned ones sit greyed in the row with "learned at level N"; tapping anyone lists theirs too. When a battle's experience carries a citizen over one of those levels, the victory screen says **Learned: Cover** under their bar, and the next fight has it. Where: `KITS[…].at` and `learnedBetween` in `lib/tactics_setup.js`; `learned` on the rows of `lib/tactics_xp.js`.
 - **Why these levels.** A fresh Guard reaches level 2 in the first fight of a first dungeon and level 4 by the end of it, so the first run already teaches two things; level 6 takes three or four green runs or one orange one. The whole starting kit is known before the skulls that were tuned for it (orange and up).
 - **The higher rungs (built 2026-11-23):** levels 8, 10, 13, 16 and 20 teach one more each (§4), ten in all.
-- **Knowing and readying (built 2026-11-23).** A citizen knows what their class level has taught and **brings five** to a battle. Until they choose, those are the first five they learned; a level that teaches a sixth says so on the victory screen ("Learned: Stand Fast, ready it on their Abilities page"). The choice is the citizen's own, made at home and kept until changed (`citizen_classes.ready`, a list of keys); it cannot be changed from inside a dungeon. A choice that no longer fits (a class changed, a key gone) is filled out from the earliest learned, so nobody ever goes in with fewer than five or with something they do not know. `lib/tactics_abilities.js`, `GET /api/tactics/abilities/:citizenId`, `POST …/ready { keys }`.
+- **Knowing and readying (built 2026-11-23; replaced 2026-11-26 by "Schools, the whole kit, and a second school" below: a citizen now brings all their class has taught them).** A citizen knows what their class level has taught and **brings five** to a battle. Until they choose, those are the first five they learned; a level that teaches a sixth says so on the victory screen ("Learned: Stand Fast, ready it on their Abilities page"). The choice is the citizen's own, made at home and kept until changed (`citizen_classes.ready`, a list of keys); it cannot be changed from inside a dungeon. A choice that no longer fits (a class changed, a key gone) is filled out from the earliest learned, so nobody ever goes in with fewer than five or with something they do not know. `lib/tactics_abilities.js`, `GET /api/tactics/abilities/:citizenId`, `POST …/ready { keys }`.
 - **The Abilities tab on a citizen (built 2026-11-23).** Beside Career on a citizen's page: the class and level with its bar, what the next level teaches, and the ten in the order learned, each with its picture, what it does in that citizen's hands, its reach and how often it can be used; a tick for each one brought, "5 of 5 chosen", Save. Someone with no class sees a villager's three and is told what a class would teach. Frontend `js/abilities.js`, `css/abilities.css`. **The tab shows only where battles on the board are open:** to admins, and to everyone once `dungeons.on` is switched on.
 - **In a battle** the row is still five wide: the readied ones, then (while fewer than five are known) the ones still to learn, greyed. Tapping a citizen also names the next one to come and how many they left at home.
 - **Not built:** study at the class buildings, research, equipment, family, mastery, a reaction and a passive (below).
+
+### Schools, the whole kit, and a second school (decided by the owner 2026-11-26)
+
+This replaces "knowing and readying five" above. Built in stages; what is built is marked.
+
+**Schools.** Every ability belongs to a school:
+
+| School | What it is | Whose |
+|---|---|---|
+| **Basics** | A plain melee blow (Swing). Everyone has it, always. | Everyone |
+| **Arms** | Blows, shield work, holding a line. No magic. | Guards |
+| **Archery** | Shots, marks, pins, rains of arrows. | Archers |
+| **Wild magic** | Fire, frost and lightning: the untamed side of the wood. | Wizards |
+| **Hearth magic** | Healing, wards and heart: the homely side. | Hearthkeepers |
+| **Fieldcraft** | A villager's trade trick (a tool, a ration, a sign read). | Villagers with a trade |
+
+("White" and "black" magic are another game's words; these are ours.)
+
+**In a battle a citizen brings everything their current class has taught them**, not five of it. The battle's action bar is grouped by school, one tab each.
+
+**And up to five from one other class they have levels in: their second school.** The only way to know another class's abilities is to have been that class (the owner chose "old careers only": no cross-study). Class levels are kept when a citizen changes career, so a Guard who becomes an Archer still knows what the Watchtower drilled into them. A villager who has fought has Guard levels (battle pays them as Guard training), so a veteran farmer can bring five Arms abilities.
+
+**A second-school ability works at three-quarters strength** (damage, healing and block ×0.75), on top of what the citizen's own stats and gear make of it. Healing reads intelligence and a staff; a Guard with neither heals about half what an equipped Hearthkeeper does. That gap is the point.
+
+**How abilities are learned.**
+
+- **Levels teach the core.** The ten on each class ladder, free, as built.
+- **Study teaches the rest of the school** at the class's building (Watchtower, Wizard's Tower, Hearth Shrine): extra abilities and **passives**, each needing a class level and a building level, each taking hours and a seat. Only a citizen of that class studies there.
+- **A passive slot.** One always-on trait in battle (Counter, Brace, Sure-footed…), learned by study.
+- **Mastery.** An ability a citizen has used about 25 times in battle is ✦ for them for good: 20% stronger.
+- **Gear.** Kinds of weapon each do one clear thing: a longbow reaches a tile further, a shield adds to Shield Up and Cover, a halberd strikes two tiles away, a war hammer hits harder and slows its wielder a step, a dagger strikes harder from behind, a staff (new) adds to spells.
+- **Research.** Town-wide improvements from the Library (Fletching, Field Medicine, Stone Wards).
+- **A family signature.** A child coming of age is taught one ability by a parent, whatever class they take.
+- **An Allied village** teaches one ability no ladder has (the perk that replaces its card lessons).
+
+**Stages.** A: schools, the whole kit, the second school, the tabbed action bar, the Abilities tab (**built 2026-11-26**: `SCHOOLS`, `partyUnit`, `secondOf` in `lib/tactics_setup.js`; `lib/tactics_abilities.js`; `citizens.second_class`, `second_ready`; `POST /api/tactics/abilities/:id/second`; tabs in `js/tactics.js`; `js/abilities.js`). B: mastery. C: gear. D: study and the passive slot. E: research. F: family. G: the Allied village's ability. Each is playable when it lands.
+
+**Known cost.** A level 20 fighter now brings ten abilities and five more; the skulls were tuned for five. More choice is not much more power (one action a turn), but orange and above should be re-simulated once stage C is in.
 
 ### The shape of it
 

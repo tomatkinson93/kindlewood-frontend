@@ -30,6 +30,17 @@
 .kwab-tick input:disabled + span { color: var(--kw-muted); }
 .kwab-tick input:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 
+/* Headings for the three parts: their own school, what is still to learn, the second school. */
+.kwab-h { margin: var(--kw-s-2) 0 0; font-family: var(--kw-font-title); font-size: var(--kw-fs-3); color: var(--kw-gold); font-weight: normal; }
+.kwab-h-sub { font-family: inherit; font-size: var(--kw-fs-2); color: var(--kw-muted); margin-left: var(--kw-s-2); }
+/* Which old career the second school is. */
+.kwab-schools { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); }
+.kwab-school { display: inline-flex; align-items: center; gap: var(--kw-s-2); min-height: var(--kw-touch); padding: var(--kw-s-1) var(--kw-s-3); border: 1px solid var(--kw-line); border-radius: var(--kw-radius); cursor: pointer; font-size: var(--kw-fs-2); color: var(--kw-cream); }
+.kwab-school.is-on { border-color: var(--kw-gold-deep); background: var(--kw-panel-2); }
+.kwab-school i { font-style: normal; color: var(--kw-muted); }
+.kwab-school input { accent-color: var(--kw-gold-btn); }
+.kwab-school input:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwab-row.is-off .kwab-does { color: var(--kw-warn); }
 .kwab-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line-2); border-radius: var(--kw-radius); background: var(--kw-panel); }
 .kwab-count { font-size: var(--kw-fs-2); color: var(--kw-warn); font-variant-numeric: tabular-nums; }
 .kwab-count.is-full { color: var(--kw-good); }

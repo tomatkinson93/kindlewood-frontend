@@ -31,7 +31,7 @@
   // 'face' (the turn is ending: which way to look; faceAim is the way shown).
   // pick: the tile tapped once and waiting for a second tap. info: a unit being looked at.
   const S = { open: false, setup: null, opts: null, state: null, view: {}, floats: [], fx: [], cast: null, shake: 0, mode: 'idle', ability: null, pick: null, hover: null, cursor: null,
-    info: null, busy: false, pointer: 'mouse', rot: 0, faceAim: null, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
+    info: null, tab: {}, busy: false, pointer: 'mouse', rot: 0, faceAim: null, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
   // scale = base (the whole board fits) × zoom (1 to ZOOM_MAX); px, py: how far the board has been dragged.
   const G = { tw: 64, th: 32, lift: 16, scale: 1, base: 1, zoom: 1, px: 0, py: 0, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
   const ZOOM_MAX = 3.2;
@@ -910,6 +910,21 @@
       return `<div>${esc(l.name)}: ${bits.join(', ')}</div>`;
     }).join('') + `</div>`;
   }
+  // ── Schools (docs/TACTICS.md §6) ────────────────────────────────────────
+  // A citizen brings everything their class has taught them, and up to five
+  // from a second school at three-quarters strength (marked `off`). The
+  // action bar has a tab for each, so the row stays short on a phone.
+  const SCHOOLS = { basics: ['Basics', '🪵'], arms: ['Arms', '⚔️'], archery: ['Archery', '🏹'], wild: ['Wild magic', '🔮'], hearth: ['Hearth magic', '🔥'], field: ['Fieldcraft', '🧰'] };
+  // The tabs of a unit: its own school (Basics and a trade's trick with it), then its second. One tab when it has no second.
+  function tabsOf(u) {
+    const list = (u && u.abilities) || [], own = list.filter(a => !a.off), off = list.filter(a => a.off);
+    const main = (u && u.school) || (own.find(a => a.school && a.school !== 'basics') || own[0] || {}).school || 'basics';
+    const tabs = [{ key: 'own', school: main, name: (SCHOOLS[main] || SCHOOLS.basics)[0], icon: (SCHOOLS[main] || SCHOOLS.basics)[1], list: own }];
+    if (off.length) { const sec = (u.second && u.second.school) || off[0].school || 'basics'; tabs.push({ key: 'second', school: sec, name: (SCHOOLS[sec] || SCHOOLS.basics)[0], icon: (SCHOOLS[sec] || SCHOOLS.basics)[1], list: off, off: true }); }
+    return tabs;
+  }
+  // The tab that is open for this unit (its own, until the player opens the other).
+  function tabOf(u) { const tabs = tabsOf(u); return tabs.find(t => t.key === S.tab[u.id]) || tabs[0]; }
   function paintPanel() {
     if (!S.el || !S.state) return;
     const e = E(), st = S.state, u = e.current(st), who = S.el.querySelector('.kwtc-who'), acts = S.el.querySelector('.kwtc-acts'), hint = S.el.querySelector('.kwtc-hint');
@@ -917,10 +932,10 @@
     const look = S.info && !S.info.down ? S.info : u;
     who.innerHTML = unitCard(look, S.view[look.id]);
     if (S.info && S.info !== u) {
-      acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}`
-        + (look.locked || []).concat(look.next && !(look.locked || []).some(x => x.key === look.next.key) ? [look.next] : []).map(x => `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(x.name)}</b> <i>at level ${x.at}</i></span>`).join('')
-        // Known, and left at home: chosen on the citizen's Abilities page.
-        + (look.spare > 0 ? `<span class="kwtc-kit-a is-spare">${look.spare} more known, not brought</span>` : '') + `</div>`
+      // Everything they brought, school by school; the second school's are marked as working at three-quarters.
+      acts.innerHTML = `<div class="kwtc-kit">${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
+          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
+        + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -935,15 +950,19 @@
       return;
     }
     const a = S.mode === 'target' ? e.ability(u, S.ability) : null;
-    acts.innerHTML = (u.abilities || []).map((x, i) => {
+    const tabs = tabsOf(u), tab = tabOf(u);
+    acts.innerHTML = (tabs.length > 1 ? `<div class="kwtc-schools" role="tablist" aria-label="Schools of abilities">` + tabs.map(t =>
+        `<button type="button" role="tab" class="kwtc-school${t.key === tab.key ? ' is-on' : ''}" data-kwt="school" data-school="${t.key}" aria-selected="${t.key === tab.key}" title="${t.off ? 'From an old career: these work at three-quarters strength' : 'What this class has taught'}">`
+        + `<span aria-hidden="true">${t.icon}</span> ${esc(t.name)} <i>${t.list.length}</i>${t.off ? ' <em>¾</em>' : ''}</button>`).join('') + `<kbd aria-hidden="true">0</kbd></div>` : '')
+      + tab.list.map((x, i) => {
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
       const why = !can.ok ? (can.why === 'cooldown' ? `ready in ${can.turns}` : can.why === 'spent' ? 'used up' : 'done') : none ? 'no one in reach' : '';
-      return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
+      return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}${x.off ? ' is-off' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
         + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
-      // What this citizen has yet to learn, in its place in the row: greyed, with the class level that brings it.
-      + (u.locked || []).map(x => `<div class="kwtc-act is-locked" aria-label="${esc(x.name)}: learned at ${esc(u.label || 'class')} level ${x.at}">`
+      // The next ability this citizen's class will teach, at the end of their own row: greyed, with the level that brings it.
+      + (u.next && !tab.off ? [u.next] : []).map(x => `<div class="kwtc-act is-locked" aria-label="${esc(x.name)}: learned at ${esc(u.label || 'class')} level ${x.at}">`
         + `<span class="kwtc-act-i" aria-hidden="true">🔒</span><span class="kwtc-act-n">${esc(x.name)}</span><span class="kwtc-act-t">learned at level ${x.at}</span><span class="kwtc-act-r">${esc(u.label || '')} level ${u.class_level || 1} now</span></div>`).join('')
       + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
       + (a || S.pick ? `<button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button>`
@@ -1378,6 +1397,7 @@
       else if (k === 'zoom-in') zoomBy(1.35);
       else if (k === 'zoom-out') zoomBy(1 / 1.35);
       else if (k === 'ability') choose(b.getAttribute('data-key'));
+      else if (k === 'school') { const cur = E().current(S.state); if (cur) { S.tab[cur.id] = b.getAttribute('data-school'); sfx('select'); paintPanel(); } }
       else if (k === 'end') askFacing();
       else if (k === 'undo') { if (E().undoMove(S.state)) { send({ t: 'undo' }); syncView(); S.pick = null; paint(); } }
       else if (k === 'auto') autoFinish();
@@ -1473,7 +1493,9 @@
     }
     if ((ev.key === 'Enter' || ev.key === ' ') && S.cursor) { ev.preventDefault(); return tapTile(S.cursor.x, S.cursor.y, true); }
     const u = e.current(st);
-    if (/^[1-9]$/.test(ev.key) && u && u.side === 'player') { const a = (u.abilities || [])[Number(ev.key) - 1]; if (a) { ev.preventDefault(); choose(a.key); } }
+    // 1 to 9: the abilities of the open school; 0: the other school.
+    if (/^[1-9]$/.test(ev.key) && u && u.side === 'player') { const a = tabOf(u).list[Number(ev.key) - 1]; if (a) { ev.preventDefault(); choose(a.key); } }
+    if (ev.key === '0' && u && u.side === 'player' && tabsOf(u).length > 1) { ev.preventDefault(); S.tab[u.id] = tabOf(u).key === 'own' ? 'second' : 'own'; paintPanel(); }
     if ((ev.key === 'e' || ev.key === 'E') && u && u.side === 'player') { ev.preventDefault(); askFacing(); }
   }
   function close(quiet) {
