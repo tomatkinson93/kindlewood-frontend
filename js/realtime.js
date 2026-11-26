@@ -188,6 +188,8 @@
     // Dungeons on the map (js/dungeons.js): word of a new one has reached the town, or a run of ours ended by itself.
     dungeon_found(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
     dungeon_ended(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    dungeon_arrived(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    dungeon_home(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

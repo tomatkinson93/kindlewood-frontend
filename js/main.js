@@ -1611,7 +1611,7 @@ function _outpostRaidHtml(mine) {
 const OP_CLASS_LABELS = { farmer: 'Farmer', woodcutter: 'Woodcutter', miner: 'Miner', fisher: 'Fisher', forager: 'Forager', scout: 'Scout' };
 function _opFreeCitizens() {
   const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
-  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul);
+  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul && !c.dungeon);   // c.dungeon: in a dungeon, or walking to or from one
 }
 // The Outposts tab shares the last GET /api/game/outposts (js/outposts.js).
 function _setOutpostStatus(d) { _outpostStatus = d; }
@@ -1927,6 +1927,11 @@ function refreshSettlementActions() {
 }
 window.refreshSettlementActions = refreshSettlementActions;
 
+// "🏆 3 dungeon trophies": first clears of dungeons on the map (the server's lib/dungeon_trophies.js). Nothing for none.
+function _trophyTag(s) {
+  const n = Number(s && s.trophies) || 0;
+  return n > 0 ? '<span class="sett-tag sett-tag-trophy" title="Won by being the first town to clear a dungeon">🏆 ' + n + ' dungeon ' + (n === 1 ? 'trophy' : 'trophies') + '</span>' : '';
+}
 function _selectWorldTileImpl(tile) {
   window._lastSelectedTile = tile;
   const title = document.getElementById('panel-title');
@@ -2077,6 +2082,7 @@ function _selectWorldTileImpl(tile) {
     const tagHtml = '<div class="sett-tags">'
       + '<span class="sett-tag">' + (s.tier||'village').charAt(0).toUpperCase()+(s.tier||'village').slice(1) + '</span>'
       + '<span class="sett-tag">' + (s.species||'Mice').charAt(0).toUpperCase()+(s.species||'Mice').slice(1) + '</span>'
+      + _trophyTag(s)
       + '</div>';
 
     body.innerHTML = _settlementTierCard(s.tier, s.name, true)
@@ -2139,6 +2145,7 @@ function _selectWorldTileImpl(tile) {
       + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + (s.tier||'village') + '</div><div class="sett-stat-key">Tier</div></div>'
       + '</div>'
       + (s.festival ? '<div class="sett-festival-note">🎉 Holding a festival — fireworks over the town.</div>' : '')
+      + (s.trophies ? '<div class="sett-tags" style="margin-top:8px">' + _trophyTag(s) + '</div>' : '')
       + '<div class="sett-actions" style="margin-top:10px">'
       + '<button class="sett-action-btn vp-trigger" data-username="' + escHtml(s.username||'') + '" data-species="' + escHtml(s.species||'') + '" data-name="' + escHtml(s.name||'') + '" data-tier="' + escHtml(s.tier||'village') + '" data-q="' + tile.q + '" data-r="' + tile.r + '" onclick="openProfileForUser(this.dataset.username,this.dataset.species,this.dataset.name,this.dataset.tier,this.dataset.q,this.dataset.r)">👤 View Profile</button>'
       // Market: towns that have discovered each other (or clanmates) can trade.

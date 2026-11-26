@@ -243,7 +243,7 @@ function renderCitizensList() {
 // null. Shopkeepers and merchants minding an order are at home, so not away.
 function citizenAway(c) {
   if (!c) return null;
-  if (c.dungeon) return { icon: '💀', label: '💀 In ' + (c.dungeon.name || 'a dungeon') };
+  if (c.dungeon) return { icon: '💀', label: (c.dungeon.walking === 'out' ? '💀 Walking to ' : c.dungeon.walking === 'home' ? '💀 Walking home from ' : '💀 In ') + (c.dungeon.name || 'a dungeon') };
   if (c.active_quest) return { icon: '⚔️', label: '⚔️ ' + (c.active_quest.clan ? 'On a clan quest' : 'On Quest') };
   if (window._diploEnvoyIds && window._diploEnvoyIds.has(c.id)) return { icon: '📨', label: '📨 Diplomat' };
   if (c.expedition) return { icon: '🗺', label: '🗺 Scouting' };

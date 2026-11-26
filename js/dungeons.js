@@ -40,6 +40,7 @@
     fled:      { title: '🏃 Fled', line: 'The party ran from a fight and dropped half of what it carried.' },
     defeat:    { title: '☠ Driven out', line: 'The party lost a battle. Everything found on this run is lost.' },
     timed_out: { title: '⌛ The party came home', line: 'The run was left alone too long, so the party came home with what it had found.' },
+    recalled:  { title: '↩ Called back', line: 'The party was called back on the road. They never went in, so your town can still try this dungeon once they are home.' },
   };
   const pct = n => Math.round((Number(n) || 0) * 100);
   const list = a => a.length <= 1 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
@@ -53,6 +54,7 @@
   function subtitle(run) {
     if (!run) return '';
     const d = run.dungeon;
+    if (run.status === 'travelling') return `${d.skull} ${d.tier_name} · On the road`;
     return `${d.skull} ${d.tier_name}${d.floors > 1 ? ` · Floor ${run.floor + 1} of ${d.floors}` : ''}${d.test ? ' · Test dungeon' : ''}`;
   }
   // What a room is, in words, for screen readers and the tooltip.
@@ -134,18 +136,24 @@
       + `</div></div></div>`;
   }
   // How a finished run ended: what came home, what was lost, who was hurt.
-  function endHtml(run) {
+  function endHtml(run, now) {
     const r = run.result || {}, e = ENDINGS[run.status] || ENDINGS.left;
     const line = run.status === 'timed_out' && r.half ? 'The run was left alone in the middle of a fight, so the party came home with half of what it carried.' : e.line;
     const names = {}; (run.party || []).forEach(m => { names[m.id] = m.name; });
     const rolled = (r.rolled || []).map(x => names[x.id]).filter(Boolean);
     const inj = (r.injuries || []).map(i => `<li class="kwdg-inj kwdg-inj-${esc(i.severity || '')}">${esc(i.narrative || '')}</li>`).join('');
     const lost = r.lost && (r.lost.wealth || (r.lost.items || []).length);
+    // After a dungeon on the map the party walks home: what it carries reaches the stores when it arrives.
+    const walk = run.walking_home ? `<div class="kw-box kwdg-walk"><div class="kw-box-title">🚶 Walking home</div><p>Back in <b class="kwdg-clock" data-kwdg-clock="${esc(run.home_at)}">${esc(clock(run.home_at, now))}</b>.${run.status === 'recalled' ? '' : ' What they carry reaches your stores when they arrive.'}</p></div>` : '';
+    const closeBtn = `<div class="kwdg-btns"><button type="button" class="kw-btn primary" data-action="close">Close</button></div>`;
+    // Called back on the road: nothing was found and nobody was hurt, so there is only the walk to show.
+    if (run.status === 'recalled') return `<div class="kwdg kwdg-end"><h3 class="kwdg-end-title">${esc(e.title)}</h3><p>${esc(line)}</p>${walk}${closeBtn}</div>`;
     return `<div class="kwdg kwdg-end">`
       + `<h3 class="kwdg-end-title">${esc(e.title)}</h3><p>${esc(line)}</p>`
       // The first town to clear a map dungeon takes a trophy from its boss (the server's lib/dungeon_trophies.js).
       + (r.trophy ? `<div class="kw-box kwdg-trophy"><div class="kw-box-title">🏆 First of any town to clear it</div><p><b>${esc(r.trophy.icon)} ${esc(r.trophy.title)}</b> now hangs in your trophy hall${r.trophy.wealth ? `, and the town is ${esc(r.trophy.wealth)} wealth richer` : ''}.</p><p class="kwdg-intro">${esc(r.trophy.words || '')}</p></div>` : '')
-      + `<div class="kw-box"><div class="kw-box-title">Came home</div><p>${esc(lootLine(r.kept, 'Nothing'))}</p></div>`
+      + walk
+      + `<div class="kw-box"><div class="kw-box-title">${run.walking_home ? 'Carrying home' : 'Came home'}</div><p>${esc(lootLine(r.kept, 'Nothing'))}</p></div>`
       + (lost ? `<div class="kw-box"><div class="kw-box-title">Lost</div><p>${esc(lootLine(r.lost))}</p></div>` : '')
       + `<div class="kw-box"><div class="kw-box-title">Injuries</div>`
       + (rolled.length
@@ -155,11 +163,35 @@
       + ((r.upgraded || []).length ? `<p class="kw-note">${esc(list(r.upgraded.map(u => u.name)))} came back a better fighter.</p>` : '')
       + `<div class="kwdg-btns"><button type="button" class="kw-btn primary" data-action="close">Close</button></div></div>`;
   }
+  // ── The walk (dungeons on the map) ──────────────────────────────────────
+  // "1:32" until a time the server gave; "now" once it has passed.
+  function clock(until, now) {
+    const left = Math.max(0, Math.ceil((new Date(until).getTime() - (now == null ? Date.now() : now)) / 1000));
+    return left <= 0 ? 'now' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  }
+  // "30 seconds", "2 minutes", "about 3 minutes": how long a walk is, in words.
+  function walkWords(secs) {
+    secs = Math.round(Number(secs) || 0);
+    if (secs <= 0) return '';
+    if (secs < 90) return `${secs} seconds`;
+    const m = secs / 60;
+    return `${Number.isInteger(m) ? '' : 'about '}${Math.round(m)} minutes`;
+  }
+  // The party is on the road to the dungeon: who, how long, and a way to call them back.
+  function travelHtml(run, now) {
+    return `<div class="kwdg kwdg-road">`
+      + `<p class="kwdg-intro">${esc(run.dungeon.intro || '')}${run.dungeon.suggested_party ? ` <span class="kwdg-scale">Written for a party of ${esc(run.dungeon.suggested_party)}.</span>` : ''}</p>`
+      + partyHtml(run.party)
+      + `<div class="kw-box kwdg-walk"><div class="kw-box-title">🚶 On the road</div>`
+      + `<p>The party is walking to ${esc(run.dungeon.name)}. They reach the door in <b class="kwdg-clock" data-kwdg-clock="${esc(run.arrives_at)}">${esc(clock(run.arrives_at, now))}</b>.</p>`
+      + `<p class="kwdg-intro">You can follow them on the map. Called back now, they walk home the way they came and the dungeon is not used up.</p></div>`
+      + `<div class="kwdg-btns"><button type="button" class="kw-btn" data-action="recall">↩ Call them back</button><button type="button" class="kw-btn primary" data-action="close">Close</button></div></div>`;
+  }
   function bodyHtml() {
     const run = S.run || S.last;
     if (!S.on) return '<p class="kw-empty">Dungeons are not open yet.</p>';
     if (!run) return '<p class="kw-empty">No party of yours is in a dungeon.</p>';
-    return run.status === 'active' ? runHtml(run) : endHtml(run);
+    return run.status === 'travelling' ? travelHtml(run) : run.status === 'active' ? runHtml(run) : endHtml(run);
   }
 
   // ── Data ────────────────────────────────────────────────────────────────
@@ -169,12 +201,13 @@
     if (!d) return;
     if ('on' in d) S.on = !!d.on;
     if ('run' in d || 'last' in d) {
-      const run = d.run || null, was = S.run;
-      if (run && run.status === 'active') { S.run = run; S.last = null; }
+      const run = d.run || null, was = S.run, wasWalking = !!(S.last && S.last.walking_home);
+      if (run && (run.status === 'active' || run.status === 'travelling')) { S.run = run; S.last = null; }
       else {
         S.run = null;
         if (run) S.last = run; else if ('last' in d) S.last = d.last || null;
-        if (was) afterEnd();
+        // The run has just ended; or the party that was walking home is in, and the stores have what it carried.
+        if (was || (wasWalking && !(S.last && S.last.walking_home))) afterEnd();
       }
     }
     paint();
@@ -185,8 +218,25 @@
     try { if (typeof global.loadCitizens === 'function') global.loadCitizens(); } catch (e) { /* not loaded */ }
     // The dungeon's skull on the map goes faint: this town has had its go.
     MAP.in_dungeon = null;
-    try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+    mapAgain();
+    roads();
   }
+  // Read the map again (a skull's ring or a town's busy flag has changed), and
+  // if a dungeon's card is showing in the tile's panel, draw it again from the
+  // new data.
+  function mapAgain() {
+    try {
+      if (typeof global.loadWorldMap !== 'function') return;
+      Promise.resolve(global.loadWorldMap()).then(() => {
+        const last = global._lastSelectedTile, data = typeof worldMapData !== 'undefined' ? worldMapData : null;
+        if (!last || !data || !doc.querySelector || !doc.querySelector('.op-dungeon')) return;
+        const t = (data.tiles || []).find(x => x.q === last.q && x.r === last.r);
+        if (t && typeof selectWorldTile === 'function') selectWorldTile(t);
+      }).catch(() => { /* the map is not up */ });
+    } catch (e) { /* not loaded */ }
+  }
+  // The party on the map's travel layer (js/travel.js): read again when it sets out, turns back or ends its run.
+  function roads() { try { if (global.KWTravel && global.KWTravel.refresh) global.KWTravel.refresh(); } catch (e) { /* not loaded */ } }
   async function load() {
     if (typeof global.apiFetch !== 'function') return null;
     try {
@@ -241,6 +291,11 @@
       if (ok) await post('run/leave');
     },
     async flee() { await flee(); },
+    async recall() {
+      const run = S.run; if (!run || run.status !== 'travelling') return;
+      const ok = await confirmed({ title: 'Call them back?', message: `The party turns round and walks home the way it came. They have not gone in, so your town can still try ${run.dungeon.name} once they are home.`, ok: 'Call them back' });
+      if (ok && await post('run/recall')) roads();
+    },
     close(el, ev, w) { if (w) w.close(); },
   };
   async function flee() {
@@ -252,6 +307,15 @@
     if (!ok) return false;
     return !!(await post('run/flee'));
   }
+  // Counts the walk down once a second while the window is open, and asks the
+  // server again when the time is up (it says when the party has arrived).
+  let _clock = null, _asked = 0;
+  function tickClock() {
+    if (!S.win) { if (_clock) { clearInterval(_clock); _clock = null; } return; }
+    let due = false;
+    doc.querySelectorAll('[data-kwdg-clock]').forEach(el => { const t = clock(el.getAttribute('data-kwdg-clock')); el.textContent = t; if (t === 'now') due = true; });
+    if (due && Date.now() - _asked > 3000 && !S.busy) { _asked = Date.now(); load(); }
+  }
   async function open() {
     await load();
     const run = S.run || S.last;
@@ -262,6 +326,7 @@
       actions: ACTIONS,
       onClose() { S.win = null; },
     });
+    if (!_clock && typeof setInterval === 'function') _clock = setInterval(tickClock, 1000);
     return S.win;
   }
 
@@ -281,7 +346,9 @@
   }
   // What this town may do there now: { state, words }. `busy`: its party is in another dungeon.
   function standing(d, busy) {
+    if (d.mine === 'travelling') return { state: 'inside', words: 'Your party is on its way there.' };
     if (d.mine === 'active') return { state: 'inside', words: 'Your party is inside.' };
+    if (d.mine === 'recalled') return { state: 'wait', words: 'Your party was called back and is walking home. You can send one again when they are in.' };
     if (d.mine) return { state: 'done', words: `Your town has been here: ${String((ENDINGS[d.mine] || {}).title || d.mine).replace(/^\S+\s/, '').toLowerCase()}. Each town goes in once.` };
     if (!d.in_reach) return { state: 'far', words: `Too far to walk: ${d.distance == null ? 'your town is not on the map' : d.distance + ' tiles away'}. A party goes up to ${MAP.reach} tiles from the town.` };
     if (busy) return { state: 'busy', words: 'Your town already has a party in another dungeon.' };
@@ -312,7 +379,7 @@
     else if (st.state !== 'open') act = `<div class="op-worker-hint op-worker-none">${esc(st.words)}</div>`;
     else if (!free.length) act = `<div class="op-worker-hint op-worker-none">No adult is free to go.</div>`;
     // One to four go. The dungeon is written for four and does not shrink: fewer is harder.
-    else act = `<div class="op-worker-hint">Send up to ${MAP.party}. They fight on the board, room by room, and bring home what they find. Your town goes in once.${free.length < MAP.party ? ` Only ${free.length} ${free.length === 1 ? 'adult is' : 'adults are'} free: a dungeon is written for ${MAP.party}, so fewer is harder.` : ''}</div>`
+    else act = `<div class="op-worker-hint">Send up to ${MAP.party}. ${d.walk_secs ? `It is ${walkWords(d.walk_secs)} on foot each way. ` : ''}They fight on the board, room by room, and bring home what they find. Your town goes in once.${free.length < MAP.party ? ` Only ${free.length} ${free.length === 1 ? 'adult is' : 'adults are'} free: a dungeon is written for ${MAP.party}, so fewer is harder.` : ''}</div>`
       + `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].slice(0, Math.min(MAP.party, free.length)).map(i => `<select class="op-worker-select" data-dungeon-pick="${i}" aria-label="Party member ${i + 1}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>`
       + `<button type="button" class="action-btn op-worker-btn" data-dungeon-enter="${esc(d.id)}">💀 Send them in</button>`;
     return `<div class="op-section op-dungeon kwdg-skull-${esc(d.tier)}">`
@@ -360,8 +427,9 @@
       S.on = true; MAP.in_dungeon = Number(id);
       take(d);
       // The map's skull turns gold, and the four are busy.
-      try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+      mapAgain();
       try { if (typeof global.loadCitizens === 'function') global.loadCitizens(); } catch (e) { /* not loaded */ }
+      roads();
       if (MAP.win) { try { MAP.win.close(); } catch (e) { /* gone */ } }
       open();
       return d;
@@ -421,9 +489,18 @@
     if (!ev) return;
     if (ev.type === 'dungeon_found') {
       if (ev.message) toast(ev.message);
-      try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+      mapAgain();
       if (MAP.win) listLoad();
     } else if (ev.type === 'dungeon_ended' && S.run && !S.busy) load();
+    // The party has reached the door: the path screen takes over from the road.
+    else if (ev.type === 'dungeon_arrived') { toast('💀 Your party has reached the dungeon.'); load(); mapAgain(); roads(); }
+    // The party is home: the stores, the town's wealth, the citizens and the trophy hall have changed.
+    else if (ev.type === 'dungeon_home') {
+      if (ev.message) toast(ev.message);
+      load(); afterEnd();
+      mapAgain();
+      if (MAP.win) listLoad();
+    }
   }
   function listOpen() {
     if (!global.KWWindow) return null;
@@ -469,11 +546,13 @@
       + (run
         ? `<div class="cheat-desc">A party is in <b>${esc(run.dungeon.name)}</b>${run.dungeon.generated ? ` (${esc(run.dungeon.skull)} ${esc(run.dungeon.terrain || '')}, seed ${esc(run.dungeon.seed)})` : ''}${run.pending ? ' (' + esc(run.pending.kind === 'battle' ? 'a fight is open' : 'a choice is waiting') + ')' : ''}.</div>`
           + `<button type="button" class="cheat-all-btn" data-kwdg="open">Open the path screen</button>`
+          + (run.status === 'travelling' ? `<button type="button" class="cheat-all-btn" data-kwdg="arrive">Finish the walk now</button>` : '')
           + `<button type="button" class="cheat-all-btn" data-kwdg="win"${run.can_flee ? '' : ' disabled'}>Win the open fight</button>`
           + `<button type="button" class="cheat-all-btn" data-kwdg="heal">Heal the party, everyone up</button>`
           + `<button type="button" class="cheat-all-btn" data-kwdg="idle">Leave it idle for a day (ends the run)</button>`
         : `<div class="cheat-desc">No party is in a dungeon.${d.last ? ' The last run: ' + esc((ENDINGS[d.last.status] || {}).title || d.last.status) + '.' : ''}</div>`
-          + (d.last ? `<button type="button" class="cheat-all-btn" data-kwdg="open">See how the last run ended</button>` : ''))
+          + (d.last ? `<button type="button" class="cheat-all-btn" data-kwdg="open">See how the last run ended</button>` : '')
+          + (d.last && d.last.walking_home ? `<div class="cheat-desc">The party is walking home with what it found.</div><button type="button" class="cheat-all-btn" data-kwdg="arrive">Finish the walk now</button>` : ''))
       + `<div class="cheat-desc" style="margin-top:10px">How tough each skull's foes are (health and power), rest healing, the flee share and idle hours are under 👪 Life → Dungeons.</div>`
       + `<div id="kwt-dev-box"></div>`
       + `<div class="cheat-rel-feedback" id="kwdg-dev-msg" role="status"></div>`;
@@ -523,12 +602,13 @@
       } else if (a === 'win') take(await devCall('POST', 'win'));
       else if (a === 'heal') take(await devCall('POST', 'heal'));
       else if (a === 'idle') take(await devCall('POST', 'sweep', { idle_run: true }));
+      else if (a === 'arrive') { take(await devCall('POST', 'arrive')); afterEnd(); }
       else if (a === 'map-fill' || a === 'map-new') {
         made = await devCall('POST', 'map', { expire: a === 'map-new' });
-        try { if (typeof global.loadWorldMap === 'function') global.loadWorldMap(); } catch (e) { /* not loaded */ }
+        mapAgain();
       }
       await devOpen();
-      say(made ? `${made.gone ? made.gone + ' gone, ' : ''}${made.made} made; ${made.live} on the map.` : a === 'switch' ? 'Saved.' : a === 'win' ? 'The fight is won.' : a === 'heal' ? 'The party is at full health.' : a === 'idle' ? 'The run ended by itself.' : '');
+      say(made ? `${made.gone ? made.gone + ' gone, ' : ''}${made.made} made; ${made.live} on the map.` : a === 'switch' ? 'Saved.' : a === 'win' ? 'The fight is won.' : a === 'heal' ? 'The party is at full health.' : a === 'idle' ? 'The run ended by itself.' : a === 'arrive' ? 'The walk is over.' : '');
     } catch (e) { say('⚠️ ' + e.message); }
   }
 
@@ -537,6 +617,6 @@
     current: () => S.run,
     _lootLine: lootLine, _subtitle: subtitle, _roomWords: roomWords, _partyHtml: partyHtml, _mapHtml: mapHtml,
     _pendingHtml: pendingHtml, _runHtml: runHtml, _endHtml: endHtml, _devHtml: devHtml, _take: take, _state: S, ENDINGS,
-    _leftWords: leftWords, _factsLine: factsLine, _standing: standing, _listHtml: listHtml, _hallHtml: hallHtml, _map: MAP,
+    _leftWords: leftWords, _factsLine: factsLine, _standing: standing, _listHtml: listHtml, _hallHtml: hallHtml, _map: MAP, _clock: clock, _walkWords: walkWords, _travelHtml: travelHtml,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

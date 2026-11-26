@@ -4,7 +4,7 @@
 //  A tile with a dungeon the player has found (t.dungeon in the map data:
 //  the server's lib/dungeon_map.js) gets a skull in a ring of its skull's
 //  colour. One this town has already been to is drawn faint; the one its
-//  party is inside has a gold ring.
+//  party is inside, or on its way to, has a gold ring.
 //
 //  Called once per frame from KWMap.controller.renderFrame after the raid
 //  layer. Works in both views through renderer.projectAxial().
@@ -29,7 +29,7 @@
     const MW = typeof HEX_MAP_W !== 'undefined' ? HEX_MAP_W : 40, MH = typeof HEX_MAP_H !== 'undefined' ? HEX_MAP_H : 40;
     let started = false;
     for (const t of list) {
-      const d = t.dungeon, inside = d.mine === 'active', done = !!d.mine && !inside;
+      const d = t.dungeon, inside = d.mine === 'active' || d.mine === 'travelling', done = !!d.mine && !inside && d.mine !== 'recalled';
       for (let kq = -1; kq <= 1; kq++) for (let kr = -1; kr <= 1; kr++) {
         const p = renderer.projectAxial(t.q + kq * MW, t.r + kr * MH, cam, W, H);
         if (p.x < -60 || p.y < -60 || p.x > W + 60 || p.y > H + 60) continue;
