@@ -265,7 +265,7 @@ console.log('9. The server keeps the battle');
 console.log('10. A steady screen, and things that fly');
 {
   const J = read('js/tactics.js'), CSS = read('css/tactics.css');
-  check('10a. the panel is one fixed height, so the board above it never moves', /\.kwtc-panel \{ height: 196px; align-content: start; overflow-y: auto; \}/.test(CSS) && /\.kwtc-panel \{ height: 316px; \}/.test(CSS));
+  check('10a. the panel is one fixed height, so the board above it never moves', /\.kwtc-panel \{ height: 196px; align-content: start; overflow-y: auto; \}/.test(CSS) && /\.kwtc-panel \{ height: 376px; \}/.test(CSS));
   check('10b. what an action would do, and its Confirm, float over the board; the hint below is one steady line with no buttons', /function paintAsk\(\)/.test(J) && /\.kwtc-ask \{ position: absolute;/.test(CSS)
     && !/hint\.innerHTML = [^;]*data-kwt="confirm"/.test(J));
   check('10c. moving the pointer redraws only that floating box, and only when it changes', /if \(\(t && t\.x\) !== \(was && was\.x\) \|\| \(t && t\.y\) !== \(was && was\.y\)\) paintAsk\(\);/.test(J) && /if \(box\._html === html\) return;/.test(J));
@@ -597,7 +597,31 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
     check('18B. a dagger\'s blow from behind is forecast at its own worth', /from behind \(\+\$\{Math\.round\(\(\(a\.back \|\| 1\.5\) - 1\) \* 100\)\}%\)/.test(J));
     const EN = read('js/tactics-engine.js');
     check('18C. the rules: an ability may carry its own worth for a blow from behind, else half as much again', /d \*= side === 'back' \? \(a\.back \|\| RULES\.BACK\) : side === 'side' \? RULES\.FLANK : 1;/.test(EN));
-    check('18D. Help says that what is carried matters', /a longbow reaches further, a hammer hits harder and slows its wielder, a polearm strikes two tiles away, a dagger doubles a blow from behind, a staff strengthens magic, a shield strengthens a block/.test(read('js/help.js')));
+    check('18D. Help says that what is carried matters', /a longbow reaches further, a hammer hits harder and slows its wielder, a polearm strikes two tiles away, a dagger doubles a blow from behind, a staff strengthens Wild magic, an ember lantern strengthens Hearth magic, a shield strengthens a block/.test(read('js/help.js')));
+  }
+  // The Attack (2026-11-27): its own button, apart from the abilities; two hands; the ember lantern.
+  {
+    const src = J.slice(J.indexOf('  const SCHOOLS = {'), J.indexOf('  function paintPanel() {'));
+    const fn = new Function('S', src + '; return { tabsOf, tabOf, attackOf };')({ tab: {} });
+    const unit = { id: 'c1', school: 'arms', second: { school: 'hearth' }, abilities: [{ key: 'g_strike', school: 'arms', attack: true }, { key: 'g_shield', school: 'arms' }, { key: 'h_kindle', school: 'hearth', off: true }] };
+    check('18E. a citizen\'s Attack is found apart from their abilities, and is in no tab', fn.attackOf(unit).key === 'g_strike' && fn.tabsOf(unit)[0].list.map(a => a.key).join() === 'g_shield' && fn.tabsOf(unit)[1].list.map(a => a.key).join() === 'h_kindle'
+      && fn.attackOf({ abilities: [{ key: 'bite' }] }) === null && fn.attackOf(null) === null);
+    check('18F. the action bar has an Attack button on a row of its own, above the schools and whichever is open, with what it is and does', /class="kwtc-act kwtc-attack\$\{a === atk \? ' is-on' : ''\}" data-kwt="ability" data-key="\$\{esc\(atk\.key\)\}"/.test(J)
+      && /<span class="kwtc-act-n">Attack\$\{atk\.star/.test(J) && /\$\{atk\.name\}: \$\{why \|\| effectText\(atk\)\}/.test(J) && /acts\.innerHTML = attackBtn \+ \(tabs\.length > 1 \?/.test(J) && /<div class="kwtc-attack-row">/.test(J) && /\.kwtc-attack-row \{ flex: 1 1 100%;/.test(CSS) && /\.kwtc-act\.kwtc-attack \{/.test(CSS));
+    check('18G. A is the Attack\'s key; a tapped citizen\'s list names their Attack first', /if \(\(ev\.key === 'a' \|\| ev\.key === 'A'\) && u && u\.side === 'player' && attackOf\(u\)\) \{ ev\.preventDefault\(\); choose\(attackOf\(u\)\.key\); \}/.test(J)
+      && /<span class="kwtc-kit-a is-attack">\$\{ico\(lookAtk\)\} <b>Attack/.test(J));
+    const atk = ab('g_strike', 'Strike', 1, { attack: true, dmg: 17 });
+    const page = K._pageHtml(guard({ attack: atk }));
+    check('18H. the Abilities tab shows the Attack on its own, before the abilities, and says whose it is', /Attack <span class="kwab-h-sub">a fighter&#39;s: it hits well|Attack <span class="kwab-h-sub">a fighter's: it hits well/.test(page) && /kwab-row is-ready is-attack/.test(page) && />Always<\/span>/.test(page)
+      && page.indexOf('is-attack') < page.indexOf('all of them go into battle') && /their craft is magic: a blow from them is a feeble thing/.test(K._pageHtml(guard({ cls: 'wizard', attack: atk })))
+      && /a swing with whatever is to hand/.test(K._pageHtml(guard({ cls: 'villager', attack: atk }))) && !/is-attack/.test(K._pageHtml(guard())));
+    const kinds = [{ key: 'hammer', name: 'Hammer', says: 'Blows land a quarter harder.', hands: 2 }, { key: 'lantern', name: 'Lantern', says: 'Hearth magic is a fifth stronger.', hands: 1 }];
+    const gp = K._pageHtml(guard({ kinds, gear: null }));
+    check('18I. the guide marks the kinds that take two hands, and says a shield does not go with them', /<li><b>Hammer<\/b> <i>two hands<\/i> Blows land a quarter harder\.<\/li>/.test(gp) && /<li><b>Lantern<\/b> Hearth magic is a fifth stronger\.<\/li>/.test(gp) && /Not with a weapon that takes two hands\./.test(gp)
+      && /a lantern helps a Guard&#39;s borrowed healing|a lantern helps a Guard's borrowed healing/.test(gp));
+    check('18I2. a shield left on the back by a two-handed weapon is named as doing nothing', /On their back/.test(K._pageHtml(guard({ kinds, gear: { weapon: { name: 'Halberd', kind_name: 'Polearm', says: 'x' }, idle: { name: 'Tower Shield', icon: '🧱', says: 'On their back: no shield goes with a weapon that takes two hands.' } } }))));
+    check('18J. equipping says when a shield or a two-handed weapon went back to the stores', /if \(d\.note && typeof showBuildToast === 'function'\) showBuildToast\(d\.note, 'success'\);/.test(read('js/inventory.js')));
+    check('18K. Help: everyone has an Attack; a caster\'s is feeble; two hands, no shield', /Everyone also has an <b>Attack<\/b>, on its own button/.test(read('js/help.js')) && /can only manage a feeble knock/.test(read('js/help.js')) && /take two hands, so no shield goes with them/.test(read('js/help.js')));
   }
   check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));
   check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));

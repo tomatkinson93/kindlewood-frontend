@@ -926,12 +926,15 @@
   const SCHOOLS = { basics: ['Basics', '🪵'], arms: ['Arms', '⚔️'], archery: ['Archery', '🏹'], wild: ['Wild magic', '🔮'], hearth: ['Hearth magic', '🔥'], field: ['Fieldcraft', '🧰'] };
   // The tabs of a unit: its own school (Basics and a trade's trick with it), then its second. One tab when it has no second.
   function tabsOf(u) {
-    const list = (u && u.abilities) || [], own = list.filter(a => !a.off), off = list.filter(a => a.off);
+    // The Attack has a button of its own (attackOf): it is in no tab.
+    const list = ((u && u.abilities) || []).filter(a => !a.attack), own = list.filter(a => !a.off), off = list.filter(a => a.off);
     const main = (u && u.school) || (own.find(a => a.school && a.school !== 'basics') || own[0] || {}).school || 'basics';
     const tabs = [{ key: 'own', school: main, name: (SCHOOLS[main] || SCHOOLS.basics)[0], icon: (SCHOOLS[main] || SCHOOLS.basics)[1], list: own }];
     if (off.length) { const sec = (u.second && u.second.school) || off[0].school || 'basics'; tabs.push({ key: 'second', school: sec, name: (SCHOOLS[sec] || SCHOOLS.basics)[0], icon: (SCHOOLS[sec] || SCHOOLS.basics)[1], list: off, off: true }); }
     return tabs;
   }
+  // A citizen's Attack: their class's own (a Guard's Strike, an Archer's shot, a caster's feeble knock). Foes have none marked.
+  const attackOf = u => ((u && u.abilities) || []).find(a => a.attack) || null;
   // The tab that is open for this unit (its own, until the player opens the other).
   function tabOf(u) { const tabs = tabsOf(u); return tabs.find(t => t.key === S.tab[u.id]) || tabs[0]; }
   function paintPanel() {
@@ -942,7 +945,8 @@
     who.innerHTML = unitCard(look, S.view[look.id]);
     if (S.info && S.info !== u) {
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
-      acts.innerHTML = `<div class="kwtc-kit">${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
+      const lookAtk = attackOf(look);
+      acts.innerHTML = `<div class="kwtc-kit">${lookAtk ? `<span class="kwtc-kit-a is-attack">${ico(lookAtk)} <b>Attack${lookAtk.star ? ' ✦' : ''}</b> ${esc(lookAtk.name)}: ${esc(effectText(lookAtk))} <i>${esc(reachText(lookAtk))}</i></span>` : ''}${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
           + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
         + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
         + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '') + `</div>`
@@ -960,8 +964,15 @@
       return;
     }
     const a = S.mode === 'target' ? e.ability(u, S.ability) : null;
-    const tabs = tabsOf(u), tab = tabOf(u);
-    acts.innerHTML = (tabs.length > 1 ? `<div class="kwtc-schools" role="tablist" aria-label="Schools of abilities">` + tabs.map(t =>
+    const tabs = tabsOf(u), tab = tabOf(u), atk = attackOf(u);
+    // The Attack: a row of its own above the schools, always there whichever school is open. Its key is A.
+    const attackBtn = !atk ? '' : (() => {
+      const can = e.canUse(st, u, atk), none = can.ok && !e.targetTiles(st, u, atk).length, why = !can.ok ? 'done' : none ? 'no one in reach' : '';
+      return `<div class="kwtc-attack-row"><button type="button" class="kwtc-act kwtc-attack${a === atk ? ' is-on' : ''}" data-kwt="ability" data-key="${esc(atk.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === atk}" title="${esc(atk.desc || '')}">`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(atk)}</span><span class="kwtc-act-n">Attack${atk.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
+        + `<span class="kwtc-act-t">${esc(`${atk.name}: ${why || effectText(atk)}`)} <i>${esc(reachText(atk))}</i></span><kbd aria-hidden="true">A</kbd></button></div>`;
+    })();
+    acts.innerHTML = attackBtn + (tabs.length > 1 ? `<div class="kwtc-schools" role="tablist" aria-label="Schools of abilities">` + tabs.map(t =>
         `<button type="button" role="tab" class="kwtc-school${t.key === tab.key ? ' is-on' : ''}" data-kwt="school" data-school="${t.key}" aria-selected="${t.key === tab.key}" title="${t.off ? 'From an old career: these work at three-quarters strength' : 'What this class has taught'}">`
         + `<span aria-hidden="true">${t.icon}</span> ${esc(t.name)} <i>${t.list.length}</i>${t.off ? ' <em>¾</em>' : ''}</button>`).join('') + `<kbd aria-hidden="true">0</kbd></div>` : '')
       + tab.list.map((x, i) => {
@@ -1514,7 +1525,8 @@
     }
     if ((ev.key === 'Enter' || ev.key === ' ') && S.cursor) { ev.preventDefault(); return tapTile(S.cursor.x, S.cursor.y, true); }
     const u = e.current(st);
-    // 1 to 9: the abilities of the open school; 0: the other school.
+    // A: the Attack. 1 to 9: the abilities of the open school; 0: the other school.
+    if ((ev.key === 'a' || ev.key === 'A') && u && u.side === 'player' && attackOf(u)) { ev.preventDefault(); choose(attackOf(u).key); }
     if (/^[1-9]$/.test(ev.key) && u && u.side === 'player') { const a = tabOf(u).list[Number(ev.key) - 1]; if (a) { ev.preventDefault(); choose(a.key); } }
     if (ev.key === '0' && u && u.side === 'player' && tabsOf(u).length > 1) { ev.preventDefault(); S.tab[u.id] = tabOf(u).key === 'own' ? 'second' : 'own'; paintPanel(); }
     if ((ev.key === 'e' || ev.key === 'E') && u && u.side === 'player') { ev.preventDefault(); askFacing(); }

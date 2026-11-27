@@ -1,7 +1,8 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  KWAbilities — the Abilities tab on a citizen (docs/TACTICS.md §6).
 //
-//  What a citizen brings to a battle on the board: everything their class
+//  What a citizen brings to a battle on the board: their Attack (their
+//  class's own, on its own button), everything their class
 //  has taught them (their school, with the plain blow of Basics), what the
 //  class has still to teach, and their second school: up to five abilities
 //  from one other class they have levels in, which work at three-quarters
@@ -91,11 +92,12 @@
     const g = p.gear || {}, rows = [];
     if (g.weapon) rows.push(`<li><span aria-hidden="true">${esc(g.weapon.icon || '')}</span> <b>${esc(g.weapon.name)}</b>${g.weapon.kind_name ? ` <i>${esc(g.weapon.kind_name)}</i>` : ''} ${esc(g.weapon.says || 'An odd thing to fight with: it changes nothing.')}</li>`);
     if (g.shield) rows.push(`<li><span aria-hidden="true">${esc(g.shield.icon || '')}</span> <b>${esc(g.shield.name)}</b> ${esc(g.shield.says || '')}</li>`);
+    if (g.idle) rows.push(`<li class="is-idle"><span aria-hidden="true">${esc(g.idle.icon || '')}</span> <b>${esc(g.idle.name)}</b> ${esc(g.idle.says || '')}</li>`);
     if (g.armour) rows.push(`<li><span aria-hidden="true">${esc(g.armour.icon || '')}</span> <b>${esc(g.armour.name)}</b> Takes the edge off every hit.</li>`);
     return `<h4 class="kwab-h">Gear <span class="kwab-h-sub">what they hold changes what their abilities do</span></h4>`
       + (rows.length ? `<ul class="kwab-gear">${rows.join('')}</ul>` : `<p class="kwab-note">${esc(p.citizen.name)} carries nothing that changes a fight. Weapons, shields and armour are equipped from the town's stores.</p>`)
-      + `<details class="kwab-kinds"><summary>What each kind of weapon does</summary><ul>${p.kinds.map(k => `<li><b>${esc(k.name)}</b> ${esc(k.says)}</li>`).join('')}<li><b>Shield</b> Arms blocks are stronger by the shield's worth.</li></ul>`
-      + `<p class="kwab-note">These read the school of an ability, not the class of whoever uses it: a staff helps a Guard's borrowed healing as much as a Hearthkeeper's own.</p></details>`;
+      + `<details class="kwab-kinds"><summary>What each kind of weapon does</summary><ul>${p.kinds.map(k => `<li><b>${esc(k.name)}</b>${k.hands === 2 ? ' <i>two hands</i>' : ''} ${esc(k.says)}</li>`).join('')}<li><b>Shield</b> Arms blocks are stronger by the shield's worth. Not with a weapon that takes two hands.</li></ul>`
+      + `<p class="kwab-note">These read the school of an ability, not the class of whoever uses it: a lantern helps a Guard's borrowed healing as much as a Hearthkeeper's own.</p></details>`;
   }
   function pageHtml(p, pickNow) {
     if (!p) return '<div class="cp-rel-loading">Reading what they know…</div>';
@@ -108,11 +110,14 @@
         + `<div class="kwab-sub">${next ? `Next: <b>${esc(next.name)}</b> at level ${esc(next.at)}.` : 'Every ability the class teaches by level is known.'} Levels come from battles won, and from working at the job.</div></div></div>`
       : `<div class="kwab-head"><span class="kwab-big" aria-hidden="true">${esc(p.icon || '🧺')}</span><div><div class="kwab-title">Villager</div>`
         + `<div class="kwab-sub">${esc(p.citizen.name)} has no fighting class, so they fight with a swing, a duck, and what their trade taught them. As a Guard, Archer, Wizard or Hearthkeeper they would learn ten more.</div></div></div>`;
+    // Their Attack: its own button in a battle, apart from their abilities.
+    const attack = p.attack ? `<h4 class="kwab-h">Attack <span class="kwab-h-sub">${p.cls === 'guard' || p.cls === 'archer' ? 'a fighter\'s: it hits well' : p.cls === 'villager' ? 'a swing with whatever is to hand' : 'their craft is magic: a blow from them is a feeble thing'}</span></h4>`
+      + `<ul class="kwab-list">${rowHtml(p.attack, `<span class="kwab-when is-on">Always</span>`, 'is-ready is-attack')}</ul>` : '';
     // Their own: everything here goes into every battle. An ability of another school (the plain blow of Basics, a trade's trick) says so.
     const own = `<h4 class="kwab-h">${esc(p.school.icon || '')} ${esc(p.school.name)} <span class="kwab-h-sub">${p.abilities.length} known: all of them go into battle</span></h4>`
       + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
     const ahead = (p.ahead || []).length ? `<h4 class="kwab-h">Still to learn</h4><ul class="kwab-list">${p.ahead.map(a => rowHtml(a, `<span class="kwab-when">🔒 Level ${esc(a.at)}</span>`, 'is-locked')).join('')}</ul>` : '';
-    return `<div class="kwab">${head}${gearHtml(p)}${own}${ahead}${secondHtml(p, pick)}</div>`;
+    return `<div class="kwab">${head}${gearHtml(p)}${attack}${own}${ahead}${secondHtml(p, pick)}</div>`;
   }
 
   // ── The tab on a citizen's page (js/citizens.js) ────────────────────────

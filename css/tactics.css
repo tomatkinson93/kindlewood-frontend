@@ -157,6 +157,14 @@
   align-items: center; text-align: left; padding: var(--kw-s-1) var(--kw-s-2); border-radius: var(--kw-radius); border: 1px solid var(--kw-line-2);
   background: var(--kw-wood-2); color: var(--kw-cream); font: inherit; cursor: pointer;
 }
+/* The Attack: a row of its own above the schools, one line, edged in gold. */
+.kwtc-attack-row { flex: 1 1 100%; display: flex; }
+.kwtc-act.kwtc-attack { flex: 1 1 auto; max-width: 420px; min-height: var(--kw-touch); grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "i n t"; column-gap: var(--kw-s-2); border-color: var(--kw-gold-deep); }
+.kwtc-act.kwtc-attack .kwtc-act-i { font-size: var(--kw-fs-4); }
+.kwtc-act.kwtc-attack .kwtc-act-n { color: var(--kw-gold); font-weight: 600; }
+.kwtc-act.kwtc-attack .kwtc-act-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kwtc-act.kwtc-attack .kwtc-act-t i { font-style: normal; color: var(--kw-muted); }
+.kwtc-kit-a.is-attack { flex: 1 1 100%; }
 /* Schools: a tab for the citizen's own abilities and one for their second school (docs/TACTICS.md §6). */
 .kwtc-schools { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--kw-s-1); }
 .kwtc-school {
@@ -190,6 +198,8 @@
 .kwtc-act-r { grid-area: r; font-size: var(--kw-fs-1); color: var(--kw-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kwtc-act kbd { position: absolute; top: 2px; right: var(--kw-s-1); font: inherit; font-size: var(--kw-fs-1); color: var(--kw-gold-dim); }
 .kwtc-turn { flex: 1 1 100%; display: flex; gap: var(--kw-s-2); justify-content: flex-end; }
+/* The panel scrolls when a citizen has many abilities: End turn stays in reach at its foot. */
+.kwtc-panel .kwtc-turn { position: sticky; bottom: 0; padding: var(--kw-s-1) 0; background: var(--kw-panel); }
 .kwtc-confirm { display: flex; flex-wrap: wrap; gap: var(--kw-s-2); margin-top: var(--kw-s-1); }
 .kwtc-fore { padding: var(--kw-s-1) var(--kw-s-2); border-left: 3px solid var(--kw-gold-deep); background: var(--kw-hover); border-radius: var(--kw-s-1); }
 .kwtc-fore b { color: var(--kw-gold); }
@@ -199,6 +209,7 @@
 
 /* A phone: the card and the buttons stack, three buttons a row, no key hints. */
 @media (max-width: 640px) {
+  .kwtc-act.is-locked { display: none; }
   .kwtc-top { gap: var(--kw-s-2); padding: var(--kw-s-1) var(--kw-s-2); }
   .kwtc-title b { font-size: var(--kw-fs-3); max-width: 34vw; }
   .kwtc-title span { display: none; }
@@ -212,7 +223,7 @@
   .kwtc-act-i { font-size: var(--kw-fs-4); }
   .kwtc-turn .kw-btn, .kwtc-confirm .kw-btn { min-height: var(--kw-touch); }
   .kwtc-hint { min-height: 0; height: 56px; }
-  .kwtc-panel { height: 316px; }
+  .kwtc-panel { height: 376px; }
   .kwtc-faces { display: grid; grid-template-areas: "tl tr" "bl br"; }
   .kwtc-ask { left: var(--kw-s-2); right: var(--kw-s-2); top: var(--kw-s-2); }
 }

@@ -245,6 +245,8 @@ async function invEquipItem(itemId) {
   const d = await res.json().catch(() => ({}));
   if (!res.ok) { if (typeof showBuildToast === 'function') showBuildToast(d.error || 'Could not equip that.', 'error'); return; }
   if (d.replaced && typeof showBuildToast === 'function') showBuildToast(`${d.replaced} went back to the stores.`, 'success');
+  // A shield and a weapon that takes both hands do not go together: the server says which went back.
+  if (d.note && typeof showBuildToast === 'function') showBuildToast(d.note, 'success');
   document.getElementById('inv-detail-overlay')?.remove();
   await loadInventory();
   if (typeof loadCitizens === 'function') loadCitizens();   // effective skills changed
