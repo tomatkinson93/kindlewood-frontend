@@ -826,6 +826,7 @@
         float(v, '−' + ev.dmg, '#ffd9d0', true);
         if (ev.side !== 'front') float(v, ev.side === 'back' ? 'From behind!' : 'Flanked', '#ffd27a');
         if (ev.blocked) float(v, 'blocked ' + ev.blocked, '#9fd0ff');
+        if (ev.braced) float(v, 'Braced', '#9fd0ff');       // a passive: the first hit of the round does a third less
         v.block = Math.max(0, (v.block || 0) - ev.blocked);
         say(`${name(ev.id)} takes ${ev.dmg}${ev.side === 'back' ? ', struck from behind' : ev.side === 'side' ? ', flanked' : ''}.`);
         await wait(360);
@@ -847,6 +848,7 @@
         else { v.hp = 0; v.block = 0; v.st = {}; v.lying = true; float(v, 'Down', '#ffd9d0', true); await wait(380); }
       }
       else if (ev.type === 'raise') { v.lying = false; v.st = {}; fx('cheer', v, 800); float(v, 'Back up!', '#ffd27a', true); say(`${name(ev.id)} is back on their feet.`); await wait(260); }
+      else if (ev.type === 'counter') { fx('slash', S.view[ev.target] || v, 300); float(v, 'Counter!', '#ffd27a', true); sfx('hit'); say(`${name(ev.id)} strikes back.`); await wait(260); }
       else if (ev.type === 'round') { S.round = ev.n; paintTop(); }
       else if (ev.type === 'turn') { paintTop(); await wait(90); }
     }
@@ -894,12 +896,17 @@
   }
   // What a citizen holds: the kind of weapon and the shield change what their abilities do (the server's
   // lib/gear_kinds.js). One short line; the full words are in its title.
-  function gearLine(u) {
+  function gearBits(u) {
     const g = u && u.gear, bits = [];
     if (!g) return '';
     if (g.weapon) bits.push(`<span title="${esc(g.weapon.says || '')}">${esc(g.weapon.icon || '')} ${esc(g.weapon.name)}</span>`);
     if (g.shield) bits.push(`<span title="${esc(g.shield.says || '')}">${esc(g.shield.icon || '')} ${esc(g.shield.name)}</span>`);
-    return bits.length ? `<div class="kwtc-card-gear">${bits.join(' · ')}</div>` : '';
+    return bits.join(' · ');
+  }
+  // The line under a citizen's facts: what they hold, and the passive they carry (the server's lib/tactics_study.js).
+  function gearLine(u) {
+    const p = u && u.passive_info, parts = [gearBits(u), p ? `<span class="kwtc-passive" title="${esc(p.says || '')}">${esc(p.icon || '')} ${esc(p.name)}</span>` : ''].filter(Boolean);
+    return parts.length ? `<div class="kwtc-card-gear">${parts.join(' · ')}</div>` : '';
   }
   function unitCard(u, v) {
     const ails = Object.keys(STATUS).filter(s => (u.st[s] || 0) > 0).map(s => `<span class="kwtc-ail">${ASSETS.status[s] ? `<img class="kwtc-ic" src="/assets/tactics/status/${esc(ASSETS.status[s])}" alt="" draggable="false"> ` : ''}${esc(STATUS[s][0])} ${u.st[s]}</span>`).join('');
@@ -949,7 +956,8 @@
       acts.innerHTML = `<div class="kwtc-kit">${lookAtk ? `<span class="kwtc-kit-a is-attack">${ico(lookAtk)} <b>Attack${lookAtk.star ? ' ✦' : ''}</b> ${esc(lookAtk.name)}: ${esc(effectText(lookAtk))} <i>${esc(reachText(lookAtk))}</i></span>` : ''}${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
           + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
         + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
-        + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '') + `</div>`
+        + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '')
+        + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -1764,6 +1772,9 @@
       + `${sel('way', [{ key: 'any', label: 'A different one each time' }].concat(Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label }))), p.way || 'any', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
       + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
+      + `<div class="cheat-section-label" style="margin-top:10px">Study</div>`
+      + `<div class="cheat-desc">A lesson at a class building takes 2, 6 or 12 hours. This finishes every lesson your citizens are studying.</div>`
+      + `<button type="button" class="cheat-all-btn" data-kwt-dev="study">📖 Finish studies now</button>`
       + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
   }
   // Fill the box Dev Tools gives us, and keep what was chosen.
@@ -1781,10 +1792,15 @@
       };
       box.addEventListener('change', keep); box.addEventListener('input', keep);
       box.addEventListener('click', async ev => {
-        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"]');
+        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"], [data-kwt-dev="study"]');
         if (!b) return;
         const msg = box.querySelector('[data-kwt-dev="msg"]');
         try {
+          if (b.getAttribute('data-kwt-dev') === 'study') {
+            const res = await global.apiFetch('/api/tactics/admin/study/finish', { method: 'POST' }), d = await res.json().catch(() => ({}));
+            if (msg) msg.textContent = res.ok && d.ok ? `${d.finished} lesson${d.finished === 1 ? '' : 's'} finished.` : '⚠️ ' + (d.error || 'That did not work.');
+            return;
+          }
           if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
           await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });

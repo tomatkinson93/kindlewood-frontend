@@ -589,7 +589,7 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
     const none = K._pageHtml(guard({ kinds, gear: null }));
     check('18z. with nothing carried it says so; the guide to every kind is there either way; an older page with no kinds shows no gear part', /carries nothing that changes a fight/.test(none) && /<summary>What each kind of weapon does<\/summary>/.test(none) && (none.match(/<li><b>(Sword|Staff|Shield)<\/b>/g) || []).length === 3
       && /read the school of an ability, not the class/.test(none) && !/kwab-kinds/.test(K._pageHtml(guard())));
-    const src = J.slice(J.indexOf('  function gearLine(u) {'), J.indexOf('  function unitCard(u, v) {'));
+    const src = J.slice(J.indexOf('  function gearBits(u) {'), J.indexOf('  function unitCard(u, v) {'));
     const gearLine = new Function('esc', src + '; return gearLine;')(x => String(x).replace(/</g, '&lt;'));
     check('18A. in battle a citizen\'s card names what they hold; the words for what it does are in its title and in the tapped list', /🪄 Oak Staff/.test(gearLine({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'Wild and Hearth magic is a fifth stronger.' }, shield: { name: 'Buckler', icon: '🛡️', says: 'Arms blocks are 3 stronger.' } } }))
       && /title="Wild and Hearth magic is a fifth stronger\."/.test(gearLine({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'Wild and Hearth magic is a fifth stronger.' } } })) && gearLine({}) === '' && gearLine({ gear: { armour: { name: 'Mail' } } }) === ''
@@ -622,6 +622,46 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
     check('18I2. a shield left on the back by a two-handed weapon is named as doing nothing', /On their back/.test(K._pageHtml(guard({ kinds, gear: { weapon: { name: 'Halberd', kind_name: 'Polearm', says: 'x' }, idle: { name: 'Tower Shield', icon: '🧱', says: 'On their back: no shield goes with a weapon that takes two hands.' } } }))));
     check('18J. equipping says when a shield or a two-handed weapon went back to the stores', /if \(d\.note && typeof showBuildToast === 'function'\) showBuildToast\(d\.note, 'success'\);/.test(read('js/inventory.js')));
     check('18K. Help: everyone has an Attack; a caster\'s is feeble; two hands, no shield', /Everyone also has an <b>Attack<\/b>, on its own button/.test(read('js/help.js')) && /can only manage a feeble knock/.test(read('js/help.js')) && /take two hands, so no shield goes with them/.test(read('js/help.js')));
+  }
+  // Study and the passive slot (stage D).
+  {
+    const st = (x = {}) => ({ citizen: { id: 7, name: 'Hazel <b>' }, building: { type: 'watchtower', name: 'Watchtower', level: 2, seats: 2, used: 1 }, level: 6, wealth: 500, studying: null, passive: 'brace',
+      passives: [{ key: 'brace', name: 'Brace', icon: '🧱', says: 'The first hit they take each round does a third less.' }, { key: 'sure_footed', name: 'Sure-footed', icon: '🥾', says: 'Jumps one step higher.' }],
+      lessons: [{ key: 'brace', kind: 'passive', name: 'Brace', icon: '🧱', says: 'First hit a third less.', tier: 1, hours: 2, wealth: 50, need_level: 3, need_building: 1, state: 'known', why: null },
+        { key: 'c_second_wind', kind: 'ability', name: 'Second Wind', icon: '💨', says: 'Heal yourself.', tier: 1, hours: 2, wealth: 50, need_level: 3, need_building: 1, state: 'open', why: null },
+        { key: 'c_cleave', kind: 'ability', name: 'Cleave', icon: '🪓', says: 'A wide swing.', tier: 2, hours: 6, wealth: 150, need_level: 8, need_building: 2, state: 'locked', why: 'Needs class level 8.' }], ...x });
+    const now = Date.parse('2026-11-27T12:00:00Z'), at = sec => new Date(now + sec * 1000).toISOString();
+    const sh = K._studyHtml(st(), now);
+    check('18L. the Study part names the building, its level and its seats, and lists each lesson: known, open with a button and its cost, or closed with the reason', /Study <span class="kwab-h-sub">at the Watchtower · level 2 · 1 of 2 seats taken/.test(sh)
+      && /kwab-lesson is-known/.test(sh) && /✓ Known/.test(sh) && /data-kwab="study" data-key="c_second_wind">Study <span class="kwab-cost">2 hours · 50 wealth<\/span>/.test(sh) && /🔒 Needs class level 8\./.test(sh)
+      && (sh.match(/data-kwab="study"/g) || []).length === 1 && /Cleave <i class="kwab-kind">Ability<\/i>/.test(sh) && /Brace <i class="kwab-kind">Passive<\/i>/.test(sh) && /6 hours · 150 wealth/.test(sh));
+    const going = K._studyHtml(st({ studying: { key: 'c_second_wind', name: 'Second Wind', done_at: at(5530) } }), now);
+    check('18M. while a lesson is under way: what, a countdown, that they carry on as normal, and a way to stop with the fee back', /Studying <b>Second Wind<\/b>: done in <b class="kwab-clock" data-kwab-clock="[^"]+">1:32:10<\/b>/.test(going) && /They carry on as normal/.test(going)
+      && /data-kwab="study-stop">Stop \(the fee comes back\)</.test(going) && K._untilWords(at(65), now) === '1:05' && K._untilWords(at(-5), now) === 'now');
+    check('18N. no building: it says to build one; a villager has no Study part', /The town has no Watchtower\. Build one/.test(K._studyHtml(st({ building: { type: 'watchtower', name: 'Watchtower', level: 0, seats: 0, used: 0 } }), now))
+      && K._studyHtml(st({ building: null }), now) === '' && K._studyHtml(null, now) === '' && /Hazel &lt;b&gt;/.test(K._studyHtml(st({ building: { type: 'watchtower', name: 'Watchtower', level: 0, seats: 0, used: 0 } }), now)));
+    const ph = K._passiveHtml(st());
+    check('18O. the Passive part: the ones learned to choose among, the one carried marked, and None', /Passive <span class="kwab-h-sub">one always-on trait in battle/.test(ph) && (ph.match(/data-kwab="passive"/g) || []).length === 3 && /value="brace" checked/.test(ph)
+      && /🥾 Sure-footed<\/b> <i>Jumps one step higher\.<\/i>/.test(ph) && /value="none"/.test(ph) && /value="none" checked/.test(K._passiveHtml(st({ passive: null })))
+      && /None yet\. Passives are learned by study at the Watchtower\./.test(K._passiveHtml(st({ passives: [] }))) && K._passiveHtml(null) === '');
+    const whole = K._pageHtml(guard(), null, st());
+    check('18P. both parts are on the Abilities tab, between what is still to learn and the second school', whole.indexOf('Still to learn') < whole.indexOf('kwab-passives') && whole.indexOf('kwab-passives') < whole.indexOf('kwab-lesson') && whole.indexOf('kwab-lesson') < whole.indexOf('Second school')
+      && !/kwab-lesson/.test(K._pageHtml(guard())));
+    check('18Q. the server is asked and told; nothing about study is worked out here', /apiFetch\('\/api\/tactics\/study\/' \+ path/.test(A) && /study\('', \{ lesson: st\.getAttribute\('data-key'\) \}/.test(A) && /study\('cancel', \{\}/.test(A)
+      && /study\('passive', \{ key: pa\.value === 'none' \? null : pa\.value \}/.test(A) && /Promise\.all\(\[call\(String\(id\)\), studyCall\(String\(id\)\)/.test(A));
+    check('18R. the countdown ticks once a second and reads the page again when the lesson is done; a live event does too', /setInterval\(tick, 1000\)/.test(A) && /if \(t === 'now' && !S\.busy && S\.id\)/.test(A) && /ev\.type !== 'study_done'/.test(A)
+      && /study_done\(ev\) \{ if \(global\.KWAbilities && global\.KWAbilities\.onEvent\) global\.KWAbilities\.onEvent\(ev\); \}/.test(read('js/realtime.js')));
+    const src2 = J.slice(J.indexOf('  function gearBits(u) {'), J.indexOf('  function unitCard(u, v) {'));
+    const gl = new Function('esc', src2 + '; return gearLine;')(x => String(x).replace(/</g, '&lt;'));
+    check('18S. in battle a citizen\'s card names their passive; a tapped citizen\'s list says what it does', /<span class="kwtc-passive" title="Strikes back\.">↩️ Counter<\/span>/.test(gl({ passive_info: { name: 'Counter', icon: '↩️', says: 'Strikes back.' } }))
+      && /Oak Staff<\/span> · <span class="kwtc-passive"/.test(gl({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'x' } }, passive_info: { name: 'Focus', icon: '🔆', says: 'y' } })) && gl({}) === '' && /Passive: \$\{esc\(look\.passive_info\.says/.test(J));
+    const EN2 = read('js/tactics-engine.js');
+    check('18T. the rules: Brace takes a third off the first hit of a round; Counter strikes back once a round at half strength and never fells; both are ready again at the unit\'s turn', /BRACE: 2 \/ 3, COUNTER: 0\.5/.test(EN2)
+      && /const braced = t\.passive === 'brace' && !t\.braced;/.test(EN2) && /t\.passive === 'counter' && !t\.countered && foeOf\(u, t\) && Math\.abs\(u\.x - t\.x\) \+ Math\.abs\(u\.y - t\.y\) === 1/.test(EN2)
+      && /n = Math\.min\(c\.dmg, u\.hp - 1\)/.test(EN2) && /if \(u\.braced\) u\.braced = false;\n\s+if \(u\.countered\) u\.countered = false;/.test(EN2));
+    check('18U. a counter and a braced hit are shown on the board', /ev\.type === 'counter'\) \{[^}]*float\(v, 'Counter!'/.test(J) && /if \(ev\.braced\) float\(v, 'Braced'/.test(J));
+    check('18V. Dev Tools can finish every lesson being studied', /data-kwt-dev="study">📖 Finish studies now</.test(J) && /apiFetch\('\/api\/tactics\/admin\/study\/finish', \{ method: 'POST' \}\)/.test(J));
+    check('18W. Help says where to study and that one passive is carried', /can <b>study<\/b> at the Watchtower/.test(read('js/help.js')) && /carries one passive at a time/.test(read('js/help.js')));
   }
   check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));
   check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));

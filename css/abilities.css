@@ -41,6 +41,14 @@
 .kwab-school input { accent-color: var(--kw-gold-btn); }
 .kwab-school input:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 .kwab-row.is-off .kwab-does { color: var(--kw-warn); }
+/* Study and the passive slot. */
+.kwab-kind { font-style: normal; font-family: inherit; font-size: var(--kw-fs-1); color: var(--kw-muted); margin-left: var(--kw-s-1); }
+.kwab-lesson.is-locked { opacity: .7; }
+.kwab-lesson.is-known { border-color: var(--kw-gold-dim); }
+.kwab-cost { font-size: var(--kw-fs-1); opacity: .85; margin-left: var(--kw-s-1); }
+.kwab-studying { padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-gold-dim); border-radius: var(--kw-radius); font-size: var(--kw-fs-2); color: var(--kw-cream); }
+.kwab-clock { color: var(--kw-gold); font-variant-numeric: tabular-nums; }
+.kwab-passives .kwab-school i { display: block; }
 /* Gear: what they hold and what its kind does. */
 .kwab-gear { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--kw-s-1); font-size: var(--kw-fs-2); color: var(--kw-cream); }
 .kwab-gear b { color: var(--kw-gold); }
@@ -58,7 +66,8 @@
 .kwab-mastery.is-done { color: var(--kw-gold); }
 .kwab-mastery-bar { width: 64px; height: 6px; border-radius: var(--kw-radius); background: var(--kw-ink); overflow: hidden; }
 .kwab-mastery-bar span { display: block; height: 100%; background: var(--kw-gold-btn); }
-.kwab-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line-2); border-radius: var(--kw-radius); background: var(--kw-panel); }
+/* (Not pinned to the foot of the tab any more: the page has other parts above and below the second school.) */
+.kwab-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-3); padding: var(--kw-s-2) var(--kw-s-3); border: 1px solid var(--kw-line-2); border-radius: var(--kw-radius); background: var(--kw-panel); }
 .kwab-count { font-size: var(--kw-fs-2); color: var(--kw-warn); font-variant-numeric: tabular-nums; }
 .kwab-count.is-full { color: var(--kw-good); }
 

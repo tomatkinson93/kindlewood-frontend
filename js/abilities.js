@@ -7,7 +7,9 @@
 //  class has still to teach, and their second school: up to five abilities
 //  from one other class they have levels in, which work at three-quarters
 //  strength. Which class and which five is chosen here and kept until
-//  changed.
+//  changed. It also shows what their class's building teaches (extra
+//  abilities and passives, each for hours and a fee: POST /api/tactics/study/:id)
+//  and the one passive they carry.
 //
 //  The server decides what is known and keeps the choice
 //  (lib/tactics_abilities.js there: GET /api/tactics/abilities/:id,
@@ -24,7 +26,8 @@
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const toast = (m, t) => { if (typeof global.showToastNotification === 'function') global.showToastNotification(m, t || 'default'); };
   // page: what the server last said; pick: { cls, keys } as chosen now for the second school (null until the player changes something).
-  const S = { id: null, page: null, pick: null, busy: false, wired: null };
+  // study: what the server last said about study and the passive slot (GET /api/tactics/study/:id).
+  const S = { id: null, page: null, study: null, pick: null, busy: false, wired: null, clock: null };
 
   // Every player's battles are fought on the board, so every grown citizen has the tab.
   const available = () => true;
@@ -99,7 +102,43 @@
       + `<details class="kwab-kinds"><summary>What each kind of weapon does</summary><ul>${p.kinds.map(k => `<li><b>${esc(k.name)}</b>${k.hands === 2 ? ' <i>two hands</i>' : ''} ${esc(k.says)}</li>`).join('')}<li><b>Shield</b> Arms blocks are stronger by the shield's worth. Not with a weapon that takes two hands.</li></ul>`
       + `<p class="kwab-note">These read the school of an ability, not the class of whoever uses it: a lantern helps a Guard's borrowed healing as much as a Hearthkeeper's own.</p></details>`;
   }
-  function pageHtml(p, pickNow) {
+  // ── Study at the class building, and the passive slot (the server's lib/tactics_study.js) ──
+  // "1:32:10" until a time the server gave; "now" once it has passed.
+  function untilWords(when, now) {
+    const left = Math.max(0, Math.ceil((new Date(when).getTime() - (now == null ? Date.now() : now)) / 1000));
+    if (left <= 0) return 'now';
+    const h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60), sec = left % 60;
+    return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+  }
+  // The one passive a citizen carries into battle, chosen among those they have learned.
+  function passiveHtml(st) {
+    if (!st) return '';
+    const title = `<h4 class="kwab-h">Passive <span class="kwab-h-sub">one always-on trait in battle</span></h4>`;
+    if (!(st.passives || []).length) return title + `<p class="kwab-note">None yet. Passives are learned by study${st.building ? ` at the ${esc(st.building.name)}` : ''}.</p>`;
+    const radio = (key, label, sub) => `<label class="kwab-school${(st.passive || 'none') === key ? ' is-on' : ''}"><input type="radio" name="kwab-passive" data-kwab="passive" value="${esc(key)}"${(st.passive || 'none') === key ? ' checked' : ''}> <span><b>${label}</b>${sub ? ` <i>${sub}</i>` : ''}</span></label>`;
+    return title + `<div class="kwab-schools kwab-passives" role="radiogroup" aria-label="Which passive to carry">`
+      + st.passives.map(x => radio(x.key, `${esc(x.icon || '')} ${esc(x.name)}`, esc(x.says))).join('') + radio('none', 'None', '') + `</div>`;
+  }
+  // What the class's building teaches: each lesson with what it is, what it takes, and a button or the reason it is closed.
+  function studyHtml(st, now) {
+    if (!st || !st.building) return '';
+    const b = st.building;
+    const head = `<h4 class="kwab-h">Study <span class="kwab-h-sub">at the ${esc(b.name)}${b.level ? ` · level ${esc(b.level)} · ${esc(b.used)} of ${esc(b.seats)} seat${b.seats === 1 ? '' : 's'} taken` : ''}</span></h4>`;
+    if (!b.level) return head + `<p class="kwab-note">The town has no ${esc(b.name)}. Build one and ${esc(st.citizen.name)} can study there: extra abilities and passives, each for some hours and a fee.</p>`;
+    const now2 = st.studying ? `<div class="kwab-studying" role="status">📖 Studying <b>${esc(st.studying.name)}</b>: done in <b class="kwab-clock" data-kwab-clock="${esc(st.studying.done_at)}">${esc(untilWords(st.studying.done_at, now))}</b>. They carry on as normal meanwhile. `
+      + `<button type="button" class="kw-btn quiet" data-kwab="study-stop">Stop (the fee comes back)</button></div>` : '';
+    const rows = (st.lessons || []).map(l => {
+      const tag = `<i class="kwab-kind">${l.kind === 'passive' ? 'Passive' : 'Ability'}</i>`, cost = `${esc(l.hours)} hour${l.hours === 1 ? '' : 's'} · ${esc(l.wealth)} wealth`;
+      const end = l.state === 'known' ? `<span class="kwab-when is-on">✓ Known</span>`
+        : l.state === 'studying' ? `<span class="kwab-when is-on">Studying…</span>`
+          : l.state === 'open' ? `<button type="button" class="kw-btn primary" data-kwab="study" data-key="${esc(l.key)}">Study <span class="kwab-cost">${cost}</span></button>`
+            : `<span class="kwab-when">🔒 ${esc(l.why || '')}</span>`;
+      return `<li class="kwab-row kwab-lesson is-${esc(l.state)}"><span class="kwab-ico" aria-hidden="true">${esc(l.icon || '•')}</span>`
+        + `<span class="kwab-what"><b>${esc(l.name)} ${tag}</b><span class="kwab-does">${esc(l.says || '')}</span>${l.state === 'known' || l.state === 'studying' ? '' : `<span class="kwab-desc">${cost}</span>`}</span>${end}</li>`;
+    }).join('');
+    return head + now2 + `<ul class="kwab-list">${rows}</ul>`;
+  }
+  function pageHtml(p, pickNow, study) {
     if (!p) return '<div class="cp-rel-loading">Reading what they know…</div>';
     const pick = pickNow || saved(p), next = (p.ahead || [])[0];
     M = p.mastery || null;
@@ -117,7 +156,7 @@
     const own = `<h4 class="kwab-h">${esc(p.school.icon || '')} ${esc(p.school.name)} <span class="kwab-h-sub">${p.abilities.length} known: all of them go into battle</span></h4>`
       + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
     const ahead = (p.ahead || []).length ? `<h4 class="kwab-h">Still to learn</h4><ul class="kwab-list">${p.ahead.map(a => rowHtml(a, `<span class="kwab-when">🔒 Level ${esc(a.at)}</span>`, 'is-locked')).join('')}</ul>` : '';
-    return `<div class="kwab">${head}${gearHtml(p)}${attack}${own}${ahead}${secondHtml(p, pick)}</div>`;
+    return `<div class="kwab">${head}${gearHtml(p)}${attack}${own}${ahead}${passiveHtml(study)}${studyHtml(study)}${secondHtml(p, pick)}</div>`;
   }
 
   // ── The tab on a citizen's page (js/citizens.js) ────────────────────────
@@ -130,15 +169,21 @@
   function paint() {
     const el = doc.getElementById('cp-abilities-content');
     if (!el) return;
-    el.innerHTML = pageHtml(S.page, S.page ? chosen(S.page) : null);
+    el.innerHTML = pageHtml(S.page, S.page ? chosen(S.page) : null, S.study);
     if (S.wired !== el) {
       S.wired = el;
       el.addEventListener('change', ev => {
-        const t = ev.target.closest('[data-kwab="toggle"]'), sc = ev.target.closest('[data-kwab="school"]');
+        const t = ev.target.closest('[data-kwab="toggle"]'), sc = ev.target.closest('[data-kwab="school"]'), pa = ev.target.closest('[data-kwab="passive"]');
         if (t) toggle(t.getAttribute('data-key'), t.checked);
         else if (sc) school(sc.value);
+        else if (pa) study('passive', { key: pa.value === 'none' ? null : pa.value }, '⚔ Saved: they carry it into the next battle.');
       });
-      el.addEventListener('click', ev => { const t = ev.target.closest('[data-kwab="save"]'); if (t && !t.disabled) save(); });
+      el.addEventListener('click', ev => {
+        const t = ev.target.closest('[data-kwab="save"]'), st = ev.target.closest('[data-kwab="study"]'), stop = ev.target.closest('[data-kwab="study-stop"]');
+        if (t && !t.disabled) save();
+        else if (st && !st.disabled) study('', { lesson: st.getAttribute('data-key') }, '📖 The lesson has begun.');
+        else if (stop) study('cancel', {}, 'The lesson is stopped and the fee is back.');
+      });
     }
   }
   // Another old career is chosen (or none): its first five come ticked, to be changed.
@@ -166,14 +211,55 @@
     if (!res.ok || !d.ok) throw new Error(d.error || 'That did not work. Try again.');
     return d;
   }
+  // Both halves of the page: what they bring (abilities) and what they can learn (study).
+  async function reload(id) {
+    const [page, st] = await Promise.all([call(String(id)), studyCall(String(id)).catch(() => null)]);
+    if (S.id === id) { S.page = page; S.study = st; }
+  }
+  async function studyCall(path, body) {
+    const res = await global.apiFetch('/api/tactics/study/' + path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || !d.ok) throw new Error(d.error || 'That did not work. Try again.');
+    return d;
+  }
+  // Begin a lesson, stop it, or choose the passive; then read the page again (a studied ability or a passive changes what they bring).
+  async function study(what, body, done) {
+    if (S.busy || !S.id) return;
+    S.busy = true;
+    const id = S.id;
+    try {
+      await studyCall(id + (what ? '/' + what : ''), body || {});
+      await reload(id);
+      toast(done);
+      try { if (what !== 'passive' && typeof global.refreshResources === 'function') global.refreshResources(); } catch (e) { /* not loaded */ }
+    } catch (e) { toast('⚠️ ' + e.message); }
+    finally { S.busy = false; paint(); }
+  }
+  // Counts a lesson down once a second while the tab is on screen, and reads the page again when its time is up.
+  function tick() {
+    const el = doc.getElementById('cp-abilities-content');
+    if (!el || !el.querySelector) { if (S.clock) { clearInterval(S.clock); S.clock = null; } return; }
+    const c = el.querySelector('[data-kwab-clock]');
+    if (!c) return;
+    const t = untilWords(c.getAttribute('data-kwab-clock'));
+    c.textContent = t;
+    if (t === 'now' && !S.busy && S.id) { const id = S.id; S.busy = true; reload(id).catch(() => {}).then(() => { S.busy = false; paint(); }); }
+  }
+  // A live event (js/realtime.js): a lesson is finished. Say so, and redraw the tab if it is this citizen's.
+  function onEvent(ev) {
+    if (!ev || ev.type !== 'study_done') return;
+    if (ev.message) toast(ev.message);
+    if (S.id && Number(ev.citizen_id) === Number(S.id) && doc.getElementById('cp-abilities-content')) reload(S.id).then(paint).catch(() => {});
+  }
   async function renderTab(id) {
-    if (S.id !== id) { S.id = id; S.page = null; S.pick = null; }
+    if (S.id !== id) { S.id = id; S.page = null; S.study = null; S.pick = null; }
     paint();
     try {
       if (T().loadAssets) await T().loadAssets();      // the pictures, before the list is drawn
-      S.page = await call(String(id));
+      await reload(id);
     } catch (e) { const el = doc.getElementById('cp-abilities-content'); if (el) el.innerHTML = `<p class="kwab-note">⚠️ ${esc(e.message)}</p>`; return; }
     if (S.id === id) paint();
+    if (!S.clock && typeof setInterval === 'function') S.clock = setInterval(tick, 1000);
   }
   async function save() {
     if (S.busy || !S.page || !S.pick) return;
@@ -183,5 +269,5 @@
     finally { S.busy = false; paint(); }
   }
 
-  global.KWAbilities = { available, tabHtml, panelHtml, renderTab, _pageHtml: pageHtml, _rowHtml: rowHtml, _secondHtml: secondHtml, _masteryHtml: masteryHtml, _gearHtml: gearHtml, _pace: pace, _state: S, _toggle: toggle, _school: school, _save: save };
+  global.KWAbilities = { available, tabHtml, panelHtml, renderTab, _pageHtml: pageHtml, _rowHtml: rowHtml, _secondHtml: secondHtml, _masteryHtml: masteryHtml, _gearHtml: gearHtml, _studyHtml: studyHtml, _passiveHtml: passiveHtml, _untilWords: untilWords, onEvent, _pace: pace, _state: S, _toggle: toggle, _school: school, _save: save };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -190,6 +190,8 @@
     dungeon_ended(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
     dungeon_arrived(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
     dungeon_home(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    // A lesson at a class building is finished (js/abilities.js).
+    study_done(ev) { if (global.KWAbilities && global.KWAbilities.onEvent) global.KWAbilities.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

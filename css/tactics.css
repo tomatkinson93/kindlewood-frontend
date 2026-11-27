@@ -106,6 +106,8 @@
 /* What a citizen holds (its kind changes their abilities). */
 .kwtc-card-gear { font-size: var(--kw-fs-1); color: var(--kw-muted); }
 .kwtc-kit-a.is-gear { flex: 1 1 100%; color: var(--kw-muted); }
+/* The passive a citizen carries. */
+.kwtc-passive { color: var(--kw-gold); }
 /* Mastery: the ✦ on an ability a citizen has used enough to master. */
 .kwtc-star { color: var(--kw-gold); font-weight: normal; }
 .kwtc-mastered b { color: var(--kw-cream); }
