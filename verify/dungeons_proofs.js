@@ -284,5 +284,37 @@ console.log('13. The walk to a dungeon and home');
   check('13p. Help says the party walks there and home', /walk there<\/b>, half a minute a tile/.test(read('js/help.js')) && /walks home<\/b>, and what it carries reaches your stores when it arrives/.test(read('js/help.js')));
 }
 
+console.log('14. Event rooms, blessings and curses, keepsakes');
+{
+  const ev = { kind: 'event', key: 'mossy_shrine', title: 'The Mossy <Shrine>', icon: '⛩️', text: 'A shrine to the old wood.', options: [
+    { key: 'offer', label: 'Leave an offering', kind: 'certain', cost: 15, disabled: true, why: 'The party is carrying 10 wealth; this takes 15.' },
+    { key: 'tend', label: 'Tend it', kind: 'try', chance: 81, who: { id: 2, name: 'Hazel', role: 'Hearthkeeper', suited: true }, suits: 'a Hearthkeeper', stat: 'charisma', win: 'blessing: The Wood\'s Favour (Endurance +2), everyone heals 10%', lose: 'curse: Slighted (Agility −1)' },
+    { key: 'dig', label: 'Dig under it', kind: 'try', chance: 31, who: { id: 1, name: 'Ash', role: 'Farmer', suited: false }, suits: 'a Miner', stat: 'strength', win: 'a keepsake', lose: 'they lose 15% health' },
+    { key: 'wager', label: 'Wager', kind: 'gamble', chance: 50, cost: 20, win: '40 wealth', lose: 'nothing' },
+    { key: 'pass', label: 'Walk on', kind: 'certain', text: 'nothing' },
+  ] };
+  const html = K._pendingHtml(run({ room_open: true, moves: [], pending: ev }));
+  check('14a. an event room shows its situation and a button for each option', /⛩️ The Mossy &lt;Shrine&gt;/.test(html) && /A shrine to the old wood\./.test(html) && (html.match(/data-action="choose"/g) || []).length === 5 && /data-option="tend"/.test(html) && !/<Shrine>/.test(html));
+  check('14b. a try shows its chance and who would try, and what each end brings', />81%<\/span> <b>Hazel<\/b> \(Hearthkeeper\) tries/.test(html) && /<b>If it comes off:<\/b> blessing: The Wood&#39;s Favour \(Endurance \+2\), everyone heals 10%\./.test(html) && /<b>If not:<\/b> curse: Slighted/.test(html));
+  check('14c. good odds and poor odds look different; a try by the wrong citizen says who would do it better', /kwdg-odds is-good"[^>]*>81%/.test(html) && /kwdg-odds is-poor"[^>]*>31%/.test(html) && /<i>\(better with a Miner\)<\/i>/.test(html) && !/better with a Hearthkeeper/.test(html) && /\.kwdg-odds\.is-good/.test(CSS) && /\.kwdg-odds\.is-poor/.test(CSS));
+  check('14d. a gamble shows plain odds; a cost is on the button; an option the party cannot pay for is greyed and says why', />50%<\/span> A gamble/.test(html) && /Wager <span class="kwdg-cost">🪙 20<\/span>/.test(html) && /data-option="offer" disabled/.test(html) && /The party is carrying 10 wealth; this takes 15\./.test(html));
+  check('14e. a certain option says what it does, or that nothing happens', /Nothing happens\./.test(html) && /Nothing here can take the last of anyone&#39;s health|Nothing here can take the last of anyone's health/.test(html));
+  const hap = { key: 'mossy_shrine', title: 'The Mossy Shrine', icon: '⛩️', option: 'tend', label: 'Tend it', kind: 'try', won: true, chance: 81, roll: 40, who: { id: 2, name: 'Hazel', role: 'Hearthkeeper' }, text: 'Cleared of dead leaves.', lines: ['A blessing: 🌿 The Wood\'s Favour. Endurance +2 for the rest of the run.', 'Everyone gets back 10% of their health.'] };
+  const after = K._runHtml(run({ happened: hap, carried: [{ key: 'woods_favour', kind: 'blessing', name: 'The Wood\'s Favour', icon: '🌿', says: 'Endurance +2 for the rest of the run.' }, { key: 'spores', kind: 'curse', name: 'Blight Spores', icon: '🍄', says: 'Everyone starts the next fight poisoned.', fights: 1 }, { key: 'old_banner', kind: 'keepsake', name: 'Old Banner', icon: '🚩', says: 'First attack +4.' }] }));
+  check('14f. once answered, the screen says what came of it: who tried, the chance, how it went, and each thing it changed', /kwdg-happened/.test(after) && /The Mossy Shrine: Tend it/.test(after) && /Hazel tried it: a 81% chance\. <b>It came off\.<\/b>/.test(after) && /Cleared of dead leaves\./.test(after) && (after.match(/<li>/g) || []).length === 2);
+  check('14g. a miss is said as plainly', /It did not come off\./.test(K._happenedHtml({ ...hap, won: false })) && /is-lost/.test(K._happenedHtml({ ...hap, won: false })) && !/tried it/.test(K._happenedHtml({ ...hap, kind: 'certain', won: null })) && /The party took the gamble/.test(K._happenedHtml({ ...hap, kind: 'gamble', who: null })));
+  check('14h. what the run carries is listed under the path: blessings, curses and keepsakes, each saying what it does', /kwdg-carried/.test(after) && /kwdg-chip is-blessing"[^>]*title="Endurance \+2 for the rest of the run\."/.test(after) && /kwdg-chip is-curse/.test(after) && /Blight Spores <i>\(next fight\)<\/i>/.test(after) && /kwdg-chip is-keepsake/.test(after)
+    && K._carriedHtml([]) === '' && /\.kwdg-chip\.is-curse/.test(CSS) && /\.kwdg-chip\.is-keepsake/.test(CSS));
+  check('14i. while an event waits for an answer, the last room\'s result is not shown over it', !/kwdg-happened/.test(K._runHtml(run({ room_open: true, moves: [], pending: ev, happened: hap }))));
+  const fightHtml = K._pendingHtml(run({ room_open: true, moves: [], pending: { kind: 'battle', board: true, battle_id: 9, room: 'event', foes: [{ key: 'rat_cutpurse', name: 'Rat Cutpurse' }] } }));
+  check('14j. a fight an event wakes names whoever was woken, not the room\'s own list', /Rat Cutpurse block the way/.test(fightHtml) && !/Wolf Raider/.test(fightHtml) && /data-action="fight"/.test(fightHtml));
+  check('14k. a keepsake found in a treasure room is in the toast', /and a keepsake: \$\{d\.found\.keepsake\.icon\} \$\{d\.found\.keepsake\.name\}/.test(J));
+  const T = read('js/tactics.js');
+  check('14l. the battle says what the run carried into it, and what keepsake a fight brought', /Carried into this fight/.test(T) && /\(\(f && f\.gained\) \|\| \[\]\)\.map\(g => `Gained: \$\{g\} `\)/.test(T));
+  const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  check('14m. the stylesheet still uses tokens only', !/#[0-9a-fA-F]{3,8}\b|rgba?\(|!important/.test(bare) && !/var\(--kw-ok\)/.test(bare));
+  check('14n. Help says what an event is, a try, a blessing, a curse and a keepsake', /Some rooms are <b>events<\/b>/.test(read('js/help.js')) && /the chance is shown before you choose/.test(read('js/help.js')) && /<b>keepsake<\/b>/.test(read('js/help.js')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

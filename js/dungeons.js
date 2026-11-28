@@ -103,13 +103,49 @@
           + `<span class="kwdg-room-ico" aria-hidden="true">${esc(r.icon)}</span><span class="kwdg-room-lbl" aria-hidden="true">${esc(r.label)}</span></button>`;
       }).join('') + `</div></div>`;
   }
+  // ── Event rooms (the server's lib/dungeon_events.js) ─────────────────────
+  // An option is certain, a try (someone of the party tries it: the chance and
+  // who are shown) or a gamble (plain odds). The server decides all of it; the
+  // screen says what each option would bring before it is chosen, and what
+  // came of it after.
+  function oddsHtml(o) {
+    if (o.kind === 'certain') return `<span class="kwdg-ev-says">${esc(o.text === 'nothing' ? (o.cost ? 'The party goes on its way.' : 'Nothing happens.') : cap(o.text) + '.')}</span>`;
+    const who = o.who ? `<b>${esc(o.who.name)}</b> (${esc(o.who.role)}) tries` : o.kind === 'gamble' ? 'A gamble' : '';
+    return `<span class="kwdg-ev-says"><span class="kwdg-ev-line"><span class="kwdg-odds${o.chance >= 70 ? ' is-good' : o.chance < 40 ? ' is-poor' : ''}" title="${o.kind === 'try' ? `Suits ${esc(o.suits || 'anyone')}. A good ${esc(o.stat || 'stat')} helps.` : 'The same odds whoever is in the party.'}">${o.chance != null ? o.chance + '%' : '–'}</span> ${who}${o.kind === 'try' && o.who && !o.who.suited && o.suits ? ` <i>(better with ${esc(o.suits)})</i>` : ''}</span>`
+      + `<span class="kwdg-ev-ends"><span><b>If it comes off:</b> ${esc(o.win || 'nothing')}.</span><span><b>If not:</b> ${esc(o.lose || 'nothing')}.</span></span></span>`;
+  }
+  const cap = s => (s ? s[0].toUpperCase() + s.slice(1) : '');
+  function eventHtml(p) {
+    return `<div class="kw-box kwdg-pending kwdg-ev"><div class="kw-box-title">${esc(p.icon || '❓')} ${esc(p.title)}</div><p>${esc(p.text)}</p>`
+      + (p.options || []).map(o => `<div class="kwdg-option kwdg-ev-opt${o.disabled ? ' is-off' : ''}"><button type="button" class="kw-btn primary" data-action="choose" data-option="${esc(o.key)}"${o.disabled ? ' disabled' : ''}>${esc(o.label)}${o.cost ? ` <span class="kwdg-cost">🪙 ${o.cost}</span>` : ''}</button>`
+        + (o.disabled ? `<span class="kwdg-ev-says">${esc(o.why || 'Not now.')}</span>` : oddsHtml(o)) + `</div>`).join('')
+      + `<p class="kw-note">Coin is paid from what the party is carrying. Nothing here can take the last of anyone's health.</p></div>`;
+  }
+  // What came of the event in this room: the choice, the roll if there was one, and each thing it changed.
+  function happenedHtml(h) {
+    if (!h) return '';
+    const roll = h.kind === 'certain' ? '' : `<p class="kwdg-roll ${h.won ? 'is-won' : 'is-lost'}">${h.who ? `${esc(h.who.name)} tried it` : 'The party took the gamble'}: a ${h.chance}% chance. <b>${h.won ? 'It came off.' : 'It did not come off.'}</b></p>`;
+    const lines = (h.lines || []).concat(h.after_lines || []);
+    return `<div class="kw-box kwdg-happened" role="status"><div class="kw-box-title">${esc(h.icon || '❓')} ${esc(h.title)}: ${esc(h.label)}</div>${roll}<p>${esc(h.text)}${h.after_text ? ' ' + esc(h.after_text) : ''}</p>`
+      + (lines.length ? `<ul class="kwdg-lines">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : '') + `</div>`;
+  }
+  // What the run carries besides loot: blessings, curses and keepsakes, each a chip that says what it does.
+  function carriedHtml(carried) {
+    const c = carried || [];
+    if (!c.length) return '';
+    return `<div class="kwdg-carried" role="list" aria-label="Blessings, curses and keepsakes">` + c.map(x =>
+      `<span class="kwdg-chip is-${esc(x.kind)}" role="listitem" tabindex="0" title="${esc(x.says)}" aria-label="${esc(x.kind === 'keepsake' ? 'Keepsake' : x.kind === 'curse' ? 'Curse' : 'Blessing')}: ${esc(x.name)}. ${esc(x.says)}">${esc(x.icon)} ${esc(x.name)}${x.fights ? ` <i>(next fight)</i>` : ''}</span>`).join('') + `</div>`;
+  }
+
   // The thing the room in front of the party wants: a fight, or an answer.
   function pendingHtml(run) {
     const p = run.pending;
     if (!p) return '';
+    if (p.kind === 'event') return eventHtml(p);
     if (p.kind === 'battle') {
       const here = (run.rooms || []).find(r => r.current) || {};
-      const who = list((here.enemies || []).map(e => e.name));
+      // An event's fight is against whoever the option woke (the server names them), not the room's own list.
+      const who = list((p.foes || here.enemies || []).map(e => e.name));
       return `<div class="kw-box kwdg-pending"><div class="kw-box-title">${p.room === 'boss' ? '👑 The boss' : p.room === 'elite' ? '💀 An elite fight' : '⚔ A fight'}</div>`
         + `<p>${who ? esc(who) + ' block the way.' : 'Something blocks the way.'} The party cannot walk on until the fight is won.</p>`
         + `<div class="kwdg-btns"><button type="button" class="kw-btn primary" data-action="fight">⚔ Fight</button>`
@@ -129,7 +165,9 @@
       + partyHtml(run.party)
       + mapHtml(run)
       + hint
+      + (run.pending && run.pending.kind === 'event' ? '' : happenedHtml(run.happened))
       + pendingHtml(run)
+      + carriedHtml(run.carried)
       + `<div class="kwdg-foot"><div class="kwdg-loot" aria-live="polite"><b>Carried:</b> ${esc(lootLine(run.loot))}</div>`
       + `<div class="kwdg-btns">`
       + (run.can_leave ? `<button type="button" class="kw-btn" data-action="leave">↩ Turn back and keep it</button>` : '')
@@ -274,7 +312,7 @@
     async enter(el) {
       const d = await post('run/move', { room: el.getAttribute('data-room') });
       if (!d) return;
-      if (d.found) toast('🎁 Found: ' + lootLine(d.found, 'nothing'));
+      if (d.found) toast('🎁 Found: ' + lootLine(d.found, 'nothing') + (d.found.keepsake ? ` · and a keepsake: ${d.found.keepsake.icon} ${d.found.keepsake.name} (${d.found.keepsake.says})` : ''));
     },
     fight() {
       const p = S.run && S.run.pending;
@@ -616,7 +654,7 @@
     open, load, flee, devOpen, listOpen, tileHtml, wireTile, enter, onEvent,
     current: () => S.run,
     _lootLine: lootLine, _subtitle: subtitle, _roomWords: roomWords, _partyHtml: partyHtml, _mapHtml: mapHtml,
-    _pendingHtml: pendingHtml, _runHtml: runHtml, _endHtml: endHtml, _devHtml: devHtml, _take: take, _state: S, ENDINGS,
+    _pendingHtml: pendingHtml, _eventHtml: eventHtml, _happenedHtml: happenedHtml, _carriedHtml: carriedHtml, _oddsHtml: oddsHtml, _runHtml: runHtml, _endHtml: endHtml, _devHtml: devHtml, _take: take, _state: S, ENDINGS,
     _leftWords: leftWords, _factsLine: factsLine, _standing: standing, _listHtml: listHtml, _hallHtml: hallHtml, _map: MAP, _clock: clock, _walkWords: walkWords, _travelHtml: travelHtml,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

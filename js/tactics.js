@@ -1076,7 +1076,7 @@
       const cover = Object.keys(e.COVER).filter(has), coverLine = cover.length ? `<span class="kwtc-ground-k">${cover.map(k => `${KIND[k][1]} <b>${esc(KIND[k][0])}</b>`).join(', ')} ${esc(COVER_SAYS)}</span>` : '';
       acts.innerHTML = `<div class="kwtc-place" role="group" aria-label="Your party">` + st.units.filter(o => o.side === 'player').map(o =>
           `<button type="button" class="kwtc-place-who${sel === o ? ' is-on' : ''}" data-kwt="place-pick" data-id="${esc(o.id)}" aria-pressed="${sel === o}"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[o.cls] || CLASS_COLOUR.villager}"></span>${esc(o.name)}${o.down ? ' <i>(down)</i>' : ''}</button>`).join('') + `</div>`
-        + `<div class="kwtc-ground">` + (bossOf() ? `<span class="kwtc-ground-k is-trick">${esc(bossOf().trick.icon || '')} <b>${esc(bossOf().name)}: ${esc(bossOf().trick.name)}</b> ${esc(bossOf().trick.says)}</span>` : '') + coverLine + kinds.map(k => `<span class="kwtc-ground-k">${KIND[k][1]} <b>${esc(KIND[k][0])}</b> ${esc(KIND[k][2])}</span>`).join('')
+        + `<div class="kwtc-ground">` + ((S.setup.carried || []).length ? `<span class="kwtc-ground-k is-trick">🎒 <b>Carried into this fight</b> ${S.setup.carried.map(c => `<span title="${esc(c.says)}">${esc(c.icon)} ${esc(c.name)}</span>`).join(', ')}</span>` : '') + (bossOf() ? `<span class="kwtc-ground-k is-trick">${esc(bossOf().trick.icon || '')} <b>${esc(bossOf().name)}: ${esc(bossOf().trick.name)}</b> ${esc(bossOf().trick.says)}</span>` : '') + coverLine + kinds.map(k => `<span class="kwtc-ground-k">${KIND[k][1]} <b>${esc(KIND[k][0])}</b> ${esc(KIND[k][2])}</span>`).join('')
         + `<span class="kwtc-ground-k">⛰ <b>High ground</b> a blow from above does 15% more; a shot 15% more for each level, and it reaches further</span></div>`
         + `<div class="kwtc-turn"><button type="button" class="kw-btn quiet" data-kwt="place-reset"${S.busy ? ' disabled' : ''}>↶ As suggested</button><button type="button" class="kw-btn primary" data-kwt="place-go"${S.busy ? ' disabled' : ''}>⚔ Start the battle</button></div>`;
       hint.innerHTML = sel ? `<div><b>${esc(sel.name)}</b>: tap a blue tile to stand there, or another of your party to change places with them.</div>`
@@ -1278,7 +1278,7 @@
     const found = S.el.querySelector('.kwtc-found'), dn = b.dungeon;
     if (found && dn) {
       const f = dn.found, bits = f ? [f.wealth ? `${f.wealth} wealth` : ''].concat((f.items || []).map(i => `${i.qty} × ${i.name || i.item}`)).filter(Boolean) : [];
-      found.textContent = (bits.length ? `Found: ${bits.join(', ')}. ` : '') + (dn.ended ? (dn.run && dn.run.status === 'cleared' ? 'The dungeon is cleared!' : '') : 'The way on is open.');
+      found.textContent = (bits.length ? `Found: ${bits.join(', ')}. ` : '') + ((f && f.gained) || []).map(g => `Gained: ${g} `).join('') + (dn.ended ? (dn.run && dn.run.status === 'cleared' ? 'The dungeon is cleared!' : '') : 'The way on is open.');
     }
     // A quest's fight: what it paid and what the foes carried, and that the quest goes on.
     const qd = b.quest;

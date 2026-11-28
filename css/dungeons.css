@@ -58,6 +58,31 @@
 .kwdg-option { display: flex; align-items: center; gap: var(--kw-s-3); margin: var(--kw-s-2) 0; }
 .kwdg-option .kw-btn { flex: none; }
 .kwdg-option span { color: var(--kw-muted); font-size: var(--kw-fs-2); }
+/* An event room: each option with what it brings; a try or a gamble with its chance. */
+.kwdg-ev-opt { align-items: flex-start; }
+.kwdg-ev-opt.is-off { opacity: .6; }
+.kwdg-ev-says { display: flex; flex-direction: column; gap: var(--kw-s-1); min-width: 0; }
+.kwdg-ev-says b { color: var(--kw-cream); font-weight: 600; }
+.kwdg-ev-ends { display: flex; flex-direction: column; gap: 2px; font-size: var(--kw-fs-1); }
+.kwdg-odds { display: inline-block; min-width: 3em; padding: 0 var(--kw-s-2); margin-right: var(--kw-s-1); border-radius: var(--kw-radius); border: 1px solid var(--kw-gold-dim); color: var(--kw-gold); font-weight: 700; text-align: center; }
+.kwdg-odds.is-good { border-color: var(--kw-good); color: var(--kw-good); }
+.kwdg-odds.is-poor { border-color: var(--kw-warn); color: var(--kw-warn); }
+.kwdg-option .kwdg-cost { font-weight: 400; color: inherit; font-size: inherit; }
+.kwdg-ev-line { display: block; }
+.kwdg-ev-line i { font-style: normal; color: var(--kw-muted); }
+/* What came of it. */
+.kwdg-happened p { margin: var(--kw-s-2) 0; }
+.kwdg-roll.is-won b { color: var(--kw-good); }
+.kwdg-roll.is-lost b { color: var(--kw-warn); }
+.kwdg-lines { margin: var(--kw-s-1) 0 0; padding-left: var(--kw-s-4); color: var(--kw-muted); font-size: var(--kw-fs-2); }
+/* Blessings, curses and keepsakes the run carries. */
+.kwdg-carried { display: flex; flex-wrap: wrap; gap: var(--kw-s-1) var(--kw-s-2); }
+.kwdg-chip { padding: 2px var(--kw-s-2); border-radius: var(--kw-radius); border: 1px solid var(--kw-line); background: var(--kw-wood-2); font-size: var(--kw-fs-2); cursor: help; }
+.kwdg-chip i { font-style: normal; color: var(--kw-muted); }
+.kwdg-chip.is-blessing { border-color: var(--kw-good); }
+.kwdg-chip.is-curse { border-color: var(--kw-warn); color: var(--kw-warn); }
+.kwdg-chip.is-keepsake { border-color: var(--kw-gold-dim); color: var(--kw-gold); }
+.kwdg-chip:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 .kwdg-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--kw-s-3); flex-wrap: wrap; padding-top: var(--kw-s-2); border-top: 1px solid var(--kw-line); }
 .kwdg-loot { font-size: var(--kw-fs-2); min-width: 0; }
 .kwdg-loot b { color: var(--kw-gold); font-weight: 600; }
