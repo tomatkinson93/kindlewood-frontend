@@ -1,9 +1,14 @@
 // ══════════════════════════════════════════════════════════════════════════
-//  BATTLES — pending-combat list + nav badge
+//  BATTLES — the list of battles that wait on the player, and the nav badge
 //
-//  Polls /api/combat/pending periodically to discover quest battles awaiting
-//  the player's attention. Click a battle row to engage it, which launches
-//  the existing combat modal via startBattleFromQuest().
+//  Polls /api/combat/pending now and then to find a quest's, camp's or raid's
+//  battle that is waiting. Pressing one opens it on the board: the server
+//  makes the quest's battle if it is not there yet (POST /api/tactics/quest/:id,
+//  lib/tactics_quests.js there) and js/tactics.js plays it.
+//
+//  startBattleFromQuest(id) is the one way in, for this list and for a camp
+//  assault or a sally (js/main.js, js/raids.js). (Until 2026-11-26 it opened
+//  the card battle screen; the cards are gone: docs/TACTICS.md §8.)
 //
 //  The nav-bar button (#nav-battles) shows a red dot when count > 0.
 // ══════════════════════════════════════════════════════════════════════════
@@ -97,6 +102,8 @@
         ? b.party_members.map(m => m.name).join(', ')
         : (b.citizen_name || 'A party');
       const enemies = (() => {
+        // On the board a creature is the foe that stands in for it there (the server names them).
+        if (b.board_foes && b.board_foes.length) return b.board_foes.join(', ');
         let enc = b.combat_encounter || [];
         if (typeof enc === 'string') { try { enc = JSON.parse(enc); } catch(e){ enc = []; } }
         if (!enc.length) return 'an unknown foe';
@@ -115,7 +122,7 @@
               <span class="bm-elapsed">· ${elapsed}</span>
             </div>
           </div>
-          <button class="bm-engage" onclick="engageBattle(${b.id})">⚔ Engage</button>
+          <button class="bm-engage" onclick="engageBattle(${b.id})">${b.board_battle ? '♟ Back to the battle' : '⚔ Engage'}</button>
           <button class="bm-cancel" onclick="forfeitBattle(${b.id})" title="Forfeit — the party loses and the quest fails." aria-label="Forfeit — the party loses and the quest fails.">✕</button>
         </div>`;
     }).join('');
@@ -125,13 +132,29 @@
     return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  // The quest's battle: made by the server if it is not there yet, then opened on the board. → whether it opened.
+  async function startBattleFromQuest(questRunId) {
+    if (!global.KWTactics || !global.KWTactics.openById || typeof apiFetch !== 'function') {
+      if (typeof showToastNotification === 'function') showToastNotification('⚠️ The battle screen is not loaded.', 'default');
+      return false;
+    }
+    try {
+      const r = await apiFetch('/api/tactics/quest/' + questRunId, { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok || !d.battle) { if (typeof showToastNotification === 'function') showToastNotification('⚠️ ' + (d.error || 'That battle could not be opened.'), 'default'); refreshBattleBadge(); return false; }
+      await global.KWTactics.openById(d.battle.id);
+      return true;
+    } catch (e) { if (typeof showToastNotification === 'function') showToastNotification('⚠️ Could not reach the server.', 'default'); return false; }
+  }
   function engageBattle(questRunId) {
     closeBattlesModal();
-    if (typeof startBattleFromQuest !== 'function') {
-      showToastNotification('⚠️ Combat module not loaded.', 'default');
-      return;
-    }
-    startBattleFromQuest(questRunId);
+    return startBattleFromQuest(questRunId);
+  }
+  // A fight that was decided for the player left something in the stores (realtime: battle_spoils).
+  function onSpoils(ev) {
+    const items = (ev && ev.items) || [];
+    if (items.length && typeof showToastNotification === 'function') showToastNotification('⚔ From the fight: ' + items.map(i => `${i.icon || '📦'} ${i.name} ×${i.qty}`).join(', '), 'default');
+    try { if (typeof global.refreshResources === 'function') global.refreshResources(); } catch (e) { /* not loaded */ }
   }
 
   // ── Battle report viewer ────────────────────────────────────────────────
@@ -196,7 +219,8 @@
     titleEl.style.color = won ? '#e8c76a' : '#e07a6a';
     subEl.textContent = (data.quest_title || '') + ' · ' + _formatDate(data.resolved_at);
 
-    const enemies = (data.encounter || []).map(_titleCase).join(', ') || 'an unknown foe';
+    // A battle fought on the board says who was fought there; a card battle names its creatures.
+    const enemies = (data.foes && data.foes.length ? data.foes : (data.encounter || []).map(_titleCase)).join(', ') || 'an unknown foe';
 
     // Party stats from the final battle state (HP at end of fight)
     const battleUnits = (data.battle_state && data.battle_state.units) || [];
@@ -372,5 +396,7 @@
   global.closeBattleReport  = closeBattleReport;
   global.startBattlePolling = startBattlePolling;
   global.stopBattlePolling  = stopBattlePolling;
+  global.startBattleFromQuest = startBattleFromQuest;
+  global.KWBattles = { onSpoils, _renderList, _renderReport };
 
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -35,7 +35,7 @@ console.log('1. The dialog');
 
   console.log('3. No browser pop-ups in the game');
   // Admin and Dev Tools code may keep them.
-  const ADMIN_FILES = ['js/card-admin.js', 'js/enemy_admin.js', 'js/happenings-admin.js', 'js/item_admin.js', 'js/quest-admin.js', 'js/quest_admin.js'];
+  const ADMIN_FILES = ['js/enemy_admin.js', 'js/happenings-admin.js', 'js/item_admin.js', 'js/quest-admin.js', 'js/quest_admin.js'];
   const ADMIN_FUNCS = ['cheatHealAllInjuries', 'debugSeedNpcs', 'debugRunMigrations', 'applyMapRegenerate', 'restoreArchivedMap', 'debugResetDiplomacy', '_applyDevTileTerrain', '_svResetLayout'];
   const bad = [];
   for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).map(f => 'js/' + f)) {

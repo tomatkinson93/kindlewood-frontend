@@ -1479,7 +1479,7 @@ function _campSectionHtml(tile) {
   return `<div class="op-section op-camp">
       <div class="op-title">🏕️ Withered camp</div>
       <div class="op-note op-note-warn">Raiders gather here. Strength about ${c.strength_min}–${c.strength_max}.</div>
-      <div class="op-worker-hint">Burn it with a party of up to four — a card battle. Win, and every town within 6 tiles gets 3 days of peace, and you take the spoils.</div>
+      <div class="op-worker-hint">Burn it with a party of up to four — a battle on the board. Win, and every town within 6 tiles gets 3 days of peace, and you take the spoils.</div>
       ${people.length ? `<div class="op-worker-pick op-camp-pick">${[0, 1, 2, 3].map(i => `<select class="op-worker-select" data-camp-pick="${i}"><option value="">${i ? '— and —' : '— Who goes? —'}</option>${opts}</select>`).join('')}</div>
         <button class="action-btn op-worker-btn" data-camp-assault="${c.id}">🔥 Burn the camp</button>`
         : `<div class="op-worker-hint op-worker-none">${(typeof citizensData !== 'undefined' && citizensData.length) ? 'Everyone is busy right now.' : 'Calling the townsfolk…'}</div>`}
@@ -1501,6 +1501,8 @@ async function _assaultCamp(btn, tile) {
 
 function _outpostSectionHtml(tile) {
   if (tile.camp) return _campSectionHtml(tile);
+  // A dungeon on this tile (js/dungeons.js; the server's lib/dungeon_map.js): its card, and a party to send in.
+  if (tile.dungeon && window.KWDungeon && KWDungeon.tileHtml) return KWDungeon.tileHtml(tile, _opFreeCitizens());
   // My outpost here — production at its level, the next level, dismantle
   if (tile.outpost?.mine) {
     const st = _outpostStatus;
@@ -1609,7 +1611,7 @@ function _outpostRaidHtml(mine) {
 const OP_CLASS_LABELS = { farmer: 'Farmer', woodcutter: 'Woodcutter', miner: 'Miner', fisher: 'Fisher', forager: 'Forager', scout: 'Scout' };
 function _opFreeCitizens() {
   const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
-  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul);
+  return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul && !c.dungeon);   // c.dungeon: in a dungeon, or walking to or from one
 }
 // The Outposts tab shares the last GET /api/game/outposts (js/outposts.js).
 function _setOutpostStatus(d) { _outpostStatus = d; }
@@ -1752,6 +1754,7 @@ function _wireOutpostSection(body, tile) {
   body.querySelectorAll('[data-op-unassign]').forEach(b => b.addEventListener('click', () => _assignOutpostWorker(b, tile, true)));
   const campBtn = body.querySelector('[data-camp-assault]');
   if (campBtn) campBtn.addEventListener('click', () => _assaultCamp(campBtn, tile));
+  if (tile.dungeon && window.KWDungeon && KWDungeon.wireTile) KWDungeon.wireTile(body, tile);
   if (body.querySelector('.op-camp .op-worker-none') && !_opCitizensAsked && typeof loadCitizens === 'function') {
     _opCitizensAsked = true;
     loadCitizens().then(() => { if ((typeof citizensData !== 'undefined') && citizensData.length) selectWorldTile(tile); });
@@ -1924,6 +1927,11 @@ function refreshSettlementActions() {
 }
 window.refreshSettlementActions = refreshSettlementActions;
 
+// "🏆 3 dungeon trophies": first clears of dungeons on the map (the server's lib/dungeon_trophies.js). Nothing for none.
+function _trophyTag(s) {
+  const n = Number(s && s.trophies) || 0;
+  return n > 0 ? '<span class="sett-tag sett-tag-trophy" title="Won by being the first town to clear a dungeon">🏆 ' + n + ' dungeon ' + (n === 1 ? 'trophy' : 'trophies') + '</span>' : '';
+}
 function _selectWorldTileImpl(tile) {
   window._lastSelectedTile = tile;
   const title = document.getElementById('panel-title');
@@ -2074,6 +2082,7 @@ function _selectWorldTileImpl(tile) {
     const tagHtml = '<div class="sett-tags">'
       + '<span class="sett-tag">' + (s.tier||'village').charAt(0).toUpperCase()+(s.tier||'village').slice(1) + '</span>'
       + '<span class="sett-tag">' + (s.species||'Mice').charAt(0).toUpperCase()+(s.species||'Mice').slice(1) + '</span>'
+      + _trophyTag(s)
       + '</div>';
 
     body.innerHTML = _settlementTierCard(s.tier, s.name, true)
@@ -2136,6 +2145,7 @@ function _selectWorldTileImpl(tile) {
       + '<div class="sett-stat"><div class="sett-stat-val" style="font-size:13px">' + (s.tier||'village') + '</div><div class="sett-stat-key">Tier</div></div>'
       + '</div>'
       + (s.festival ? '<div class="sett-festival-note">🎉 Holding a festival — fireworks over the town.</div>' : '')
+      + (s.trophies ? '<div class="sett-tags" style="margin-top:8px">' + _trophyTag(s) + '</div>' : '')
       + '<div class="sett-actions" style="margin-top:10px">'
       + '<button class="sett-action-btn vp-trigger" data-username="' + escHtml(s.username||'') + '" data-species="' + escHtml(s.species||'') + '" data-name="' + escHtml(s.name||'') + '" data-tier="' + escHtml(s.tier||'village') + '" data-q="' + tile.q + '" data-r="' + tile.r + '" onclick="openProfileForUser(this.dataset.username,this.dataset.species,this.dataset.name,this.dataset.tier,this.dataset.q,this.dataset.r)">👤 View Profile</button>'
       // Market: towns that have discovered each other (or clanmates) can trade.

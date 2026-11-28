@@ -86,7 +86,7 @@
   // case-insensitively; anything not listed lands in "Other" rather than being
   // dropped. Map/Battles are omitted because they are their own tabs.
   var GROUP_OF = {
-    quests: 'Adventure', decks: 'Adventure',
+    quests: 'Adventure',
     inventory: 'Trade', market: 'Trade',
     rankings: 'Community', events: 'Community', messages: 'Community',
     chat: 'Community', clan: 'Community', online: 'Community',

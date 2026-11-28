@@ -127,7 +127,7 @@
       <p class="raid-muted raid-tip">Raise walls or an outpost fort and post Guards and Archers to defend. Allied villages nearby and clanmates on clan land help too.</p>`;
   }
 
-  // Sally out: up to three citizens meet the raiders in a card battle first.
+  // Sally out: up to three citizens meet the raiders in a battle first.
   function adults() {
     const list = (typeof citizensData !== 'undefined' && Array.isArray(citizensData)) ? citizensData : [];
     return list.filter(c => (c.life_stage || 'adult') === 'adult' && !c.expedition && !c.active_quest && !c.trade && !c.outpost && !c.haul);

@@ -3,6 +3,7 @@
 //   node verify/tactics_proofs.js
 'use strict';
 const fs = require('fs');
+const vm = require('vm');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -202,7 +203,7 @@ console.log('8. Facing, zoom, a phone on its side, art and sound');
   const P = require(path.join(ROOT, 'scripts', 'pack_tactics.js'));
   const built = P.build(), onDisk = JSON.parse(read('assets/tactics/manifest.json'));
   check('8h. the list of art and sound is the packer\'s, and it is up to date', JSON.stringify(built) === JSON.stringify(onDisk) && Array.isArray(built.music) && typeof built.creatures === 'object' && typeof built.sounds === 'object');
-  check('8i. a foe with art is drawn from its sheet, the frame for the way it faces; one without keeps its icon', /function creatureArt\(u, v\)/.test(J) && /dir = tv\[0\] > 0 \? 'se' : tv\[0\] < 0 \? 'nw' : tv\[1\] > 0 \? 'sw' : 'ne';/.test(J)
+  check('8i. a foe with art is drawn from its sheet, the frame for the way it faces; one without keeps its icon', /function creatureArt\(u, v, t\)/.test(J) && /dir = tv\[0\] > 0 \? 'se' : tv\[0\] < 0 \? 'nw' : tv\[1\] > 0 \? 'sw' : 'ne';/.test(J)
     && /const i = Math\.max\(0, \(a\.dirs \|\| \[\]\)\.indexOf\(dir\)\);/.test(J) && /c\.fillText\(u\.icon \|\| '👹'/.test(J));
   check('8j. sounds: its own file when there is one, an older sound until then, silence otherwise', /const own = ASSETS\.sounds\[name\] \|\| ASSETS\.sounds\[PLAINER\[name\]\], file = own \? 'tactics\/' \+ own : \(STAND_IN\[name\] \|\| STAND_IN\[PLAINER\[name\]\]\);/.test(J) && /if \(file\) global\.playSfx\(file\);/.test(J));
   check('8j2. a blade rings and a club thuds: the sword sound for blades, falling back to the plain blow when there is no such file', /const PLAINER = \{ sword: 'melee', down_friend: 'down_foe' \};/.test(J) && /slash: 'sword', thrust: 'sword', smash: 'melee'/.test(J) && /v_swing: 'smash', t_tool: 'smash'/.test(J));
@@ -264,7 +265,7 @@ console.log('9. The server keeps the battle');
 console.log('10. A steady screen, and things that fly');
 {
   const J = read('js/tactics.js'), CSS = read('css/tactics.css');
-  check('10a. the panel is one fixed height, so the board above it never moves', /\.kwtc-panel \{ height: 196px; align-content: start; overflow-y: auto; \}/.test(CSS) && /\.kwtc-panel \{ height: 316px; \}/.test(CSS));
+  check('10a. the panel is one fixed height, so the board above it never moves', /\.kwtc-panel \{ height: 196px; align-content: start; overflow-y: auto; \}/.test(CSS) && /\.kwtc-panel \{ height: 376px; \}/.test(CSS));
   check('10b. what an action would do, and its Confirm, float over the board; the hint below is one steady line with no buttons', /function paintAsk\(\)/.test(J) && /\.kwtc-ask \{ position: absolute;/.test(CSS)
     && !/hint\.innerHTML = [^;]*data-kwt="confirm"/.test(J));
   check('10c. moving the pointer redraws only that floating box, and only when it changes', /if \(\(t && t\.x\) !== \(was && was\.x\) \|\| \(t && t\.y\) !== \(was && was\.y\)\) paintAsk\(\);/.test(J) && /if \(box\._html === html\) return;/.test(J));
@@ -291,7 +292,7 @@ console.log('11. A dungeon on the board');
   check('11a. a dungeon from Dev Tools is fought on the board: fights with cards are no longer on offer', !/kwdg-dev-combat/.test(D) && !/With cards/.test(D) && /Every fight is on the board\./.test(D) && !/combat: DEV\.pick/.test(D));
   check('11b. the dungeon\'s Fight opens the room\'s battle on the board, and nothing else', /global\.KWTactics\.openById\(p\.battle_id\)/.test(D) && !/startBattle\(/.test(D) && !/quest_run_id/.test(D));
   check('11c. the path screen has no class-cards button: there are no cards in a dungeon', !/data-action="cards"/.test(D) && !/Class cards<\/button>/.test(D));
-  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
+  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
   check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
   check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
   check('11g. the practice box does not offer to pick up a dungeon\'s battle', /d\.battle\.source !== 'dungeon' \? d\.battle : null/.test(J));
@@ -400,10 +401,10 @@ console.log('14. After the battle: the word, the party, experience and injuries'
 console.log('15. The class ladder on the screen, and a check on what is live');
 {
   const J = read('js/tactics.js'), CSS = read('css/tactics.css'), D = read('js/dungeons.js');
-  check('15a. an ability not learned yet sits in its place in the row, greyed, saying the class level that brings it', /\(u\.locked \|\| \[\]\)\.map\(x => `<div class="kwtc-act is-locked"/.test(J) && /learned at level \$\{x\.at\}/.test(J)
+  check('15a. the next ability the class will teach sits at the end of the citizen\'s own row, greyed, saying the level that brings it', /\(u\.next && !tab\.off \? \[u\.next\] : \[\]\)\.map\(x => `<div class="kwtc-act is-locked"/.test(J) && /learned at level \$\{x\.at\}/.test(J)
     && /\.kwtc-act\.is-locked \{ opacity: \.45; cursor: default; border-style: dashed; \}/.test(CSS));
-  check('15b. it is no button: it cannot be chosen, and the number keys count only what is known', !/class="kwtc-act is-locked"[^>]*data-kwt/.test(J) && /const a = \(u\.abilities \|\| \[\]\)\[Number\(ev\.key\) - 1\];/.test(J));
-  check('15c. tapping anyone shows what they know and, greyed, what they have yet to learn', /\(look\.locked \|\| \[\]\)\.map\(x => `<span class="kwtc-kit-a is-locked">/.test(J));
+  check('15b. it is no button: it cannot be chosen, and the number keys count the abilities of the open school', !/class="kwtc-act is-locked"[^>]*data-kwt/.test(J) && /const a = tabOf\(u\)\.list\[Number\(ev\.key\) - 1\];/.test(J));
+  check('15c. tapping anyone shows what they brought, school by school, and greyed the next they will learn', /tabsOf\(look\)\.map\(t =>/.test(J) && /\(look\.next \? `<span class="kwtc-kit-a is-locked">🔒 <b>\$\{esc\(look\.next\.name\)\}<\/b> <i>at level \$\{look\.next\.at\}<\/i><\/span>` : ''\)/.test(J));
   check('15d. on the victory screen a level gained says what it taught, once the bar has reached that level', /for \(const x of \(r\.learned \|\| \[\]\)\.filter\(x => x\.at <= level && !li\.querySelector\(`\.kwtc-learned\[data-key="\$\{x\.key\}"\]`\)\)\)/.test(J)
     && /<span class="kwtc-learned" data-key="\$\{esc\(x\.key\)\}">Learned: /.test(J));
   check('15e. fights with cards are not on offer for a dungeon any more', !/With cards/.test(D) && !/kwdg-dev-combat/.test(D));
@@ -467,17 +468,246 @@ console.log('17. Foes with art');
   const foes = JSON.parse(read('assets/sprites/creatures/foes.json')), sizes = JSON.parse(read('art/tactics/foes/sizes.json'));
   const png = f => { const b = fs.readFileSync(path.join(ROOT, f)); return b.toString('ascii', 1, 4) === 'PNG' ? { w: b.readUInt32BE(16), h: b.readUInt32BE(20) } : null; };
   const keys = Object.keys(foes);
-  check('17a. the five Brigands the owner drew are packed: a sheet and a face each', ['rat_cutpurse', 'weasel_slinger', 'fox_footpad', 'polecat_sawbones', 'boar_bruiser'].every(k => foes[k] && man.creatures[k] && man.creatures[k].file && man.creatures[k].face), keys.join(' '));
+  check('17a. the seven Brigands the owner drew are packed, the Stoat Captain and Redtooth among them: a sheet and a face each', ['rat_cutpurse', 'weasel_slinger', 'fox_footpad', 'polecat_sawbones', 'boar_bruiser', 'stoat_captain', 'redtooth'].every(k => foes[k] && man.creatures[k] && man.creatures[k].file && man.creatures[k].face), keys.join(' '));
   check('17b. a sheet is one row of four frames, one for each way a unit can face on the board, so nothing is mirrored', keys.every(k => { const p = png('assets/sprites/creatures/' + foes[k].file); return p && foes[k].dirs.join() === 'se,sw,ne,nw' && p.w === foes[k].w * 4 && p.h === foes[k].h; }));
   check('17c. each foe stands at the height set for it against a citizen: a rat smaller than a mouse, a boar a third taller', keys.every(k => Math.abs(foes[k].scale * foes[k].tall / 59 - (sizes[k] || 1)) < 0.02)
     && foes.rat_cutpurse.scale * foes.rat_cutpurse.tall < 59 && foes.boar_bruiser.scale * foes.boar_bruiser.tall > 59 * 1.25, keys.map(k => `${k} ${(foes[k].scale * foes[k].tall / 59).toFixed(2)}`).join(', '));
   check('17d. its feet are on its tile: the foot point is inside the frame, near its bottom', keys.every(k => foes[k].foot.x > foes[k].w * 0.25 && foes[k].foot.x < foes[k].w * 0.75 && foes[k].foot.y > foes[k].h * 0.85 && foes[k].foot.y <= foes[k].h));
-  check('17e. the screen draws it at that size from that foot, hopping as it walks, with its health bar over its head', /const z = 0\.62 \* k \* art\.scale, hop = v\.walking && !still\(\) \? Math\.abs\(Math\.sin\(t \/ 85\)\) \* 3\.5 \* k : 0;/.test(J)
-    && /p\.x - art\.foot\.x \* z, p\.y \+ 3 \* k - hop - art\.foot\.y \* z, art\.w \* z, art\.h \* z\);/.test(J) && /Math\.max\(30 \* k, \(v\.tall \|\| 34 \* k\) \+ 2 \* k\)/.test(J));
+  check('17e. the screen draws it at that size from that foot, with its health bar over its head', /const z = 0\.62 \* k \* art\.scale, hop = !art\.moving && v\.walking && !still\(\) \? Math\.abs\(Math\.sin\(t \/ 85\)\) \* 3\.5 \* k : 0;/.test(J)
+    && /p\.x - art\.foot\.x \* z, p\.y \+ 3 \* k - hop - art\.foot\.y \* z \* breath, art\.w \* z, art\.h \* z \* breath\);/.test(J) && /Math\.max\(30 \* k, \(v\.tall \|\| 34 \* k\) \+ 2 \* k\)/.test(J) && /v\.tall = art\.tall \* z;/.test(J));
   check('17f. a foe with a face shows it in the row of who acts next', /const face = u\.side === 'enemy' \? faceOf\(u\) : null;/.test(J) && /\.kwtc-chip\.has-face img \{[^}]*object-fit: cover;/.test(CSS) && keys.every(k => { const p = png('assets/sprites/creatures/' + foes[k].face); return p && p.w === 64 && p.h === 64; }));
   check('17g. the source exports are kept, each with its eight rotations', keys.every(k => ['south', 'south-east', 'east', 'north-east', 'north', 'north-west', 'west', 'south-west'].every(d => fs.existsSync(path.join(ROOT, 'art/tactics/foes', k, 'rotations', d + '.png')))));
   const C3 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
   check('17h. the check on the live site covers every foe\'s sheet and face', keys.every(k => C3.includes('assets/sprites/creatures/' + foes[k].file) && C3.includes('assets/sprites/creatures/' + foes[k].face)));
+  check('17i. a boss stands as a boss: Redtooth is nearly twice a citizen\'s height, the Captain a quarter taller', foes.redtooth.scale * foes.redtooth.tall > 59 * 1.8 && Math.abs(foes.stoat_captain.scale * foes.stoat_captain.tall / 59 - 1.25) < 0.02);
+  const PF = read('scripts/pack_foes.py');
+  const walkers = keys.filter(k => foes[k].walk);
+  check('17k. each foe that came with a walk has it packed: a sheet with a row of eight frames for each way it goes, feet on the same line', walkers.length === 7 && walkers.every(k => { const wk = foes[k].walk, p = png('assets/sprites/creatures/' + wk.file);
+    return p && wk.frames === 8 && p.w === wk.w * wk.frames && p.h === wk.h * wk.foot.length && ['se', 'sw', 'ne', 'nw'].every(d => wk.rows[d] < wk.foot.length) && wk.foot.every(f => f.y === wk.h - 2 && f.x > wk.w * 0.25 && f.x < wk.w * 0.75) && man.creatures[k].walk && man.creatures[k].walk.frames === 8; }));
+  check('17l. the first exports walk only to the sides, so the walk east serves both ways right and the walk west both ways left; diagonal walks are used as soon as they are exported', walkers.every(k => foes[k].walk.diagonal === false && foes[k].walk.rows.se === foes[k].walk.rows.ne && foes[k].walk.rows.sw === foes[k].walk.rows.nw && foes[k].walk.rows.se !== foes[k].walk.rows.sw)
+    && /src = next\(\(c for c in \(long, side\) if frames_of\(folder, anim, c\)\), None\)/.test(PF) && /for anim, name in \(\('walking', 'walk'\), \('idle', 'idle'\)\):/.test(PF));
+  check('17m. moving, a foe is drawn in its walk\'s frames; standing, in its idle\'s if it has one', /const m = still\(\) \? null : v\.walking \? a\.walk : a\.idle;/.test(J) && /n = Math\.floor\(\(t \|\| 0\) \/ \(v\.walking \? WALK_MS : IDLE_MS\) \+ \(v\.seed \|\| 0\) \* m\.frames\) % m\.frames;/.test(J)
+    && /sx: n \* m\.w, sy: row \* m\.h/.test(J));
+  check('17n. with no idle frames it breathes by itself, from the feet up; nothing moves for someone who asked for less motion', /const breath = art\.moving \|\| v\.walking \|\| still\(\) \? 1 : 1 \+ Math\.sin\(t \/ 560 \+ v\.seed \* 6\.3\) \* 0\.014;/.test(J));
+  check('17o. the check on the live site covers the walk sheets', walkers.every(k => C3.includes('assets/sprites/creatures/' + foes[k].walk.file)));
+  check('17j. a face is one piece: the tip of a blade or a tail that pokes into its square is taken out', /def lone\(im\):/.test(PF) && /face = lone\(s\.crop\(/.test(PF));
+}
+
+console.log('18. Knowing and readying: the higher rungs, and the Abilities tab on a citizen');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css'), A = read('js/abilities.js'), ACSS = read('css/abilities.css'), H = read('index.html'), CZ = read('js/citizens.js');
+  const w = { console, Math, JSON, Number, String, Array, Object, document: { getElementById() { return null; }, querySelector() { return null; } } }; w.window = w; w.globalThis = w;
+  w._kwIsAdmin = () => true;
+  // The battle screen's words, as the page borrows them.
+  w.KWTactics = { icon: a => '[' + a.key + ']', effectText: a => (a.dmg ? a.dmg + ' damage' : a.block ? a.block + ' block' : ''), reachText: a => 'reach ' + a.max };
+  vm.createContext(w); vm.runInContext(A, w);
+  const K = w.KWAbilities;
+  const ab = (key, name, at, x = {}) => ({ key, name, at, icon: '•', kind: 'attack', desc: name + ' does a thing.', dmg: 10, block: 0, heal: 0, fx: {}, min: 1, max: 1, cooldown: 0, quick: false, uses: null, known: true, school: 'arms', ...x });
+  const hearth = ready => ({ cls: 'hearthkeeper', label: 'Hearthkeeper', icon: '🔥', level: 10, school: { key: 'hearth', name: 'Hearth magic', icon: '🔥' },
+    abilities: ['h_cinder', 'h_kindle', 'h_ward', 'h_bold', 'h_steady', 'h_ember_ward', 'h_banish'].map((k, i) => ab(k, 'H' + i, i, { school: 'hearth', off: true, dmg: 7, ready: ready.includes(k) })) });
+  const archer = ready => ({ cls: 'archer', label: 'Archer', icon: '🏹', level: 4, school: { key: 'archery', name: 'Archery', icon: '🏹' }, abilities: ['a_shoot', 'a_side', 'a_part', 'a_mark'].map((k, i) => ab(k, 'A' + i, i, { school: 'archery', off: true, ready: ready.includes(k) })) });
+  const FIVE = ['h_cinder', 'h_kindle', 'h_ward', 'h_bold', 'h_steady'];
+  const guard = (x = {}) => ({ citizen: { id: 7, name: 'Hazel <b>' }, cls: 'guard', label: 'Guard', icon: '🛡️', career: 'soldier', level: 10, xp: { into: 30, need: 120 }, school: { key: 'arms', name: 'Arms', icon: '⚔️' },
+    abilities: [ab('g_strike', 'Strike', 1), ab('g_shield', 'Shield Up', 1, { cooldown: 1 }), ab('g_cover', 'Cover', 2), ab('g_shove', 'Shove', 4), ab('g_heavy', 'Heavy Blow', 6), ab('g_stand_fast', 'Stand Fast', 8), ab('g_shield_bash', 'Shield Bash', 10)],
+    ahead: [ab('g_oath', "Guard's Oath", 13, { known: false }), ab('g_hold_line', 'Hold the Line', 16, { known: false, uses: 1 }), ab('g_hammer', 'Hammer Blow', 20, { known: false })],
+    second: { max: 5, strength: 0.75, busy: false, cls: 'hearthkeeper', chosen: null, options: [hearth(FIVE), archer([])] }, ...x });
+  const html = K._pageHtml(guard());
+  check('18a. the page has three parts: everything of their own school, what is still to learn with its level, and the second school', /⚔️ Arms <span class="kwab-h-sub">7 known: all of them go into battle/.test(html) && /Still to learn/.test(html) && /Second school/.test(html)
+    && (html.match(/kwab-row is-locked/g) || []).length === 3 && /🔒 Level 13/.test(html) && /🔒 Level 20/.test(html));
+  check('18b. it says the class, the level, how far to the next, and what the next level teaches', /Guard · level 10/.test(html) && /style="width:25%"/.test(html) && /Next: <b>Guard&#39;s Oath<\/b> at level 13\./.test(html));
+  check('18c. everything of their own is brought: no tick boxes there, each marked brought', (html.match(/<span class="kwab-when is-on">✓ Brought<\/span>/g) || []).length === 7 && !/data-key="g_strike"/.test(html));
+  const wiz = K._pageHtml(guard({ cls: 'wizard', label: 'Wizard', school: { key: 'wild', name: 'Wild magic', icon: '🔮' }, abilities: [ab('v_swing', 'Swing', 1, { school: 'basics', school_name: 'Basics' }), ab('w_spark', 'Spark', 1, { school: 'wild' })] }));
+  check('18d. an ability of another school among their own says which: the plain blow is Basics', /🔮 Wild magic/.test(wiz) && /<span class="kwab-when is-on">Basics<\/span>/.test(wiz) && (wiz.match(/✓ Brought/g) || []).length === 1);
+  check('18e. the second school: each old career to choose from, the furthest along first, and None', /up to 5 abilities from an old career, at 75% strength/.test(html) && (html.match(/data-kwab="school"/g) || []).length === 3
+    && /value="hearthkeeper" checked/.test(html) && /🔥 Hearth magic<\/b> <i>Hearthkeeper level 10<\/i>/.test(html) && /🏹 Archery<\/b> <i>Archer level 4<\/i>/.test(html) && /value="none"/.test(html) && html.indexOf('value="hearthkeeper"') < html.indexOf('value="archer"'));
+  check('18f. its abilities have tick boxes: five ticked, a sixth cannot be, and Save waits for a change', (html.match(/data-kwab="toggle"/g) || []).length === 7 && (html.match(/data-kwab="toggle"[^>]* checked/g) || []).length === 5
+    && (html.match(/data-kwab="toggle"[^>]* disabled/g) || []).length === 2 && /5 of 5 chosen/.test(html) && /data-kwab="save" disabled/.test(html) && (html.match(/kwab-row is-ready is-off/g) || []).length === 5);
+  const three = K._pageHtml(guard(), { cls: 'hearthkeeper', keys: ['h_kindle', 'h_ward', 'h_banish'] });
+  check('18g. with a different choice Save is on; fewer than five is allowed', /3 of 5 chosen/.test(three) && /data-kwab="save">Save</.test(three) && !/data-kwab="toggle"[^>]* disabled/.test(three) && /data-key="h_banish" checked/.test(three));
+  const other = K._pageHtml(guard(), { cls: 'archer', keys: ['a_shoot', 'a_side', 'a_part', 'a_mark'] });
+  check('18h. another old career shows its own abilities; none shows no list', /value="archer" checked/.test(other) && /data-key="a_mark" checked/.test(other) && !/data-key="h_kindle"/.test(other) && /4 of 5 chosen/.test(other)
+    && !/data-kwab="toggle"/.test(K._pageHtml(guard(), { cls: 'none', keys: [] })) && /Nothing from another class/.test(K._pageHtml(guard(), { cls: 'none', keys: [] })) && /data-kwab="save">Save</.test(K._pageHtml(guard(), { cls: 'none', keys: [] }))
+    && /data-kwab="save" disabled/.test(K._pageHtml(guard(), { cls: 'hearthkeeper', keys: [] })));
+  check('18i. each row says what the ability does in the battle screen\'s own words, how often, and shows the battle\'s picture', /\[g_strike\]/.test(html) && /10 damage · reach 1/.test(html) && /every other turn/.test(html) && /7 damage · reach 1/.test(html)
+    && K._pace({ uses: 1 }) === 'once a battle' && K._pace({ uses: 2 }) === 'twice a battle' && K._pace({ cooldown: 2 }) === 'every 3rd turn' && /quick/.test(K._pace({ quick: true, cooldown: 2 })));
+  const lone = K._pageHtml(guard({ second: { max: 5, strength: 0.75, busy: false, cls: null, chosen: null, options: [] } }));
+  check('18j. someone who has never been anything else is told how a second school comes about', !/data-kwab="school"/.test(lone) && !/kwab-bar/.test(lone) && /has never been anything else/.test(lone) && /changes career keeps what the old class taught them/.test(lone));
+  const away = K._pageHtml(guard({ second: { ...guard().second, busy: true } }));
+  check('18h2. away at a dungeon the choice cannot be changed', (away.match(/data-kwab="toggle"[^>]* disabled/g) || []).length === 7 && !/data-kwab="save"/.test(away) && /is away at a dungeon\. Abilities are chosen at home\./.test(away) && (away.match(/data-kwab="school"[^>]* disabled/g) || []).length === 3);
+  const farmer = K._pageHtml({ citizen: { id: 8, name: 'Oakley' }, cls: 'villager', label: 'Villager', icon: '🧺', career: null, level: 1, xp: { into: 0, need: 0 }, school: { key: 'basics', name: 'Basics', icon: '🪵' },
+    abilities: [ab('v_swing', 'Swing', 1, { school: 'basics' }), ab('v_duck', 'Duck', 1, { school: 'basics' }), ab('t_ration', 'Ration', 1, { school: 'field', school_name: 'Fieldcraft' })], ahead: [], second: { max: 5, strength: 0.75, busy: false, cls: null, chosen: null, options: [] } });
+  check('18i2. someone with no class is told so, and what a class would teach; their trade\'s trick is Fieldcraft', /Villager/.test(farmer) && /a swing, a duck, and what their trade taught them/.test(farmer) && /would learn ten more/.test(farmer) && />Fieldcraft<\/span>/.test(farmer) && !/Still to learn/.test(farmer));
+  check('18j2. names are escaped', lone.includes('Hazel &lt;b&gt;') && !lone.includes('Hazel <b>') && away.includes('Hazel &lt;b&gt;'));
+  check('18k. the tab is on every grown citizen\'s page (every battle is on the board), and not on a child\'s', /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })) && K.tabHtml({ id: 7, life_stage: 'child' }) === ''
+    && /id="cp-tab-abilities"/.test(K.panelHtml({ id: 7 })) && K.available() === true
+    && /\$\{window\.KWAbilities \? KWAbilities\.tabHtml\(c\) : ''\}/.test(CZ) && /\$\{window\.KWAbilities \? KWAbilities\.panelHtml\(c\) : ''\}/.test(CZ));
+  w._kwIsAdmin = () => false;
+  check('18l. a player who is no admin sees it too', K.available() === true && /data-cp="abilities"/.test(K.tabHtml({ id: 7, life_stage: 'adult' })));
+  check('18m. the server is asked what is known and told the second school; nothing is worked out here', /call\(String\(id\)\)/.test(A) && /call\(S\.id \+ '\/second', \{ cls: S\.pick\.cls, keys: S\.pick\.keys \}\)/.test(A) && /'\/api\/tactics\/abilities\/' \+ path/.test(A) && !/\.at\s*<=/.test(A));
+  check('18n. the script and its stylesheet are on the page, after the battle screen it borrows from; the stylesheet uses the shared colours only', /<script defer src="\/js\/tactics\.js\?v=h[0-9a-f]{8}"><\/script>[^\n]*\n\s*<script defer src="\/js\/abilities\.js\?v=h[0-9a-f]{8}"><\/script>/.test(H)
+    && /<link rel="stylesheet" href="\/css\/abilities\.css\?v=h[0-9a-f]{8}">/.test(H) && !/#[0-9a-fA-F]{3,8}\b/.test(ACSS) && !/rgba?\(/.test(ACSS) && /\.kwab-tick \{[^}]*min-height: var\(--kw-touch\)/.test(ACSS));
+  check('18o. the battle screen lends its pictures and words', /loadAssets, icon: ico, effectText, reachText,/.test(J));
+  // In a battle.
+  check('18p. the ten from the higher rungs have their looks: a bash thuds, rain and hail are arrows, a fireball bursts, a battle cry cheers', /g_shield_bash: 'smash', g_hammer: 'smash', g_hold_line: 'ward_ring',/.test(J) && /a_arrow_rain: 'arrow', a_pin: 'arrow', a_hail: 'arrow',/.test(J)
+    && /w_chain: 'spark', w_fireball: 'fireburst',/.test(J) && /h_battle_cry: 'cheer', h_hearthlight: 'ward_ring',/.test(J));
+  // Schools in a battle: a tab for the citizen's own and one for their second school.
+  {
+    const src = J.slice(J.indexOf('  const SCHOOLS = {'), J.indexOf('  function paintPanel() {'));
+    const S2 = { tab: {} };
+    const fn = new Function('S', src + '; return { tabsOf, tabOf, SCHOOLS };')(S2);
+    const own = [{ key: 'v_swing', school: 'basics' }, { key: 'a_shoot', school: 'archery' }], off = [{ key: 'h_kindle', school: 'hearth', off: true }, { key: 'h_ward', school: 'hearth', off: true }];
+    const one = fn.tabsOf({ id: 'c1', school: 'archery', abilities: own }), two = fn.tabsOf({ id: 'c2', school: 'archery', second: { school: 'hearth' }, abilities: own.concat(off) });
+    check('18q. a citizen with no second school has one tab; with one, two: their own (Basics with it), then the second, marked', one.length === 1 && one[0].name === 'Archery' && one[0].list.length === 2
+      && two.length === 2 && two[0].key === 'own' && two[0].list.map(a => a.key).join() === 'v_swing,a_shoot' && two[1].key === 'second' && two[1].name === 'Hearth magic' && two[1].off === true && two[1].list.length === 2);
+    const u2 = { id: 'c2', school: 'archery', second: { school: 'hearth' }, abilities: own.concat(off) };
+    S2.tab.c2 = 'second';
+    check('18q2. their own tab is open until the player opens the other; a foe\'s abilities are one unnamed list', fn.tabOf({ id: 'c9', school: 'arms', abilities: own }).key === 'own' && fn.tabOf(u2).key === 'second'
+      && fn.tabsOf({ id: 'e1', abilities: [{ key: 'bite' }] }).length === 1 && Object.keys(fn.SCHOOLS).join() === 'basics,arms,archery,wild,hearth,field');
+    check('18q3. the action bar shows the tabs only when there are two, and the open school\'s abilities; 0 swaps school', /tabs\.length > 1 \? `<div class="kwtc-schools" role="tablist"/.test(J) && /\+ tab\.list\.map\(\(x, i\) => \{/.test(J)
+      && /data-kwt="school" data-school="\$\{t\.key\}"/.test(J) && /k === 'school'/.test(J) && /if \(ev\.key === '0' && u && u\.side === 'player' && tabsOf\(u\)\.length > 1\)/.test(J) && /\$\{t\.off \? ' <em>¾<\/em>' : ''\}/.test(J));
+    check('18q5. the open tab is the one marked (by its key: the tabs are made afresh each time)', /class="kwtc-school\$\{t\.key === tab\.key \? ' is-on' : ''\}"/.test(J) && /aria-selected="\$\{t\.key === tab\.key\}"/.test(J));
+    check('18q4. an ability from the second school is marked on its button and in the list shown for a tapped citizen', /\$\{x\.off \? ' is-off' : ''\}" data-kwt="ability"/.test(J) && /second school, three-quarters strength/.test(J)
+      && /\.kwtc-act\.is-off \{/.test(CSS) && /\.kwtc-school\.is-on \{/.test(CSS));
+  }
+  // Mastery (stage B): an ability used enough in battle is ✦ for that citizen.
+  {
+    const mPage = guard({ mastery: { uses: 25, edge: 1.2 }, abilities: [ab('g_strike', 'Strike', 1, { used: 25, star: true }), ab('g_shield', 'Shield Up', 1, { used: 10, star: false, uses: 2 })] });
+    const mh = K._pageHtml(mPage);
+    check('18u. the Abilities tab shows how near each ability is to mastery, and a ✦ on one that is mastered', /Strike <span class="kwab-star"[^>]*>✦<\/span>/.test(mh) && /✦ Mastered: 20% stronger/.test(mh) && /10 of 25 uses to ✦/.test(mh) && /style="width:40%"/.test(mh) && /twice a battle/.test(mh) && !/0 times a battle|25 times a battle|10 times a battle/.test(mh)
+      && !/kwab-mastery/.test(K._pageHtml(guard())) && !/uses to ✦/.test(K._pageHtml(guard({ mastery: { uses: 25, edge: 1.2 } })).split('Still to learn')[1].split('Second school')[0]));
+    check('18v. in battle a mastered ability wears a ✦ on its button and in a tapped citizen\'s list', /\$\{x\.star \? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦<\/b>' : ''\}/.test(J) && /\$\{a\.star \? ' ✦' : ''\}/.test(J) && /\.kwtc-star \{/.test(CSS));
+    check('18w. the end screen says what was mastered with this battle, under the citizen, won or lost', /if \(!A\.mastered && b\.mastered && b\.mastered\.length && \(!won \|\| A\.xp\)\)/.test(J) && /Mastered: \$\{esc\(m\.icon \|\| ''\)\} <b>\$\{esc\(m\.name\)\} ✦<\/b> <i>a fifth stronger from now on<\/i>/.test(J)
+      && /b\.mastered = d\.mastered && d\.mastered\.length \? d\.mastered : kept\.mastered;/.test(J));
+    check('18x. Help says what mastery is', /used about 25 times in battle is <b>mastered<\/b> \(✦\): a fifth stronger/.test(read('js/help.js')));
+  }
+  // Gear (stage C): the kind of weapon and the shield change what abilities do.
+  {
+    const kinds = [{ key: 'sword', name: 'Sword', says: 'Arms abilities are ready a turn sooner.' }, { key: 'staff', name: 'Staff', says: 'Wild and Hearth magic is a fifth stronger.' }];
+    const gp = K._pageHtml(guard({ kinds, gear: { weapon: { key: 'iron_sword', name: 'Iron <Sword>', icon: '⚔️', kind: 'sword', kind_name: 'Sword', says: kinds[0].says }, shield: { key: 'tower_shield', name: 'Tower Shield', icon: '🧱', block: 8, says: 'Arms blocks are 8 stronger.' }, armour: { key: 'chainmail', name: 'Chainmail', icon: '🔗' } } }));
+    check('18y. the Abilities tab says what they hold and wear, and what each does', /Gear <span class="kwab-h-sub">what they hold changes what their abilities do/.test(gp) && /<b>Iron &lt;Sword&gt;<\/b> <i>Sword<\/i> Arms abilities are ready a turn sooner\./.test(gp)
+      && /<b>Tower Shield<\/b> Arms blocks are 8 stronger\./.test(gp) && /<b>Chainmail<\/b> Takes the edge off every hit\./.test(gp) && gp.indexOf('kwab-gear') < gp.indexOf('all of them go into battle'));
+    const none = K._pageHtml(guard({ kinds, gear: null }));
+    check('18z. with nothing carried it says so; the guide to every kind is there either way; an older page with no kinds shows no gear part', /carries nothing that changes a fight/.test(none) && /<summary>What each kind of weapon does<\/summary>/.test(none) && (none.match(/<li><b>(Sword|Staff|Shield)<\/b>/g) || []).length === 3
+      && /read the school of an ability, not the class/.test(none) && !/kwab-kinds/.test(K._pageHtml(guard())));
+    const src = J.slice(J.indexOf('  function gearBits(u) {'), J.indexOf('  function unitCard(u, v) {'));
+    const gearLine = new Function('esc', src + '; return gearLine;')(x => String(x).replace(/</g, '&lt;'));
+    check('18A. in battle a citizen\'s card names what they hold; the words for what it does are in its title and in the tapped list', /🪄 Oak Staff/.test(gearLine({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'Wild and Hearth magic is a fifth stronger.' }, shield: { name: 'Buckler', icon: '🛡️', says: 'Arms blocks are 3 stronger.' } } }))
+      && /title="Wild and Hearth magic is a fifth stronger\."/.test(gearLine({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'Wild and Hearth magic is a fifth stronger.' } } })) && gearLine({}) === '' && gearLine({ gear: { armour: { name: 'Mail' } } }) === ''
+      && /\$\{gearLine\(u\)\}<\/div>`;/.test(J) && /class="kwtc-kit-a is-gear"/.test(J));
+    check('18B. a dagger\'s blow from behind is forecast at its own worth', /from behind \(\+\$\{Math\.round\(\(\(a\.back \|\| 1\.5\) - 1\) \* 100\)\}%\)/.test(J));
+    const EN = read('js/tactics-engine.js');
+    check('18C. the rules: an ability may carry its own worth for a blow from behind, else half as much again', /d \*= side === 'back' \? \(a\.back \|\| RULES\.BACK\) : side === 'side' \? RULES\.FLANK : 1;/.test(EN));
+    check('18D. Help says that what is carried matters', /a longbow reaches further, a hammer hits harder and slows its wielder, a polearm strikes two tiles away, a dagger doubles a blow from behind, a staff strengthens Wild magic, an ember lantern strengthens Hearth magic, a shield strengthens a block/.test(read('js/help.js')));
+  }
+  // The Attack (2026-11-27): its own button, apart from the abilities; two hands; the ember lantern.
+  {
+    const src = J.slice(J.indexOf('  const SCHOOLS = {'), J.indexOf('  function paintPanel() {'));
+    const fn = new Function('S', src + '; return { tabsOf, tabOf, attackOf };')({ tab: {} });
+    const unit = { id: 'c1', school: 'arms', second: { school: 'hearth' }, abilities: [{ key: 'g_strike', school: 'arms', attack: true }, { key: 'g_shield', school: 'arms' }, { key: 'h_kindle', school: 'hearth', off: true }] };
+    check('18E. a citizen\'s Attack is found apart from their abilities, and is in no tab', fn.attackOf(unit).key === 'g_strike' && fn.tabsOf(unit)[0].list.map(a => a.key).join() === 'g_shield' && fn.tabsOf(unit)[1].list.map(a => a.key).join() === 'h_kindle'
+      && fn.attackOf({ abilities: [{ key: 'bite' }] }) === null && fn.attackOf(null) === null);
+    check('18F. the action bar has an Attack button on a row of its own, above the schools and whichever is open, with what it is and does', /class="kwtc-act kwtc-attack\$\{a === atk \? ' is-on' : ''\}" data-kwt="ability" data-key="\$\{esc\(atk\.key\)\}"/.test(J)
+      && /<span class="kwtc-act-n">Attack\$\{atk\.star/.test(J) && /\$\{atk\.name\}: \$\{why \|\| effectText\(atk\)\}/.test(J) && /acts\.innerHTML = attackBtn \+ \(tabs\.length > 1 \?/.test(J) && /<div class="kwtc-attack-row">/.test(J) && /\.kwtc-attack-row \{ flex: 1 1 100%;/.test(CSS) && /\.kwtc-act\.kwtc-attack \{/.test(CSS));
+    check('18G. A is the Attack\'s key; a tapped citizen\'s list names their Attack first', /if \(\(ev\.key === 'a' \|\| ev\.key === 'A'\) && u && u\.side === 'player' && attackOf\(u\)\) \{ ev\.preventDefault\(\); choose\(attackOf\(u\)\.key\); \}/.test(J)
+      && /<span class="kwtc-kit-a is-attack">\$\{ico\(lookAtk\)\} <b>Attack/.test(J));
+    const atk = ab('g_strike', 'Strike', 1, { attack: true, dmg: 17 });
+    const page = K._pageHtml(guard({ attack: atk }));
+    check('18H. the Abilities tab shows the Attack on its own, before the abilities, and says whose it is', /Attack <span class="kwab-h-sub">a fighter&#39;s: it hits well|Attack <span class="kwab-h-sub">a fighter's: it hits well/.test(page) && /kwab-row is-ready is-attack/.test(page) && />Always<\/span>/.test(page)
+      && page.indexOf('is-attack') < page.indexOf('all of them go into battle') && /their craft is magic: a blow from them is a feeble thing/.test(K._pageHtml(guard({ cls: 'wizard', attack: atk })))
+      && /a swing with whatever is to hand/.test(K._pageHtml(guard({ cls: 'villager', attack: atk }))) && !/is-attack/.test(K._pageHtml(guard())));
+    const kinds = [{ key: 'hammer', name: 'Hammer', says: 'Blows land a quarter harder.', hands: 2 }, { key: 'lantern', name: 'Lantern', says: 'Hearth magic is a fifth stronger.', hands: 1 }];
+    const gp = K._pageHtml(guard({ kinds, gear: null }));
+    check('18I. the guide marks the kinds that take two hands, and says a shield does not go with them', /<li><b>Hammer<\/b> <i>two hands<\/i> Blows land a quarter harder\.<\/li>/.test(gp) && /<li><b>Lantern<\/b> Hearth magic is a fifth stronger\.<\/li>/.test(gp) && /Not with a weapon that takes two hands\./.test(gp)
+      && /a lantern helps a Guard&#39;s borrowed healing|a lantern helps a Guard's borrowed healing/.test(gp));
+    check('18I2. a shield left on the back by a two-handed weapon is named as doing nothing', /On their back/.test(K._pageHtml(guard({ kinds, gear: { weapon: { name: 'Halberd', kind_name: 'Polearm', says: 'x' }, idle: { name: 'Tower Shield', icon: '🧱', says: 'On their back: no shield goes with a weapon that takes two hands.' } } }))));
+    check('18J. equipping says when a shield or a two-handed weapon went back to the stores', /if \(d\.note && typeof showBuildToast === 'function'\) showBuildToast\(d\.note, 'success'\);/.test(read('js/inventory.js')));
+    check('18K. Help: everyone has an Attack; a caster\'s is feeble; two hands, no shield', /Everyone also has an <b>Attack<\/b>, on its own button/.test(read('js/help.js')) && /can only manage a feeble knock/.test(read('js/help.js')) && /take two hands, so no shield goes with them/.test(read('js/help.js')));
+  }
+  // Study and the passive slot (stage D).
+  {
+    const st = (x = {}) => ({ citizen: { id: 7, name: 'Hazel <b>' }, building: { type: 'watchtower', name: 'Watchtower', level: 2, seats: 2, used: 1 }, level: 6, wealth: 500, studying: null, passive: 'brace',
+      passives: [{ key: 'brace', name: 'Brace', icon: '🧱', says: 'The first hit they take each round does a third less.' }, { key: 'sure_footed', name: 'Sure-footed', icon: '🥾', says: 'Jumps one step higher.' }],
+      lessons: [{ key: 'brace', kind: 'passive', name: 'Brace', icon: '🧱', says: 'First hit a third less.', tier: 1, hours: 2, wealth: 50, need_level: 3, need_building: 1, state: 'known', why: null },
+        { key: 'c_second_wind', kind: 'ability', name: 'Second Wind', icon: '💨', says: 'Heal yourself.', tier: 1, hours: 2, wealth: 50, need_level: 3, need_building: 1, state: 'open', why: null },
+        { key: 'c_cleave', kind: 'ability', name: 'Cleave', icon: '🪓', says: 'A wide swing.', tier: 2, hours: 6, wealth: 150, need_level: 8, need_building: 2, state: 'locked', why: 'Needs class level 8.' }], ...x });
+    const now = Date.parse('2026-11-27T12:00:00Z'), at = sec => new Date(now + sec * 1000).toISOString();
+    const sh = K._studyHtml(st(), now);
+    check('18L. the Study part names the building, its level and its seats, and lists each lesson: known, open with a button and its cost, or closed with the reason', /Study <span class="kwab-h-sub">at the Watchtower · level 2 · 1 of 2 seats taken/.test(sh)
+      && /kwab-lesson is-known/.test(sh) && /✓ Known/.test(sh) && /data-kwab="study" data-key="c_second_wind">Study <span class="kwab-cost">2 hours · 50 wealth<\/span>/.test(sh) && /🔒 Needs class level 8\./.test(sh)
+      && (sh.match(/data-kwab="study"/g) || []).length === 1 && /Cleave <i class="kwab-kind">Ability<\/i>/.test(sh) && /Brace <i class="kwab-kind">Passive<\/i>/.test(sh) && /6 hours · 150 wealth/.test(sh));
+    const going = K._studyHtml(st({ studying: { key: 'c_second_wind', name: 'Second Wind', done_at: at(5530) } }), now);
+    check('18M. while a lesson is under way: what, a countdown, that they carry on as normal, and a way to stop with the fee back', /Studying <b>Second Wind<\/b>: done in <b class="kwab-clock" data-kwab-clock="[^"]+">1:32:10<\/b>/.test(going) && /They carry on as normal/.test(going)
+      && /data-kwab="study-stop">Stop \(the fee comes back\)</.test(going) && K._untilWords(at(65), now) === '1:05' && K._untilWords(at(-5), now) === 'now');
+    check('18N. no building: it says to build one; a villager has no Study part', /The town has no Watchtower\. Build one/.test(K._studyHtml(st({ building: { type: 'watchtower', name: 'Watchtower', level: 0, seats: 0, used: 0 } }), now))
+      && K._studyHtml(st({ building: null }), now) === '' && K._studyHtml(null, now) === '' && /Hazel &lt;b&gt;/.test(K._studyHtml(st({ building: { type: 'watchtower', name: 'Watchtower', level: 0, seats: 0, used: 0 } }), now)));
+    const ph = K._passiveHtml(st());
+    check('18O. the Passive part: the ones learned to choose among, the one carried marked, and None', /Passive <span class="kwab-h-sub">one always-on trait in battle/.test(ph) && (ph.match(/data-kwab="passive"/g) || []).length === 3 && /value="brace" checked/.test(ph)
+      && /🥾 Sure-footed<\/b> <i>Jumps one step higher\.<\/i>/.test(ph) && /value="none"/.test(ph) && /value="none" checked/.test(K._passiveHtml(st({ passive: null })))
+      && /None yet\. Passives are learned by study at the Watchtower\./.test(K._passiveHtml(st({ passives: [] }))) && K._passiveHtml(null) === '');
+    const whole = K._pageHtml(guard(), null, st());
+    check('18P. both parts are on the Abilities tab, between what is still to learn and the second school', whole.indexOf('Still to learn') < whole.indexOf('kwab-passives') && whole.indexOf('kwab-passives') < whole.indexOf('kwab-lesson') && whole.indexOf('kwab-lesson') < whole.indexOf('Second school')
+      && !/kwab-lesson/.test(K._pageHtml(guard())));
+    check('18Q. the server is asked and told; nothing about study is worked out here', /apiFetch\('\/api\/tactics\/study\/' \+ path/.test(A) && /study\('', \{ lesson: st\.getAttribute\('data-key'\) \}/.test(A) && /study\('cancel', \{\}/.test(A)
+      && /study\('passive', \{ key: pa\.value === 'none' \? null : pa\.value \}/.test(A) && /Promise\.all\(\[call\(String\(id\)\), studyCall\(String\(id\)\)/.test(A));
+    check('18R. the countdown ticks once a second and reads the page again when the lesson is done; a live event does too', /setInterval\(tick, 1000\)/.test(A) && /if \(t === 'now' && !S\.busy && S\.id\)/.test(A) && /ev\.type !== 'study_done'/.test(A)
+      && /study_done\(ev\) \{ if \(global\.KWAbilities && global\.KWAbilities\.onEvent\) global\.KWAbilities\.onEvent\(ev\); \}/.test(read('js/realtime.js')));
+    const src2 = J.slice(J.indexOf('  function gearBits(u) {'), J.indexOf('  function unitCard(u, v) {'));
+    const gl = new Function('esc', src2 + '; return gearLine;')(x => String(x).replace(/</g, '&lt;'));
+    check('18S. in battle a citizen\'s card names their passive; a tapped citizen\'s list says what it does', /<span class="kwtc-passive" title="Strikes back\.">↩️ Counter<\/span>/.test(gl({ passive_info: { name: 'Counter', icon: '↩️', says: 'Strikes back.' } }))
+      && /Oak Staff<\/span> · <span class="kwtc-passive"/.test(gl({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'x' } }, passive_info: { name: 'Focus', icon: '🔆', says: 'y' } })) && gl({}) === '' && /Passive: \$\{esc\(look\.passive_info\.says/.test(J));
+    const EN2 = read('js/tactics-engine.js');
+    check('18T. the rules: Brace takes a third off the first hit of a round; Counter strikes back once a round at half strength and never fells; both are ready again at the unit\'s turn', /BRACE: 2 \/ 3, COUNTER: 0\.5/.test(EN2)
+      && /const braced = t\.passive === 'brace' && !t\.braced;/.test(EN2) && /t\.passive === 'counter' && !t\.countered && foeOf\(u, t\) && Math\.abs\(u\.x - t\.x\) \+ Math\.abs\(u\.y - t\.y\) === 1/.test(EN2)
+      && /n = Math\.min\(c\.dmg, u\.hp - 1\)/.test(EN2) && /if \(u\.braced\) u\.braced = false;\n\s+if \(u\.countered\) u\.countered = false;/.test(EN2));
+    check('18U. a counter and a braced hit are shown on the board', /ev\.type === 'counter'\) \{[^}]*float\(v, 'Counter!'/.test(J) && /if \(ev\.braced\) float\(v, 'Braced'/.test(J));
+    check('18V. Dev Tools can finish every lesson being studied', /data-kwt-dev="study">📖 Finish studies now</.test(J) && /apiFetch\('\/api\/tactics\/admin\/study\/finish', \{ method: 'POST' \}\)/.test(J));
+    check('18W. Help says where to study and that one passive is carried', /can <b>study<\/b> at the Watchtower/.test(read('js/help.js')) && /carries one passive at a time/.test(read('js/help.js')));
+  }
+  check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));
+  check('18s. a burst that reaches two tiles says so', /a\.radius > 1 \? `and all within \$\{a\.radius\} of them` : 'and those beside'/.test(J));
+  const C4 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
+  check('18t. the check on the live site covers the new script and stylesheet', C4.includes('js/abilities.js') && C4.includes('css/abilities.css'));
+}
+
+console.log('19. A quest\'s battle is fought on the board; the cards are gone');
+{
+  const J = read('js/tactics.js'), B = read('js/battles.js'), H = read('index.html'), RT = read('js/realtime.js');
+  // The Battles list.
+  const el = { innerHTML: '' };
+  const toasts = [];
+  const w = { console, Math, JSON, Number, String, Array, Object, Date, Promise, setInterval() { return 1; }, clearInterval() {}, setTimeout() { return 1; }, showToastNotification: m => toasts.push(m),
+    document: { readyState: 'complete', getElementById: id => (id === 'battles-list' ? el : null), addEventListener() {}, createElement: () => ({ style: {}, appendChild() {}, querySelector: () => null }), body: { appendChild() {} } } };
+  w.window = w; w.globalThis = w;
+  vm.createContext(w); vm.runInContext(B, w);
+  const K = w.KWBattles;
+  const battle = (x = {}) => ({ id: 7, quest_title: 'Gather herbs', quest_icon: '🌿', citizen_name: 'Ivy', combat_encounter: ['night_wolf'], combat_trigger_at: new Date().toISOString(), board_battle: null, board_foes: ['Wolf Raider'], ...x });
+  const list = b => { K._renderList([b || battle()]); return el.innerHTML; };
+  check('19a. a waiting battle has one button, Engage, and a way to give it up', (list().match(/class="bm-engage/g) || []).length === 1 && /onclick="engageBattle\(7\)">⚔ Engage</.test(list()) && /onclick="forfeitBattle\(7\)"/.test(list()) && !/With cards|bm-board/.test(list()));
+  check('19b. one already begun offers the way back to it', /onclick="engageBattle\(7\)">♟ Back to the battle</.test(list(battle({ board_battle: 31 }))));
+  check('19c. the list names the foes of the board, not the old creatures', /has encountered Wolf Raider/.test(list()) && /has encountered Night Wolf/.test(list(battle({ board_foes: [] }))));
+  check('19d. the battle is asked of the server for that quest, then opened on the board by its number', /apiFetch\('\/api\/tactics\/quest\/' \+ questRunId, \{ method: 'POST' \}\)/.test(B) && /await global\.KWTactics\.openById\(d\.battle\.id\);/.test(B));
+  check('19e. startBattleFromQuest is the one way in, for the list, a camp assault and a sally', typeof w.startBattleFromQuest === 'function' && /global\.startBattleFromQuest = startBattleFromQuest;/.test(B)
+    && /startBattleFromQuest\(data\.quest_run_id\)/.test(read('js/main.js')) && /global\.startBattleFromQuest\(runId\)/.test(read('js/raids.js')));
+  K.onSpoils({ items: [{ name: 'Iron Ore', icon: '⛏️', qty: 2 }] });
+  check('19f. a fight decided for the player says what it left in the stores', toasts.length === 1 && /From the fight: ⛏️ Iron Ore ×2/.test(toasts[0]) && /battle_spoils\(ev\) \{ if \(global\.KWBattles && global\.KWBattles\.onSpoils\) global\.KWBattles\.onSpoils\(ev\); \}/.test(RT));
+  check('19g. the battle report names who was fought on the board', /data\.foes && data\.foes\.length \? data\.foes : \(data\.encounter \|\| \[\]\)\.map\(_titleCase\)/.test(B));
+  // The battle screen.
+  check('19h. what became of the quest comes with the answer to the last choice', /if \(d\.quest\) b\.quest = d\.quest;/.test(J));
+  check('19i. won: what it paid, who came back better, and that the quest goes on', /found\.textContent = \(bits\.length \? `Won: \$\{bits\.join\(', '\)\}\. ` : ''\) \+ \(better\.length \? `\$\{better\.join\(' and '\)\} came back a better fighter\. ` : ''\) \+ 'The quest goes on\.';/.test(J));
+  check('19j. lost: the quest has failed', /inQuest \? 'The party is driven off, and the quest has failed\.'/.test(J));
+  check('19k. a quest\'s battle is fought once: the only button leads back to the town', /\(inQuest\n\s+\/\/ A quest's battle is fought once: the way on is back to the town\.\n\s+\? `<button type="button" class="kw-btn primary" data-kwt="close">Back to the town<\/button>`/.test(J));
+  check('19l. ✕ only steps away from it: the quest still waits on its battle', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J));
+  check('19m. back in the town the quest, the Battles list, the stores and the citizens are read again', /for \(const fn of \['refreshBattleBadge', 'refreshActiveQuests', 'refreshResources', 'loadCitizens'\]\)/.test(J));
+  // The cards are gone.
+  const gone = ['js/cards.js', 'js/card-admin.js', 'js/card-combat.js', 'js/card-definitions.js', 'js/card-engine.js', 'js/card-formula.js', 'js/card-hand-ui.js', 'js/card-registry.js', 'js/combat-engine.js', 'js/combat-ui.js', 'js/deck-builder.js',
+    'css/card-admin.css', 'css/card-hand-ui.css', 'css/deck-feedback.css'];
+  check('19n. the card battler is deleted: its engine, hand, battle screen, deck builder, collection and editor', gone.every(f => !fs.existsSync(path.join(ROOT, f))), gone.filter(f => fs.existsSync(path.join(ROOT, f))).join());
+  const srcs = fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).map(f => read('js/' + f)).join('\n');
+  check('19o. nothing on the page or in a script asks for them', !/card-hand-ui|deck-builder|combat-ui\.js|combat-engine\.js|card-engine|card-registry|deck-feedback/.test(H) && !/id="nav-decks"/.test(H)
+    && !/openDeckBuilder|KWCards\b|CardHandUI|CombatEngine\b|\/api\/decks|\/api\/cards\b|\/api\/card-admin|\/api\/combat\/(engage|action|resolve)/.test(srcs));
+  check('19p. Dev Tools has no switch for it any more: there is nothing to switch', !/quests-switch|data-kwt-dev="quests"/.test(J));
+  const C5 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
+  check('19q. the check on the live site no longer expects the card scripts', !C5.some(f => gone.includes(f)) && C5.includes('js/battles.js'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

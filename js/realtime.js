@@ -174,8 +174,8 @@
     ore_sample(ev) { if (global.KWStores) global.KWStores.onOreSample(ev); },
     // The Library (js/research.js): a project finished.
     research_done(ev) { if (global.KWLibrary) global.KWLibrary.onEvent(ev); if (global.KWHome) global.KWHome.note('research_done', ev); },
-    // Cards and battle loot (js/cards.js): toasts.
-    battle_spoils(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
+    // What a fight decided for the player left in the stores (js/battles.js): a toast.
+    battle_spoils(ev) { if (global.KWBattles && global.KWBattles.onSpoils) global.KWBattles.onSpoils(ev); },
     // Withered raids (js/raids.js): the warning and the outcome.
     raid_warning(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
     raid_resolved(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
@@ -183,9 +183,15 @@
     raid_reinforced(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
     // A clanmate's spot on clan land is targeted (js/raids.js call to arms).
     clan_call_to_arms(ev) { if (global.KWRaids) global.KWRaids.onEvent(ev); },
-    card_unlocked(ev) { if (global.KWCards) global.KWCards.onEvent(ev); },
     // Letters (js/mail.js): one arrived — badge and toast.
     mail(ev) { if (global.KWMail) global.KWMail.onEvent(ev); },
+    // Dungeons on the map (js/dungeons.js): word of a new one has reached the town, or a run of ours ended by itself.
+    dungeon_found(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    dungeon_ended(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    dungeon_arrived(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    dungeon_home(ev) { if (global.KWDungeon && global.KWDungeon.onEvent) global.KWDungeon.onEvent(ev); },
+    // A lesson at a class building is finished (js/abilities.js).
+    study_done(ev) { if (global.KWAbilities && global.KWAbilities.onEvent) global.KWAbilities.onEvent(ev); },
     site_role_changed(ev) {
       restart();
       if (global.ChatHub) global.ChatHub.onLevelOrMembership();

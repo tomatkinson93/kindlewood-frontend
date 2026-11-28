@@ -25,7 +25,7 @@
 
   const MAX_DRAWN = 30;
   const INK = '#4a2f17', INK_IN = '#2f6b2c', X_INK = '#9a2f1c';
-  const KIND_LABEL = { market: 'Merchant', scout: 'Scout', envoy: 'Envoy', quest: 'Quest', clan_quest: 'Clan quest', porter: 'Porter', outpost: 'Outpost' };
+  const KIND_LABEL = { market: 'Merchant', scout: 'Scout', envoy: 'Envoy', quest: 'Quest', clan_quest: 'Clan quest', porter: 'Porter', outpost: 'Outpost', dungeon: 'Dungeon party' };
 
   let _hits = [];        // this frame's travellers: { x, y, r, j }
   let _hoverId = null;
@@ -265,7 +265,7 @@
     return h ? `${h}h ${m}m` : `${m}m${r ? ' ' + r + 's' : ''}`;
   }
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const OPEN_LABEL = { market: '⚖️ Open Market', quests: '📜 Open Quests', clan: '🛡️ Open Clan', outpost: '⛺ Manage outpost' };
+  const OPEN_LABEL = { market: '⚖️ Open Market', quests: '📜 Open Quests', clan: '🛡️ Open Clan', outpost: '⛺ Manage outpost', dungeon: '💀 Open the dungeon' };
 
   // Live bits (refreshed every frame without rebuilding the card, so its
   // buttons stay put): leg label, progress, time left.
@@ -367,6 +367,7 @@
       else if (j.open === 'quests' && typeof global.openQuestsModal === 'function') global.openQuestsModal();
       else if (j.open === 'clan' && typeof global.openClanPanel === 'function') global.openClanPanel();
       else if (j.open === 'outpost' && global.KWOutposts) global.KWOutposts.manage(j.outpost_id);
+      else if (j.open === 'dungeon' && global.KWDungeon) global.KWDungeon.open();
     }
   }
 

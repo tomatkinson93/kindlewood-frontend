@@ -243,7 +243,7 @@ function renderCitizensList() {
 // null. Shopkeepers and merchants minding an order are at home, so not away.
 function citizenAway(c) {
   if (!c) return null;
-  if (c.dungeon) return { icon: '💀', label: '💀 In ' + (c.dungeon.name || 'a dungeon') };
+  if (c.dungeon) return { icon: '💀', label: (c.dungeon.walking === 'out' ? '💀 Walking to ' : c.dungeon.walking === 'home' ? '💀 Walking home from ' : '💀 In ') + (c.dungeon.name || 'a dungeon') };
   if (c.active_quest) return { icon: '⚔️', label: '⚔️ ' + (c.active_quest.clan ? 'On a clan quest' : 'On Quest') };
   if (window._diploEnvoyIds && window._diploEnvoyIds.has(c.id)) return { icon: '📨', label: '📨 Diplomat' };
   if (c.expedition) return { icon: '🗺', label: '🗺 Scouting' };
@@ -525,6 +525,7 @@ function renderCitizenProfile(c) {
     <div class="cp-tabs">
       <button class="cp-tab active" onclick="cpSwitchTab(this,'cp-tab-overview')">📊 Stats</button>
       <button class="cp-tab" data-cp="career" onclick="cpSwitchTab(this,'cp-tab-career'); KWCareers.renderTab(${c.id})">🎓 Career${c.career && (c.career.fork_ready || c.career.points_free) ? ' <span class="cr-tab-dot"></span>' : ''}</button>
+      ${window.KWAbilities ? KWAbilities.tabHtml(c) : ''}
       <button class="cp-tab" onclick="cpSwitchTab(this,'cp-tab-traits')">✦ Traits</button>
       <button class="cp-tab" onclick="cpSwitchTab(this,'cp-tab-rels')">💛 Relationships</button>
       <button class="cp-tab" onclick="cpSwitchTab(this,'cp-tab-family'); loadFamilyTree(${c.id})">🌳 Family</button>
@@ -543,6 +544,8 @@ function renderCitizenProfile(c) {
     <div class="cp-tab-panel" id="cp-tab-career" style="display:none">
       <div id="cp-career-content"><div class="cp-rel-loading">Reading their record…</div></div>
     </div>
+
+    ${window.KWAbilities ? KWAbilities.panelHtml(c) : ''}
 
     <div class="cp-tab-panel" id="cp-tab-traits" style="display:none">
       <div class="cp-section-label">Known Traits</div>

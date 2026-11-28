@@ -31,7 +31,7 @@
   // 'face' (the turn is ending: which way to look; faceAim is the way shown).
   // pick: the tile tapped once and waiting for a second tap. info: a unit being looked at.
   const S = { open: false, setup: null, opts: null, state: null, view: {}, floats: [], fx: [], cast: null, shake: 0, mode: 'idle', ability: null, pick: null, hover: null, cursor: null,
-    info: null, busy: false, pointer: 'mouse', rot: 0, faceAim: null, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
+    info: null, tab: {}, busy: false, pointer: 'mouse', rot: 0, faceAim: null, started: 0, ended: 0, raf: 0, banner: null, el: null, canvas: null, ctx: null, round: 1 };
   // scale = base (the whole board fits) × zoom (1 to ZOOM_MAX); px, py: how far the board has been dragged.
   const G = { tw: 64, th: 32, lift: 16, scale: 1, base: 1, zoom: 1, px: 0, py: 0, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
   const ZOOM_MAX = 3.2;
@@ -239,15 +239,24 @@
 
   // A creature's picture, if it has one: the front view when it looks towards
   // the viewer, the back view when it looks away; mirrored for the other two ways.
-  function creatureArt(u, v) {
+  // WALK_MS, IDLE_MS: how long one frame of a foe's walk and of its standing breath is shown.
+  const WALK_MS = 65, IDLE_MS = 150;
+  function creatureArt(u, v, t) {
     const a = ASSETS.creatures[u.key];
     if (!a || !a.file) return null;
+    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), dir = tv[0] > 0 ? 'se' : tv[0] < 0 ? 'nw' : tv[1] > 0 ? 'sw' : 'ne';
+    // Moving, its walk; standing, its breathing, if it was drawn one: a sheet with a row of frames for each way it goes.
+    const m = still() ? null : v.walking ? a.walk : a.idle;
+    const strip = m && sheet('/assets/sprites/creatures/' + m.file);
+    if (strip) {
+      const row = (m.rows && m.rows[dir]) || 0, n = Math.floor((t || 0) / (v.walking ? WALK_MS : IDLE_MS) + (v.seed || 0) * m.frames) % m.frames;
+      return { img: strip, sx: n * m.w, sy: row * m.h, w: m.w, h: m.h, foot: (m.foot && m.foot[row]) || { x: m.w / 2, y: m.h }, scale: a.scale || 1, moving: true, tall: a.h };
+    }
     const img = sheet('/assets/sprites/creatures/' + a.file);
     if (!img) return null;
-    // The sheet is one row, a frame for each of the four ways a unit can look on the board (scripts/pack_foes.py).
-    const f = E().DIRS[v.face] || [0, 1], tv = turn(f[0], f[1]), dir = tv[0] > 0 ? 'se' : tv[0] < 0 ? 'nw' : tv[1] > 0 ? 'sw' : 'ne';
+    // The standing sheet is one row, a frame for each of the four ways a unit can look on the board (scripts/pack_foes.py).
     const i = Math.max(0, (a.dirs || []).indexOf(dir));
-    return { img, sx: i * a.w, w: a.w, h: a.h, foot: a.foot || { x: a.w / 2, y: a.h }, scale: a.scale || 1 };
+    return { img, sx: i * a.w, sy: 0, w: a.w, h: a.h, foot: a.foot || { x: a.w / 2, y: a.h }, scale: a.scale || 1, moving: false, tall: a.h };
   }
   // A foe's face for the row of who acts next, if it has one.
   const faceOf = u => { const a = u && ASSETS.creatures[u.key]; return a && a.face ? '/assets/sprites/creatures/' + a.face : null; };
@@ -353,13 +362,16 @@
       c.fillStyle = CLASS_COLOUR[u.cls] || CLASS_COLOUR.villager; c.beginPath(); c.arc(p.x, p.y - 16 * k, 12 * k, 0, 6.3); c.fill();
       c.font = `${Math.round(15 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(u.icon || '•', p.x, p.y - 15 * k);
     } else {
-      const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v);
+      const bob = still() ? 0 : Math.sin(t / 380 + v.seed) * 1.5 * k, art = creatureArt(u, v, t);
       if (art) {
-        // Its height on the board is set against a citizen's (the packer's `scale`); walking, it hops along.
-        const z = 0.62 * k * art.scale, hop = v.walking && !still() ? Math.abs(Math.sin(t / 85)) * 3.5 * k : 0;
+        // Its height on the board is set against a citizen's (the packer's `scale`). With frames of its own it walks
+        // and breathes in them. Without: walking, it hops along; standing, it breathes (it grows and settles by a
+        // hair from the feet up), so nobody on the board stands frozen.
+        const z = 0.62 * k * art.scale, hop = !art.moving && v.walking && !still() ? Math.abs(Math.sin(t / 85)) * 3.5 * k : 0;
+        const breath = art.moving || v.walking || still() ? 1 : 1 + Math.sin(t / 560 + v.seed * 6.3) * 0.014;
         c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-        c.drawImage(art.img, art.sx, 0, art.w, art.h, p.x - art.foot.x * z, p.y + 3 * k - hop - art.foot.y * z, art.w * z, art.h * z);
-        v.tall = art.h * z;
+        c.drawImage(art.img, art.sx, art.sy, art.w, art.h, p.x - art.foot.x * z, p.y + 3 * k - hop - art.foot.y * z * breath, art.w * z, art.h * z * breath);
+        v.tall = art.tall * z;      // the health bar keeps its place while the foe moves under it
       } else {
         c.font = `${Math.round(28 * k)}px serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
         c.fillText(u.icon || '👹', p.x, p.y + 2 * k + bob);
@@ -508,6 +520,11 @@
     w_ward: 'shield', h_ward: 'shield', h_steady: 'ward_ring', h_kindle: 'heal', t_ration: 'heal', t_drink: 'heal', h_bold: 'cheer',
     hex: 'hex', venom: 'venom', mend: 'heal', shriek: 'wail', howl: 'wail',
     v_swing: 'smash', t_tool: 'smash', g_shove: 'smash',      // a stick, a tool, a shoulder: a thud, where a Guard's blade rings
+    // The higher rungs of the ladder (class levels 8 to 20). A block is a shield and a heal a glow without being listed.
+    g_shield_bash: 'smash', g_hammer: 'smash', g_hold_line: 'ward_ring',
+    a_hamstring: 'arrow', a_arrow_rain: 'arrow', a_pin: 'arrow', a_hail: 'arrow',
+    w_scorch: 'fire', w_frost_lance: 'frost', w_chain: 'spark', w_fireball: 'fireburst',
+    h_banish: 'ember', h_battle_cry: 'cheer', h_hearthlight: 'ward_ring',
   };
   const FLIES = { arrow: 1, spark: 1, fire: 1, fireburst: 1, frost: 1, ember: 1, hex: 1, venom: 1,
     stone: 1, dart: 1, vial: 1, gale: 1, sand: 1, spores: 1, curse: 1, boulder: 1, thunder: 1 };
@@ -809,6 +826,7 @@
         float(v, '−' + ev.dmg, '#ffd9d0', true);
         if (ev.side !== 'front') float(v, ev.side === 'back' ? 'From behind!' : 'Flanked', '#ffd27a');
         if (ev.blocked) float(v, 'blocked ' + ev.blocked, '#9fd0ff');
+        if (ev.braced) float(v, 'Braced', '#9fd0ff');       // a passive: the first hit of the round does a third less
         v.block = Math.max(0, (v.block || 0) - ev.blocked);
         say(`${name(ev.id)} takes ${ev.dmg}${ev.side === 'back' ? ', struck from behind' : ev.side === 'side' ? ', flanked' : ''}.`);
         await wait(360);
@@ -830,6 +848,7 @@
         else { v.hp = 0; v.block = 0; v.st = {}; v.lying = true; float(v, 'Down', '#ffd9d0', true); await wait(380); }
       }
       else if (ev.type === 'raise') { v.lying = false; v.st = {}; fx('cheer', v, 800); float(v, 'Back up!', '#ffd27a', true); say(`${name(ev.id)} is back on their feet.`); await wait(260); }
+      else if (ev.type === 'counter') { fx('slash', S.view[ev.target] || v, 300); float(v, 'Counter!', '#ffd27a', true); sfx('hit'); say(`${name(ev.id)} strikes back.`); await wait(260); }
       else if (ev.type === 'round') { S.round = ev.n; paintTop(); }
       else if (ev.type === 'turn') { paintTop(); await wait(90); }
     }
@@ -872,27 +891,59 @@
       if (k === 'push') bits.push('pushes back'); else if (k === 'step') bits.push('steps back'); else if (k === 'bold') bits.push('next attack +' + a.fx[k]);
       else bits.push((STATUS[k] || [k])[0].toLowerCase() + ' ' + a.fx[k]);
     }
-    if (a.shape === 'line') bits.push('down the line'); if (a.shape === 'burst') bits.push('and those beside');
+    if (a.shape === 'line') bits.push('down the line'); if (a.shape === 'burst') bits.push(a.radius > 1 ? `and all within ${a.radius} of them` : 'and those beside');
     return bits.join(', ');
+  }
+  // What a citizen holds: the kind of weapon and the shield change what their abilities do (the server's
+  // lib/gear_kinds.js). One short line; the full words are in its title.
+  function gearBits(u) {
+    const g = u && u.gear, bits = [];
+    if (!g) return '';
+    if (g.weapon) bits.push(`<span title="${esc(g.weapon.says || '')}">${esc(g.weapon.icon || '')} ${esc(g.weapon.name)}</span>`);
+    if (g.shield) bits.push(`<span title="${esc(g.shield.says || '')}">${esc(g.shield.icon || '')} ${esc(g.shield.name)}</span>`);
+    return bits.join(' · ');
+  }
+  // The line under a citizen's facts: what they hold, and the passive they carry (the server's lib/tactics_study.js).
+  function gearLine(u) {
+    const p = u && u.passive_info, parts = [gearBits(u), p ? `<span class="kwtc-passive" title="${esc(p.says || '')}">${esc(p.icon || '')} ${esc(p.name)}</span>` : ''].filter(Boolean);
+    return parts.length ? `<div class="kwtc-card-gear">${parts.join(' · ')}</div>` : '';
   }
   function unitCard(u, v) {
     const ails = Object.keys(STATUS).filter(s => (u.st[s] || 0) > 0).map(s => `<span class="kwtc-ail">${ASSETS.status[s] ? `<img class="kwtc-ic" src="/assets/tactics/status/${esc(ASSETS.status[s])}" alt="" draggable="false"> ` : ''}${esc(STATUS[s][0])} ${u.st[s]}</span>`).join('');
     return `<div class="kwtc-card is-${u.side}"><div class="kwtc-card-name"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[u.cls] || CLASS_COLOUR.creature}"></span><b>${esc(u.name)}</b> <span>${esc(u.label || (u.side === 'enemy' ? 'Creature' : ''))}</span></div>`
       + `<div class="kwtc-bar" role="img" aria-label="Health ${u.hp} of ${u.maxHp}"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i><em>${u.hp} / ${u.maxHp}</em></div>`
-      + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}</div></div>`;
+      + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}</div>${gearLine(u)}</div>`;
   }
   function forecastHtml(u, a, tile) {
     const lines = E().forecast(S.state, u, a, tile.x, tile.y);
     if (!lines.length) return '';
     return `<div class="kwtc-fore">` + lines.map(l => {
       const bits = [];
-      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ' from behind (+50%)' : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
+      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ` from behind (+${Math.round(((a.back || 1.5) - 1) * 100)}%)` : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
       if (l.block) bits.push(`<b>${l.block} block</b>`);
       if (l.heal != null) bits.push(l.raise ? `<b>stands back up with ${l.heal}</b>` : `<b>heals ${l.heal}</b>`);
       for (const k of Object.keys(l.fx)) bits.push(k === 'push' ? 'pushed back' : k === 'bold' ? `next attack +${l.fx[k]}` : `${(STATUS[k] || [k])[0].toLowerCase()} ${l.fx[k]}`);
       return `<div>${esc(l.name)}: ${bits.join(', ')}</div>`;
     }).join('') + `</div>`;
   }
+  // ── Schools (docs/TACTICS.md §6) ────────────────────────────────────────
+  // A citizen brings everything their class has taught them, and up to five
+  // from a second school at three-quarters strength (marked `off`). The
+  // action bar has a tab for each, so the row stays short on a phone.
+  const SCHOOLS = { basics: ['Basics', '🪵'], arms: ['Arms', '⚔️'], archery: ['Archery', '🏹'], wild: ['Wild magic', '🔮'], hearth: ['Hearth magic', '🔥'], field: ['Fieldcraft', '🧰'] };
+  // The tabs of a unit: its own school (Basics and a trade's trick with it), then its second. One tab when it has no second.
+  function tabsOf(u) {
+    // The Attack has a button of its own (attackOf): it is in no tab.
+    const list = ((u && u.abilities) || []).filter(a => !a.attack), own = list.filter(a => !a.off), off = list.filter(a => a.off);
+    const main = (u && u.school) || (own.find(a => a.school && a.school !== 'basics') || own[0] || {}).school || 'basics';
+    const tabs = [{ key: 'own', school: main, name: (SCHOOLS[main] || SCHOOLS.basics)[0], icon: (SCHOOLS[main] || SCHOOLS.basics)[1], list: own }];
+    if (off.length) { const sec = (u.second && u.second.school) || off[0].school || 'basics'; tabs.push({ key: 'second', school: sec, name: (SCHOOLS[sec] || SCHOOLS.basics)[0], icon: (SCHOOLS[sec] || SCHOOLS.basics)[1], list: off, off: true }); }
+    return tabs;
+  }
+  // A citizen's Attack: their class's own (a Guard's Strike, an Archer's shot, a caster's feeble knock). Foes have none marked.
+  const attackOf = u => ((u && u.abilities) || []).find(a => a.attack) || null;
+  // The tab that is open for this unit (its own, until the player opens the other).
+  function tabOf(u) { const tabs = tabsOf(u); return tabs.find(t => t.key === S.tab[u.id]) || tabs[0]; }
   function paintPanel() {
     if (!S.el || !S.state) return;
     const e = E(), st = S.state, u = e.current(st), who = S.el.querySelector('.kwtc-who'), acts = S.el.querySelector('.kwtc-acts'), hint = S.el.querySelector('.kwtc-hint');
@@ -900,8 +951,13 @@
     const look = S.info && !S.info.down ? S.info : u;
     who.innerHTML = unitCard(look, S.view[look.id]);
     if (S.info && S.info !== u) {
-      acts.innerHTML = `<div class="kwtc-kit">${(look.abilities || []).map(a => `<span class="kwtc-kit-a">${ico(a)} <b>${esc(a.name)}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')}`
-        + (look.locked || []).map(x => `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(x.name)}</b> <i>at level ${x.at}</i></span>`).join('') + `</div>`
+      // Everything they brought, school by school; the second school's are marked as working at three-quarters.
+      const lookAtk = attackOf(look);
+      acts.innerHTML = `<div class="kwtc-kit">${lookAtk ? `<span class="kwtc-kit-a is-attack">${ico(lookAtk)} <b>Attack${lookAtk.star ? ' ✦' : ''}</b> ${esc(lookAtk.name)}: ${esc(effectText(lookAtk))} <i>${esc(reachText(lookAtk))}</i></span>` : ''}${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
+          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
+        + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
+        + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '')
+        + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -916,15 +972,26 @@
       return;
     }
     const a = S.mode === 'target' ? e.ability(u, S.ability) : null;
-    acts.innerHTML = (u.abilities || []).map((x, i) => {
+    const tabs = tabsOf(u), tab = tabOf(u), atk = attackOf(u);
+    // The Attack: a row of its own above the schools, always there whichever school is open. Its key is A.
+    const attackBtn = !atk ? '' : (() => {
+      const can = e.canUse(st, u, atk), none = can.ok && !e.targetTiles(st, u, atk).length, why = !can.ok ? 'done' : none ? 'no one in reach' : '';
+      return `<div class="kwtc-attack-row"><button type="button" class="kwtc-act kwtc-attack${a === atk ? ' is-on' : ''}" data-kwt="ability" data-key="${esc(atk.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === atk}" title="${esc(atk.desc || '')}">`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(atk)}</span><span class="kwtc-act-n">Attack${atk.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
+        + `<span class="kwtc-act-t">${esc(`${atk.name}: ${why || effectText(atk)}`)} <i>${esc(reachText(atk))}</i></span><kbd aria-hidden="true">A</kbd></button></div>`;
+    })();
+    acts.innerHTML = attackBtn + (tabs.length > 1 ? `<div class="kwtc-schools" role="tablist" aria-label="Schools of abilities">` + tabs.map(t =>
+        `<button type="button" role="tab" class="kwtc-school${t.key === tab.key ? ' is-on' : ''}" data-kwt="school" data-school="${t.key}" aria-selected="${t.key === tab.key}" title="${t.off ? 'From an old career: these work at three-quarters strength' : 'What this class has taught'}">`
+        + `<span aria-hidden="true">${t.icon}</span> ${esc(t.name)} <i>${t.list.length}</i>${t.off ? ' <em>¾</em>' : ''}</button>`).join('') + `<kbd aria-hidden="true">0</kbd></div>` : '')
+      + tab.list.map((x, i) => {
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
       const why = !can.ok ? (can.why === 'cooldown' ? `ready in ${can.turns}` : can.why === 'spent' ? 'used up' : 'done') : none ? 'no one in reach' : '';
-      return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
-        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}</span>`
+      return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}${x.off ? ' is-off' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}${x.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
-      // What this citizen has yet to learn, in its place in the row: greyed, with the class level that brings it.
-      + (u.locked || []).map(x => `<div class="kwtc-act is-locked" aria-label="${esc(x.name)}: learned at ${esc(u.label || 'class')} level ${x.at}">`
+      // The next ability this citizen's class will teach, at the end of their own row: greyed, with the level that brings it.
+      + (u.next && !tab.off ? [u.next] : []).map(x => `<div class="kwtc-act is-locked" aria-label="${esc(x.name)}: learned at ${esc(u.label || 'class')} level ${x.at}">`
         + `<span class="kwtc-act-i" aria-hidden="true">🔒</span><span class="kwtc-act-n">${esc(x.name)}</span><span class="kwtc-act-t">learned at level ${x.at}</span><span class="kwtc-act-r">${esc(u.label || '')} level ${u.class_level || 1} now</span></div>`).join('')
       + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
       + (a || S.pick ? `<button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button>`
@@ -1022,9 +1089,12 @@
         if (!res.ok || !d.ok) return resync(b, d.battle);
         b.saved = d.battle.count; b.status = d.battle.status;
         if (d.dungeon) b.dungeon = d.dungeon;      // a dungeon's battle that has ended: the run after it, what was found
+        if (d.quest) b.quest = d.quest;            // a quest's battle that has ended: what it paid, who came back better
         // What the battle taught, and any injury rolls; a repeated answer carries them in the battle's record.
         const kept = d.battle.result || {};
         if (d.rewards || kept.rewards) b.rewards = d.rewards || kept.rewards;
+        // Abilities used often enough in battle to be mastered with this one (the server's lib/tactics_mastery.js).
+        if ((d.mastered && d.mastered.length) || (kept.mastered && kept.mastered.length)) b.mastered = d.mastered && d.mastered.length ? d.mastered : kept.mastered;
         if ((d.rolls && d.rolls.length) || (kept.rolls && kept.rolls.length)) b.rolls = d.rolls && d.rolls.length ? d.rolls : kept.rolls;
         if (mark && d.battle.count === n + 1 && d.battle.check !== mark) return resync(b, d.battle);
         noteSaved();
@@ -1062,6 +1132,13 @@
     if (found && dn) {
       const f = dn.found, bits = f ? [f.wealth ? `${f.wealth} wealth` : ''].concat((f.items || []).map(i => `${i.qty} × ${i.name || i.item}`)).filter(Boolean) : [];
       found.textContent = (bits.length ? `Found: ${bits.join(', ')}. ` : '') + (dn.ended ? (dn.run && dn.run.status === 'cleared' ? 'The dungeon is cleared!' : '') : 'The way on is open.');
+    }
+    // A quest's fight: what it paid and what the foes carried, and that the quest goes on.
+    const qd = b.quest;
+    if (found && qd && qd.outcome === 'victory') {
+      const bits = [qd.wealth ? `${qd.wealth} wealth` : ''].concat((qd.items || []).map(i => `${i.qty} × ${i.name || i.item_key}`)).filter(Boolean);
+      const better = (qd.upgraded || []).map(u => u.name);
+      found.textContent = (bits.length ? `Won: ${bits.join(', ')}. ` : '') + (better.length ? `${better.join(' and ')} came back a better fighter. ` : '') + 'The quest goes on.';
     }
     aftermath();
   }
@@ -1198,7 +1275,7 @@
         if (!li.querySelector('.kwtc-up')) line.insertAdjacentHTML('afterend', '<span class="kwtc-up">Level up!</span>');
         // What that level taught (the class ladder), once the bar has reached it.
         for (const x of (r.learned || []).filter(x => x.at <= level && !li.querySelector(`.kwtc-learned[data-key="${x.key}"]`))) {
-          (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned" data-key="${esc(x.key)}">Learned: ${esc(x.icon || '')} <b>${esc(x.name)}</b></span>`);
+          (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned" data-key="${esc(x.key)}">Learned: ${esc(x.icon || '')} <b>${esc(x.name)}</b>${x.spare ? ' <i>ready it on their Abilities page</i>' : ''}</span>`);
         }
       }
       lvl.textContent = `${r.class_label}${r.own ? '' : ' training'} · level ${level}`;
@@ -1255,6 +1332,15 @@
       A.busy = Promise.all((b.rewards.party || []).map((r, i) => { const li = rowOf(r.citizen_id); return li ? growXp(li, r, i * 160) : null; }));
       await A.busy;
     }
+    // Mastered with this battle: said under the citizen, won or lost.
+    if (!A.mastered && b.mastered && b.mastered.length && (!won || A.xp)) {
+      A.mastered = true;
+      for (const m of b.mastered) {
+        const li = rowOf(m.citizen_id);
+        if (li && !li.querySelector(`.kwtc-mastered[data-key="${m.key}"]`)) (li.querySelector('.kwtc-hero-what') || li).insertAdjacentHTML('beforeend', `<span class="kwtc-learned kwtc-mastered" data-key="${esc(m.key)}">Mastered: ${esc(m.icon || '')} <b>${esc(m.name)} ✦</b> <i>a fifth stronger from now on</i></span>`);
+      }
+      sfx('buff');
+    }
     if (!A.rolls && b.rolls && b.rolls.length && (!won || A.xp)) {
       A.rolls = true;
       if (A.busy) await A.busy;
@@ -1276,20 +1362,23 @@
     }
     S.ended = now(); S.busy = false; S.mode = 'idle';
     music(false); sfx(st.status === 'victory' ? 'victory' : 'defeat');
-    const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon;
+    const secs = Math.round((S.ended - S.started) / 1000), won = st.status === 'victory', inDungeon = !!S.setup.dungeon, inQuest = !!S.setup.quest;
     const left = st.units.filter(u => u.side === 'player' && !u.down), all = st.units.filter(u => u.side === 'player').length;
     S.after = { ready: false, xp: false, rolls: false, busy: null }; S.facesTried = false;
     box.innerHTML = `<div class="kwtc-splash is-${won ? 'won' : 'lost'}" aria-hidden="true"><span>${won ? 'Victory' : 'Defeat'}</span></div>`
       + `<div class="kw-box kwtc-end-box" role="group" aria-label="${won ? 'Victory' : 'Defeat'}"><div class="kw-box-title">${won ? '🏆 Victory' : '💀 Defeat'}</div>`
       + `<p class="kwtc-end-sum">${st.round} round${st.round === 1 ? '' : 's'} · ${st.stats.turns} of your turns · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</p>`
       + `<ul class="kwtc-roster">${heroRows(st, won)}</ul>`
-      + `<p class="kwtc-end-note kw-note" role="status">${won ? '' : inDungeon ? 'The dungeon run is over.' : 'A practice field: nobody is hurt and nothing is lost.'}</p>`
+      + `<p class="kwtc-end-note kw-note" role="status">${won ? '' : inDungeon ? 'The dungeon run is over.' : inQuest ? 'The party is driven off, and the quest has failed.' : 'A practice field: nobody is hurt and nothing is lost.'}</p>`
       // Who is down comes along: a rest stands them up, and so does a heal in the next fight.
       + (inDungeon && won && left.length < all ? `<p class="kwtc-fallen">${esc(st.units.filter(u => u.side === 'player' && u.down).map(u => u.name).join(' and '))} ${all - left.length === 1 ? 'is' : 'are'} down, and will be carried on. A rest stands them up; so does healing them in the next fight.</p>` : '')
-      + (inDungeon ? `<p class="kwtc-found" role="status"></p>` : '')
+      + (inDungeon || inQuest ? `<p class="kwtc-found" role="status"></p>` : '')
       + `<p class="kwtc-saved kw-note" role="status"></p>`
       // A dungeon's battle is not fought again from here: the only way on is back to the dungeon.
-      + `<div class="kwtc-confirm">` + (inDungeon
+      + `<div class="kwtc-confirm">` + (inQuest
+        // A quest's battle is fought once: the way on is back to the town.
+        ? `<button type="button" class="kw-btn primary" data-kwt="close">Back to the town</button>`
+        : inDungeon
         ? `<button type="button" class="kw-btn primary" data-kwt="close">${won ? 'Back to the dungeon' : 'See how it ended'}</button>`
         : `<button type="button" class="kw-btn primary" data-kwt="again">Same battle again</button><button type="button" class="kw-btn" data-kwt="new">A new field</button><button type="button" class="kw-btn quiet" data-kwt="close">Leave</button>`)
       + `</div></div>`;
@@ -1348,6 +1437,7 @@
       else if (k === 'zoom-in') zoomBy(1.35);
       else if (k === 'zoom-out') zoomBy(1 / 1.35);
       else if (k === 'ability') choose(b.getAttribute('data-key'));
+      else if (k === 'school') { const cur = E().current(S.state); if (cur) { S.tab[cur.id] = b.getAttribute('data-school'); sfx('select'); paintPanel(); } }
       else if (k === 'end') askFacing();
       else if (k === 'undo') { if (E().undoMove(S.state)) { send({ t: 'undo' }); syncView(); S.pick = null; paint(); } }
       else if (k === 'auto') autoFinish();
@@ -1443,7 +1533,10 @@
     }
     if ((ev.key === 'Enter' || ev.key === ' ') && S.cursor) { ev.preventDefault(); return tapTile(S.cursor.x, S.cursor.y, true); }
     const u = e.current(st);
-    if (/^[1-9]$/.test(ev.key) && u && u.side === 'player') { const a = (u.abilities || [])[Number(ev.key) - 1]; if (a) { ev.preventDefault(); choose(a.key); } }
+    // A: the Attack. 1 to 9: the abilities of the open school; 0: the other school.
+    if ((ev.key === 'a' || ev.key === 'A') && u && u.side === 'player' && attackOf(u)) { ev.preventDefault(); choose(attackOf(u).key); }
+    if (/^[1-9]$/.test(ev.key) && u && u.side === 'player') { const a = tabOf(u).list[Number(ev.key) - 1]; if (a) { ev.preventDefault(); choose(a.key); } }
+    if (ev.key === '0' && u && u.side === 'player' && tabsOf(u).length > 1) { ev.preventDefault(); S.tab[u.id] = tabOf(u).key === 'own' ? 'second' : 'own'; paintPanel(); }
     if ((ev.key === 'e' || ev.key === 'E') && u && u.side === 'player') { ev.preventDefault(); askFacing(); }
   }
   function close(quiet) {
@@ -1644,11 +1737,17 @@
     music(false);
     // Walking out of a battle that is not over ends it on the server too.
     // (A dungeon's battle is only stepped away from: it stays open, and fleeing is done from the dungeon's own screen.)
-    const b = S.battle, inDungeon = !!(S.setup && S.setup.dungeon);
-    if (!inDungeon && b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
+    // A quest's battle is stepped away from in the same way: its quest still waits on it, in the Battles list.
+    const b = S.battle, inDungeon = !!(S.setup && S.setup.dungeon), inQuest = !!(S.setup && S.setup.quest);
+    if (!inDungeon && !inQuest && b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
     S.el.classList.add('is-leaving');
-    const after = inDungeon && b ? b.queue : Promise.resolve();
-    global.setTimeout(() => { S.leaving = false; close(); if (inDungeon) after.then(() => { if (global.KWDungeon && global.KWDungeon.open) global.KWDungeon.open(); }); }, still() ? 0 : 300);
+    const after = (inDungeon || inQuest) && b ? b.queue : Promise.resolve();
+    global.setTimeout(() => {
+      S.leaving = false; close();
+      if (inDungeon) after.then(() => { if (global.KWDungeon && global.KWDungeon.open) global.KWDungeon.open(); });
+      // Back in the town: the quest, the Battles list, the stores and the citizens are read again.
+      if (inQuest) after.then(() => { for (const fn of ['refreshBattleBadge', 'refreshActiveQuests', 'refreshResources', 'loadCitizens']) { try { if (typeof global[fn] === 'function') global[fn](); } catch (e) { /* not loaded */ } } });
+    }, still() ? 0 : 300);
   }
 
   // ── Dev Tools → 💀 Dungeons → the tactics battle ──────────────────────────
@@ -1665,7 +1764,7 @@
     if (!o) return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle</div><div class="cheat-desc">Loading…</div>`;
     const sel = (id, list, val, label) => `<label>${esc(label)} <select class="ce-input" data-kwt-dev="${id}">${list.map(x => `<option value="${esc(x.key)}"${x.key === val ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>`;
     return `<div class="cheat-section-label" style="margin-top:10px">Tactics battle</div>`
-      + `<div class="cheat-desc">A battle on a small board: walk, face, strike from behind or from above. It uses four of your grown-up citizens with the classes chosen here, costs nothing and changes nothing.</div>`
+      + `<div class="cheat-desc">A practice battle: four of your grown-up citizens with the classes chosen here, against whoever is chosen. It costs nothing and changes nothing. (A quest's battle is fought the same way, from the Battles list.)</div>`
       + `<div class="kwdg-dev-row">${SLOTS.map((s, i) => sel('class' + i, o.classes.map(c => ({ key: c.key, label: `${c.icon} ${c.label}` })), p.classes[i], s)).join('')}</div>`
       + `<div class="kwdg-dev-row">${sel('level', o.levels, p.level, 'Their level')}${sel('tier', o.tiers.map(t => ({ key: t.key, label: `${t.skull} ${t.name}` })), p.tier, 'Skull')}`
       + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}${sel('band', o.bands || [{ key: '', label: 'Whoever lives in that land' }], p.band || '', 'Whose')}`
@@ -1673,6 +1772,9 @@
       + `${sel('way', [{ key: 'any', label: 'A different one each time' }].concat(Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label }))), p.way || 'any', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
       + (DEV.open ? `<button type="button" class="cheat-all-btn" data-kwt-dev="resume">↩ Pick up the battle that is open: ${esc(DEV.open.setup.name || 'a battle')} (${DEV.open.count} choice${DEV.open.count === 1 ? '' : 's'} in)</button>` : '')
+      + `<div class="cheat-section-label" style="margin-top:10px">Study</div>`
+      + `<div class="cheat-desc">A lesson at a class building takes 2, 6 or 12 hours. This finishes every lesson your citizens are studying.</div>`
+      + `<button type="button" class="cheat-all-btn" data-kwt-dev="study">📖 Finish studies now</button>`
       + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
   }
   // Fill the box Dev Tools gives us, and keep what was chosen.
@@ -1684,16 +1786,21 @@
       box._kwt = true;
       const keep = ev => {
         const k = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-kwt-dev');
-        if (!k || k === 'start') return;
+        if (!k || k === 'start' || k === 'resume') return;
         if (/^class\d$/.test(k)) p.classes[Number(k.slice(5))] = ev.target.value; else p[k] = ev.target.value;
         try { global.localStorage.setItem('kwt_dev_pick', JSON.stringify(p)); } catch (e) { /* private window */ }
       };
       box.addEventListener('change', keep); box.addEventListener('input', keep);
       box.addEventListener('click', async ev => {
-        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"]');
+        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"], [data-kwt-dev="study"]');
         if (!b) return;
         const msg = box.querySelector('[data-kwt-dev="msg"]');
         try {
+          if (b.getAttribute('data-kwt-dev') === 'study') {
+            const res = await global.apiFetch('/api/tactics/admin/study/finish', { method: 'POST' }), d = await res.json().catch(() => ({}));
+            if (msg) msg.textContent = res.ok && d.ok ? `${d.finished} lesson${d.finished === 1 ? '' : 's'} finished.` : '⚠️ ' + (d.error || 'That did not work.');
+            return;
+          }
           if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
           await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });
@@ -1719,6 +1826,8 @@
     demo: (setup, mount, o) => open(setup, null, { mount, demo: true, onEnd: o && o.onEnd, sound: !!(o && o.sound) }),
     // For the proofs and the browser checks.
     _state: S, _geom: G, _tapTile: tapTile, _choose: choose, _confirm: commit, _endTurn: endTurn, _tileXY: tileXY, _standXY: standXY, _tileAtPoint: tileAtPoint, _rotate: rotate, _view: view, _zoomAt: zoomAt, _askFacing: askFacing, _aimFace: aimFace, _faceSpots: faceSpots, _assets: ASSETS, _sfx: sfx, _auto: autoFinish, _send: send, _resync: resync, _lookOf: lookOf, _LOOK: LOOK, _PAINT: PAINT, _fx: fx, _ENTRANCES: ENTRANCES, _way: entrance, _tracksFor: tracksFor, _curtain: curtain,
+    // For the Abilities page on a citizen (js/abilities.js): the same pictures and words as the battle's own row.
+    loadAssets, icon: ico, effectText, reachText,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

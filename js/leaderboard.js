@@ -21,6 +21,7 @@
       B('wealth', 'Wealth', { icon: '🪙', title: 'No treasuries yet', text: 'Trade, quest and build to fill your coffers.' }),
       B('population', 'Population', { icon: '👥', title: 'No citizens yet', text: 'Grow your settlement and your people will follow.' }),
       B('greatworks', 'Great Works', { icon: '🏛️', title: 'No wonders yet', text: 'Grow to a City and raise the first Wonder.' }),
+      B('trophies', 'Dungeon Trophies', { icon: '🏆', title: 'No trophies yet', text: 'Be the first town to clear a dungeon on the map and its boss\'s trophy is yours.' }),
     ]},
     { group: 'Citizens', items: [
       B('skilled', 'Most Skilled', { icon: '🎓', title: 'No careers yet', text: 'Give citizens jobs; they level up as they work.' }, { citizen: true }),

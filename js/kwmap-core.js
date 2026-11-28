@@ -299,6 +299,8 @@ window.KWMap = (() => {
       if (window.KWTravelLayer && this._uifxCtx) window.KWTravelLayer.draw(this._uifxCtx, prep.W, prep.H, r, camera, now);
       // A Withered raid on its way (js/kwmap-raid.js): red trail and target ring.
       if (window.KWRaidLayer && this._uifxCtx) window.KWRaidLayer.draw(this._uifxCtx, prep.W, prep.H, r, camera, now);
+      // Dungeons the player has found (js/kwmap-dungeons.js): a skull in its colour.
+      if (window.KWDungeonLayer && this._uifxCtx) window.KWDungeonLayer.draw(this._uifxCtx, prep.W, prep.H, r, camera, now);
     },
 
     requestRender() {

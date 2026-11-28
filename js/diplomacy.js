@@ -373,10 +373,7 @@ function _renderDiplomacyModalBody(data, npc, npcId, trust, level, status, rel) 
     </div>
     ${_tributeHtml(npcId, data.tribute)}
     <div class="dm-section diplo-actions">${actionsHtml}</div>
-    ${trust > 0 && window.KWCards ? `<div class="dm-section" id="dm-cards-${npcId}"></div>` : ''}
   `;
-  // An Allied village teaches two combat cards a week (js/cards.js).
-  if (trust > 0 && window.KWCards) KWCards.loadVillage(npcId);
 }
 
 // Allied: once a day the village sends a little of what it makes.
