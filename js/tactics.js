@@ -42,7 +42,52 @@
     mud:   { top: ['#8a7a52', '#84744c', '#907f58'], left: '#63573a', right: '#52482f' },
     stone: { top: ['#a39c8e', '#aaa396', '#9c9587'], left: '#7a7468', right: '#666056' },
     water: { top: ['#4f8fc4', '#5797ca', '#4a89bd'], left: '#3a6d98', right: '#305c82' },
+    // Ground that slows (the engine's "Ground" rule), and what winter makes of water.
+    shallows: { top: ['#79b0d2', '#82b7d7', '#72aacd'], left: '#4f86a8', right: '#437592' },
+    mire:     { top: ['#5f5238', '#665840', '#594c33'], left: '#463c28', right: '#3a3120' },
+    snow:     { top: ['#eef3f6', '#e6edf2', '#f4f7f9'], left: '#b9c6cf', right: '#a3b2bd' },
+    ice:      { top: ['#bfe0ee', '#c8e6f2', '#b6d9e9'], left: '#86b3c7', right: '#739fb3' },
   };
+  // The season the map was made for colours the open ground and the trees.
+  const SEASON_GROUND = {
+    spring: { grass: { top: ['#8cc060', '#94c767', '#85b95a'], left: '#628a40', right: '#527634' } },
+    autumn: { grass: { top: ['#a39a4c', '#aba253', '#9b9246'], left: '#746d36', right: '#625c2c' } },
+    winter: {
+      grass: { top: ['#b9c9b4', '#c2d0bd', '#b1c2ad'], left: '#8a9a86', right: '#768673' },
+      mud:   { top: ['#a39a88', '#aba290', '#9b9280'], left: '#786f60', right: '#665e51' },
+      stone: { top: ['#bcbcb8', '#c4c4c0', '#b4b4b0'], left: '#8e8e8a', right: '#7a7a76' },
+    },
+  };
+  const LEAVES = ['#c8642a', '#d98a2b', '#b5451f', '#e0a83a'];
+  const TREE = {
+    spring: [[0, -24, 15, '#5a9a4a'], [-8, -30, 11, '#6fb05c'], [8, -31, 11, '#6fb05c'], [0, -39, 11, '#8cc474'], [-6, -27, 2.2, '#f3c6d8'], [7, -34, 2.2, '#f3c6d8'], [1, -41, 2.2, '#f7dbe6']],
+    summer: [[0, -24, 15, '#3f7a3a'], [-8, -30, 11, '#4b8a43'], [8, -31, 11, '#4b8a43'], [0, -39, 11, '#5c9c50']],
+    autumn: [[0, -24, 15, '#b5651d'], [-8, -30, 11, '#c9772b'], [8, -31, 11, '#c0492b'], [0, -39, 11, '#d98a2b']],
+    winter: [[0, -24, 14, '#8b958f'], [-8, -30, 10, '#dfe7ec'], [8, -31, 10, '#dfe7ec'], [0, -39, 10, '#f1f5f8']],
+  };
+  // The seasons and the kinds of ground, in words (the rules are the engine's).
+  const SEASON = {
+    spring: ['Spring', '🌱', 'The stream runs high and keeps one ford; there is mud after the thaw.'],
+    summer: ['Summer', '☀️', 'The land as it is.'],
+    autumn: ['Autumn', '🍂', 'Leaves lie under the trees: stand still on them to hide.'],
+    winter: ['Winter', '❄️', 'Water is ice and can be walked; drifts of snow slow the way.'],
+  };
+  const COVER_SAYS = 'cover: whoever stands beside one takes a quarter less from shots that come from its side';
+  const KIND = {
+    tree: ['Tree', '🌳', COVER_SAYS], rock: ['Rock', '🪨', COVER_SAYS], water: ['Water', '💧', 'cannot be crossed'],
+    shallows: ['Shallows', '🌊', 'two steps to wade into'], mire: ['Mire', '🟤', 'two steps to walk into'], snow: ['Deep snow', '❄️', 'two steps to walk into'],
+    ice: ['Ice', '🧊', 'frozen hard: it walks as open ground'],
+    leaves: ['Fallen leaves', '🍂', 'end a turn here without moving or striking and you are hidden: no foe further than one tile away can single you out'],
+  };
+  const seasonOf = () => (S.state && S.state.map && SEASON[S.state.map.season] ? S.state.map.season : 'summer');
+  // What the ground at a tile does, in a line; '' for open ground with nothing beside it.
+  function groundNote(x, y) {
+    const e = E(), m = S.state.map, t = e.tileAt(m, x, y);
+    if (!t) return '';
+    if (KIND[t.t]) return `${KIND[t.t][1]} ${KIND[t.t][0]}: ${KIND[t.t][2]}.`;
+    if (e.DIR_KEYS.some(d => { const o = e.tileAt(m, x + e.DIRS[d][0], y + e.DIRS[d][1]); return o && e.COVER[o.t]; })) return '🌳 Beside cover: a quarter less from shots that come from that side.';
+    return '';
+  }
   const INK = 'rgba(30, 20, 10, 0.28)';
   const TINT = { move: 'rgba(90, 160, 255, 0.42)', path: 'rgba(255, 255, 255, 0.5)', range: 'rgba(255, 214, 120, 0.2)', foe: 'rgba(240, 90, 70, 0.55)', friend: 'rgba(120, 220, 140, 0.55)', danger: 'rgba(240, 90, 70, 0.26)' };
   const TEAM = { player: '#f0cf7a', enemy: '#e0705f' };
@@ -269,8 +314,11 @@
     c.closePath();
   }
   function drawTile(c, x, y, t, tint, tNow) {
-    const k = G.scale, wet = t.t === 'water', g = GROUND[wet ? 'water' : (GROUND[t.t] ? t.t : (t.t === 'tree' || t.t === 'rock') ? ((E().LANDS[S.state.map.land] || {}).ground || 'grass') : 'grass')];
-    const p = tileXY(x, y, t.h - (wet ? 0.25 : 0)), drop = (t.h + 0.9) * G.lift * k;
+    const k = G.scale, wet = t.t === 'water' || t.t === 'shallows', season = seasonOf();
+    // A tree, a rock or fallen leaves stand on the land's own ground; the season colours it.
+    const kind = GROUND[t.t] ? t.t : ((E().LANDS[S.state.map.land] || {}).ground || 'grass');
+    const g = (SEASON_GROUND[season] && SEASON_GROUND[season][kind]) || GROUND[kind];
+    const p = tileXY(x, y, t.h - (t.t === 'water' ? 0.25 : t.t === 'shallows' ? 0.12 : t.t === 'ice' ? 0.1 : 0)), drop = (t.h + 0.9) * G.lift * k;
     // The two faces towards the viewer, down to the slab the board sits on.
     c.fillStyle = g.left;
     c.beginPath(); c.moveTo(p.x - G.tw / 2 * k, p.y + G.th / 2 * k); c.lineTo(p.x, p.y + G.th * k); c.lineTo(p.x, p.y + G.th * k + drop); c.lineTo(p.x - G.tw / 2 * k, p.y + G.th / 2 * k + drop); c.closePath(); c.fill();
@@ -284,6 +332,18 @@
       c.strokeStyle = 'rgba(255,255,255,0.35)'; c.beginPath();
       c.moveTo(p.x - 10 * k + ph * 4 * k, p.y + G.th / 2 * k); c.lineTo(p.x - 2 * k + ph * 4 * k, p.y + G.th / 2 * k); c.stroke();
     }
+    const mid = p.y + G.th / 2 * k, spot = (i, r) => ({ x: p.x + (((hash(x + i, y) % 21) - 10) * 1.6) * k, y: mid + (((hash(x, y + i) % 11) - 5) * 0.9) * k, r: r * k });
+    if (t.t === 'mire') {             // dark puddles
+      c.fillStyle = 'rgba(30,22,10,0.45)';
+      for (let i = 1; i <= 3; i++) { const q = spot(i, 5); c.beginPath(); c.ellipse(q.x, q.y, q.r, q.r * 0.45, 0, 0, 6.3); c.fill(); }
+    } else if (t.t === 'snow') {      // the shadowed hollows of a drift
+      c.fillStyle = 'rgba(120,150,175,0.35)';
+      for (let i = 1; i <= 3; i++) { const q = spot(i, 6); c.beginPath(); c.ellipse(q.x, q.y, q.r, q.r * 0.4, 0, 0, 6.3); c.fill(); }
+    } else if (t.t === 'ice') {       // a crack and a glint
+      c.strokeStyle = 'rgba(255,255,255,0.7)'; c.beginPath(); c.moveTo(p.x - 12 * k, mid + 1 * k); c.lineTo(p.x - 2 * k, mid - 2 * k); c.lineTo(p.x + 9 * k, mid + 2 * k); c.stroke();
+    } else if (t.t === 'leaves') {    // a scatter of fallen leaves
+      for (let i = 1; i <= 9; i++) { const q = spot(i, 2.4); c.fillStyle = LEAVES[hash(x + i, y + i) % LEAVES.length]; c.beginPath(); c.ellipse(q.x, q.y, q.r, q.r * 0.6, (i % 3) * 0.9, 0, 6.3); c.fill(); }
+    }
     for (const col of tint) { c.fillStyle = col; diamond(c, p, k); c.fill(); }
     return p;
   }
@@ -292,7 +352,7 @@
     c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(cx, cy + 2 * k, 15 * k, 6 * k, 0, 0, 6.3); c.fill();
     if (t.t === 'tree') {
       c.fillStyle = '#6b4a2e'; c.fillRect(cx - 3 * k, cy - 16 * k, 6 * k, 18 * k);
-      const blobs = [[0, -24, 15, '#3f7a3a'], [-8, -30, 11, '#4b8a43'], [8, -31, 11, '#4b8a43'], [0, -39, 11, '#5c9c50']];
+      const blobs = TREE[seasonOf()] || TREE.summer;
       for (const [dx, dy, r, col] of blobs) { c.fillStyle = col; c.beginPath(); c.arc(cx + dx * k, cy + dy * k, r * k, 0, 6.3); c.fill(); }
       c.strokeStyle = 'rgba(20,40,20,0.35)'; c.beginPath(); c.arc(cx, cy - 24 * k, 15 * k, 0.3, 2.8); c.stroke();
     } else {
@@ -300,6 +360,7 @@
       c.moveTo(cx - 14 * k, cy + 2 * k); c.lineTo(cx - 9 * k, cy - 14 * k); c.lineTo(cx + 2 * k, cy - 19 * k); c.lineTo(cx + 13 * k, cy - 9 * k); c.lineTo(cx + 14 * k, cy + 3 * k); c.closePath(); c.fill();
       c.fillStyle = '#a9a396'; c.beginPath(); c.moveTo(cx - 9 * k, cy - 14 * k); c.lineTo(cx + 2 * k, cy - 19 * k); c.lineTo(cx + 3 * k, cy - 6 * k); c.lineTo(cx - 6 * k, cy - 3 * k); c.closePath(); c.fill();
       c.strokeStyle = 'rgba(30,25,20,0.4)'; c.stroke();
+      if (seasonOf() === 'winter') { c.fillStyle = '#f1f5f8'; c.beginPath(); c.moveTo(cx - 9 * k, cy - 14 * k); c.lineTo(cx + 2 * k, cy - 19 * k); c.lineTo(cx + 9 * k, cy - 12 * k); c.lineTo(cx - 1 * k, cy - 12 * k); c.closePath(); c.fill(); }      // a cap of snow
     }
   }
   // A fallen citizen: lying on their side where they fell, greyed, in a broken ring.
@@ -329,9 +390,9 @@
   function drawUnit(c, v, t) {
     if (v.lying) return drawFallen(c, v, t);
     const k = G.scale, u = E().unit(S.state, v.id), p = standXY(v.x + (v.lx || 0), v.y + (v.ly || 0));
-    const active = E().current(S.state) === u && !S.busy;
+    const active = (E().current(S.state) === u || (S.state.status === 'placing' && S.sel === v.id)) && !S.busy;
     c.save();
-    c.globalAlpha = v.alpha == null ? 1 : v.alpha;
+    c.globalAlpha = (v.alpha == null ? 1 : v.alpha) * (v.hidden ? 0.5 : 1);      // hidden in the leaves: half seen
     // The ring it stands in (its side's colour) and the notch that shows where it faces.
     const pulse = active && !still() ? 0.5 + 0.5 * Math.sin(t / 220) : 0;
     c.fillStyle = 'rgba(0,0,0,0.28)'; c.beginPath(); c.ellipse(p.x, p.y, 17 * k, 8 * k, 0, 0, 6.3); c.fill();
@@ -442,6 +503,13 @@
     const out = {}, add = (x, y, col) => { (out[x + ',' + y] = out[x + ',' + y] || []).push(col); };
     const e = E(), st = S.state, u = e.current(st);
     if (S.info && S.info.side === 'enemy' && !S.info.down) for (const n of e.reach(st, S.info).values()) add(n.x, n.y, TINT.danger);
+    // Placing the party: the tiles it may stand on, and whoever is picked up.
+    if (st.status === 'placing' && !S.busy) {
+      for (const z of e.zone(st)) add(z.x, z.y, TINT.move);
+      const sel = S.sel && e.unit(st, S.sel);
+      if (sel) add(sel.x, sel.y, TINT.path);
+      return out;
+    }
     if (!u || u.side !== 'player' || S.busy || S.mode === 'face') return out;
     if (S.mode === 'idle' && !st.turn.moved && !S.info) {
       const R = e.reach(st, u);
@@ -779,7 +847,7 @@
   function syncView() {
     for (const u of S.state.units) {
       const v = S.view[u.id] || (S.view[u.id] = { id: u.id, seed: Math.random() * 6 });
-      Object.assign(v, { x: u.x, y: u.y, face: u.face, hp: u.hp, block: u.block, st: { ...u.st }, gone: u.down && u.side !== 'player', lying: u.down && u.side === 'player', alpha: u.down && u.side !== 'player' ? 0 : 1, walking: false, lx: 0, ly: 0 });
+      Object.assign(v, { x: u.x, y: u.y, face: u.face, hp: u.hp, block: u.block, st: { ...u.st }, gone: u.down && u.side !== 'player', lying: u.down && u.side === 'player', hidden: !!u.hidden, alpha: u.down && u.side !== 'player' ? 0 : 1, walking: false, lx: 0, ly: 0 });
     }
   }
   function banner(text) {
@@ -796,7 +864,7 @@
       if (!S.open || S.epoch !== epoch) return;
       const v = S.view[ev.id];
       if (ev.type === 'move') {
-        v.walking = true; sfx('step');
+        v.walking = true; v.hidden = false; sfx('step');
         for (let i = 1; i < ev.path.length; i++) {
           v.face = e.DIR_KEYS.find(d => e.DIRS[d][0] === ev.path[i].x - ev.path[i - 1].x && e.DIRS[d][1] === ev.path[i].y - ev.path[i - 1].y) || v.face;
           await tween(v, { x: ev.path[i].x, y: ev.path[i].y }, 150);
@@ -827,6 +895,7 @@
         if (ev.side !== 'front') float(v, ev.side === 'back' ? 'From behind!' : 'Flanked', '#ffd27a');
         if (ev.blocked) float(v, 'blocked ' + ev.blocked, '#9fd0ff');
         if (ev.braced) float(v, 'Braced', '#9fd0ff');       // a passive: the first hit of the round does a third less
+        if (ev.cover) float(v, 'In cover', '#bfe3a8');        // a tree or a rock on the side the shot came from
         v.block = Math.max(0, (v.block || 0) - ev.blocked);
         say(`${name(ev.id)} takes ${ev.dmg}${ev.side === 'back' ? ', struck from behind' : ev.side === 'side' ? ', flanked' : ''}.`);
         await wait(360);
@@ -837,7 +906,9 @@
         fx({ bold: 'cheer', vulnerable: 'reticle', weak: 'droop', slow: 'ice', poison: 'bubbles', stun: 'stars' }[ev.name] || 'droop', v, 700);
         float(v, (STATUS[ev.name] || [ev.name])[0] + ' ' + ev.amount, '#fff3d6'); await wait(180);
       }
-      else if (ev.type === 'push') { if (!ev.step) sfx('push'); await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
+      else if (ev.type === 'hide') { v.hidden = true; float(v, 'Hidden', '#e0a83a', true); say(`${name(ev.id)} is hidden in the leaves.`); await wait(260); }
+      else if (ev.type === 'show') { v.hidden = false; }
+      else if (ev.type === 'push') { v.hidden = false; if (!ev.step) sfx('push'); await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
       else if (ev.type === 'poison') { v.hp = ev.hp; fx('bubbles', v, 700); float(v, '☠ −' + ev.amount, '#c8e070', true); await wait(300); }
       else if (ev.type === 'skip') { fx('stars', v, 900); float(v, 'Stunned', '#fff3d6'); say(`${name(ev.id)} is stunned and loses the turn.`); await wait(420); }
       else if (ev.type === 'down') {
@@ -861,7 +932,7 @@
   function shell() {
     const s = S.setup;
     return `<header class="kwtc-top">`
-      + `<div class="kwtc-title"><b>⚔ ${esc(s.name || 'A battle')}</b><span>${esc(s.skull || '')} ${esc(land(s.land))} · seed ${esc(s.seed)} · practice field</span></div>`
+      + `<div class="kwtc-title"><b>⚔ ${esc(s.name || 'A battle')}</b><span>${esc(s.skull || '')} ${esc(land(s.land))} · <span title="${esc(SEASON[seasonOf()][2])}">${SEASON[seasonOf()][1]} ${SEASON[seasonOf()][0]}</span> · seed ${esc(s.seed)} · practice field</span></div>`
       + `<div class="kwtc-order" aria-label="Who acts next"></div>`
       + `<button type="button" class="kw-btn quiet kwtc-x" data-kwt="close" aria-label="Leave the battle">✕</button></header>`
       + `<div class="kwtc-board"><canvas class="kwtc-canvas" tabindex="0" aria-label="The battlefield. Arrow keys move the cursor, Enter chooses, Escape cancels."></canvas>`
@@ -912,14 +983,14 @@
     const ails = Object.keys(STATUS).filter(s => (u.st[s] || 0) > 0).map(s => `<span class="kwtc-ail">${ASSETS.status[s] ? `<img class="kwtc-ic" src="/assets/tactics/status/${esc(ASSETS.status[s])}" alt="" draggable="false"> ` : ''}${esc(STATUS[s][0])} ${u.st[s]}</span>`).join('');
     return `<div class="kwtc-card is-${u.side}"><div class="kwtc-card-name"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[u.cls] || CLASS_COLOUR.creature}"></span><b>${esc(u.name)}</b> <span>${esc(u.label || (u.side === 'enemy' ? 'Creature' : ''))}</span></div>`
       + `<div class="kwtc-bar" role="img" aria-label="Health ${u.hp} of ${u.maxHp}"><i style="width:${Math.round(100 * u.hp / u.maxHp)}%"></i><em>${u.hp} / ${u.maxHp}</em></div>`
-      + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}</div>${gearLine(u)}</div>`;
+      + `<div class="kwtc-card-facts">Move ${E().moveOf(u)} · Jump ${u.jump || 1}${u.armour ? ' · Armour ' + u.armour : ''}${u.block ? ` · <b>🛡 ${u.block}</b>` : ''} ${ails}${u.hidden ? `<span class="kwtc-ail" title="${esc(KIND.leaves[2])}">🍂 Hidden</span>` : ''}</div>${gearLine(u)}</div>`;
   }
   function forecastHtml(u, a, tile) {
     const lines = E().forecast(S.state, u, a, tile.x, tile.y);
     if (!lines.length) return '';
     return `<div class="kwtc-fore">` + lines.map(l => {
       const bits = [];
-      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ` from behind (+${Math.round(((a.back || 1.5) - 1) * 100)}%)` : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
+      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ` from behind (+${Math.round(((a.back || 1.5) - 1) * 100)}%)` : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.cover ? ', in cover (−25%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
       if (l.block) bits.push(`<b>${l.block} block</b>`);
       if (l.heal != null) bits.push(l.raise ? `<b>stands back up with ${l.heal}</b>` : `<b>heals ${l.heal}</b>`);
       for (const k of Object.keys(l.fx)) bits.push(k === 'push' ? 'pushed back' : k === 'bold' ? `next attack +${l.fx[k]}` : `${(STATUS[k] || [k])[0].toLowerCase()} ${l.fx[k]}`);
@@ -947,9 +1018,12 @@
   function paintPanel() {
     if (!S.el || !S.state) return;
     const e = E(), st = S.state, u = e.current(st), who = S.el.querySelector('.kwtc-who'), acts = S.el.querySelector('.kwtc-acts'), hint = S.el.querySelector('.kwtc-hint');
-    if (!u) { who.innerHTML = ''; acts.innerHTML = ''; hint.textContent = ''; return; }
-    const look = S.info && !S.info.down ? S.info : u;
-    who.innerHTML = unitCard(look, S.view[look.id]);
+    const placing = st.status === 'placing';
+    if (!u && !placing) { who.innerHTML = ''; acts.innerHTML = ''; hint.textContent = ''; return; }
+    const look = S.info && !S.info.down ? S.info : (u || (S.sel && e.unit(st, S.sel)) || null);
+    const sea = SEASON[seasonOf()];
+    who.innerHTML = look ? unitCard(look, S.view[look.id])
+      : `<div class="kwtc-card is-player"><div class="kwtc-card-name"><b>Place your party</b> <span>${sea[1]} ${sea[0]}</span></div><div class="kwtc-card-facts">${esc(sea[2])}</div></div>`;
     if (S.info && S.info !== u) {
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
       const lookAtk = attackOf(look);
@@ -960,6 +1034,20 @@
         + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
+      return;
+    }
+    if (placing) {
+      // Before the first turn: who stands where. The party, as buttons; the ground of this field, in words; and Start.
+      const sel = S.sel && e.unit(st, S.sel), has = k => st.map.tiles.some(t => t.t === k), kinds = Object.keys(KIND).filter(k => has(k) && !e.COVER[k]);
+      // A tree and a rock do the same thing: one line for both. (The season is on the card beside this.)
+      const cover = Object.keys(e.COVER).filter(has), coverLine = cover.length ? `<span class="kwtc-ground-k">${cover.map(k => `${KIND[k][1]} <b>${esc(KIND[k][0])}</b>`).join(', ')} ${esc(COVER_SAYS)}</span>` : '';
+      acts.innerHTML = `<div class="kwtc-place" role="group" aria-label="Your party">` + st.units.filter(o => o.side === 'player').map(o =>
+          `<button type="button" class="kwtc-place-who${sel === o ? ' is-on' : ''}" data-kwt="place-pick" data-id="${esc(o.id)}" aria-pressed="${sel === o}"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[o.cls] || CLASS_COLOUR.villager}"></span>${esc(o.name)}${o.down ? ' <i>(down)</i>' : ''}</button>`).join('') + `</div>`
+        + `<div class="kwtc-ground">` + coverLine + kinds.map(k => `<span class="kwtc-ground-k">${KIND[k][1]} <b>${esc(KIND[k][0])}</b> ${esc(KIND[k][2])}</span>`).join('')
+        + `<span class="kwtc-ground-k">⛰ <b>High ground</b> a hit from above does 15% more, and a shot reaches further</span></div>`
+        + `<div class="kwtc-turn"><button type="button" class="kw-btn quiet" data-kwt="place-reset"${S.busy ? ' disabled' : ''}>↶ As suggested</button><button type="button" class="kw-btn primary" data-kwt="place-go"${S.busy ? ' disabled' : ''}>⚔ Start the battle</button></div>`;
+      hint.innerHTML = sel ? `<div><b>${esc(sel.name)}</b>: tap a blue tile to stand there, or another of your party to change places with them.</div>`
+        : `<div><b>Place your party.</b> Tap one of yours, then a blue tile. The foes stand where they will start: tap one to see what it can do.</div>`;
       return;
     }
     if (u.side !== 'player' || S.busy) { acts.innerHTML = ''; hint.textContent = u.side === 'player' ? '' : `${u.name} is taking a turn…`; return; }
@@ -1009,12 +1097,24 @@
     if (!box || !S.state) return;
     const e = E(), st = S.state, u = e.current(st);
     let html = '';
+    // What the ground under the pointer (or the tile last tapped) does, when nobody stands on it.
+    const groundAt = tile => (tile && !st.units.some(o => o.x === tile.x && o.y === tile.y && (!o.down || o.side === 'player')) ? groundNote(tile.x, tile.y) : '');
+    if (st.status === 'placing' && !S.busy) {
+      const note = groundAt(S.pointer === 'mouse' ? S.hover : S.cursor);
+      if (note) html = `<div class="kwtc-fore"><div>${esc(note)}</div></div>`;
+    }
     if (u && u.side === 'player' && !S.busy && st.status === 'active') {
       const ok = label => `<div class="kwtc-confirm"><button type="button" class="kw-btn primary" data-kwt="confirm">${label}</button><button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button></div>`;
       if (S.mode === 'target' && S.ability) {
         const a = e.ability(u, S.ability), tile = S.pick || (S.pointer === 'mouse' ? S.hover : null), fore = tile ? forecastHtml(u, a, tile) : '';
         if (fore) html = fore + (S.pick ? ok('Confirm') : '');
-      } else if (S.mode === 'idle' && S.pick) html = `<div class="kwtc-fore"><div>Walk here?</div></div>` + ok('Move here');
+      } else if (S.mode === 'idle' && S.pick) {
+        const note = groundNote(S.pick.x, S.pick.y);
+        html = `<div class="kwtc-fore"><div>Walk here?${note ? ` <i class="kwtc-ground-note">${esc(note)}</i>` : ''}</div></div>` + ok('Move here');
+      } else if (S.mode === 'idle' && !S.info) {
+        const note = groundAt(S.pointer === 'mouse' ? S.hover : S.cursor);
+        if (note) html = `<div class="kwtc-fore"><div>${esc(note)}</div></div>`;
+      }
     }
     if (box._html === html) return;
     box._html = html;
@@ -1057,6 +1157,8 @@
   // Creatures take their turns by themselves until it is a citizen's.
   async function nextTurn() {
     const e = E(), st = S.state, epoch = S.epoch;
+    // A battle that begins with placing waits for the player to say where the party stands (placeGo).
+    if (st.status === 'placing') { S.busy = false; S.mode = 'idle'; S.sel = null; paint(); say('Place your party, then start the battle.'); return; }
     for (let guard = 0; guard < 60 && S.open && S.epoch === epoch; guard++) {
       if (st.status !== 'active') return finish();
       const u = e.current(st);
@@ -1080,7 +1182,8 @@
   function send(action) {
     const b = S.battle;
     if (!b || !b.id) return;
-    const n = b.n++, mark = action.t === 'end' ? null : E().checksum(S.state);
+    // (After 'end' and 'place' the server has played the creatures' turns too, which the screen has yet to show.)
+    const n = b.n++, mark = action.t === 'end' || action.t === 'place' ? null : E().checksum(S.state);
     b.queue = b.queue.then(async () => {
       if (S.battle !== b || b.stale) return;
       try {
@@ -1118,7 +1221,8 @@
     for (const k of Object.keys(S.view)) delete S.view[k];
     syncView();
     toast('The battle was put back to where the server has it.');
-    if (S.state.status !== 'active') return finish();
+    S.sel = null; S.placeFrom = placesOf(S.state);
+    if (E().over(S.state)) return finish();
     nextTurn();
   }
   // The end screen says whether the result reached the server.
@@ -1203,6 +1307,7 @@
   }
   function tapTile(x, y, viaMouse) {
     const e = E(), st = S.state, u = e.current(st);
+    if (!S.demo && st.status === 'placing') return placeTap(x, y);
     if (S.demo || S.busy || !u || st.status !== 'active') return;
     S.cursor = { x, y };
     const same = S.pick && S.pick.x === x && S.pick.y === y;
@@ -1400,13 +1505,62 @@
     }, quiet ? 0 : SPLASH_MS);
   }
 
+  // ── Placing the party (the engine's "Placing") ────────────────────────────
+  // Before the first turn the player says where each of the party stands: any
+  // open tile of its own two rows. Tap one of yours, then a tile; tap another
+  // of yours to change places. Nothing is sent until Start, which is the
+  // battle's first choice ({ t: 'place', at }).
+  const placesOf = st => Object.fromEntries(st.units.filter(u => u.side === 'player').map(u => [u.id, [u.x, u.y]]));
+  function placeTap(x, y) {
+    const e = E(), st = S.state;
+    if (S.busy || st.status !== 'placing') return;
+    S.cursor = { x, y };
+    const mine = st.units.find(o => o.side === 'player' && o.x === x && o.y === y), foe = mine ? null : e.unitAt(st, x, y);
+    if (foe) { S.info = S.info === foe ? null : foe; S.sel = null; return paint(); }
+    S.info = null;
+    const sel = S.sel ? e.unit(st, S.sel) : null;
+    if (mine && !sel) { S.sel = mine.id; sfx('select'); return paint(); }
+    if (mine && sel) {
+      if (mine !== sel) { const p = [sel.x, sel.y]; sel.x = mine.x; sel.y = mine.y; mine.x = p[0]; mine.y = p[1]; sfx('step'); say(`${sel.name} and ${mine.name} change places.`); }
+      S.sel = null; syncView(); return paint();
+    }
+    if (sel && e.zone(st).some(z => z.x === x && z.y === y)) { sel.x = x; sel.y = y; S.sel = null; sfx('step'); say(`${sel.name} stands there.`); syncView(); return paint(); }
+    if (sel) say('Only the blue tiles: your own two rows.');
+    paint();
+  }
+  function placePick(id) {
+    const u = E().unit(S.state, id);
+    if (S.busy || S.state.status !== 'placing' || !u || u.side !== 'player') return;
+    S.info = null;
+    if (S.sel && S.sel !== id) return placeTap(u.x, u.y);      // one is already picked up: they change places
+    S.sel = S.sel === id ? null : id; S.cursor = { x: u.x, y: u.y }; sfx('select'); paint();
+  }
+  function placeReset() {
+    const st = S.state;
+    if (S.busy || st.status !== 'placing' || !S.placeFrom) return;
+    for (const u of st.units) if (S.placeFrom[u.id]) { u.x = S.placeFrom[u.id][0]; u.y = S.placeFrom[u.id][1]; }
+    S.sel = null; syncView(); paint();
+  }
+  async function placeGo() {
+    const e = E(), st = S.state;
+    if (S.busy || st.status !== 'placing') return;
+    const at = placesOf(st), ev = e.place(st, {});
+    if (!ev) return toast('⚠️ The party cannot stand like that.');
+    send({ t: 'place', at });
+    S.sel = null; S.info = null; S.busy = true; sfx('confirm'); paint();
+    await play(ev);
+    S.busy = false;
+    await nextTurn();
+  }
+
   // ── Opening and closing ───────────────────────────────────────────────────
   function begin(setup) {
     const e = E();
     S.setup = setup; S.view = {}; S.floats = []; S.fx = []; S.cast = null; S.shake = 0; S.rot = 0; G.zoom = 1; G.px = 0; G.py = 0; S.faceAim = null; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
     // A battle picked up again is played back to where it was; a new one starts with the creatures yet to move.
     const done = Array.isArray(setup.actions) ? setup.actions : [];
-    S.state = done.length ? e.replay(setup, done).state : e.createBattle({ seed: setup.seed, land: setup.land, party: setup.party, enemies: setup.enemies });
+    S.state = done.length ? e.replay(setup, done).state : e.createBattle({ seed: setup.seed, land: setup.land, season: setup.season, place: setup.place, party: setup.party, enemies: setup.enemies });
+    S.sel = null; S.placeFrom = placesOf(S.state);
     S.battle = { id: setup.battle_id || null, n: done.length, saved: done.length, status: 'active', queue: Promise.resolve() };
     S.epoch = (S.epoch || 0) + 1;
     syncView();
@@ -1445,6 +1599,9 @@
       else if (k === 'cancel' || k === 'back') cancel();
       else if (k === 'rot-l') rotate(-1);
       else if (k === 'rot-r') rotate(1);
+      else if (k === 'place-pick') placePick(b.getAttribute('data-id'));
+      else if (k === 'place-reset') placeReset();
+      else if (k === 'place-go') placeGo();
       else if (k === 'again') restart(false);
       else if (k === 'new') restart(true);
     });
@@ -1739,7 +1896,7 @@
     // (A dungeon's battle is only stepped away from: it stays open, and fleeing is done from the dungeon's own screen.)
     // A quest's battle is stepped away from in the same way: its quest still waits on it, in the Battles list.
     const b = S.battle, inDungeon = !!(S.setup && S.setup.dungeon), inQuest = !!(S.setup && S.setup.quest);
-    if (!inDungeon && !inQuest && b && b.id && S.state && S.state.status === 'active') b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
+    if (!inDungeon && !inQuest && b && b.id && S.state && !E().over(S.state)) b.queue.then(() => global.apiFetch(`/api/tactics/battles/${b.id}/leave`, { method: 'POST' })).catch(() => {});
     S.el.classList.add('is-leaving');
     const after = (inDungeon || inQuest) && b ? b.queue : Promise.resolve();
     global.setTimeout(() => {
@@ -1767,7 +1924,7 @@
       + `<div class="cheat-desc">A practice battle: four of your grown-up citizens with the classes chosen here, against whoever is chosen. It costs nothing and changes nothing. (A quest's battle is fought the same way, from the Battles list.)</div>`
       + `<div class="kwdg-dev-row">${SLOTS.map((s, i) => sel('class' + i, o.classes.map(c => ({ key: c.key, label: `${c.icon} ${c.label}` })), p.classes[i], s)).join('')}</div>`
       + `<div class="kwdg-dev-row">${sel('level', o.levels, p.level, 'Their level')}${sel('tier', o.tiers.map(t => ({ key: t.key, label: `${t.skull} ${t.name}` })), p.tier, 'Skull')}`
-      + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('fight', o.fights, p.fight, 'Against')}${sel('band', o.bands || [{ key: '', label: 'Whoever lives in that land' }], p.band || '', 'Whose')}`
+      + `${sel('terrain', o.lands.map(l => ({ key: l, label: land(l) })), p.terrain, 'Land')}${sel('season', o.seasons || [{ key: '', label: 'The season it is now' }], p.season || '', 'Season')}${sel('fight', o.fights, p.fight, 'Against')}${sel('band', o.bands || [{ key: '', label: 'Whoever lives in that land' }], p.band || '', 'Whose')}`
       + `<label>Seed <input class="ce-input" type="number" min="1" inputmode="numeric" placeholder="any" data-kwt-dev="seed" value="${esc(p.seed || '')}"></label>`
       + `${sel('way', [{ key: 'any', label: 'A different one each time' }].concat(Object.keys(ENTRANCES).map(k => ({ key: k, label: ENTRANCES[k].label }))), p.way || 'any', 'Going in')}</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="start">⚔ Start a tactics battle</button>`
@@ -1810,7 +1967,7 @@
           }
           if (b.getAttribute('data-kwt-dev') === 'resume') return void await resume(DEV.open);
           const seed = parseInt(p.seed, 10);
-          await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });
+          await start({ classes: p.classes, level: p.level, tier: p.tier, terrain: p.terrain, season: p.season || undefined, fight: p.fight, band: p.band || undefined, seed: seed > 0 ? seed : undefined });
           if (typeof global.closeCheatMenu === 'function') global.closeCheatMenu();
         } catch (e) { if (msg) msg.textContent = '⚠️ ' + e.message; }
       });
@@ -1836,5 +1993,6 @@
     // For the Abilities page on a citizen (js/abilities.js): the same pictures and words as the battle's own row.
     loadAssets, icon: ico, effectText, reachText,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
+    _placeTap: placeTap, _placePick: placePick, _placeGo: placeGo, _placeReset: placeReset, _groundNote: groundNote, _SEASON: SEASON, _KIND: KIND,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

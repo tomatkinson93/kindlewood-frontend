@@ -180,6 +180,18 @@
 .kwtc-school.is-on { color: var(--kw-gold); border-bottom-color: var(--kw-gold-deep); background: var(--kw-wood-2); }
 .kwtc-school:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
 .kwtc-schools kbd { font-size: var(--kw-fs-1); color: var(--kw-muted); }
+/* Placing the party before the first turn: the party as buttons, and what the ground of this field does. */
+.kwtc-place { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--kw-s-1); }
+.kwtc-place-who {
+  min-height: var(--kw-touch); padding: var(--kw-s-1) var(--kw-s-3); display: inline-flex; align-items: center; gap: var(--kw-s-2); border-radius: var(--kw-radius);
+  border: 1px solid var(--kw-line); background: var(--kw-wood-2); color: var(--kw-cream); font: inherit; font-size: var(--kw-fs-2); cursor: pointer;
+}
+.kwtc-place-who i { font-style: normal; color: var(--kw-muted); }
+.kwtc-place-who.is-on { border-color: var(--kw-gold); color: var(--kw-gold); }
+.kwtc-place-who:focus-visible { outline: 2px solid var(--kw-focus); outline-offset: 2px; }
+.kwtc-ground { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--kw-s-1) var(--kw-s-3); font-size: var(--kw-fs-1); color: var(--kw-muted); }
+.kwtc-ground-k b { color: var(--kw-cream); }
+.kwtc-ground-note { font-style: normal; color: var(--kw-muted); }
 /* An ability from the second school: it works at three-quarters strength. */
 .kwtc-act.is-off { border-color: var(--kw-gold-dim); }
 .kwtc-kit-s { flex: 1 1 100%; color: var(--kw-gold); font-size: var(--kw-fs-2); }

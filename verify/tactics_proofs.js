@@ -251,7 +251,7 @@ console.log('9. The server keeps the battle');
   const res = E.resultOf(st);
   check('9e. the result says who won, the rounds and each citizen\'s health', res.status === st.status && res.rounds === st.round && res.party.length === 4 && res.party.every(x => x.hp >= 0 && x.maxHp > 0 && typeof x.down === 'boolean'));
   check('9f. the screen plays each choice at once and sends it in order; the server\'s answer is checked against its own board',
-    /const n = b\.n\+\+, mark = action\.t === 'end' \? null : E\(\)\.checksum\(S\.state\);/.test(J) && /b\.queue = b\.queue\.then\(async \(\) =>/.test(J) && /if \(mark && d\.battle\.count === n \+ 1 && d\.battle\.check !== mark\) return resync\(b, d\.battle\);/.test(J));
+    /const n = b\.n\+\+, mark = action\.t === 'end' \|\| action\.t === 'place' \? null : E\(\)\.checksum\(S\.state\);/.test(J) && /b\.queue = b\.queue\.then\(async \(\) =>/.test(J) && /if \(mark && d\.battle\.count === n \+ 1 && d\.battle\.check !== mark\) return resync\(b, d\.battle\);/.test(J));
   check('9g. every kind of choice is sent: a move, an ability, a move taken back, the end of a turn with its facing',
     ["send({ t: 'move', x, y });", "send({ t: 'use', key, x, y });", "send({ t: 'undo' });", "send(E().DIRS[face] ? { t: 'end', face } : { t: 'end' });"].every(x => J.includes(x)));
   check('9h. refused, or out of step, the screen is put back to the battle as the server has it', /if \(!res\.ok \|\| !d\.ok\) return resync\(b, d\.battle\);/.test(J) && /const r = E\(\)\.replay\(S\.setup, battle\.actions\);/.test(J) && /S\.epoch\+\+;/.test(J));
@@ -292,7 +292,7 @@ console.log('11. A dungeon on the board');
   check('11a. a dungeon from Dev Tools is fought on the board: fights with cards are no longer on offer', !/kwdg-dev-combat/.test(D) && !/With cards/.test(D) && /Every fight is on the board\./.test(D) && !/combat: DEV\.pick/.test(D));
   check('11b. the dungeon\'s Fight opens the room\'s battle on the board, and nothing else', /global\.KWTactics\.openById\(p\.battle_id\)/.test(D) && !/startBattle\(/.test(D) && !/quest_run_id/.test(D));
   check('11c. the path screen has no class-cards button: there are no cards in a dungeon', !/data-action="cards"/.test(D) && !/Class cards<\/button>/.test(D));
-  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
+  check('11d. ✕ only steps away from a dungeon\'s battle (it stays open) and the dungeon\'s screen comes back', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && !E\(\)\.over\(S\.state\)\)/.test(J) && /if \(inDungeon\) after\.then\(\(\) => \{ if \(global\.KWDungeon && global\.KWDungeon\.open\) global\.KWDungeon\.open\(\); \}\);/.test(J));
   check('11e. its end screen says what was found and whether the way on is open, and its one button goes back to the dungeon', /class="kwtc-found"/.test(J) && /'The way on is open\.'/.test(J) && /won \? 'Back to the dungeon' : 'See how it ended'/.test(J));
   check('11f. the server\'s answer to the last choice carries what became of the run', /if \(d\.dungeon\) b\.dungeon = d\.dungeon;/.test(J));
   check('11g. the practice box does not offer to pick up a dungeon\'s battle', /d\.battle\.source !== 'dungeon' \? d\.battle : null/.test(J));
@@ -720,7 +720,7 @@ console.log('19. A quest\'s battle is fought on the board; the cards are gone');
   check('19i. won: what it paid, who came back better, and that the quest goes on', /found\.textContent = \(bits\.length \? `Won: \$\{bits\.join\(', '\)\}\. ` : ''\) \+ \(better\.length \? `\$\{better\.join\(' and '\)\} came back a better fighter\. ` : ''\) \+ 'The quest goes on\.';/.test(J));
   check('19j. lost: the quest has failed', /inQuest \? 'The party is driven off, and the quest has failed\.'/.test(J));
   check('19k. a quest\'s battle is fought once: the only button leads back to the town', /\(inQuest\n\s+\/\/ A quest's battle is fought once: the way on is back to the town\.\n\s+\? `<button type="button" class="kw-btn primary" data-kwt="close">Back to the town<\/button>`/.test(J));
-  check('19l. ✕ only steps away from it: the quest still waits on its battle', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && S\.state\.status === 'active'\)/.test(J));
+  check('19l. ✕ only steps away from it: the quest still waits on its battle', /if \(!inDungeon && !inQuest && b && b\.id && S\.state && !E\(\)\.over\(S\.state\)\)/.test(J));
   check('19m. back in the town the quest, the Battles list, the stores and the citizens are read again', /for \(const fn of \['refreshBattleBadge', 'refreshActiveQuests', 'refreshResources', 'loadCitizens'\]\)/.test(J));
   // The cards are gone.
   const gone = ['js/cards.js', 'js/card-admin.js', 'js/card-combat.js', 'js/card-definitions.js', 'js/card-engine.js', 'js/card-formula.js', 'js/card-hand-ui.js', 'js/card-registry.js', 'js/combat-engine.js', 'js/combat-ui.js', 'js/deck-builder.js',
@@ -732,6 +732,43 @@ console.log('19. A quest\'s battle is fought on the board; the cards are gone');
   check('19p. Dev Tools has no switch for it any more: there is nothing to switch', !/quests-switch|data-kwt-dev="quests"/.test(J));
   const C5 = require(path.join(ROOT, 'scripts', 'check_live.js')).wanted();
   check('19q. the check on the live site no longer expects the card scripts', !C5.some(f => gone.includes(f)) && C5.includes('js/battles.js'));
+}
+
+console.log('20. The board itself: ground, cover, the season, hiding, and placing the party');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css');
+  // The rules (the server's scripts/tactics_ground_test.js proves them at length; here, that the browser's copy has them).
+  const kinds = k => ({ w: 6, h: 6, land: 'plains', season: 'summer', tiles: Array.from({ length: 36 }, (_, i) => ({ h: 0, t: k[(i % 6) + ',' + Math.floor(i / 6)] || 'grass' })) });
+  const st = battle([man('a', { move: 3 })], [man('x', { agility: 1 })], kinds({ '1,0': 'mire', '3,3': 'tree', '0,4': 'leaves' }));
+  put(st, 'a', 0, 0); put(st, 'x', 3, 4, 's');
+  const R = E.reach(st, E.unit(st, 'a'));
+  check('20a. slow ground takes two steps to walk into', E.stepCost({ t: 'mire' }) === 2 && E.stepCost({ t: 'snow' }) === 2 && E.stepCost({ t: 'shallows' }) === 2 && E.stepCost({ t: 'ice' }) === 1 && R.get('1,0').cost === 2 && R.get('0,1').cost === 1);
+  const bow = strike({ key: 'shoot', max: 4, dmg: 40 }), a = E.unit(st, 'a'), x = E.unit(st, 'x');
+  put(st, 'a', 3, 0);
+  const covered = E.hitOf(st, a, bow, x, 1); put(st, 'a', 0, 4);
+  const open = E.hitOf(st, a, bow, x, 1);
+  check('20b. a tree on the side a shot comes from takes a quarter off it', covered.cover === true && open.cover === false && E.RULES.COVER === 0.75 && E.forecast(st, a, bow, 3, 4)[0].cover === false);
+  check('20c. a map is made for a season: winter has ice and snow and no water, autumn has leaves, spring keeps one ford',
+    (() => { const w = E.makeMap(11, 'river', 8, 8, 'winter'), au = E.makeMap(11, 'forest', 8, 8, 'autumn'), sp = E.makeMap(11, 'river', 8, 8, 'spring'), su = E.makeMap(11, 'river', 8, 8, 'summer'); const n = (m, k) => m.tiles.filter(t => t.t === k).length;
+      return n(w, 'water') === 0 && n(w, 'ice') > 0 && n(w, 'snow') === 5 && n(au, 'leaves') > 0 && n(su, 'shallows') === 2 && n(sp, 'shallows') <= 1 + 2 && w.season === 'winter' && E.makeMap(11, 'river').season === 'summer'; })());
+  const h = battle([man('a', { agility: 90 })], [man('x', { agility: 1, abilities: [bow] })], kinds({ '2,3': 'leaves' }));
+  put(h, 'a', 2, 3); put(h, 'x', 2, 0);
+  const ev = E.endTurn(h);
+  check('20d. still on fallen leaves, a unit is hidden: a foe further off than a tile cannot single it out', E.unit(h, 'a').hidden === true && ev.some(e => e.type === 'hide') && E.touched(h, E.unit(h, 'x'), bow, 2, 3).length === 0);
+  const p = E.createBattle({ seed: 5, map: flat(), place: true, party: [man('a'), man('b')], enemies: [man('x', { agility: 99 })] });
+  const before = [E.unit(p, 'a').x, E.unit(p, 'a').y];
+  check('20e. a battle may begin with placing: nobody\'s turn, the party\'s two rows, and one choice that begins it', p.status === 'placing' && E.current(p) === null && E.zone(p).length === 16 && E.apply(p, { t: 'end' }) === null
+    && E.place(JSON.parse(JSON.stringify(p)), { a: [0, 0] }) === null && !!E.apply(p, { t: 'place', at: { a: [0, 7] } }) && p.status === 'active' && E.unit(p, 'a').x === 0 && E.unit(p, 'a').y === 7 && before.join() !== '0,7');
+  // The screen.
+  check('20f. the season is on the title and colours the ground and the trees', /SEASON\[seasonOf\(\)\]\[1\]\} \$\{SEASON\[seasonOf\(\)\]\[0\]\}/.test(J) && /SEASON_GROUND\[season\]/.test(J) && /const blobs = TREE\[seasonOf\(\)\] \|\| TREE\.summer;/.test(J));
+  check('20g. every kind of ground the rules know is drawn and has its words', Object.keys(E.SLOW).concat(['ice']).every(k => new RegExp('\\b' + k + ':\\s+\\{ top:').test(J)) && ['tree', 'rock', 'water', 'shallows', 'mire', 'snow', 'ice', 'leaves'].every(k => new RegExp('\\b' + k + ': \\[\'').test(J)));
+  check('20h. tapping ground says what it does, and so does "Walk here?"', /function groundNote\(x, y\)/.test(J) && /Walk here\?\$\{note \?/.test(J) && /Beside cover: a quarter less/.test(J));
+  check('20i. a forecast and a hit both say when the target is in cover; a hidden unit is drawn half seen and its card says so', /l\.cover \? ', in cover \(−25%\)' : ''/.test(J) && /if \(ev\.cover\) float\(v, 'In cover'/.test(J) && /\* \(v\.hidden \? 0\.5 : 1\)/.test(J) && /🍂 Hidden<\/span>/.test(J) && /ev\.type === 'hide'/.test(J));
+  check('20j. placing: tap one of yours then a tile, or two of yours to change places; the tiles allowed are tinted', /function placeTap\(x, y\)/.test(J) && /if \(!S\.demo && st\.status === 'placing'\) return placeTap\(x, y\);/.test(J) && /for \(const z of e\.zone\(st\)\) add\(z\.x, z\.y, TINT\.move\);/.test(J) && /change places/.test(J));
+  check('20k. nothing is sent until Start, which is the battle\'s first choice and carries where everyone stands', /const at = placesOf\(st\), ev = e\.place\(st, \{\}\);/.test(J) && /send\(\{ t: 'place', at \}\);/.test(J) && /data-kwt="place-go"/.test(J) && /data-kwt="place-reset"/.test(J));
+  check('20l. a battle that begins with placing waits for it; put back by the server, it waits again', /if \(st\.status === 'placing'\) \{ S\.busy = false; S\.mode = 'idle'; S\.sel = null; paint\(\);/.test(J) && /if \(E\(\)\.over\(S\.state\)\) return finish\(\);/.test(J) && /season: setup\.season, place: setup\.place,/.test(J));
+  check('20m. the placing panel lists the party, the season and the ground of this field', /class="kwtc-place"/.test(J) && /data-kwt="place-pick"/.test(J) && /class="kwtc-ground"/.test(J) && /\.kwtc-place-who \{/.test(CSS) && /\.kwtc-ground \{/.test(CSS));
+  check('20n. Dev Tools can ask for a season', /sel\('season', o\.seasons/.test(J) && /season: p\.season \|\| undefined/.test(J));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
