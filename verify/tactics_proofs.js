@@ -661,6 +661,14 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
       && /n = Math\.min\(c\.dmg, u\.hp - 1\)/.test(EN2) && /if \(u\.braced\) u\.braced = false;\n\s+if \(u\.countered\) u\.countered = false;/.test(EN2));
     check('18U. a counter and a braced hit are shown on the board', /ev\.type === 'counter'\) \{[^}]*float\(v, 'Counter!'/.test(J) && /if \(ev\.braced\) float\(v, 'Braced'/.test(J));
     check('18V. Dev Tools can finish every lesson being studied', /data-kwt-dev="study">📖 Finish studies now</.test(J) && /apiFetch\('\/api\/tactics\/admin\/study\/finish', \{ method: 'POST' \}\)/.test(J));
+    const lore = K._pageHtml(guard({ kinds: [], gear: null, research: [{ key: 'fletching', name: 'Fletching', icon: '🏹', says: 'Archery reaches one tile further.' }] }));
+    check('18X. what the town has researched for battle is named on the tab, as from the Library', /<b>Fletching<\/b> <i>from the Library<\/i> Archery reaches one tile further\./.test(lore) && !/kwab-lore/.test(K._pageHtml(guard({ kinds: [], gear: null })))
+      && /Library's <b>Battlecraft<\/b> research helps the whole town in battle/.test(read('js/help.js')));
+    const sigPage = K._pageHtml(guard({ abilities: [ab('g_shield', 'Shield Up', 1), ab('g_shove', 'Shove', 4, { signature: true, taught_by: 'Hazel <i>' })] }));
+    check('18Y. a family signature is marked on the Abilities tab, with who taught it', /Shove <span class="kwab-sig"[^>]*>⚜<\/span>/.test(sigPage) && /A family signature, taught by Hazel &lt;i&gt;: theirs for life, whatever work they take up\./.test(sigPage) && />⚜ Signature<\/span>/.test(sigPage)
+      && (sigPage.match(/⚜ Signature/g) || []).length === 1);
+    check('18Z2. in battle it wears the same mark; Dev Tools can hand signatures down', /x\.signature \? ` <b class="kwtc-sig" title="Their family's signature/.test(J) && /\$\{a\.signature \? ' ⚜' : ''\}/.test(J)
+      && /data-kwt-dev="sigs">⚜ Hand down family signatures</.test(J) && /apiFetch\('\/api\/tactics\/admin\/signatures', \{ method: 'POST' \}\)/.test(J) && /their family's <b>signature<\/b> \(⚜\)/.test(read('js/help.js')));
     check('18W. Help says where to study and that one passive is carried', /can <b>study<\/b> at the Watchtower/.test(read('js/help.js')) && /carries one passive at a time/.test(read('js/help.js')));
   }
   check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));

@@ -85,10 +85,10 @@ console.log('2. Layout');
   const st = stateWith({}, ALL);   // everything known: real keys everywhere
   const L = w.KWLibrary.layout(st.projects, false, st);
   const pos = Object.values(L.pos);
-  check('2a. every project has a place', pos.length === st.projects.length && pos.length === 54);
+  check('2a. every project has a place', pos.length === st.projects.length && pos.length === 58);
   check('2b. no two overlap', pos.every((a, i) => pos.every((b, j) => i === j || Math.abs(a.x - b.x) >= L.g.nodeW || Math.abs(a.y - b.y) >= L.g.nodeH)));
   check('2c. columns are eras: same era, same x', st.projects.every(p => L.pos[p.key].x === L.g.padX + (p.tier - 1) * L.g.colW));
-  check('2d. rows are paths, in order; Mining has two rows', L.lanes.map(l => l.key).join() === 'mining,metallurgy,crafts,building,trade,scholarship'
+  check('2d. rows are paths, in order; Mining has two rows', L.lanes.map(l => l.key).join() === 'mining,metallurgy,crafts,building,trade,scholarship,battle'
     && L.pos.mine_pumps.y > L.pos.volcanic_lore.y && L.pos.mine_pumps.y < L.pos.smelting.y);
   check('2e. arrows run left to right', st.projects.every(p => p.requires.every(r => L.pos[r].x < L.pos[p.key].x)));
   check('2f. very wide: eight eras across', L.eras.length === 8 && L.width >= 7 * L.g.colW);
@@ -104,7 +104,7 @@ console.log('3. The screen');
   const st = stateWith({}, ['prospecting', 'smelting', 'masonry'], 'prospecting_2', ['shoring', 'furnaces']);
   w.KWLibrary._setState(st); w.KWLibrary._render({ focus: true });
   const tree = els['rs-viewport'].innerHTML;
-  check('3a. one node per project, the distant ones too', (tree.match(/class="rs-node /g) || []).length === 54);
+  check('3a. one node per project, the distant ones too', (tree.match(/class="rs-node /g) || []).length === 58);
   check('3b. statuses: studied, studying, open, locked', /rs-node rs-done[^"]*" data-rs="pick" data-key="prospecting"/.test(tree) && /rs-node rs-active[^"]*" data-rs="pick" data-key="prospecting_2"/.test(tree)
     && /rs-node rs-open[^"]*" data-rs="pick" data-key="surveying"/.test(tree) && /rs-node rs-locked[^"]*" data-rs="pick" data-key="assaying"/.test(tree));
   const hidden = (tree.match(/rs-node rs-hidden/g) || []).length;
@@ -118,8 +118,8 @@ console.log('3. The screen');
   const qh = els['rs-queue'].innerHTML;
   check('3h. the queue in the header: numbered chips with ✕', !els['rs-queue'].hidden && /1\. 🪵 Shoring/.test(qh) && /2\. 🌡️ Hotter Furnaces I/.test(qh) && (qh.match(/data-rs="dequeue"/g) || []).length === 2);
   check('3i. header: studying, time left, Scholars', /Studying/.test(els['rs-now'].innerHTML) && /27h 18m to go/.test(els['rs-now'].innerHTML) && /Quill <b>2\.2\/hr/.test(els['rs-sch'].innerHTML));
-  check('3j. eight eras, six paths', (els['rs-eras-in'].innerHTML.match(/class="rs-era"/g) || []).length === 8 && /Legends/.test(els['rs-eras-in'].innerHTML)
-    && (els['rs-lanes-in'].innerHTML.match(/class="rs-lane"/g) || []).length === 6);
+  check('3j. eight eras, seven paths', (els['rs-eras-in'].innerHTML.match(/class="rs-era"/g) || []).length === 8 && /Legends/.test(els['rs-eras-in'].innerHTML)
+    && (els['rs-lanes-in'].innerHTML.match(/class="rs-lane"/g) || []).length === 7);
   const far = stateWith({}, ALL.filter(k => k !== 'starmetal'), 'starmetal');
   w.KWLibrary._setState(far); w.KWLibrary._render({ focus: true });
   check('3k. opening scrolls to what is being studied', w.KWLibrary.focusKey(st) === 'prospecting_2' && els['rs-viewport'].scrollLeft > 1000);
@@ -178,7 +178,7 @@ console.log('5. No Library; realtime');
   w.KWLibrary.open();
   w.KWLibrary._setState(stateWith({ library_level: 0, seats: 0, scholars: [], per_hour: 0 }));
   w.KWLibrary._select('prospecting'); w.KWLibrary._render();
-  check('5a. no Library: a banner, and the tree still shows to plan with', /Build a <b>Library<\/b>/.test(els['rs-banner'].innerHTML) && (els['rs-viewport'].innerHTML.match(/class="rs-node /g) || []).length === 54);
+  check('5a. no Library: a banner, and the tree still shows to plan with', /Build a <b>Library<\/b>/.test(els['rs-banner'].innerHTML) && (els['rs-viewport'].innerHTML.match(/class="rs-node /g) || []).length === 58);
   check('5b. …but Study and Queue are disabled', /data-rs="start" data-key="prospecting" disabled/.test(els['rs-detail'].innerHTML) && /data-rs="queue" data-key="prospecting" disabled/.test(els['rs-detail'].innerHTML));
   const { w: w2, toasts } = makeEnv(false);
   w2.KWLibrary.onEvent({ type: 'research_done', label: 'Deep Veins', icon: '🕳️', desc: 'Gold and gems.' });

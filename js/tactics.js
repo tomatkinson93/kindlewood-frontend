@@ -954,7 +954,7 @@
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
       const lookAtk = attackOf(look);
       acts.innerHTML = `<div class="kwtc-kit">${lookAtk ? `<span class="kwtc-kit-a is-attack">${ico(lookAtk)} <b>Attack${lookAtk.star ? ' ✦' : ''}</b> ${esc(lookAtk.name)}: ${esc(effectText(lookAtk))} <i>${esc(reachText(lookAtk))}</i></span>` : ''}${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
-          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
+          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.signature ? ' ⚜' : ''}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
         + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
         + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '')
         + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '') + `</div>`
@@ -987,7 +987,7 @@
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
       const why = !can.ok ? (can.why === 'cooldown' ? `ready in ${can.turns}` : can.why === 'spent' ? 'used up' : 'done') : none ? 'no one in reach' : '';
       return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}${x.off ? ' is-off' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
-        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}${x.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}${x.signature ? ` <b class="kwtc-sig" title="Their family's signature${x.taught_by ? ': taught by ' + esc(x.taught_by) : ''}">⚜</b>` : ''}${x.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
       // The next ability this citizen's class will teach, at the end of their own row: greyed, with the level that brings it.
@@ -1775,6 +1775,8 @@
       + `<div class="cheat-section-label" style="margin-top:10px">Study</div>`
       + `<div class="cheat-desc">A lesson at a class building takes 2, 6 or 12 hours. This finishes every lesson your citizens are studying.</div>`
       + `<button type="button" class="cheat-all-btn" data-kwt-dev="study">📖 Finish studies now</button>`
+      + `<div class="cheat-desc">A child who comes of age is taught one ability by a parent. This does the same now for every grown citizen who has none and whose parents can teach.</div>`
+      + `<button type="button" class="cheat-all-btn" data-kwt-dev="sigs">⚜ Hand down family signatures</button>`
       + `<div class="cheat-rel-feedback" data-kwt-dev="msg" role="status"></div>`;
   }
   // Fill the box Dev Tools gives us, and keep what was chosen.
@@ -1792,10 +1794,15 @@
       };
       box.addEventListener('change', keep); box.addEventListener('input', keep);
       box.addEventListener('click', async ev => {
-        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"], [data-kwt-dev="study"]');
+        const b = ev.target.closest('[data-kwt-dev="start"], [data-kwt-dev="resume"], [data-kwt-dev="study"], [data-kwt-dev="sigs"]');
         if (!b) return;
         const msg = box.querySelector('[data-kwt-dev="msg"]');
         try {
+          if (b.getAttribute('data-kwt-dev') === 'sigs') {
+            const res = await global.apiFetch('/api/tactics/admin/signatures', { method: 'POST' }), d = await res.json().catch(() => ({}));
+            if (msg) msg.textContent = res.ok && d.ok ? `${d.taught} citizen${d.taught === 1 ? '' : 's'} taught.` : '⚠️ ' + (d.error || 'That did not work.');
+            return;
+          }
           if (b.getAttribute('data-kwt-dev') === 'study') {
             const res = await global.apiFetch('/api/tactics/admin/study/finish', { method: 'POST' }), d = await res.json().catch(() => ({}));
             if (msg) msg.textContent = res.ok && d.ok ? `${d.finished} lesson${d.finished === 1 ? '' : 's'} finished.` : '⚠️ ' + (d.error || 'That did not work.');

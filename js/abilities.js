@@ -65,7 +65,7 @@
     const words = [effect(a), reach(a), pace(a)].filter(Boolean).join(' · ');
     return `<li class="kwab-row${cls ? ' ' + cls : ''}" aria-label="${esc(a.name)}">`
       + `<span class="kwab-ico" aria-hidden="true">${icon(a)}</span>`
-      + `<span class="kwab-what"><b>${esc(a.name)}${a.star ? ' <span class="kwab-star" title="Mastered: a fifth stronger">✦</span>' : ''}</b><span class="kwab-does">${esc(words)}</span>${a.desc ? `<span class="kwab-desc">${esc(a.desc)}</span>` : ''}${masteryHtml(a)}</span>`
+      + `<span class="kwab-what"><b>${esc(a.name)}${a.signature ? ' <span class="kwab-sig" title="Their family\'s signature">⚜</span>' : ''}${a.star ? ' <span class="kwab-star" title="Mastered: a fifth stronger">✦</span>' : ''}</b>${a.signature ? `<span class="kwab-desc kwab-sig-by">A family signature${a.taught_by ? `, taught by ${esc(a.taught_by)}` : ''}: theirs for life, whatever work they take up.</span>` : ''}<span class="kwab-does">${esc(words)}</span>${a.desc ? `<span class="kwab-desc">${esc(a.desc)}</span>` : ''}${masteryHtml(a)}</span>`
       + state + `</li>`;
   }
   // The second school: which other class to bring abilities from, and which of them (up to p.second.max).
@@ -97,8 +97,11 @@
     if (g.shield) rows.push(`<li><span aria-hidden="true">${esc(g.shield.icon || '')}</span> <b>${esc(g.shield.name)}</b> ${esc(g.shield.says || '')}</li>`);
     if (g.idle) rows.push(`<li class="is-idle"><span aria-hidden="true">${esc(g.idle.icon || '')}</span> <b>${esc(g.idle.name)}</b> ${esc(g.idle.says || '')}</li>`);
     if (g.armour) rows.push(`<li><span aria-hidden="true">${esc(g.armour.icon || '')}</span> <b>${esc(g.armour.name)}</b> Takes the edge off every hit.</li>`);
+    // What the town has researched for battle at the Library (the Battlecraft path): every citizen has it.
+    const lore = (p.research || []).length ? `<ul class="kwab-gear kwab-lore">${p.research.map(x => `<li><span aria-hidden="true">${esc(x.icon || '📚')}</span> <b>${esc(x.name)}</b> <i>from the Library</i> ${esc(x.says || '')}</li>`).join('')}</ul>` : '';
     return `<h4 class="kwab-h">Gear <span class="kwab-h-sub">what they hold changes what their abilities do</span></h4>`
       + (rows.length ? `<ul class="kwab-gear">${rows.join('')}</ul>` : `<p class="kwab-note">${esc(p.citizen.name)} carries nothing that changes a fight. Weapons, shields and armour are equipped from the town's stores.</p>`)
+      + lore
       + `<details class="kwab-kinds"><summary>What each kind of weapon does</summary><ul>${p.kinds.map(k => `<li><b>${esc(k.name)}</b>${k.hands === 2 ? ' <i>two hands</i>' : ''} ${esc(k.says)}</li>`).join('')}<li><b>Shield</b> Arms blocks are stronger by the shield's worth. Not with a weapon that takes two hands.</li></ul>`
       + `<p class="kwab-note">These read the school of an ability, not the class of whoever uses it: a lantern helps a Guard's borrowed healing as much as a Hearthkeeper's own.</p></details>`;
   }
@@ -154,7 +157,7 @@
       + `<ul class="kwab-list">${rowHtml(p.attack, `<span class="kwab-when is-on">Always</span>`, 'is-ready is-attack')}</ul>` : '';
     // Their own: everything here goes into every battle. An ability of another school (the plain blow of Basics, a trade's trick) says so.
     const own = `<h4 class="kwab-h">${esc(p.school.icon || '')} ${esc(p.school.name)} <span class="kwab-h-sub">${p.abilities.length} known: all of them go into battle</span></h4>`
-      + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
+      + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.signature ? '⚜ Signature' : a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
     const ahead = (p.ahead || []).length ? `<h4 class="kwab-h">Still to learn</h4><ul class="kwab-list">${p.ahead.map(a => rowHtml(a, `<span class="kwab-when">🔒 Level ${esc(a.at)}</span>`, 'is-locked')).join('')}</ul>` : '';
     return `<div class="kwab">${head}${gearHtml(p)}${attack}${own}${ahead}${passiveHtml(study)}${studyHtml(study)}${secondHtml(p, pick)}</div>`;
   }
