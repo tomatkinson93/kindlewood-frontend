@@ -152,6 +152,11 @@
 .diplo-decay.decaying { color: #f0a080; background: rgba(190, 80, 50, .14); border-color: rgba(224, 122, 106, .4); }
 .diplo-tribute-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; color: #e8d9a8; }
 .diplo-tribute-done { color: #8ecf7e; font-size: 12px; }
+/* Village lore: what an Allied village teaches (js/diplomacy.js _teachingHtml). */
+.diplo-lore-what { font-size: 13px; color: #e8d9a8; margin: 4px 0; }
+.diplo-lore-what b { color: #f4c95d; margin-right: 4px; }
+.diplo-lore-note { font-size: 12px; color: #b9a67c; margin-bottom: 6px; }
+.diplo-lore-pick { min-height: 36px; flex: 1 1 140px; background: #2a2016; color: #e8d9a8; border: 1px solid #6e5836; border-radius: 6px; padding: 4px 8px; font: inherit; }
 
 /* ── Clans (group 4): treasury, boons, goals, honors ─────────────────── */
 .ct-give { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }

@@ -562,7 +562,7 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
     const u2 = { id: 'c2', school: 'archery', second: { school: 'hearth' }, abilities: own.concat(off) };
     S2.tab.c2 = 'second';
     check('18q2. their own tab is open until the player opens the other; a foe\'s abilities are one unnamed list', fn.tabOf({ id: 'c9', school: 'arms', abilities: own }).key === 'own' && fn.tabOf(u2).key === 'second'
-      && fn.tabsOf({ id: 'e1', abilities: [{ key: 'bite' }] }).length === 1 && Object.keys(fn.SCHOOLS).join() === 'basics,arms,archery,wild,hearth,field');
+      && fn.tabsOf({ id: 'e1', abilities: [{ key: 'bite' }] }).length === 1 && Object.keys(fn.SCHOOLS).join() === 'basics,arms,archery,wild,hearth,field,lore');
     check('18q3. the action bar shows the tabs only when there are two, and the open school\'s abilities; 0 swaps school', /tabs\.length > 1 \? `<div class="kwtc-schools" role="tablist"/.test(J) && /\+ tab\.list\.map\(\(x, i\) => \{/.test(J)
       && /data-kwt="school" data-school="\$\{t\.key\}"/.test(J) && /k === 'school'/.test(J) && /if \(ev\.key === '0' && u && u\.side === 'player' && tabsOf\(u\)\.length > 1\)/.test(J) && /\$\{t\.off \? ' <em>¾<\/em>' : ''\}/.test(J));
     check('18q5. the open tab is the one marked (by its key: the tabs are made afresh each time)', /class="kwtc-school\$\{t\.key === tab\.key \? ' is-on' : ''\}"/.test(J) && /aria-selected="\$\{t\.key === tab\.key\}"/.test(J));
@@ -669,6 +669,22 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
       && (sigPage.match(/⚜ Signature/g) || []).length === 1);
     check('18Z2. in battle it wears the same mark; Dev Tools can hand signatures down', /x\.signature \? ` <b class="kwtc-sig" title="Their family's signature/.test(J) && /\$\{a\.signature \? ' ⚜' : ''\}/.test(J)
       && /data-kwt-dev="sigs">⚜ Hand down family signatures</.test(J) && /apiFetch\('\/api\/tactics\/admin\/signatures', \{ method: 'POST' \}\)/.test(J) && /their family's <b>signature<\/b> \(⚜\)/.test(read('js/help.js')));
+    // Village lore (stage G).
+    {
+      const DJ = read('js/diplomacy.js');
+      const fn = new Function('document', 'citizensData', DJ.slice(DJ.indexOf('function _teachingHtml(npcId, t) {'), DJ.indexOf('async function diplomacyTeachLore')) + '; return _teachingHtml;')({}, [{ id: 3, name: 'Ivy <b>', life_stage: 'adult' }, { id: 4, name: 'Pip', life_stage: 'child' }, { id: 5, name: 'Bram', life_stage: 'adult', dungeon: { name: 'x' } }]);
+      const ability = { key: 'l_riptide', name: 'Riptide', icon: '🌊', says: 'Knocks a foe back.' };
+      const far = fn(9, { allied: false, ability, fee: 200, every_days: 7, needs_trust: 71, available: false, next_at: null });
+      const ally = fn(9, { allied: true, ability, fee: 200, every_days: 7, needs_trust: 71, available: true, next_at: null });
+      const done = fn(9, { allied: true, ability, fee: 200, every_days: 7, needs_trust: 71, available: false, next_at: '2026-12-05T10:00:00Z' });
+      check('18Z3. a village\'s window says what it teaches; below Allied, that it is something to work towards', /🏡 Village lore/.test(far) && /<b>🌊 Riptide<\/b> Knocks a foe back\./.test(far) && /At Allied trust \(71\) this village will teach it/.test(far) && !/data-lore-teach/.test(far));
+      check('18Z4. Allied: choose a grown citizen who is home, and Teach for the fee; once taught, when they will teach again', /data-lore-pick="9"/.test(ally) && /<option value="3">Ivy &lt;b&gt;<\/option>/.test(ally) && !/Pip|Bram/.test(ally)
+        && /data-lore-teach="9"[^>]*>Teach \(200 wealth\)</.test(ally) && /✓ Taught one of yours\. They will teach again on /.test(done) && !/data-lore-teach/.test(done) && fn(9, null) === '');
+      check('18Z5. the lesson is asked of the server, and the section is drawn again from its answer', /apiFetch\(`\/api\/diplomacy\/\$\{npcId\}\/teach`, \{ method: 'POST'/.test(DJ) && /box\.outerHTML = _teachingHtml\(npcId, data\.teaching\)/.test(DJ) && /\$\{_teachingHtml\(npcId, data\.teaching\)\}/.test(DJ));
+      const lorePage = K._pageHtml(guard({ abilities: [ab('g_shield', 'Shield Up', 1), ab('c_rally', 'Rally', 1, { lore: true, school: 'lore', school_name: 'Village lore', taught_by: 'Mossford' })] }));
+      check('18Z6. village lore is marked on the Abilities tab and in battle, with the village that taught it', /Village lore, taught at Mossford: theirs for life/.test(lorePage) && />🏡 Village lore<\/span>/.test(lorePage) && /x\.lore \? ` <b class="kwtc-sig" title="Village lore/.test(J)
+        && /lore: \['Village lore', '🏡'\]/.test(J) && /An <b>Allied village<\/b> will teach one of your citizens its <b>lore<\/b>/.test(read('js/help.js')));
+    }
     check('18W. Help says where to study and that one passive is carried', /can <b>study<\/b> at the Watchtower/.test(read('js/help.js')) && /carries one passive at a time/.test(read('js/help.js')));
   }
   check('18r. a level that teaches an ability says so on the victory screen', /Learned: \$\{esc\(x\.icon \|\| ''\)\} <b>\$\{esc\(x\.name\)\}<\/b>/.test(J));

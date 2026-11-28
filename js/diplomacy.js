@@ -372,8 +372,43 @@ function _renderDiplomacyModalBody(data, npc, npcId, trust, level, status, rel) 
       ${data.decay_warning ? `<div class="diplo-decay ${data.decay_warning.decaying ? 'decaying' : ''}">🍂 ${data.decay_warning.text}</div>` : ''}
     </div>
     ${_tributeHtml(npcId, data.tribute)}
+    ${_teachingHtml(npcId, data.teaching)}
     <div class="dm-section diplo-actions">${actionsHtml}</div>
   `;
+}
+
+// Allied: the village teaches one of your citizens its lore, an ability no class has (the server's
+// lib/tactics_lore.js). Below Allied it says what it would teach, as something to work towards.
+function _teachingHtml(npcId, t) {
+  if (!t || !t.ability) return '';
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const what = `<div class="diplo-lore-what"><b>${esc(t.ability.icon || '')} ${esc(t.ability.name)}</b> ${esc(t.ability.says || '')}</div>`;
+  if (!t.allied) return `<div class="dm-section diplo-lore"><div class="diplo-action-label">🏡 Village lore</div>${what}<div class="diplo-lore-note">At Allied trust (${esc(t.needs_trust)}) this village will teach it to one of your citizens.</div></div>`;
+  const people = (typeof citizensData !== 'undefined' && Array.isArray(citizensData) ? citizensData : []).filter(c => (c.life_stage || 'adult') !== 'child' && !c.dungeon);
+  const when = t.next_at ? new Date(t.next_at) : null;
+  const act = !t.available
+    ? `<span class="diplo-tribute-done">✓ Taught one of yours${when ? `. They will teach again on ${esc(when.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }))}` : ''}.</span>`
+    : `<select class="diplo-lore-pick" data-lore-pick="${npcId}" aria-label="Who is taught"><option value="">Who is taught?</option>${people.map(c => `<option value="${Number(c.id)}">${esc(c.name)}</option>`).join('')}</select>`
+      + `<button class="diplo-btn" data-lore-teach="${npcId}" onclick="diplomacyTeachLore(${npcId}, this)">Teach (${esc(t.fee)} wealth)</button>`;
+  return `<div class="dm-section diplo-lore"><div class="diplo-action-label">🏡 Village lore</div>${what}`
+    + `<div class="diplo-lore-note">Theirs for life, in every battle. A citizen carries one piece of village lore; a village teaches one of yours every ${esc(t.every_days)} days.</div>`
+    + `<div class="diplo-tribute-row">${act}</div></div>`;
+}
+async function diplomacyTeachLore(npcId, btn) {
+  const pick = document.querySelector(`[data-lore-pick="${npcId}"]`), cid = pick ? Number(pick.value) : 0;
+  const say = (m, kind) => { if (typeof showToastNotification === 'function') showToastNotification(m, kind || 'default'); };
+  if (!cid) return say('Choose who is taught.', 'error');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/diplomacy/${npcId}/teach`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ citizen_id: cid }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { if (btn) btn.disabled = false; return say('⚠️ ' + (data.error || 'They could not be taught.'), 'error'); }
+    say(data.message || 'Taught.');
+    try { if (typeof refreshResources === 'function') refreshResources(); } catch (_) { /* not loaded */ }
+    // Draw the section again from what the server says now: taught, and when they will teach next.
+    const box = btn && btn.closest('.diplo-lore');
+    if (box && data.teaching) box.outerHTML = _teachingHtml(npcId, data.teaching);
+  } catch (e) { if (btn) btn.disabled = false; say('⚠️ Could not reach the server.', 'error'); }
 }
 
 // Allied: once a day the village sends a little of what it makes.

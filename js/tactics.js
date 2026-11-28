@@ -930,7 +930,7 @@
   // A citizen brings everything their class has taught them, and up to five
   // from a second school at three-quarters strength (marked `off`). The
   // action bar has a tab for each, so the row stays short on a phone.
-  const SCHOOLS = { basics: ['Basics', '🪵'], arms: ['Arms', '⚔️'], archery: ['Archery', '🏹'], wild: ['Wild magic', '🔮'], hearth: ['Hearth magic', '🔥'], field: ['Fieldcraft', '🧰'] };
+  const SCHOOLS = { basics: ['Basics', '🪵'], arms: ['Arms', '⚔️'], archery: ['Archery', '🏹'], wild: ['Wild magic', '🔮'], hearth: ['Hearth magic', '🔥'], field: ['Fieldcraft', '🧰'], lore: ['Village lore', '🏡'] };
   // The tabs of a unit: its own school (Basics and a trade's trick with it), then its second. One tab when it has no second.
   function tabsOf(u) {
     // The Attack has a button of its own (attackOf): it is in no tab.
@@ -954,7 +954,7 @@
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
       const lookAtk = attackOf(look);
       acts.innerHTML = `<div class="kwtc-kit">${lookAtk ? `<span class="kwtc-kit-a is-attack">${ico(lookAtk)} <b>Attack${lookAtk.star ? ' ✦' : ''}</b> ${esc(lookAtk.name)}: ${esc(effectText(lookAtk))} <i>${esc(reachText(lookAtk))}</i></span>` : ''}${tabsOf(look).map(t => (look.side === 'player' ? `<span class="kwtc-kit-s">${t.icon} ${esc(t.name)}${t.off ? ' · second school, three-quarters strength' : ''}</span>` : '')
-          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.signature ? ' ⚜' : ''}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
+          + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.signature ? ' ⚜' : ''}${a.lore ? ' 🏡' : ''}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
         + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
         + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '')
         + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '') + `</div>`
@@ -987,7 +987,7 @@
       const can = e.canUse(st, u, x), none = can.ok && !e.targetTiles(st, u, x).length;
       const why = !can.ok ? (can.why === 'cooldown' ? `ready in ${can.turns}` : can.why === 'spent' ? 'used up' : 'done') : none ? 'no one in reach' : '';
       return `<button type="button" class="kwtc-act${a === x ? ' is-on' : ''}${x.quick ? ' is-quick' : ''}${x.off ? ' is-off' : ''}" data-kwt="ability" data-key="${esc(x.key)}"${can.ok ? '' : ' disabled'} aria-pressed="${a === x}" title="${esc(x.desc || '')}">`
-        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}${x.signature ? ` <b class="kwtc-sig" title="Their family's signature${x.taught_by ? ': taught by ' + esc(x.taught_by) : ''}">⚜</b>` : ''}${x.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
+        + `<span class="kwtc-act-i" aria-hidden="true">${ico(x)}</span><span class="kwtc-act-n">${esc(x.name)}${x.signature ? ` <b class="kwtc-sig" title="Their family's signature${x.taught_by ? ': taught by ' + esc(x.taught_by) : ''}">⚜</b>` : ''}${x.lore ? ` <b class="kwtc-sig" title="Village lore${x.taught_by ? ': taught at ' + esc(x.taught_by) : ''}">🏡</b>` : ''}${x.star ? ' <b class="kwtc-star" title="Mastered: a fifth stronger">✦</b>' : ''}</span>`
         + `<span class="kwtc-act-t">${esc(why || effectText(x))}</span><span class="kwtc-act-r">${esc(reachText(x))}${x.quick ? ' · quick' : ''}${x.uses != null ? ` · ${x.uses - (u.used[x.key] || 0)} left` : ''}</span><kbd aria-hidden="true">${i + 1}</kbd></button>`;
     }).join('')
       // The next ability this citizen's class will teach, at the end of their own row: greyed, with the level that brings it.

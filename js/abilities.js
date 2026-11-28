@@ -65,7 +65,7 @@
     const words = [effect(a), reach(a), pace(a)].filter(Boolean).join(' · ');
     return `<li class="kwab-row${cls ? ' ' + cls : ''}" aria-label="${esc(a.name)}">`
       + `<span class="kwab-ico" aria-hidden="true">${icon(a)}</span>`
-      + `<span class="kwab-what"><b>${esc(a.name)}${a.signature ? ' <span class="kwab-sig" title="Their family\'s signature">⚜</span>' : ''}${a.star ? ' <span class="kwab-star" title="Mastered: a fifth stronger">✦</span>' : ''}</b>${a.signature ? `<span class="kwab-desc kwab-sig-by">A family signature${a.taught_by ? `, taught by ${esc(a.taught_by)}` : ''}: theirs for life, whatever work they take up.</span>` : ''}<span class="kwab-does">${esc(words)}</span>${a.desc ? `<span class="kwab-desc">${esc(a.desc)}</span>` : ''}${masteryHtml(a)}</span>`
+      + `<span class="kwab-what"><b>${esc(a.name)}${a.signature ? ' <span class="kwab-sig" title="Their family\'s signature">⚜</span>' : ''}${a.star ? ' <span class="kwab-star" title="Mastered: a fifth stronger">✦</span>' : ''}</b>${a.signature ? `<span class="kwab-desc kwab-sig-by">A family signature${a.taught_by ? `, taught by ${esc(a.taught_by)}` : ''}: theirs for life, whatever work they take up.</span>` : ''}${a.lore ? `<span class="kwab-desc kwab-sig-by">Village lore${a.taught_by ? `, taught at ${esc(a.taught_by)}` : ''}: theirs for life. An Allied village teaches it.</span>` : ''}<span class="kwab-does">${esc(words)}</span>${a.desc ? `<span class="kwab-desc">${esc(a.desc)}</span>` : ''}${masteryHtml(a)}</span>`
       + state + `</li>`;
   }
   // The second school: which other class to bring abilities from, and which of them (up to p.second.max).
@@ -157,7 +157,7 @@
       + `<ul class="kwab-list">${rowHtml(p.attack, `<span class="kwab-when is-on">Always</span>`, 'is-ready is-attack')}</ul>` : '';
     // Their own: everything here goes into every battle. An ability of another school (the plain blow of Basics, a trade's trick) says so.
     const own = `<h4 class="kwab-h">${esc(p.school.icon || '')} ${esc(p.school.name)} <span class="kwab-h-sub">${p.abilities.length} known: all of them go into battle</span></h4>`
-      + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.signature ? '⚜ Signature' : a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
+      + `<ul class="kwab-list">${p.abilities.map(a => rowHtml(a, `<span class="kwab-when is-on">${a.signature ? '⚜ Signature' : a.lore ? '🏡 Village lore' : a.school !== p.school.key && a.school_name ? esc(a.school_name) : '✓ Brought'}</span>`, 'is-ready')).join('')}</ul>`;
     const ahead = (p.ahead || []).length ? `<h4 class="kwab-h">Still to learn</h4><ul class="kwab-list">${p.ahead.map(a => rowHtml(a, `<span class="kwab-when">🔒 Level ${esc(a.at)}</span>`, 'is-locked')).join('')}</ul>` : '';
     return `<div class="kwab">${head}${gearHtml(p)}${attack}${own}${ahead}${passiveHtml(study)}${studyHtml(study)}${secondHtml(p, pick)}</div>`;
   }
