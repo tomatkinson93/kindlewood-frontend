@@ -45,8 +45,12 @@ console.log('2. Turns and moving');
   check('2b. a unit walks up to its Move in steps, no diagonals', Math.max(...far) === 3 && R.has(`${a.x},${a.y - 3}`) && !R.has(`${a.x},${a.y - 4}`) && R.get(`${a.x + 1},${a.y - 1}`).cost === 2);
   const ev = E.move(st, a.x, a.y - 2);
   check('2c. moving walks a path and turns the unit the way it went', ev && ev[0].type === 'move' && ev[0].path.length === 3 && a.face === 'n' && st.turn.moved);
-  check('2d. one move a turn', E.move(st, a.x, a.y - 1) === null);
-  check('2e. a move can be taken back until the unit does something else', E.undoMove(st) === true && !st.turn.moved && a.y === 6 && E.undoMove(st) === false);
+  // Two of its three steps are walked: one is left, and it may be walked now or after acting.
+  const Rleft = E.reach(st, a);
+  check('2d. a unit walks as far as its steps allow, in as many goes as it likes: one step is left, and no more', E.movesLeft(st) === 1 && Math.max(...[...Rleft.values()].map(n => n.cost)) === 1 && E.move(st, a.x, a.y - 2) === null
+    && !!E.move(st, a.x, a.y - 1) && a.y === 3 && E.movesLeft(st) === 0 && E.move(st, a.x, a.y - 1) === null);
+  check('2e. each walk can be taken back, the last first, until the unit does something else', E.canUndo(st) && E.undoMove(st) === true && a.y === 4 && E.movesLeft(st) === 1 && st.turn.moved && E.undoMove(st) === true && !st.turn.moved && a.y === 6 && E.movesLeft(st) === 3
+    && E.undoMove(st) === false && !E.canUndo(st));
   // Height, obstacles, friends and foes.
   const m = flat(); m.tiles[5 * 8 + 3] = { h: 2, t: 'grass' }; m.tiles[5 * 8 + 4] = { h: 0, t: 'water' }; m.tiles[6 * 8 + 2] = { h: 1, t: 'grass' };
   st = battle([man('a'), man('b')], [man('x')], m);
@@ -191,8 +195,8 @@ console.log('7. The screen');
 console.log('8. Facing, zoom, a phone on its side, art and sound');
 {
   const J = read('js/tactics.js'), CSS = read('css/tactics.css'), HTML = read('index.html');
-  check('8a. ending a turn asks which way to face: from the End turn button, and by itself once the move and the action are both used',
-    /else if \(k === 'end'\) askFacing\(\);/.test(J) && /st\.turn\.moved && st\.turn\.acted\) return askFacing\(\);/.test(J) && /const ev = E\(\)\.endTurn\(S\.state, face\);/.test(J));
+  check('8a. ending a turn asks which way to face: from the End turn button, and by itself once the action is used and there is no step left to take',
+    /else if \(k === 'end'\) askFacing\(\);/.test(J) && /st\.turn\.acted && !canWalk\(st\)\) return askFacing\(\);/.test(J) && /const ev = E\(\)\.endTurn\(S\.state, face\);/.test(J));
   check('8b. the way shown first is towards the nearest foe; the citizen turns to show the way chosen', /aimFace\(e\.facingFor\(S\.state, u\)\);/.test(J) && /S\.view\[u\.id\]\.face = dir;/.test(J));
   check('8c. four arrows on the board and four buttons below, set out as they point; one tap ends the turn that way', /function drawFaceArrows/.test(J) && /data-kwt="face" data-dir="\$\{d\}"/.test(J) && /if \(S\.mode === 'face'\) \{ const d = faceAt\(q\.x, q\.y\); if \(d\) \{ sfx\('confirm'\); endTurn\(d\); \} return; \}/.test(J)
     && /\.kwtc-faces \{ display: grid; grid-template-areas: "tl tr" "bl br";/.test(CSS));
@@ -657,7 +661,7 @@ console.log('18. Knowing and readying: the higher rungs, and the Abilities tab o
       && /Oak Staff<\/span> · <span class="kwtc-passive"/.test(gl({ gear: { weapon: { name: 'Oak Staff', icon: '🪄', says: 'x' } }, passive_info: { name: 'Focus', icon: '🔆', says: 'y' } })) && gl({}) === '' && /Passive: \$\{esc\(look\.passive_info\.says/.test(J));
     const EN2 = read('js/tactics-engine.js');
     check('18T. the rules: Brace takes a third off the first hit of a round; Counter strikes back once a round at half strength and never fells; both are ready again at the unit\'s turn', /BRACE: 2 \/ 3, COUNTER: 0\.5/.test(EN2)
-      && /const braced = t\.passive === 'brace' && !t\.braced;/.test(EN2) && /t\.passive === 'counter' && !t\.countered && foeOf\(u, t\) && Math\.abs\(u\.x - t\.x\) \+ Math\.abs\(u\.y - t\.y\) === 1/.test(EN2)
+      && /const braced = t\.passive === 'brace' && !t\.braced;/.test(EN2) && /\(\(t\.passive === 'counter' && !t\.countered\) \|\| t\.riposte\) && foeOf\(u, t\) && Math\.abs\(u\.x - t\.x\) \+ Math\.abs\(u\.y - t\.y\) === 1/.test(EN2)
       && /n = Math\.min\(c\.dmg, u\.hp - 1\)/.test(EN2) && /if \(u\.braced\) u\.braced = false;\n\s+if \(u\.countered\) u\.countered = false;/.test(EN2));
     check('18U. a counter and a braced hit are shown on the board', /ev\.type === 'counter'\) \{[^}]*float\(v, 'Counter!'/.test(J) && /if \(ev\.braced\) float\(v, 'Braced'/.test(J));
     check('18V. Dev Tools can finish every lesson being studied', /data-kwt-dev="study">📖 Finish studies now</.test(J) && /apiFetch\('\/api\/tactics\/admin\/study\/finish', \{ method: 'POST' \}\)/.test(J));
@@ -760,15 +764,56 @@ console.log('20. The board itself: ground, cover, the season, hiding, and placin
   check('20e. a battle may begin with placing: nobody\'s turn, the party\'s two rows, and one choice that begins it', p.status === 'placing' && E.current(p) === null && E.zone(p).length === 16 && E.apply(p, { t: 'end' }) === null
     && E.place(JSON.parse(JSON.stringify(p)), { a: [0, 0] }) === null && !!E.apply(p, { t: 'place', at: { a: [0, 7] } }) && p.status === 'active' && E.unit(p, 'a').x === 0 && E.unit(p, 'a').y === 7 && before.join() !== '0,7');
   // The screen.
-  check('20f. the season is on the title and colours the ground and the trees', /SEASON\[seasonOf\(\)\]\[1\]\} \$\{SEASON\[seasonOf\(\)\]\[0\]\}/.test(J) && /SEASON_GROUND\[season\]/.test(J) && /const blobs = TREE\[seasonOf\(\)\] \|\| TREE\.summer;/.test(J));
+  check('20f. the season is on the title and colours the ground and the trees', /\$\{placeOf\(\)\[1\]\} \$\{esc\(placeOf\(\)\[0\]\)\}/.test(J) && /const placeOf = \(\) => lairOf\(\) \|\| SEASON\[seasonOf\(\)\];/.test(J) && /SEASON_GROUND\[season\]/.test(J) && /const blobs = TREE\[seasonOf\(\)\] \|\| TREE\.summer;/.test(J));
   check('20g. every kind of ground the rules know is drawn and has its words', Object.keys(E.SLOW).concat(['ice']).every(k => new RegExp('\\b' + k + ':\\s+\\{ top:').test(J)) && ['tree', 'rock', 'water', 'shallows', 'mire', 'snow', 'ice', 'leaves'].every(k => new RegExp('\\b' + k + ': \\[\'').test(J)));
   check('20h. tapping ground says what it does, and so does "Walk here?"', /function groundNote\(x, y\)/.test(J) && /Walk here\?\$\{note \?/.test(J) && /Beside cover: a quarter less/.test(J));
   check('20i. a forecast and a hit both say when the target is in cover; a hidden unit is drawn half seen and its card says so', /l\.cover \? ', in cover \(−25%\)' : ''/.test(J) && /if \(ev\.cover\) float\(v, 'In cover'/.test(J) && /\* \(v\.hidden \? 0\.5 : 1\)/.test(J) && /🍂 Hidden<\/span>/.test(J) && /ev\.type === 'hide'/.test(J));
   check('20j. placing: tap one of yours then a tile, or two of yours to change places; the tiles allowed are tinted', /function placeTap\(x, y\)/.test(J) && /if \(!S\.demo && st\.status === 'placing'\) return placeTap\(x, y\);/.test(J) && /for \(const z of e\.zone\(st\)\) add\(z\.x, z\.y, TINT\.move\);/.test(J) && /change places/.test(J));
   check('20k. nothing is sent until Start, which is the battle\'s first choice and carries where everyone stands', /const at = placesOf\(st\), ev = e\.place\(st, \{\}\);/.test(J) && /send\(\{ t: 'place', at \}\);/.test(J) && /data-kwt="place-go"/.test(J) && /data-kwt="place-reset"/.test(J));
-  check('20l. a battle that begins with placing waits for it; put back by the server, it waits again', /if \(st\.status === 'placing'\) \{ S\.busy = false; S\.mode = 'idle'; S\.sel = null; paint\(\);/.test(J) && /if \(E\(\)\.over\(S\.state\)\) return finish\(\);/.test(J) && /season: setup\.season, place: setup\.place,/.test(J));
+  check('20l. a battle that begins with placing waits for it; put back by the server, it waits again', /if \(st\.status === 'placing'\) \{ S\.busy = false; S\.mode = 'idle'; S\.sel = null; paint\(\);/.test(J) && /if \(E\(\)\.over\(S\.state\)\) return finish\(\);/.test(J) && /season: setup\.season, w: setup\.w, h: setup\.h, lair: setup\.lair, place: setup\.place,/.test(J));
   check('20m. the placing panel lists the party, the season and the ground of this field', /class="kwtc-place"/.test(J) && /data-kwt="place-pick"/.test(J) && /class="kwtc-ground"/.test(J) && /\.kwtc-place-who \{/.test(CSS) && /\.kwtc-ground \{/.test(CSS));
   check('20n. Dev Tools can ask for a season', /sel\('season', o\.seasons/.test(J) && /season: p\.season \|\| undefined/.test(J));
+}
+
+console.log('21. Fields by land, walking in several goes, shots from above, and a lair and a trick for each boss');
+{
+  const J = read('js/tactics.js'), CSS = read('css/tactics.css');
+  // The rules (the server's scripts/tactics_lair_test.js proves them at length; here, that the browser's copy has them).
+  const stat = land => { let high = 0, trees = 0, n = 0, top = 0; for (let seed = 1; seed <= 60; seed++) { const z = E.sizeFor(seed, land), m = E.makeMap(seed, land, z.w, z.h); for (const t of m.tiles) { high += t.h; n++; top = Math.max(top, t.h); if (t.t === 'tree') trees += 64 / (m.w * m.h) / 60; } } return { mean: high / n, trees, top }; };
+  const P = stat('plains'), Fo = stat('forest'), M = stat('mountain');
+  check('21a. the plains are all but flat, a forest is thick with trees, and mountains tower', P.mean < 0.08 && Fo.trees >= 8 && Fo.trees > P.trees * 4 && M.mean > 1 && M.top === 4, `plains ${P.mean.toFixed(2)}, forest ${Fo.trees.toFixed(1)} trees, mountain ${M.mean.toFixed(2)}`);
+  const sizes = new Set(); for (const land of Object.keys(E.LANDS)) for (let seed = 1; seed <= 8; seed++) { const z = E.sizeFor(seed, land); sizes.add(z.w + 'x' + z.h); }
+  check('21b. fields come in different sizes, seven to ten tiles each way', sizes.size >= 6 && [...sizes].every(k => { const [w, h] = k.split('x').map(Number); return w >= 7 && w <= 10 && h >= 7 && h <= 10; }), [...sizes].sort().join(' '));
+  const lairs = Object.keys(E.LAIRS);
+  check('21c. seven lairs, each walkable from end to end, indoors, and only the Owl\'s Hollow dark', lairs.length === 7 && lairs.every(k => [1, 2].every(seed => { const m = E.makeLair(seed, k); return E.connected(m) && m.season === null && m.lair === k; })) && lairs.filter(k => E.makeLair(1, k).dark).join() === 'greyfeather');
+  // Walking in several goes, on the rules.
+  const st = battle([man('a', { move: 4 })], [man('x', { agility: 1 })]);
+  put(st, 'a', 3, 5); put(st, 'x', 3, 2, 's');
+  E.move(st, 3, 3);
+  const used = E.use(st, 'strike', 3, 2);
+  check('21d. walk, strike, and walk on with what is left', !!used && E.movesLeft(st) === 2 && !!E.move(st, 3, 5) && E.movesLeft(st) === 0 && E.unit(st, 'a').y === 5);
+  // The tricks, on the rules.
+  const bow = strike({ key: 'shoot', max: 5, dmg: 40 });
+  const up = { w: 6, h: 6, land: 'plains', tiles: Array.from({ length: 36 }, (_, i) => ({ h: i === 0 ? 3 : 0, t: 'grass' })) };
+  const h1 = battle([man('a')], [man('x', { agility: 1 })], up); put(h1, 'a', 0, 0); put(h1, 'x', 0, 3, 'n');
+  check('21e. a shot from three levels up does 45% more', E.hitOf(h1, E.unit(h1, 'a'), bow, E.unit(h1, 'x'), 1).dmg === 58 && E.hitOf(h1, E.unit(h1, 'a'), bow, E.unit(h1, 'x'), 1).above === 45);
+  const t1 = battle([man('a', { agility: 90 })], [man('x', { agility: 1, shell: 0.5, rises: 0.5, maxHp: 60 })]); put(t1, 'a', 3, 4); put(t1, 'x', 3, 3, 's');
+  const front = E.hitOf(t1, E.unit(t1, 'a'), strike({ dmg: 40 }), E.unit(t1, 'x'), 1);
+  E.unit(t1, 'a').abilities[0].dmg = 500;
+  const evR = E.use(t1, 'strike', 3, 3);
+  check('21f. a shell halves a blow to the front; one that rises stands again the first time it falls', front.shell && front.dmg === 20 && evR.some(e => e.type === 'rise') && !E.unit(t1, 'x').down && E.unit(t1, 'x').hp === 30);
+  const d1 = battle([man('a', { abilities: [bow] }), man('l', { light: true })], [man('x', { agility: 1 })]); d1.dark = 3; put(d1, 'a', 3, 7); put(d1, 'l', 0, 0); put(d1, 'x', 3, 2, 's');
+  const blind = E.touched(d1, E.unit(d1, 'a'), bow, 3, 2).length; put(d1, 'l', 4, 7);
+  check('21g. in the dark nobody aims past three tiles, unless a lantern is carried beside them', blind === 0 && E.touched(d1, E.unit(d1, 'a'), bow, 3, 2).length === 1);
+  // The screen.
+  check('21h. a citizen may walk again after acting: the tiles left are tinted, and tapping one walks there', /if \(S\.mode === 'idle' && e\.movesLeft\(st\) > 0 && !S\.info\)/.test(J) && /const node = e\.reach\(st, u\)\.get\(x \+ ',' \+ y\);/.test(J) && !/st\.turn\.moved \? null : e\.reach/.test(J));
+  check('21i. the hint counts the steps left; Undo takes back the last walk while it can be', /Blue tiles: \$\{left\} step\$\{left === 1 \? '' : 's'\} left to walk\./.test(J) && /\$\{e\.canUndo\(st\) \? `<button type="button" class="kw-btn quiet" data-kwt="undo">/.test(J));
+  check('21j. a lair is named in the title and has its own floor, props and dark behind it', /const lairOf = \(\) =>/.test(J) && /flag:\s+\{ top:/.test(J) && /earth:\s+\{ top:/.test(J) && /if \(t\.t === 'pillar'\)/.test(J) && /else if \(t\.t === 'root'\)/.test(J) && /SKY\[st\.dark \? 'dark' : st\.map\.lair \? 'lair' : 'open'\]/.test(J));
+  check('21k. the boss\'s trick is said before the fight, on its card, and in its list', /class="kwtc-ground-k is-trick"/.test(J) && /Its trick: \$\{esc\(look\.trick\.says/.test(J) && /tr \? `<span class="kwtc-passive" title="\$\{esc\(tr\.says/.test(J) && /\.kwtc-ground-k\.is-trick b, \.kwtc-kit-a\.is-trick b/.test(CSS));
+  check('21l. a forecast says how much a shot gains from above, and when a trick halves it or the foe will rise', /from above \(\+\$\{l\.above \|\| 15\}%\)/.test(J) && /from below her \(half\)/.test(J) && /on the shell \(half\)/.test(J) && /falls, and rises again/.test(J));
+  check('21m. the tricks are shown as they happen: rising, a boulder that stays, a citizen dragged', /ev\.type === 'rise'/.test(J) && /ev\.type === 'rubble'/.test(J) && /if \(ev\.pull\) \{ float\(v, 'Dragged!'/.test(J) && /else if \(k === 'pull'\) bits\.push\('drags them to it'\); else if \(k === 'rubble'\) bits\.push\('leaves a rock'\);/.test(J));
+  check('21n. in the dark the hint says why an ability reaches less, and a lantern\'s bearer is marked as a light', /It is dark: \$\{st\.dark\} tiles at most/.test(J) && /🏮 Light<\/span>/.test(J));
+  check('21o. the field is the size the battle was stored with, and its lair', /w: setup\.w, h: setup\.h, lair: setup\.lair, place: setup\.place/.test(J));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

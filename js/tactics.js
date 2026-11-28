@@ -47,7 +47,12 @@
     mire:     { top: ['#5f5238', '#665840', '#594c33'], left: '#463c28', right: '#3a3120' },
     snow:     { top: ['#eef3f6', '#e6edf2', '#f4f7f9'], left: '#b9c6cf', right: '#a3b2bd' },
     ice:      { top: ['#bfe0ee', '#c8e6f2', '#b6d9e9'], left: '#86b3c7', right: '#739fb3' },
+    // Indoors (a boss's lair): flagstones, and the trodden earth inside a hollow tree.
+    flag:     { top: ['#7d7b86', '#85838e', '#75737e'], left: '#56545e', right: '#47454e' },
+    earth:    { top: ['#6f5a40', '#776147', '#67533a'], left: '#4c3d2a', right: '#3f3222' },
   };
+  // What is behind the board: dusk over open country; in a lair, the dark of the place.
+  const SKY = { open: ['#31465c', '#3a3a36', '#1d150d'], lair: ['#15131c', '#1c1a22', '#0c0a0e'], dark: ['#07070c', '#0d0c14', '#040406'] };
   // The season the map was made for colours the open ground and the trees.
   const SEASON_GROUND = {
     spring: { grass: { top: ['#8cc060', '#94c767', '#85b95a'], left: '#628a40', right: '#527634' } },
@@ -74,12 +79,17 @@
   };
   const COVER_SAYS = 'cover: whoever stands beside one takes a quarter less from shots that come from its side';
   const KIND = {
-    tree: ['Tree', '🌳', COVER_SAYS], rock: ['Rock', '🪨', COVER_SAYS], water: ['Water', '💧', 'cannot be crossed'],
+    tree: ['Tree', '🌳', COVER_SAYS], rock: ['Rock', '🪨', COVER_SAYS], pillar: ['Pillar', '🏛️', COVER_SAYS], root: ['Root', '🪵', COVER_SAYS], water: ['Water', '💧', 'cannot be crossed'],
     shallows: ['Shallows', '🌊', 'two steps to wade into'], mire: ['Mire', '🟤', 'two steps to walk into'], snow: ['Deep snow', '❄️', 'two steps to walk into'],
     ice: ['Ice', '🧊', 'frozen hard: it walks as open ground'],
     leaves: ['Fallen leaves', '🍂', 'end a turn here without moving or striking and you are hidden: no foe further than one tile away can single you out'],
   };
   const seasonOf = () => (S.state && S.state.map && SEASON[S.state.map.season] ? S.state.map.season : 'summer');
+  // Where the battle is, in three parts: [name, icon, a line about it]. A boss's lair, or the season out of doors.
+  const lairOf = () => { const m = S.state && S.state.map, L = m && m.lair && E().LAIRS[m.lair]; return L ? [L.name, '🏰', L.says] : null; };
+  const placeOf = () => lairOf() || SEASON[seasonOf()];
+  // The boss on the board, if there is one with a trick.
+  const bossOf = () => (S.state ? S.state.units.find(u => u.side === 'enemy' && u.trick) : null) || null;
   // What the ground at a tile does, in a line; '' for open ground with nothing beside it.
   function groundNote(x, y) {
     const e = E(), m = S.state.map, t = e.tileAt(m, x, y);
@@ -183,7 +193,7 @@
     if (u && u.side === 'player' && S.mode === 'target' && S.ability) return e.targetTiles(st, u, e.ability(u, S.ability)).some(p => p.x === t.x && p.y === t.y);
     if (e.unitAt(st, t.x, t.y)) return true;
     if (!u || u.side !== 'player') return false;
-    const n = st.turn.moved ? null : e.reach(st, u).get(t.x + ',' + t.y);
+    const n = e.reach(st, u).get(t.x + ',' + t.y);
     return !!(n && n.stop && n.cost);
   }
   function tileAtPoint(px, py) {
@@ -316,7 +326,7 @@
   function drawTile(c, x, y, t, tint, tNow) {
     const k = G.scale, wet = t.t === 'water' || t.t === 'shallows', season = seasonOf();
     // A tree, a rock or fallen leaves stand on the land's own ground; the season colours it.
-    const kind = GROUND[t.t] ? t.t : ((E().LANDS[S.state.map.land] || {}).ground || 'grass');
+    const kind = GROUND[t.t] ? t.t : (S.state.map.ground || (E().LANDS[S.state.map.land] || {}).ground || 'grass');
     const g = (SEASON_GROUND[season] && SEASON_GROUND[season][kind]) || GROUND[kind];
     const p = tileXY(x, y, t.h - (t.t === 'water' ? 0.25 : t.t === 'shallows' ? 0.12 : t.t === 'ice' ? 0.1 : 0)), drop = (t.h + 0.9) * G.lift * k;
     // The two faces towards the viewer, down to the slab the board sits on.
@@ -350,7 +360,20 @@
   function drawProp(c, x, y, t) {
     const k = G.scale, p = tileXY(x, y, t.h), cx = p.x, cy = p.y + G.th / 2 * k;
     c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(cx, cy + 2 * k, 15 * k, 6 * k, 0, 0, 6.3); c.fill();
-    if (t.t === 'tree') {
+    if (t.t === 'pillar') {           // a stone column: base, shaft, cap
+      c.fillStyle = '#5d5b66'; c.fillRect(cx - 9 * k, cy - 4 * k, 18 * k, 7 * k);
+      c.fillStyle = '#8f8d98'; c.fillRect(cx - 6 * k, cy - 34 * k, 12 * k, 31 * k);
+      c.fillStyle = '#a9a7b2'; c.fillRect(cx - 6 * k, cy - 34 * k, 4 * k, 31 * k);
+      c.fillStyle = '#6f6d78'; c.fillRect(cx - 9 * k, cy - 39 * k, 18 * k, 6 * k);
+      c.strokeStyle = 'rgba(20,18,26,0.5)'; c.strokeRect(cx - 6 * k, cy - 34 * k, 12 * k, 31 * k);
+    } else if (t.t === 'root') {      // a great root, arched out of the earth
+      c.strokeStyle = '#4a3320'; c.lineWidth = 7 * k; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(cx - 13 * k, cy + 1 * k); c.quadraticCurveTo(cx - 4 * k, cy - 30 * k, cx + 4 * k, cy - 10 * k); c.quadraticCurveTo(cx + 8 * k, cy - 2 * k, cx + 13 * k, cy + 2 * k); c.stroke();
+      c.strokeStyle = '#6b4a2e'; c.lineWidth = 3 * k;
+      c.beginPath(); c.moveTo(cx - 12 * k, cy - 1 * k); c.quadraticCurveTo(cx - 4 * k, cy - 29 * k, cx + 3 * k, cy - 11 * k); c.stroke();
+      c.fillStyle = '#c9b458'; c.beginPath(); c.arc(cx + 9 * k, cy - 6 * k, 2.6 * k, 0, 6.3); c.fill();      // a toadstool's glow
+      c.lineWidth = 1; c.lineCap = 'butt';
+    } else if (t.t === 'tree') {
       c.fillStyle = '#6b4a2e'; c.fillRect(cx - 3 * k, cy - 16 * k, 6 * k, 18 * k);
       const blobs = TREE[seasonOf()] || TREE.summer;
       for (const [dx, dy, r, col] of blobs) { c.fillStyle = col; c.beginPath(); c.arc(cx + dx * k, cy + dy * k, r * k, 0, 6.3); c.fill(); }
@@ -511,7 +534,7 @@
       return out;
     }
     if (!u || u.side !== 'player' || S.busy || S.mode === 'face') return out;
-    if (S.mode === 'idle' && !st.turn.moved && !S.info) {
+    if (S.mode === 'idle' && e.movesLeft(st) > 0 && !S.info) {
       const R = e.reach(st, u);
       for (const n of R.values()) if (n.stop && n.cost) add(n.x, n.y, TINT.move);
       const aim = S.pick || (S.pointer === 'mouse' ? S.hover : null);
@@ -535,7 +558,8 @@
     const jolt = S.shake && t < S.shake && !still() ? (S.shake - t) / 180 : 0;
     // Behind the board: dusk above, dark earth below.
     const sky = c.createLinearGradient(0, 0, 0, G.h);
-    sky.addColorStop(0, '#31465c'); sky.addColorStop(0.55, '#3a3a36'); sky.addColorStop(1, '#1d150d');
+    const sk = SKY[st.dark ? 'dark' : st.map.lair ? 'lair' : 'open'];
+    sky.addColorStop(0, sk[0]); sky.addColorStop(0.55, sk[1]); sky.addColorStop(1, sk[2]);
     c.fillStyle = sky; c.fillRect(0, 0, G.w, G.h);
     if (jolt) c.translate(Math.sin(t / 14) * 3 * jolt * G.scale, Math.cos(t / 11) * 2 * jolt * G.scale);      // a heavy blow jolts the board
     const m = st.map, tint = tints(), k = G.scale;
@@ -549,7 +573,7 @@
         const cur = S.cursor && S.cursor.x === q.x && S.cursor.y === q.y, pick = S.pick && S.pick.x === q.x && S.pick.y === q.y;
         if (cur || pick) { c.strokeStyle = pick ? '#ffffff' : 'rgba(255,255,255,0.75)'; c.lineWidth = pick ? 2.5 : 1.5; diamond(c, { x: p.x, y: p.y + 1 }, k * 0.94); c.stroke(); }
       }
-      for (const q of row) { const tile = m.tiles[q.y * m.w + q.x]; if (tile.t === 'tree' || tile.t === 'rock') drawProp(c, q.x, q.y, tile); }
+      for (const q of row) { const tile = m.tiles[q.y * m.w + q.x]; if (E().COVER[tile.t]) drawProp(c, q.x, q.y, tile); }
       for (const v of units) if (Math.ceil(depth(v.x, v.y) - 0.01) === d) drawUnit(c, v, t);
     }
     drawFx(c, t);
@@ -896,6 +920,9 @@
         if (ev.blocked) float(v, 'blocked ' + ev.blocked, '#9fd0ff');
         if (ev.braced) float(v, 'Braced', '#9fd0ff');       // a passive: the first hit of the round does a third less
         if (ev.cover) float(v, 'In cover', '#bfe3a8');        // a tree or a rock on the side the shot came from
+        if (ev.above > 15) float(v, 'From above', '#ffd27a');
+        if (ev.aloft) float(v, 'Too high: half', '#9fd0ff');    // a boss's trick: a shot from below her
+        if (ev.shell) float(v, 'Shell: half', '#9fd0ff');       // a boss's trick: a blow to his front
         v.block = Math.max(0, (v.block || 0) - ev.blocked);
         say(`${name(ev.id)} takes ${ev.dmg}${ev.side === 'back' ? ', struck from behind' : ev.side === 'side' ? ', flanked' : ''}.`);
         await wait(360);
@@ -906,9 +933,11 @@
         fx({ bold: 'cheer', vulnerable: 'reticle', weak: 'droop', slow: 'ice', poison: 'bubbles', stun: 'stars' }[ev.name] || 'droop', v, 700);
         float(v, (STATUS[ev.name] || [ev.name])[0] + ' ' + ev.amount, '#fff3d6'); await wait(180);
       }
+      else if (ev.type === 'rise') { v.hp = ev.hp; v.st = {}; v.block = 0; fx('cheer', v, 900); S.shake = now() + 260; float(v, 'Rises again!', '#e0b0ff', true); say(`${name(ev.id)} rises again.`); sfx('down_friend'); await wait(520); }
+      else if (ev.type === 'rubble') { fx('dust', { x: ev.x, y: ev.y }, 520); say('The boulder stays where it fell.'); await wait(160); }
       else if (ev.type === 'hide') { v.hidden = true; float(v, 'Hidden', '#e0a83a', true); say(`${name(ev.id)} is hidden in the leaves.`); await wait(260); }
       else if (ev.type === 'show') { v.hidden = false; }
-      else if (ev.type === 'push') { v.hidden = false; if (!ev.step) sfx('push'); await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
+      else if (ev.type === 'push') { v.hidden = false; if (!ev.step) sfx('push'); if (ev.pull) { float(v, 'Dragged!', '#ffd27a', true); say(`${name(ev.id)} is dragged across the board.`); } await tween(v, { x: ev.to.x, y: ev.to.y }, 140); }
       else if (ev.type === 'poison') { v.hp = ev.hp; fx('bubbles', v, 700); float(v, '☠ −' + ev.amount, '#c8e070', true); await wait(300); }
       else if (ev.type === 'skip') { fx('stars', v, 900); float(v, 'Stunned', '#fff3d6'); say(`${name(ev.id)} is stunned and loses the turn.`); await wait(420); }
       else if (ev.type === 'down') {
@@ -932,7 +961,7 @@
   function shell() {
     const s = S.setup;
     return `<header class="kwtc-top">`
-      + `<div class="kwtc-title"><b>⚔ ${esc(s.name || 'A battle')}</b><span>${esc(s.skull || '')} ${esc(land(s.land))} · <span title="${esc(SEASON[seasonOf()][2])}">${SEASON[seasonOf()][1]} ${SEASON[seasonOf()][0]}</span> · seed ${esc(s.seed)} · practice field</span></div>`
+      + `<div class="kwtc-title"><b>⚔ ${esc(s.name || 'A battle')}</b><span>${esc(s.skull || '')} ${esc(land(s.land))} · <span title="${esc(placeOf()[2])}">${placeOf()[1]} ${esc(placeOf()[0])}</span> · seed ${esc(s.seed)} · practice field</span></div>`
       + `<div class="kwtc-order" aria-label="Who acts next"></div>`
       + `<button type="button" class="kw-btn quiet kwtc-x" data-kwt="close" aria-label="Leave the battle">✕</button></header>`
       + `<div class="kwtc-board"><canvas class="kwtc-canvas" tabindex="0" aria-label="The battlefield. Arrow keys move the cursor, Enter chooses, Escape cancels."></canvas>`
@@ -960,6 +989,7 @@
     if (a.heal) bits.push('heal ' + a.heal);
     for (const k of Object.keys(a.fx || {})) {
       if (k === 'push') bits.push('pushes back'); else if (k === 'step') bits.push('steps back'); else if (k === 'bold') bits.push('next attack +' + a.fx[k]);
+      else if (k === 'pull') bits.push('drags them to it'); else if (k === 'rubble') bits.push('leaves a rock');
       else bits.push((STATUS[k] || [k])[0].toLowerCase() + ' ' + a.fx[k]);
     }
     if (a.shape === 'line') bits.push('down the line'); if (a.shape === 'burst') bits.push(a.radius > 1 ? `and all within ${a.radius} of them` : 'and those beside');
@@ -976,7 +1006,9 @@
   }
   // The line under a citizen's facts: what they hold, and the passive they carry (the server's lib/tactics_study.js).
   function gearLine(u) {
-    const p = u && u.passive_info, parts = [gearBits(u), p ? `<span class="kwtc-passive" title="${esc(p.says || '')}">${esc(p.icon || '')} ${esc(p.name)}</span>` : ''].filter(Boolean);
+    const p = u && u.passive_info, tr = u && u.trick;
+    const parts = [gearBits(u), p ? `<span class="kwtc-passive" title="${esc(p.says || '')}">${esc(p.icon || '')} ${esc(p.name)}</span>` : '', tr ? `<span class="kwtc-passive" title="${esc(tr.says || '')}">${esc(tr.icon || '')} ${esc(tr.name)}</span>` : '',
+      u && u.light ? '<span class="kwtc-passive" title="Lights the way in a dark place, for them and whoever stands beside them">🏮 Light</span>' : ''].filter(Boolean);
     return parts.length ? `<div class="kwtc-card-gear">${parts.join(' · ')}</div>` : '';
   }
   function unitCard(u, v) {
@@ -990,10 +1022,10 @@
     if (!lines.length) return '';
     return `<div class="kwtc-fore">` + lines.map(l => {
       const bits = [];
-      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ` from behind (+${Math.round(((a.back || 1.5) - 1) * 100)}%)` : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? ', from above (+15%)' : ''}${l.cover ? ', in cover (−25%)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : ''}`);
+      if (a.dmg) bits.push(`<b>${l.dmg} damage</b>${l.side === 'back' ? ` from behind (+${Math.round(((a.back || 1.5) - 1) * 100)}%)` : l.side === 'side' ? ' on the flank (+25%)' : ''}${l.high ? `, from above (+${l.above || 15}%)` : ''}${l.cover ? ', in cover (−25%)' : ''}${l.aloft ? ', from below her (half)' : ''}${l.shell ? ', on the shell (half)' : ''}${l.blocked ? `, ${l.blocked} blocked` : ''}${l.kill ? ' — <b>down</b>' : l.rises ? ' — <b>falls, and rises again</b>' : ''}`);
       if (l.block) bits.push(`<b>${l.block} block</b>`);
       if (l.heal != null) bits.push(l.raise ? `<b>stands back up with ${l.heal}</b>` : `<b>heals ${l.heal}</b>`);
-      for (const k of Object.keys(l.fx)) bits.push(k === 'push' ? 'pushed back' : k === 'bold' ? `next attack +${l.fx[k]}` : `${(STATUS[k] || [k])[0].toLowerCase()} ${l.fx[k]}`);
+      for (const k of Object.keys(l.fx)) bits.push(k === 'push' ? 'pushed back' : k === 'pull' ? 'dragged to it' : k === 'bold' ? `next attack +${l.fx[k]}` : `${(STATUS[k] || [k])[0].toLowerCase()} ${l.fx[k]}`);
       return `<div>${esc(l.name)}: ${bits.join(', ')}</div>`;
     }).join('') + `</div>`;
   }
@@ -1021,9 +1053,9 @@
     const placing = st.status === 'placing';
     if (!u && !placing) { who.innerHTML = ''; acts.innerHTML = ''; hint.textContent = ''; return; }
     const look = S.info && !S.info.down ? S.info : (u || (S.sel && e.unit(st, S.sel)) || null);
-    const sea = SEASON[seasonOf()];
+    const sea = placeOf();
     who.innerHTML = look ? unitCard(look, S.view[look.id])
-      : `<div class="kwtc-card is-player"><div class="kwtc-card-name"><b>Place your party</b> <span>${sea[1]} ${sea[0]}</span></div><div class="kwtc-card-facts">${esc(sea[2])}</div></div>`;
+      : `<div class="kwtc-card is-player"><div class="kwtc-card-name"><b>Place your party</b> <span>${sea[1]} ${esc(sea[0])}</span></div><div class="kwtc-card-facts">${esc(sea[2])}</div></div>`;
     if (S.info && S.info !== u) {
       // Everything they brought, school by school; the second school's are marked as working at three-quarters.
       const lookAtk = attackOf(look);
@@ -1031,7 +1063,8 @@
           + t.list.map(a => `<span class="kwtc-kit-a${a.off ? ' is-off' : ''}">${ico(a)} <b>${esc(a.name)}${a.signature ? ' ⚜' : ''}${a.lore ? ' 🏡' : ''}${a.star ? ' ✦' : ''}</b> ${esc(effectText(a))} <i>${esc(reachText(a))}</i></span>`).join('')).join('')}`
         + (look.next ? `<span class="kwtc-kit-a is-locked">🔒 <b>${esc(look.next.name)}</b> <i>at level ${look.next.at}</i></span>` : '')
         + (look.gear ? [look.gear.weapon, look.gear.shield].filter(x => x && x.says).map(x => `<span class="kwtc-kit-a is-gear">${esc(x.icon || '')} <b>${esc(x.name)}</b> <i>${esc(x.says)}</i></span>`).join('') : '')
-        + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '') + `</div>`
+        + (look.passive_info ? `<span class="kwtc-kit-a is-gear">${esc(look.passive_info.icon || '')} <b>${esc(look.passive_info.name)}</b> <i>Passive: ${esc(look.passive_info.says || '')}</i></span>` : '')
+        + (look.trick ? `<span class="kwtc-kit-a is-gear is-trick">${esc(look.trick.icon || '')} <b>${esc(look.trick.name)}</b> <i>Its trick: ${esc(look.trick.says || '')}</i></span>` : '') + `</div>`
         + `<button type="button" class="kw-btn quiet" data-kwt="back">Back</button>`;
       hint.textContent = look.side === 'enemy' ? 'The red tiles are where it can walk this turn.' : '';
       return;
@@ -1043,8 +1076,8 @@
       const cover = Object.keys(e.COVER).filter(has), coverLine = cover.length ? `<span class="kwtc-ground-k">${cover.map(k => `${KIND[k][1]} <b>${esc(KIND[k][0])}</b>`).join(', ')} ${esc(COVER_SAYS)}</span>` : '';
       acts.innerHTML = `<div class="kwtc-place" role="group" aria-label="Your party">` + st.units.filter(o => o.side === 'player').map(o =>
           `<button type="button" class="kwtc-place-who${sel === o ? ' is-on' : ''}" data-kwt="place-pick" data-id="${esc(o.id)}" aria-pressed="${sel === o}"><span class="kwtc-dot" style="--kwtc-class:${CLASS_COLOUR[o.cls] || CLASS_COLOUR.villager}"></span>${esc(o.name)}${o.down ? ' <i>(down)</i>' : ''}</button>`).join('') + `</div>`
-        + `<div class="kwtc-ground">` + coverLine + kinds.map(k => `<span class="kwtc-ground-k">${KIND[k][1]} <b>${esc(KIND[k][0])}</b> ${esc(KIND[k][2])}</span>`).join('')
-        + `<span class="kwtc-ground-k">⛰ <b>High ground</b> a hit from above does 15% more, and a shot reaches further</span></div>`
+        + `<div class="kwtc-ground">` + (bossOf() ? `<span class="kwtc-ground-k is-trick">${esc(bossOf().trick.icon || '')} <b>${esc(bossOf().name)}: ${esc(bossOf().trick.name)}</b> ${esc(bossOf().trick.says)}</span>` : '') + coverLine + kinds.map(k => `<span class="kwtc-ground-k">${KIND[k][1]} <b>${esc(KIND[k][0])}</b> ${esc(KIND[k][2])}</span>`).join('')
+        + `<span class="kwtc-ground-k">⛰ <b>High ground</b> a blow from above does 15% more; a shot 15% more for each level, and it reaches further</span></div>`
         + `<div class="kwtc-turn"><button type="button" class="kw-btn quiet" data-kwt="place-reset"${S.busy ? ' disabled' : ''}>↶ As suggested</button><button type="button" class="kw-btn primary" data-kwt="place-go"${S.busy ? ' disabled' : ''}>⚔ Start the battle</button></div>`;
       hint.innerHTML = sel ? `<div><b>${esc(sel.name)}</b>: tap a blue tile to stand there, or another of your party to change places with them.</div>`
         : `<div><b>Place your party.</b> Tap one of yours, then a blue tile. The foes stand where they will start: tap one to see what it can do.</div>`;
@@ -1081,14 +1114,15 @@
       // The next ability this citizen's class will teach, at the end of their own row: greyed, with the level that brings it.
       + (u.next && !tab.off ? [u.next] : []).map(x => `<div class="kwtc-act is-locked" aria-label="${esc(x.name)}: learned at ${esc(u.label || 'class')} level ${x.at}">`
         + `<span class="kwtc-act-i" aria-hidden="true">🔒</span><span class="kwtc-act-n">${esc(x.name)}</span><span class="kwtc-act-t">learned at level ${x.at}</span><span class="kwtc-act-r">${esc(u.label || '')} level ${u.class_level || 1} now</span></div>`).join('')
-      + `<div class="kwtc-turn">${st.turn.moved && !st.turn.acted && !st.turn.quick ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
+      + `<div class="kwtc-turn">${e.canUndo(st) ? `<button type="button" class="kw-btn quiet" data-kwt="undo">↶ Undo move</button>` : ''}`
       + (a || S.pick ? `<button type="button" class="kw-btn quiet" data-kwt="cancel">Cancel</button>`
         : `<button type="button" class="kw-btn quiet" data-kwt="auto" title="The party fights the rest of the battle by itself">Let them fight</button>`)
       + `<button type="button" class="kw-btn" data-kwt="end">End turn</button></div>`;
     // One steady line of guidance. What an action would do, and the buttons that confirm it, float over
     // the board (paintAsk), so this panel keeps its height and the board never jumps.
-    hint.innerHTML = a ? `<div><b>${esc(a.name)}</b>: ${esc(a.desc || effectText(a))} ${a.target === 'self' || a.shape === 'around' ? 'Confirm to use it.' : 'Choose a marked target.'}</div>`
-      : `<div>${esc(u.name)}'s turn. ${st.turn.moved ? '' : 'Blue tiles: where to walk. '}${st.turn.acted ? 'The action is used.' : 'Choose an action below.'}</div>`;
+    const dim = a && st.dark && (a.max || 0) > st.dark && !e.lit(st, u, u);
+    hint.innerHTML = a ? `<div><b>${esc(a.name)}</b>: ${esc(a.desc || effectText(a))} ${a.target === 'self' || a.shape === 'around' ? 'Confirm to use it.' : 'Choose a marked target.'}${dim ? ` <i class="kwtc-ground-note">🌙 It is dark: ${st.dark} tiles at most, unless a lantern is carried beside them.</i>` : ''}</div>`
+      : `<div>${esc(u.name)}'s turn. ${stepsText(st)} ${st.turn.acted ? 'The action is used.' : 'Choose an action below.'}</div>`;
   }
   // What the chosen action would do to whoever is under the pointer (or was tapped), with Confirm on a
   // touch screen; or "Walk here?". Drawn over the top of the board; redrawn only when it changes.
@@ -1122,12 +1156,21 @@
   }
   function paint() { paintTop(); paintPanel(); paintAsk(); }
 
+  // A citizen walks as far as their steps allow, in as many goes as they like: before acting, after, or both.
+  const canWalk = st => { const e = E(), u = e.current(st); return !!u && e.movesLeft(st) > 0 && [...e.reach(st, u).values()].some(n => n.stop && n.cost); };
+  function stepsText(st) {
+    const e = E(), u = e.current(st), left = e.movesLeft(st), all = u ? e.moveOf(u) : 0;
+    if (!canWalk(st)) return st.turn.moved ? 'No steps left.' : '';
+    return left === all ? 'Blue tiles: where to walk.' : `Blue tiles: ${left} step${left === 1 ? '' : 's'} left to walk.`;
+  }
+
   // ── Taking a turn ─────────────────────────────────────────────────────────
   async function afterAction() {
     const e = E(), st = S.state;
     if (st.status !== 'active') return finish();
     const u = e.current(st);
-    if (u && u.side === 'player' && st.turn.moved && st.turn.acted) return askFacing();
+    // Nothing left to do (no step to take and the action used): the turn is ending, so ask which way to face.
+    if (u && u.side === 'player' && st.turn.acted && !canWalk(st)) return askFacing();
     paint();
   }
   // The turn is ending: ask which way to look. The way shown first is towards the nearest foe.
@@ -1323,7 +1366,7 @@
     const there = e.unitAt(st, x, y);
     if (there && there !== u) { S.info = S.info === there ? null : there; S.pick = null; return paint(); }
     S.info = null;
-    const node = st.turn.moved ? null : e.reach(st, u).get(x + ',' + y);
+    const node = e.reach(st, u).get(x + ',' + y);
     if (node && node.stop && node.cost) {
       if (same || viaMouse) return void doMove(x, y);
       S.pick = { x, y };
@@ -1559,7 +1602,7 @@
     S.setup = setup; S.view = {}; S.floats = []; S.fx = []; S.cast = null; S.shake = 0; S.rot = 0; G.zoom = 1; G.px = 0; G.py = 0; S.faceAim = null; S.mode = 'idle'; S.ability = null; S.pick = null; S.info = null; S.hover = null; S.busy = false; S.ended = 0; S.round = 1;
     // A battle picked up again is played back to where it was; a new one starts with the creatures yet to move.
     const done = Array.isArray(setup.actions) ? setup.actions : [];
-    S.state = done.length ? e.replay(setup, done).state : e.createBattle({ seed: setup.seed, land: setup.land, season: setup.season, place: setup.place, party: setup.party, enemies: setup.enemies });
+    S.state = done.length ? e.replay(setup, done).state : e.createBattle({ seed: setup.seed, land: setup.land, season: setup.season, w: setup.w, h: setup.h, lair: setup.lair, place: setup.place, party: setup.party, enemies: setup.enemies });
     S.sel = null; S.placeFrom = placesOf(S.state);
     S.battle = { id: setup.battle_id || null, n: done.length, saved: done.length, status: 'active', queue: Promise.resolve() };
     S.epoch = (S.epoch || 0) + 1;
@@ -1593,7 +1636,7 @@
       else if (k === 'ability') choose(b.getAttribute('data-key'));
       else if (k === 'school') { const cur = E().current(S.state); if (cur) { S.tab[cur.id] = b.getAttribute('data-school'); sfx('select'); paintPanel(); } }
       else if (k === 'end') askFacing();
-      else if (k === 'undo') { if (E().undoMove(S.state)) { send({ t: 'undo' }); syncView(); S.pick = null; paint(); } }
+      else if (k === 'undo') { if (E().undoMove(S.state)) { send({ t: 'undo' }); syncView(); S.pick = null; S.mode = 'idle'; S.faceAim = null; paint(); } }
       else if (k === 'auto') autoFinish();
       else if (k === 'confirm') { sfx('confirm'); commit(); }
       else if (k === 'cancel' || k === 'back') cancel();
@@ -1993,6 +2036,6 @@
     // For the Abilities page on a citizen (js/abilities.js): the same pictures and words as the battle's own row.
     loadAssets, icon: ico, effectText, reachText,
     _devHtml: devHtml, _effectText: effectText, _reachText: reachText, _layout: layout, _begin: begin, _forecastHtml: forecastHtml, CLASS_COLOUR,
-    _placeTap: placeTap, _placePick: placePick, _placeGo: placeGo, _placeReset: placeReset, _groundNote: groundNote, _SEASON: SEASON, _KIND: KIND,
+    _canWalk: canWalk, _stepsText: stepsText, _placeOf: placeOf, _bossOf: bossOf, _placeTap: placeTap, _placePick: placePick, _placeGo: placeGo, _placeReset: placeReset, _groundNote: groundNote, _SEASON: SEASON, _KIND: KIND,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

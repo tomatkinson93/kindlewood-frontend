@@ -192,6 +192,9 @@
 .kwtc-ground { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--kw-s-1) var(--kw-s-3); font-size: var(--kw-fs-1); color: var(--kw-muted); }
 .kwtc-ground-k b { color: var(--kw-cream); }
 .kwtc-ground-note { font-style: normal; color: var(--kw-muted); }
+/* A boss's trick: first in the list of what this field does, and on the boss's own list. */
+.kwtc-ground-k.is-trick { flex: 1 1 100%; }
+.kwtc-ground-k.is-trick b, .kwtc-kit-a.is-trick b { color: var(--kw-gold); }
 /* An ability from the second school: it works at three-quarters strength. */
 .kwtc-act.is-off { border-color: var(--kw-gold-dim); }
 .kwtc-kit-s { flex: 1 1 100%; color: var(--kw-gold); font-size: var(--kw-fs-2); }
